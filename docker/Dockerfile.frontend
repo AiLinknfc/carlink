@@ -1,0 +1,44 @@
+# =====================================
+# CarLink Frontend — Dockerfile
+# Target: Railway / AWS ECS / K8s
+# =====================================
+
+FROM node:24-alpine AS deps
+
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable && pnpm install --frozen-lockfile || npm install
+
+# ------------ Builder ------------
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build
+
+# ------------ Runtime (standalone) ------------
+FROM node:24-alpine AS runtime
+
+WORKDIR /app
+
+RUN addgroup -S carlink && adduser -S carlink -G carlink
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=builder --chown=carlink:carlink /app/.next/standalone ./
+COPY --from=builder --chown=carlink:carlink /app/.next/static ./.next/static
+COPY --from=builder --chown=carlink:carlink /app/public ./public
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+USER carlink
+
+CMD ["node", "server.js"]
