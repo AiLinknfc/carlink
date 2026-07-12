@@ -71,7 +71,10 @@ async def create_vehicle(
         logger.info(f"Profile ensured for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to ensure profile for user {user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Profile creation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo crear el perfil. Verifica tu conexión e intenta de nuevo.",
+        )
 
     existing = await db.execute(
         select(Vehicle).where(Vehicle.owner_id == uid, Vehicle.plate == body.plate.upper())

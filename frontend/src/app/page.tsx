@@ -5,6 +5,7 @@ import { useAuth } from '@/store/auth'
 import { CITIES } from '@/lib/constants'
 import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
+import { formatPlate, parsePlate } from '@/lib/plate'
 
 const PLATE_TYPES = [
   { id: 'particular', name: 'Particular', tag: '' },
@@ -55,7 +56,7 @@ export default function LandingPage() {
 
   const ps = PLATE_STYLE[type]
   const pc = PLATE_CONFIG[type]
-  const plateText = `${plateLetters} ${plateNumbers}`
+  const plateText = formatPlate(plateLetters, plateNumbers)
 
   const types = useMemo(() => PLATE_TYPES.map(t => {
     const active = type === t.id
@@ -107,7 +108,7 @@ export default function LandingPage() {
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: 30, height: 30, borderRadius: 8, background: '#F5C518', color: '#111',
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h11l-2-3 6 5-6 5 2-3H3z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v5.6M12 15.2v5.6M3.2 12h5.6M15.2 12h5.6"/></svg>
           </span>
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
         </div>
@@ -161,14 +162,14 @@ export default function LandingPage() {
                 <label style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700 }}>
                   Número de placa
                 </label>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
                 <input value={plateLetters} onChange={handleLetters}
                   maxLength={pc.letterLen} placeholder="ABC"
-                  style={{ width: 56, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0' }} />
-                <span style={{ color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, lineHeight: 1, opacity: 0.5 }}>-</span>
+                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'right' }} />
+                <span style={{ color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, lineHeight: 1, opacity: 0.5, padding: '0 6px' }}>-</span>
                 <input value={plateNumbers} onChange={handleNumbers}
                   maxLength={pc.numLen} placeholder="123"
-                  style={{ width: 56, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', outline: 'none', padding: '2px 0' }} />
+                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', outline: 'none', padding: '2px 0', textAlign: 'left' }} />
               </div>
               </div>
 

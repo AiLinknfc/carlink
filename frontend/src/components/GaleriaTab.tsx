@@ -52,7 +52,7 @@ function EditableCaption({
 
   if (saving) {
     return (
-      <span style={{ color: '#7c786e', fontSize: 12, fontStyle: 'italic' }}>
+      <span style={{ color: 'var(--text-3)', fontSize: 12, fontStyle: 'italic' }}>
         guardando…
       </span>
     )
@@ -126,14 +126,14 @@ function GalleryCard({
       style={{
         borderRadius: 18,
         overflow: 'hidden',
-        background: '#141414',
-        border: `1px solid ${image ? 'rgba(245,197,24,0.22)' : 'rgba(255,255,255,0.08)'}`,
+        background: 'var(--surface)',
+        border: `1px solid ${image ? 'rgba(245,197,24,0.22)' : 'var(--border)'}`,
         transition: 'border-color .18s',
         display: 'flex',
         flexDirection: 'column',
       }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = image ? 'rgba(245,197,24,0.22)' : 'rgba(255,255,255,0.08)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = image ? 'rgba(245,197,24,0.22)' : 'var(--border)' }}
     >
       <label
         style={{
@@ -195,7 +195,7 @@ function GalleryCard({
                 backdropFilter: 'blur(4px)',
               }}
             >
-              ✕
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </>
         ) : (
@@ -204,7 +204,7 @@ function GalleryCard({
               width: '100%', height: '100%',
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              gap: 8, color: '#7c786e', fontSize: 12, fontWeight: 600,
+              gap: 8, color: 'var(--text-3)', fontSize: 12, fontWeight: 600,
             }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -236,7 +236,7 @@ function GalleryCard({
             />
           </div>
         ) : (
-          <span style={{ fontSize: 13, color: '#b6b2a6' }}>{caption}</span>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{caption}</span>
         )}
         {/* Touch target: lightbox button always visible on mobile */}
         {image && (
@@ -361,7 +361,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
               border: '1px solid rgba(245,197,24,0.3)',
             }}
           />
-          <div style={{ marginTop: 12, fontSize: 14, color: '#b6b2a6' }}>
+          <div style={{ marginTop: 12, fontSize: 14, color: 'var(--text-2)' }}>
             {lightbox.caption}
           </div>
           <button onClick={() => setLightbox(null)} style={{
@@ -386,7 +386,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
         }}>
           Galería del vehículo
         </h1>
-        <p style={{ color: '#b6b2a6', margin: 0 }}>
+        <p style={{ color: 'var(--text-2)', margin: 0 }}>
           Toca cada espacio para subir fotos. Toca el título de la foto para editarlo.
         </p>
       </div>
@@ -414,16 +414,16 @@ export default function GaleriaTab({ vehicleId }: Props) {
       <button onClick={addExtraSlot}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '12px 20px', borderRadius: 999,
-          border: '1px solid rgba(245,197,24,0.3)',
-          background: 'rgba(245,197,24,0.06)', color: '#F5C518',
-          fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          padding: '12px 20px', borderRadius: 12,
+          border: 'none', background: '#F5C518', color: '#111',
+          fontWeight: 800, fontSize: 13, cursor: 'pointer',
           marginBottom: 16, transition: 'all .16s',
-          minHeight: 44,
+          boxShadow: '0 0 20px rgba(245,197,24,0.35)',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.06)'; e.currentTarget.style.color = '#F5C518' }}>
-        + Agregar espacio
+        onMouseEnter={e => { e.currentTarget.style.background = '#e6b300' }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar espacio
       </button>
 
       {/* Gallery grid */}
@@ -453,7 +453,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
       </div>
 
       {!loading && images.length === 0 && extraSlots.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 40, color: '#7c786e', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
           Aún no hay fotos. Usa el botón &quot;+ Agregar espacio&quot; para empezar.
         </div>
       )}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { CITIES } from '@/lib/constants'
 import { supabase, apiUrl } from '@/lib/supabase'
+import { formatPlate, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
 
 const BRANDS = [
   'Chevrolet', 'Renault', 'Mazda', 'Toyota', 'Nissan', 'Kia', 'Hyundai',
@@ -28,10 +29,11 @@ export default function RegisterPage() {
   /* mode: persona (vehicle owner) or empresa (workshop) */
   const [mode, setMode] = useState<'persona' | 'empresa'>('persona')
 
-  /* Persona fields */
+/* Persona fields */
   const [brand, setBrand] = useState('')
   const [regName, setRegName] = useState('')
-  const [regPlate, setRegPlate] = useState('')
+  const [regPlateLetters, setRegPlateLetters] = useState('')
+  const [regPlateNumbers, setRegPlateNumbers] = useState('')
   const [regCity, setRegCity] = useState('Bogotá')
   const [regModel, setRegModel] = useState('')
   const [regYear, setRegYear] = useState(new Date().getFullYear())
@@ -46,7 +48,8 @@ export default function RegisterPage() {
   const [wsPhone, setWsPhone] = useState('')
   const [wsDescription, setWsDescription] = useState('')
   const [wsHasVehicle, setWsHasVehicle] = useState(false)
-  const [wsPlate, setWsPlate] = useState('')
+  const [wsPlateLetters, setWsPlateLetters] = useState('')
+  const [wsPlateNumbers, setWsPlateNumbers] = useState('')
   const [wsBrand, setWsBrand] = useState('')
   const [wsModel, setWsModel] = useState('')
   const [wsYear, setWsYear] = useState(new Date().getFullYear())
@@ -56,11 +59,21 @@ export default function RegisterPage() {
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
+  const regPlate = formatPlate(regPlateLetters, regPlateNumbers)
+  const wsPlate = formatPlate(wsPlateLetters, wsPlateNumbers)
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedPlate = sessionStorage.getItem('carlink_plate')
       const savedCity = sessionStorage.getItem('carlink_city')
-      if (savedPlate) { setRegPlate(savedPlate); sessionStorage.removeItem('carlink_plate') }
+      if (savedPlate) {
+        const parsed = savedPlate.match(/^([A-Z]{3})-?(\d{3})$/i)
+        if (parsed) {
+          setRegPlateLetters(parsed[1])
+          setRegPlateNumbers(parsed[2])
+        }
+        sessionStorage.removeItem('carlink_plate')
+      }
       if (savedCity) { setRegCity(savedCity); sessionStorage.removeItem('carlink_city') }
     }
   }, [])
@@ -104,7 +117,8 @@ export default function RegisterPage() {
   /* ── Persona registration ── */
   const doRegisterPersona = async () => {
     setErrorMsg('')
-    if (!regPlate || !brand || !regModel || !regName) {
+    const plate = `${regPlateLetters.toUpperCase()}-${regPlateNumbers}`
+    if (!plate || !brand || !regModel || !regName) {
       setErrorMsg('Completa todos los campos obligatorios')
       return
     }
@@ -115,7 +129,7 @@ export default function RegisterPage() {
       const res = await fetch(apiUrl('/vehicles'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plate: regPlate.toUpperCase(), city: regCity, brand, model: regModel, year: regYear, type: regType, color: regColor }),
+        body: JSON.stringify({ plate, city: regCity, brand, model: regModel, year: regYear, type: regType, color: regColor }),
       })
       if (res.ok) { window.location.href = '/app'; return }
       const body = await res.text()
@@ -195,8 +209,11 @@ export default function RegisterPage() {
                 background: mode === m ? 'rgba(245,197,24,0.12)' : 'rgba(255,255,255,0.03)',
                 color: mode === m ? '#F5C518' : '#b6b2a6',
                 fontWeight: 700, fontSize: 14, transition: 'all .15s',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
               }}>
-              {m === 'persona' ? '👤 Persona' : '🔧 Empresa (Taller)'}
+              {m === 'persona'
+                ? <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Persona</>
+                : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.3-.6-.6-2.3z"/></svg>Empresa (Taller)</>}
             </button>
           ))}
         </div>
@@ -254,8 +271,13 @@ export default function RegisterPage() {
               <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Placa *</label>
-                  <input value={regPlate} onChange={e => setRegPlate(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC 123"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.03em', outline: 'none' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                    <input value={regPlateLetters} onChange={e => setRegPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.03em', outline: 'none' }} />
+                    <span style={{ padding: '0 8px', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20 }}> - </span>
+                    <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.03em', outline: 'none' }} />
+                  </div>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Ciudad de expedición</label>
@@ -321,8 +343,13 @@ export default function RegisterPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
                         <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>
-                        <input value={wsPlate} onChange={e => setWsPlate(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC 123"
-                          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                          <input value={wsPlateLetters} onChange={e => setWsPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                          <span style={{ padding: '0 8px', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 18 }}> - </span>
+                          <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                        </div>
                       </div>
                       <div>
                         <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Modelo</label>

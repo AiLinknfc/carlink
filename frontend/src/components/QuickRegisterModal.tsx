@@ -150,7 +150,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
       }}>
         <div onClick={e => e.stopPropagation()} style={{
           width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto',
-          background: '#141414', border: '1px solid rgba(245,197,24,0.3)', borderRadius: 22,
+          background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 22,
           padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
         }}>
           {/* Header */}
@@ -161,20 +161,21 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                 background: 'rgba(245,197,24,0.14)', border: '1px solid #F5C518',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
               }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
                 </svg>
               </span>
               <div>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1.1 }}>Registro rápido</div>
-                <div style={{ fontSize: 11, color: '#7c786e', marginTop: 2 }}>Documento / Certificado</div>
+                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1.1, color: 'var(--text-2, #f5f3ec)' }}>Registro rápido</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3, #7c786e)', marginTop: 2 }}>Documento / Certificado</div>
               </div>
             </div>
             <button onClick={onClose} style={{
               width: 34, height: 34, borderRadius: 9,
-              border: '1px solid rgba(255,255,255,0.14)',
-              background: 'rgba(255,255,255,0.05)', color: '#b6b2a6',
+              border: '1px solid var(--btn-ghost-border, rgba(255,255,255,0.14))',
+              background: 'var(--btn-ghost-bg, rgba(255,255,255,0.05))', color: 'var(--btn-ghost-color, #b6b2a6)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -183,12 +184,12 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
 
           {/* Type selector */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo</label>
+            <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo</label>
             <select value={type} onChange={e => handleTypeChange(e.target.value)}
               style={{
                 width: '100%', padding: '11px 13px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                 fontSize: 14, outline: 'none', cursor: 'pointer',
               }}>
               {TYPE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -197,13 +198,13 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
 
           {/* Name */}
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre</label>
+            <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre</label>
             <input value={name} onChange={e => setName(e.target.value)}
               placeholder="Nombre del documento"
               style={{
                 width: '100%', padding: '11px 13px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                 fontSize: 14, outline: 'none', boxSizing: 'border-box',
               }} />
           </div>
@@ -212,34 +213,34 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
           {isCert && (
             <>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Emitido por</label>
+                <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Emitido por</label>
                 <input value={issuedBy} onChange={e => setIssuedBy(e.target.value)}
                   placeholder="Ej. Taller Automotriz XYZ"
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                    border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                    background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                     fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha del documento</label>
+                <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha del documento</label>
                 <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)}
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                    border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                    background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                     fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo (opcional)</label>
+                <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo (opcional)</label>
                 <input type="number" step="0.01" min="0" value={cost} onChange={e => setCost(e.target.value)}
                   placeholder="Ej. 185000"
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                    border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                    background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                     fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   }} />
               </div>
@@ -250,23 +251,23 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
           {!isCert && (
             <>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento</label>
+                <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento</label>
                 <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                    border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                    background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                     fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de documento</label>
+                <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de documento</label>
                 <input value={docCode} onChange={e => setDocCode(e.target.value.toUpperCase())}
                   placeholder="Ej. SOAT-8842-XZ"
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                    border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                    background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                     fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   }} />
               </div>
@@ -275,14 +276,14 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
 
           {/* Notes */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Notas (opcional)</label>
+            <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Notas (opcional)</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="Información adicional…"
               rows={2}
               style={{
                 width: '100%', padding: '11px 13px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.04)', color: '#f5f3ec',
+                border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
                 fontSize: 14, outline: 'none', resize: 'vertical',
                 fontFamily: 'inherit', boxSizing: 'border-box',
               }} />
@@ -306,7 +307,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                 </span>
                 <span style={{ fontSize: 13, color: '#b6b2a6', flex: 1 }}>Archivo adjunto listo</span>
                 <button onClick={() => setFileUrl(null)}
-                  style={{ background: 'transparent', border: 'none', color: '#7c786e', cursor: 'pointer', fontSize: 16, padding: 4 }}>✕</button>
+                  style={{ background: 'transparent', border: 'none', color: '#7c786e', cursor: 'pointer', padding: 4, display: 'inline-flex' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 10 }}>

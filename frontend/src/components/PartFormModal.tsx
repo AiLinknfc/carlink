@@ -74,7 +74,11 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
       }
       onSaved()
     } catch (e: any) {
-      setError(e.message || 'Error de red. Intenta de nuevo.')
+      // "Failed to fetch" = no se pudo contactar el servidor (API caído o inalcanzable)
+      const isNetwork = e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(e?.message || '')
+      setError(isNetwork
+        ? 'No se pudo conectar con el servidor. Verifica tu conexión o que el servicio esté disponible e intenta de nuevo.'
+        : (e?.message || 'Error inesperado. Intenta de nuevo.'))
     } finally {
       setSaving(false)
     }
@@ -85,7 +89,7 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
       <div ref={ref} style={{ width: '100%', maxWidth: 'min(480px, 94vw)', maxHeight: '90vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 20, padding: 'clamp(16px, 3.5vw, 28px)', boxShadow: '0 30px 80px rgba(0,0,0,.7)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontFamily: "'Anton',sans-serif", fontSize: 'clamp(20px,5vw,24px)', letterSpacing: '.01em' }}>{editPart ? 'Editar parte' : 'Nueva parte'}</h2>
-            <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#7c786e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>✕</button>
+            <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#7c786e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>

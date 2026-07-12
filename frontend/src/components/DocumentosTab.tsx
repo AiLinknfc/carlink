@@ -18,7 +18,7 @@ function getStatusColor(status: string): string {
     case 'vigente': return '#2ecc71'
     case 'por_vencer': return '#ff8a3d'
     case 'vencido': return '#ff4d6a'
-    default: return '#7c786e'
+    default: return 'var(--text-3)'
   }
 }
 
@@ -224,10 +224,25 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
         <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>
           Documentos del vehículo
         </h1>
-        <p style={{ color: '#b6b2a6', margin: 0 }}>
+        <p style={{ color: 'var(--text-2)', margin: 0 }}>
           Gestiona tus documentos legales. Sube fotos o PDFs, actualiza fechas de vencimiento.
         </p>
       </div>
+
+      <button onClick={() => handleCreateDoc('Nuevo documento', 'custom')}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '12px 20px', borderRadius: 12,
+          border: 'none', background: '#F5C518', color: '#111',
+          fontWeight: 800, fontSize: 13, cursor: 'pointer',
+          marginBottom: 18, transition: 'all .16s',
+          boxShadow: '0 0 20px rgba(245,197,24,0.35)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#e6b300' }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar documento
+      </button>
 
       {uploading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 11, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.3)', marginBottom: 16, animation: 'fadeUp .3s both' }}>
@@ -247,12 +262,12 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
 
           return (
             <div key={dt.type} style={{
-              padding: 18, borderRadius: 18, background: '#141414',
-              border: `1px solid ${doc?.file_url ? 'rgba(245,197,24,0.22)' : 'rgba(255,255,255,0.08)'}`,
+              padding: 18, borderRadius: 18, background: 'var(--surface)',
+              border: `1px solid ${doc?.file_url ? 'rgba(245,197,24,0.22)' : 'var(--border)'}`,
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)', transition: 'border-color .18s',
             }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = doc?.file_url ? 'rgba(245,197,24,0.22)' : 'rgba(255,255,255,0.08)'}>
+              onMouseLeave={e => e.currentTarget.style.borderColor = doc?.file_url ? 'rgba(245,197,24,0.22)' : 'var(--border)'}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 16, fontWeight: 700 }}>{dt.name}</div>
@@ -261,7 +276,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                   padding: '5px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700,
                   color: statusColor,
                   border: `1px solid ${statusColor}`,
-                  background: status === 'pendiente' ? 'rgba(255,255,255,0.04)' :
+                  background: status === 'pendiente' ? 'var(--surface-2)' :
                     status === 'vigente' ? 'rgba(46,204,113,0.08)' :
                     status === 'por_vencer' ? 'rgba(255,138,61,0.08)' :
                     'rgba(255,77,106,0.08)',
@@ -273,7 +288,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
 
               {doc && (
                 <>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: '#7c786e', margin: '12px 0 4px' }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--text-3)', margin: '12px 0 4px' }}>
                     {doc.id?.slice(0, 8) || '—'}
                   </div>
 
@@ -309,44 +324,44 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                             {isPdfFile ? 'Ver' : 'Ampliar'}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
                           <button onClick={() => handleDownload(doc)} style={{
-                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            padding: 9, borderRadius: 10,
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            background: 'rgba(255,255,255,0.04)', color: '#b6b2a6',
-                            fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                            transition: 'all .18s', minHeight: 38,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            padding: '9px 4px', borderRadius: 10,
+                            border: '1px solid var(--border-2)',
+                            background: 'var(--surface-2)', color: 'var(--text-2)',
+                            fontSize: 10.5, fontWeight: 600, cursor: 'pointer',
+                            transition: 'all .18s', minHeight: 46,
                           }}
-                            onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
-                            onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6' }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             Descargar
                           </button>
                           <button onClick={() => setScanTarget(doc.id)} style={{
-                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            padding: 9, borderRadius: 10,
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            background: 'rgba(255,255,255,0.04)', color: '#b6b2a6',
-                            fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                            transition: 'all .18s', minHeight: 38,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            padding: '9px 4px', borderRadius: 10,
+                            border: '1px solid var(--border-2)',
+                            background: 'var(--surface-2)', color: 'var(--text-2)',
+                            fontSize: 10.5, fontWeight: 600, cursor: 'pointer',
+                            transition: 'all .18s', minHeight: 46,
                           }}
-                            onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
-                            onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6' }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                             Escanear
                           </button>
                           <label style={{
-                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            padding: 9, borderRadius: 10,
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            background: 'rgba(255,255,255,0.04)', color: '#b6b2a6',
-                            fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                            transition: 'all .18s', minHeight: 38,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            padding: '9px 4px', borderRadius: 10,
+                            border: '1px solid var(--border-2)',
+                            background: 'var(--surface-2)', color: 'var(--text-2)',
+                            fontSize: 10.5, fontWeight: 600, cursor: 'pointer',
+                            transition: 'all .18s', minHeight: 46,
                           }}
-                            onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
-                            onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6' }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
+                            onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
                             Reemplazar
                             <input type="file" accept="image/*,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.id) }} style={{ display: 'none' }} />
                           </label>
@@ -376,7 +391,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                           transition: 'all .18s', minHeight: 44,
                         }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.color = '#fff' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.color = '#c9c6ba' }}>
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.color = 'var(--text-2)' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                           Subir
                           <input type="file" accept="image/*,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f, doc.id) }} style={{ display: 'none' }} />
@@ -388,26 +403,26 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                   {/* Edit expiry button */}
                   <button onClick={() => openEdit(doc)} style={{
                     marginTop: 10, width: '100%', padding: '9px 0', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: 'rgba(255,255,255,0.03)', color: '#a8a496',
+                    border: '1px solid var(--border-2)',
+                    background: 'var(--surface-2)', color: 'var(--text-2)',
                     fontSize: 12, fontWeight: 600, cursor: 'pointer',
                     transition: 'all .18s', minHeight: 38,
                   }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.08)'; e.currentTarget.style.color = '#F5C518' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#a8a496' }}>
-                    ✎ Editar vencimiento
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-2)'; e.currentTarget.style.color = 'var(--text-2)' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-2px', marginRight: 6 }}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Editar vencimiento
                   </button>
 
                   {/* Edit form */}
                   {isEditing && (
                     <div style={{ marginTop: 10, padding: 12, borderRadius: 12, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)' }}>
-                      <label style={{ fontSize: 10, color: '#a8a496', fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha de vencimiento</label>
+                      <label style={{ fontSize: 10, color: 'var(--text-2)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha de vencimiento</label>
                       <input type="date" value={editExpiry} onChange={e => setEditExpiry(e.target.value)}
-                        style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 13, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
-                      <label style={{ fontSize: 10, color: '#a8a496', fontWeight: 600, display: 'block', marginBottom: 4 }}>Número de documento</label>
+                        style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: '#f5f3ec', fontSize: 13, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 10, color: 'var(--text-2)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Número de documento</label>
                       <input type="text" value={editCode} onChange={e => setEditCode(e.target.value.toUpperCase())}
                         placeholder="Ej. SOAT-8842-XZ"
-                        style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 13, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
+                        style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: '#f5f3ec', fontSize: 13, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => saveEdit(doc.id, dt.type, dt.name)} style={{
                           flex: 1, padding: '9px 0', borderRadius: 8, border: 'none',
@@ -416,8 +431,8 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                         }}>Guardar</button>
                         <button onClick={() => setEditingDoc(null)} style={{
                           flex: 1, padding: '9px 0', borderRadius: 8,
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          background: 'transparent', color: '#b6b2a6',
+                          border: '1px solid var(--border-2)',
+                          background: 'transparent', color: 'var(--text-2)',
                           fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         }}>Cancelar</button>
                       </div>
@@ -448,15 +463,15 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
         {documents.filter((d: any) => !DOCUMENT_TYPES.find(t => t.type === d.type)).map((doc: any) => {
           const isPdfFile = doc?.file_url && isPdf(doc.file_url)
           return (
-            <div key={doc.id} style={{ padding: 18, borderRadius: 18, background: '#141414', border: `1px solid ${doc.file_url ? 'rgba(245,197,24,0.22)' : 'rgba(255,255,255,0.08)'}` }}>
+            <div key={doc.id} style={{ padding: 18, borderRadius: 18, background: 'var(--surface)', border: `1px solid ${doc.file_url ? 'rgba(245,197,24,0.22)' : 'var(--border)'}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{doc.name}</div>
                 <button onClick={() => handleDelete(doc.id)} title="Eliminar" style={{
-                  background: 'transparent', border: 'none', color: '#7c786e',
+                  background: 'transparent', border: 'none', color: 'var(--text-3)',
                   cursor: 'pointer', padding: 4, fontSize: 14, minHeight: 32, minWidth: 32,
                 }}
                   onMouseEnter={e => e.currentTarget.style.color = '#ff4d6a'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#7c786e'}>✕</button>
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
               </div>
               <div style={{ marginTop: 12 }}>
                 {doc.file_url ? (
@@ -476,13 +491,13 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                   <button onClick={() => handleDownload(doc)} style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     marginTop: 8, padding: 9, borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: 'rgba(255,255,255,0.04)', color: '#b6b2a6',
+                    border: '1px solid var(--border-2)',
+                    background: 'var(--surface-2)', color: 'var(--text-2)',
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
                     transition: 'all .18s', minHeight: 38,
                   }}
                     onMouseEnter={e => { e.currentTarget.style.color = '#fff' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6' }}>
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Descargar
                   </button>
@@ -503,7 +518,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                     <label style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       padding: 14, borderRadius: 11, border: '1px dashed rgba(245,197,24,0.35)',
-                      color: '#c9c6ba', fontSize: 12, fontWeight: 600, cursor: 'pointer', minHeight: 44,
+                      color: 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', minHeight: 44,
                       background: 'rgba(245,197,24,0.04)',
                     }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -519,7 +534,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
       </div>
 
       {!loading && documents.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 40, color: '#7c786e', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
           Crea tus documentos legales desde los botones superiores.
         </div>
       )}

@@ -71,7 +71,7 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
       <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
         <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Revisión técnica</div>
         <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>Centro de diagnóstico automotor</h1>
-        <p style={{ color: '#b6b2a6', margin: 0, maxWidth: '62ch' }}>Resultados de tu última visita al CDA, con vencimiento y descarga del certificado.</p>
+        <p style={{ color: 'var(--text-2)', margin: 0, maxWidth: '62ch' }}>Resultados de tu última visita al CDA, con vencimiento y descarga del certificado.</p>
       </div>
 
       {uploading && (
@@ -91,7 +91,7 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
               </span>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>CDA de la ciudad</div>
-                <div style={{ fontSize: 13, color: '#b6b2a6' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
                   {latestDiag ? new Date(latestDiag.created_at).toLocaleDateString() : '—'}
                 </div>
               </div>
@@ -105,8 +105,8 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
           {/* Checks grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginTop: 20 }}>
             {DEFAULT_CHECKS.map((check, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 13px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ fontSize: 13, color: '#d8d4c8' }}>{check.name}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 13px', borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{check.name}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#5be89a' }}>{check.val}</span>
               </div>
             ))}
@@ -122,20 +122,20 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
 
         {/* Right panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ padding: 18, borderRadius: 18, background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700 }}>Certificado RTM</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: '#d8d4c8', margin: '8px 0 4px' }}>{cdaCode}</div>
+          <div style={{ padding: 18, borderRadius: 18, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>Certificado RTM</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: 'var(--text-2)', margin: '8px 0 4px' }}>{cdaCode}</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-              <span style={{ fontSize: 13, color: '#b6b2a6' }}>Vence</span>
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Vence</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#ff8a3d', border: '1px solid #ff8a3d', background: 'rgba(255,138,61,0.08)' }}>{cdaExpiry}</span>
             </div>
           </div>
 
-          <div style={{ padding: 18, borderRadius: 18, background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 8 }}>Adjuntar certificado escaneado</div>
-            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 22, borderRadius: 12, border: `1px dashed ${cdaCertUrl ? 'rgba(245,197,24,0.5)' : 'rgba(245,197,24,0.35)'}`, background: 'rgba(245,197,24,0.04)', color: '#c9c6ba', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all .18s' }}
+          <div style={{ padding: 18, borderRadius: 18, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 8 }}>Adjuntar certificado escaneado</div>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 22, borderRadius: 12, border: `1px dashed ${cdaCertUrl ? 'rgba(245,197,24,0.5)' : 'rgba(245,197,24,0.35)'}`, background: 'rgba(245,197,24,0.04)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all .18s' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.color = '#fff' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = cdaCertUrl ? 'rgba(245,197,24,0.5)' : 'rgba(245,197,24,0.35)'; e.currentTarget.style.color = '#c9c6ba' }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = cdaCertUrl ? 'rgba(245,197,24,0.5)' : 'rgba(245,197,24,0.35)'; e.currentTarget.style.color = 'var(--text-2)' }}>
               {cdaCertUrl ? (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>

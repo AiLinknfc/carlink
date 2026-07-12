@@ -2,8 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 
-export default function BgParticles() {
+export default function BgParticles({ theme = 'dark' }: { theme?: 'light' | 'dark' }) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const themeRef = useRef(theme)
+  themeRef.current = theme
 
   useEffect(() => {
     const cvs = ref.current!
@@ -81,7 +83,8 @@ export default function BgParticles() {
     function loop() {
       if (cvs.width === 0) { raf = requestAnimationFrame(loop); return }
       ctx.globalCompositeOperation = 'source-over'
-      ctx.fillStyle = 'rgba(6,6,6,0.30)'
+      const isDark = themeRef.current !== 'light'
+      ctx.fillStyle = isDark ? 'rgba(6,6,6,0.30)' : 'rgba(247,246,242,0.34)'
       ctx.fillRect(0, 0, W, H)
       const lim = Math.hypot(W, H) * 0.62
       for (const s of streaks) {
@@ -90,7 +93,7 @@ export default function BgParticles() {
         s.r += s.sp * (1 + s.r / lim * 3.2)
         const nx = cx + cosA * s.r, ny = cy + sinA * s.r
         const alpha = Math.min(0.55, (s.r / lim) * 0.6)
-        ctx.strokeStyle = s.yellow ? `rgba(245,197,24,${alpha})` : `rgba(205,205,205,${alpha * 0.6})`
+        ctx.strokeStyle = s.yellow ? `rgba(220,168,0,${alpha})` : (isDark ? `rgba(205,205,205,${alpha * 0.6})` : `rgba(30,28,24,${alpha * 0.55})`)
         ctx.lineWidth = s.w
         ctx.beginPath()
         ctx.moveTo(px, py)
@@ -136,7 +139,7 @@ export default function BgParticles() {
     <canvas ref={ref} style={{
       position: 'fixed', inset: 0, zIndex: 0,
       width: '100%', height: '100%',
-      pointerEvents: 'none', background: '#060606',
+      pointerEvents: 'none', background: theme === 'light' ? '#f7f6f2' : '#060606',
     }} />
   )
 }

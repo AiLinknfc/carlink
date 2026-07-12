@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ServiceIcon } from '@/lib/icons'
 
 /* ── Service type definitions ── */
 const SERVICE_TYPES = [
   {
     id: 'Aceite',
     label: 'Cambio de aceite',
-    icon: '🛢️',
     fields: [
       { key: 'lubricant_brand', label: 'Marca del aceite', type: 'text', placeholder: 'Ej. Mobil 1' },
       { key: 'lubricant_type', label: 'Tipo / viscosidad', type: 'text', placeholder: 'Ej. 5W-30' },
@@ -19,7 +19,6 @@ const SERVICE_TYPES = [
   {
     id: 'Aire',
     label: 'Filtro de aire',
-    icon: '💨',
     fields: [
       { key: 'air_filter', label: 'Filtro de aire reemplazado', type: 'checkbox' },
       { key: 'air_flow', label: 'Flujo de aire verificado', type: 'checkbox' },
@@ -28,7 +27,6 @@ const SERVICE_TYPES = [
   {
     id: 'Combustible',
     label: 'Sistema de combustible',
-    icon: '⛽',
     fields: [
       { key: 'fuel_filter', label: 'Filtro de combustible', type: 'checkbox' },
       { key: 'injection_check', label: 'Inyección revisada', type: 'checkbox' },
@@ -37,7 +35,6 @@ const SERVICE_TYPES = [
   {
     id: 'Frenos',
     label: 'Sistema de frenos',
-    icon: '🔧',
     fields: [
       { key: 'brake_pads', label: 'Pastillas', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
       { key: 'brake_discs', label: 'Discos', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
@@ -47,7 +44,6 @@ const SERVICE_TYPES = [
   {
     id: 'Refrigerante',
     label: 'Sistema de refrigeración',
-    icon: '🌡️',
     fields: [
       { key: 'coolant_level', label: 'Nivel de refrigerante', type: 'select', options: ['OK', 'Bajo', 'Reemplazar'] },
       { key: 'coolant_temp', label: 'Temperatura', type: 'select', options: ['Normal', 'Alta', 'Baja'] },
@@ -56,7 +52,6 @@ const SERVICE_TYPES = [
   {
     id: 'Llantas',
     label: 'Llantas',
-    icon: '⚙️',
     fields: [
       { key: 'tire_pressure', label: 'Presión verificada', type: 'checkbox' },
       { key: 'tire_rotation', label: 'Rotación realizada', type: 'checkbox' },
@@ -66,7 +61,6 @@ const SERVICE_TYPES = [
   {
     id: 'Suspensión',
     label: 'Suspensión',
-    icon: '🔩',
     fields: [
       { key: 'suspension_check', label: 'Revisión general', type: 'checkbox' },
       { key: 'shock_absorbers', label: 'Amortiguadores', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
@@ -75,7 +69,6 @@ const SERVICE_TYPES = [
   {
     id: 'Batería',
     label: 'Batería / eléctrico',
-    icon: '🔋',
     fields: [
       { key: 'battery_check', label: 'Batería verificada', type: 'checkbox' },
       { key: 'battery_voltage', label: 'Voltaje', type: 'text', placeholder: 'Ej. 12.6V' },
@@ -84,7 +77,6 @@ const SERVICE_TYPES = [
   {
     id: 'Transmisión',
     label: 'Transmisión',
-    icon: '🔧',
     fields: [
       { key: 'transmission_oil', label: 'Aceite de transmisión', type: 'checkbox' },
       { key: 'transmission_check', label: 'Revisión general', type: 'checkbox' },
@@ -93,18 +85,11 @@ const SERVICE_TYPES = [
   {
     id: 'Otro',
     label: 'Otro servicio',
-    icon: '📋',
     fields: [
       { key: 'custom_service', label: 'Describe el servicio', type: 'text', placeholder: 'Ej. Alineación y balanceo' },
     ],
   },
 ]
-
-const SERVICE_ICONS: Record<string, string> = {
-  Aceite: '🛢️', Aire: '💨', Combustible: '⛽', Frenos: '🔧',
-  Refrigerante: '🌡️', Llantas: '⚙️', Suspensión: '🔩', Batería: '🔋',
-  Transmisión: '🔧', Otro: '📋',
-}
 
 function buildDescription(type: string, extra: Record<string, any>): string {
   const parts: string[] = []
@@ -333,8 +318,8 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-              {serviceType ? SERVICE_ICONS[serviceType] || '📋' : '🔧'}
+            <span style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
+              <ServiceIcon type={serviceType || 'Otro'} size={19} />
             </span>
             <div>
               <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1 }}>
@@ -368,7 +353,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
                   background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
                   color: '#f5f3ec', fontSize: 14, fontWeight: 600, transition: 'all .15s',
                 }}>
-                  <span style={{ fontSize: 20 }}>{st.icon}</span>
+                  <span style={{ color: '#F5C518', display: 'flex' }}><ServiceIcon type={st.id} size={20} /></span>
                   <span>{st.label}</span>
                 </button>
               ))}
@@ -504,7 +489,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>
                             {ws.name}
-                            {ws.is_verified && <span style={{ color: '#2ecc71', marginLeft: 4 }}>✓</span>}
+                            {ws.is_verified && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 4, verticalAlign: 'middle' }}><path d="M20 6L9 17l-5-5"/></svg>}
                           </div>
                           <div style={{ fontSize: 11, color: '#7c786e' }}>{ws.city}{ws.address ? ` · ${ws.address}` : ''}</div>
                         </div>
@@ -513,7 +498,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
                   </div>
                 )}
                 {workshopId && (
-                  <div style={{ fontSize: 11, color: '#2ecc71', marginTop: 4, fontWeight: 600 }}>✓ Taller registrado</div>
+                  <div style={{ fontSize: 11, color: '#2ecc71', marginTop: 4, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Taller registrado</div>
                 )}
               </div>
               <div>

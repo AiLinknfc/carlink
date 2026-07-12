@@ -60,7 +60,7 @@ export default function NfcPage() {
           border: '1px solid rgba(255,55,55,0.2)',
           maxWidth: 380,
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🛡️</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#ff6b6b' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4M12 16h.01"/></svg></div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Demasiadas solicitudes</div>
           <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>
             Espera un momento y vuelve a escanear el llavero.
@@ -77,7 +77,7 @@ export default function NfcPage() {
           border: '1px solid rgba(255,55,55,0.2)',
           maxWidth: 380,
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔗</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#ff6b6b' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/><path d="M2 2l20 20"/></svg></div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Enlace no válido</div>
           <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>
             Este llavero NFC no está vinculado a ningún vehículo o fue revocado. Contacta a tu taller para reprogramarlo.

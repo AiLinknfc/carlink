@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
+import re
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # =========== Vehicle ===========
@@ -18,6 +19,14 @@ class VehicleCreate(BaseModel):
     color: str = ""
     image_url: str = ""
 
+    @field_validator('plate')
+    @classmethod
+    def validate_plate(cls, v: str) -> str:
+        v = v.upper().strip()
+        if not re.match(r'^[A-Z]{3}-\d{3}$', v):
+            raise ValueError('Placa debe tener formato ABC-123 (3 letras, guión, 3 números)')
+        return v
+
 
 class VehicleUpdate(BaseModel):
     plate: str | None = None
@@ -29,6 +38,16 @@ class VehicleUpdate(BaseModel):
     color: str | None = None
     image_url: str | None = None
     nfc_active: bool | None = None
+
+    @field_validator('plate')
+    @classmethod
+    def validate_plate(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.upper().strip()
+        if not re.match(r'^[A-Z]{3}-\d{3}$', v):
+            raise ValueError('Placa debe tener formato ABC-123 (3 letras, guión, 3 números)')
+        return v
 
 
 class VehicleOut(BaseModel):
@@ -252,6 +271,7 @@ class WorkshopCreate(BaseModel):
     city: str = ""
     phone: str = ""
     description: str = ""
+    logo_url: str | None = None
     # Optional vehicle registration for workshops that need a test vehicle
     plate: str | None = None
     brand: str | None = None
@@ -272,6 +292,7 @@ class WorkshopOut(BaseModel):
     city: str
     phone: str
     description: str
+    logo_url: str
     is_verified: bool
     created_at: datetime
 

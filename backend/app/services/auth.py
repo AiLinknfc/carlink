@@ -10,7 +10,6 @@ from jose import jwk, jwt
 from jose.exceptions import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from supabase import create_client
 
 from app.config import get_settings
 from app.models.models import Profile
@@ -68,6 +67,25 @@ async def verify_supabase_jwt(token: str) -> str | None:
         return None
 
 
+async def _fetch_supabase_user(user_id: str) -> dict | None:
+    """Fetch user data from Supabase admin API using async httpx."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{settings.supabase_url}/auth/v1/admin/users/{user_id}",
+                headers={
+                    "Authorization": f"Bearer {settings.supabase_service_key}",
+                    "apikey": settings.supabase_service_key,
+                },
+            )
+            if resp.status_code == 200:
+                return resp.json()
+            logger.warning(f"Supabase admin API returned {resp.status_code} for user {user_id}")
+    except Exception:
+        logger.warning("Failed to fetch user from Supabase admin API", exc_info=True)
+    return None
+
+
 async def ensure_profile(user_id: str, db: AsyncSession) -> Profile:
     """Get or create a Profile for the given user_id."""
     result = await db.execute(select(Profile).where(Profile.id == uuid.UUID(user_id)))
@@ -75,24 +93,18 @@ async def ensure_profile(user_id: str, db: AsyncSession) -> Profile:
     if profile:
         return profile
 
-    try:
-        sb = create_client(settings.supabase_url, settings.supabase_service_key)
-        user_data = sb.auth.admin.get_user_by_id(user_id)
-        if user_data and user_data.user:
-            profile = Profile(
-                id=uuid.UUID(user_id),
-                email=user_data.user.email,
-                full_name=user_data.user.user_metadata.get("full_name"),
-                avatar_url=user_data.user.user_metadata.get("avatar_url"),
-            )
-            db.add(profile)
-            await db.flush()
-            await db.refresh(profile)
-            return profile
-    except Exception:
-        logger.warning("Failed to fetch user from Supabase admin API", exc_info=True)
+    user_data = await _fetch_supabase_user(user_id)
+    if user_data and user_data.get("user_metadata"):
+        meta = user_data["user_metadata"]
+        profile = Profile(
+            id=uuid.UUID(user_id),
+            email=user_data.get("email"),
+            full_name=meta.get("full_name"),
+            avatar_url=meta.get("avatar_url"),
+        )
+    else:
+        profile = Profile(id=uuid.UUID(user_id))
 
-    profile = Profile(id=uuid.UUID(user_id))
     db.add(profile)
     await db.flush()
     await db.refresh(profile)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { ServiceIcon } from '@/lib/icons'
 
 /* Sticky-stack tuning: each card sticks a little lower + a little more
    "in front" than the previous one, so scrolling reveals a fanned deck
@@ -24,12 +25,6 @@ const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: str
 function getTheme(type?: string) {
   return SERVICE_CARD_THEME[type || ''] || SERVICE_CARD_THEME.Otro
 }
-const SERVICE_ICONS: Record<string, string> = {
-  Aceite: '🛢️', Aire: '💨', Combustible: '⛽', Frenos: '🔧',
-  Refrigerante: '🌡️', Llantas: '⚙️', 'Suspensión': '🔩', 'Batería': '🔋',
-  'Transmisión': '🔧', Otro: '📋',
-}
-
 interface Props {
   records: any[]
   onEdit?: (r: any) => void
@@ -107,7 +102,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
               padding: '22px 26px', minHeight: 190,
               background: theme.bg,
               border: `1px solid ${theme.accent}55`,
-              boxShadow: `0 ${18 + i}px ${50 + i * 2}px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)`,
+              boxShadow: `0 ${18 + i}px ${50 + i * 2}px rgba(0,0,0,0.5), inset 0 1px 0 var(--border)`,
             }}>
               {/* glossy shine sweep, like a real card catching light */}
               <div style={{
@@ -123,8 +118,8 @@ export default function HistoryStack({ records, onEdit }: Props) {
                     width: 46, height: 34, borderRadius: 7, flex: '0 0 auto',
                     background: 'linear-gradient(135deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05))',
                     border: `1px solid ${theme.accent}88`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-                  }}>{SERVICE_ICONS[r.service_type] || '📋'}</span>
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.accent,
+                  }}><ServiceIcon type={r.service_type} size={18} /></span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: theme.accent, fontWeight: 800 }}>CarLink Service Record</div>
                     <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
@@ -138,8 +133,8 @@ export default function HistoryStack({ records, onEdit }: Props) {
                     <button onClick={() => onEdit(r)} title="Editar" style={{
                       width: 30, height: 30, borderRadius: 8, border: `1px solid ${theme.accent}55`,
                       background: 'rgba(255,255,255,0.06)', color: theme.text, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
-                    }}>✎</button>
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
                   )}
                 </div>
               </div>
