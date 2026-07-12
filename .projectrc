@@ -10,7 +10,7 @@ PROJECT_DESCRIPTION="MVP-Keychain to vehicles"
 # ==========================
 
 GIT_PROFILE="ailink"
-DEFAULT_BRANCH="main"
+DEFAULT_BRANCH="master"
 
 # ==========================
 # Repositorio
