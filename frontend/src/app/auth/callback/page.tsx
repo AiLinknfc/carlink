@@ -9,20 +9,27 @@ export default function CallbackPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[callback] session:', session ? session.user.id : 'null')
       if (!session) { router.push('/'); return }
       try {
         const token = session.access_token
+        console.log('[callback] checking vehicles...')
         const res = await fetch(apiUrl('/vehicles'), {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (res.ok) {
           const vehicles = await res.json()
+          console.log('[callback] vehicles:', vehicles?.length)
           if (vehicles?.length > 0) {
             router.push('/app')
             return
           }
+        } else {
+          console.warn('[callback] /vehicles returned', res.status)
         }
-      } catch {}
+      } catch (e) {
+        console.warn('[callback] fetch failed:', e)
+      }
       router.push('/register')
     })
   }, [router])

@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     # JWT
     supabase_jwt_secret: str = ""
 
+    # DeepSeek (structures raw OCR text into title/vendor/date/cost)
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+
+    # Tesseract (local OCR — reads text out of scanned receipts/invoices)
+    tesseract_cmd: str = ""
+
     # Server
     port: int = 8000
     environment: str = "development"

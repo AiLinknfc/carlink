@@ -4,40 +4,25 @@
   100% { transform: translateX(200%) skewX(-18deg); }
 }
 
-@keyframes plateSpin {
-  0% { transform: perspective(1400px) rotateY(-6deg) scale(0.92) rotate(0deg); }
-  100% { transform: perspective(1400px) rotateY(-6deg) scale(0.92) rotate(360deg); }
-}
-
 .plate {
   position: relative;
   width: 448px;
   height: 220px;
   border-radius: 18px;
-  border: 4px solid #0c0c0e;
   box-shadow: 0 30px 70px rgba(0,0,0,.6), inset 0 4px 0 rgba(255,255,255,.5), inset 0 -8px 18px rgba(90,60,0,.22);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  transition: transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.5s;
+  transition: transform .3s cubic-bezier(0.22,1,0.36,1), box-shadow .4s;
   will-change: transform;
-  transform: perspective(1400px) rotateY(-6deg) scale(0.92);
 }
-.plate.moto { width: 274px; height: 246px; align-items: center; }
 .plate:hover {
-  transform: perspective(1400px) rotateY(0deg) scale(1);
-  box-shadow: 0 30px 70px rgba(245,197,24,0.3), inset 0 4px 0 rgba(255,255,255,.5), inset 0 -8px 18px rgba(90,60,0,.22);
+  transform: perspective(800px) rotateY(-6deg) rotateX(2deg);
+  box-shadow: 0 30px 70px rgba(0,0,0,.6), inset 0 4px 0 rgba(255,255,255,.5), inset 0 -8px 18px rgba(90,60,0,.22), 0 20px 60px rgba(245,197,24,0.18);
 }
-.plate.spinning {
-  animation: plateSpin 1s cubic-bezier(0.22,1,0.36,1) forwards;
-}
-.plate-country { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .32em; padding: 13px 0 0; text-indent: .32em; }
-.plate.moto .plate-country { font-size: 16px; letter-spacing: .28em; padding: 13px 0 2px; text-indent: .28em; }
+.plate-label { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: .32em; padding: 13px 0 0; text-indent: .32em; }
 .plate-number { flex: 1; display: flex; align-items: center; justify-content: center; font-family: 'Anton', sans-serif; font-size: 88px; letter-spacing: .03em; line-height: 1; text-shadow: 0 2px 0 rgba(255,255,255,.28); }
-.plate.moto .plate-number { font-size: 62px; letter-spacing: .02em; line-height: 1.05; }
 .plate-city { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: .26em; padding: 0 0 13px; text-indent: .26em; text-transform: uppercase; }
-.plate.moto .plate-city { font-size: 11px; letter-spacing: .2em; padding: 0 0 13px; }
 .plate-tag { position: absolute; top: 12px; right: 14px; font-size: 10px; font-weight: 800; letter-spacing: .14em; border: 1.5px solid; border-radius: 5px; padding: 2px 6px; }
 .plate-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.6) 48%, transparent 66%); animation: shineSweep 6s ease-in-out infinite; pointer-events: none; }
-.plate.moto .plate-shine { width: 45%; }

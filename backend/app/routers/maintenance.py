@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -58,7 +59,10 @@ async def create_maintenance(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await _verify_vehicle_owner(body.vehicle_id, user_id, db)
-    record = MaintenanceRecord(**body.model_dump())
+    data = body.model_dump()
+    if isinstance(data.get("date"), str):
+        data["date"] = date.fromisoformat(data["date"])
+    record = MaintenanceRecord(**data)
     db.add(record)
     await db.flush()
     await db.refresh(record)
@@ -78,7 +82,10 @@ async def update_maintenance(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
     await _verify_vehicle_owner(record.vehicle_id, user_id, db)
-    for key, val in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if isinstance(data.get("date"), str):
+        data["date"] = date.fromisoformat(data["date"])
+    for key, val in data.items():
         setattr(record, key, val)
     await db.flush()
     await db.refresh(record)

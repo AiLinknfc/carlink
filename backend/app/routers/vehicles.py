@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Annotated
 from uuid import UUID
@@ -8,11 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db, async_session_factory
+from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import Profile, Vehicle
+from app.models.models import Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
+from app.services.auth import ensure_profile
 from app.services.cache import cache_delete, cache_get, cache_invalidate_vehicle, cache_set
+
+logger = logging.getLogger("carlink")
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -54,26 +58,6 @@ async def get_vehicle(
     return vehicle
 
 
-async def _ensure_profile(user_id: str, db: AsyncSession) -> None:
-    result = await db.execute(select(Profile).where(Profile.id == uuid.UUID(user_id)))
-    if result.scalar_one_or_none():
-        return
-    from supabase import create_client
-    from app.config import get_settings
-    settings = get_settings()
-    sb = create_client(settings.supabase_url, settings.supabase_service_key)
-    user_data = sb.auth.admin.get_user_by_id(user_id)
-    if user_data and user_data.user:
-        profile = Profile(
-            id=user_id,
-            email=user_data.user.email,
-            full_name=user_data.user.user_metadata.get("full_name"),
-            avatar_url=user_data.user.user_metadata.get("avatar_url"),
-        )
-        db.add(profile)
-        await db.flush()
-
-
 @router.post("", response_model=VehicleOut, status_code=status.HTTP_201_CREATED)
 async def create_vehicle(
     body: VehicleCreate,
@@ -81,7 +65,13 @@ async def create_vehicle(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     uid = uuid.UUID(user_id)
-    await _ensure_profile(user_id, db)
+    logger.info(f"Creating vehicle for user {user_id}: plate={body.plate}, brand={body.brand}, model={body.model}")
+    try:
+        await ensure_profile(user_id, db)
+        logger.info(f"Profile ensured for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to ensure profile for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Profile creation failed: {e}")
 
     existing = await db.execute(
         select(Vehicle).where(Vehicle.owner_id == uid, Vehicle.plate == body.plate.upper())
@@ -101,9 +91,14 @@ async def create_vehicle(
         image_url=body.image_url,
     )
     db.add(vehicle)
-    await db.flush()
-    await db.refresh(vehicle)
+    try:
+        await db.flush()
+        await db.refresh(vehicle)
+    except Exception as e:
+        logger.error(f"Failed to create vehicle for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Vehicle creation failed: {e}")
     await cache_delete(f"vehicles:list:{user_id}")
+    logger.info(f"Vehicle created successfully: {vehicle.id}")
     return vehicle
 
 
@@ -147,3 +142,23 @@ async def delete_vehicle(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
     await db.delete(vehicle)
     await cache_invalidate_vehicle(str(vehicle_id))
+
+
+@router.patch("/{vehicle_id}/nfc-toggle", response_model=VehicleOut)
+async def toggle_nfc_visibility(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    vehicle.nfc_active = not vehicle.nfc_active
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return vehicle

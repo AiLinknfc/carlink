@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import GalleryImage, Vehicle
-from app.schemas.schemas import GalleryCreate, GalleryOut
+from app.schemas.schemas import GalleryCreate, GalleryOut, GalleryUpdate
 from app.services.cache import cache_invalidate_vehicle
 
 router = APIRouter(prefix="/gallery", tags=["gallery"])
@@ -75,3 +75,25 @@ async def delete_gallery_image(
     await _verify_vehicle(image.vehicle_id, user_id, db)
     await db.delete(image)
     await cache_invalidate_vehicle(str(image.vehicle_id))
+
+
+@router.patch("/{image_id}", response_model=GalleryOut)
+async def update_gallery_image(
+    image_id: UUID,
+    body: GalleryUpdate,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(GalleryImage).where(GalleryImage.id == image_id))
+    image = result.scalar_one_or_none()
+    if not image:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    await _verify_vehicle(image.vehicle_id, user_id, db)
+    if body.caption is not None:
+        image.caption = body.caption
+    if body.image_url is not None:
+        image.image_url = body.image_url
+    await db.flush()
+    await db.refresh(image)
+    await cache_invalidate_vehicle(str(image.vehicle_id))
+    return image

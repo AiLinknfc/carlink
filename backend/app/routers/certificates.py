@@ -5,13 +5,16 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import Certificate, Vehicle
-from app.schemas.schemas import CertificateCreate, CertificateOut
+from app.schemas.schemas import CertificateCreate, CertificateOut, CertificateUpdate
+from app.services.storage import get_file, key_from_url
 
 router = APIRouter(prefix="/certificates", tags=["certificates"])
 
@@ -52,7 +55,7 @@ async def create_certificate(
 @router.put("/{cert_id}", response_model=CertificateOut)
 async def update_certificate(
     cert_id: UUID,
-    body: CertificateCreate,
+    body: CertificateUpdate,
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -66,6 +69,32 @@ async def update_certificate(
     await db.flush()
     await db.refresh(cert)
     return cert
+
+
+@router.get("/{cert_id}/download")
+async def download_certificate(
+    cert_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(Certificate).where(Certificate.id == cert_id))
+    cert = result.scalar_one_or_none()
+    if not cert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
+    await _verify_vehicle(cert.vehicle_id, user_id, db)
+
+    key = key_from_url(cert.file_url)
+    if not key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this certificate")
+
+    contents, content_type = await run_in_threadpool(get_file, key)
+    ext = key.rsplit(".", 1)[-1] if "." in key else "bin"
+    safe_name = "".join(c for c in cert.name if c.isalnum() or c in " -_") or "certificado"
+    return Response(
+        content=contents,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.{ext}"'},
+    )
 
 
 @router.delete("/{cert_id}", status_code=status.HTTP_204_NO_CONTENT)

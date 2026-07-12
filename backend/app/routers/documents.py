@@ -5,13 +5,16 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import Document, Vehicle
-from app.schemas.schemas import DocumentCreate, DocumentOut
+from app.schemas.schemas import DocumentCreate, DocumentOut, DocumentUpdate
+from app.services.storage import get_file, key_from_url
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -52,7 +55,7 @@ async def create_document(
 @router.put("/{doc_id}", response_model=DocumentOut)
 async def update_document(
     doc_id: UUID,
-    body: DocumentCreate,
+    body: DocumentUpdate,
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -66,6 +69,32 @@ async def update_document(
     await db.flush()
     await db.refresh(doc)
     return doc
+
+
+@router.get("/{doc_id}/download")
+async def download_document(
+    doc_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(Document).where(Document.id == doc_id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    await _verify_vehicle(doc.vehicle_id, user_id, db)
+
+    key = key_from_url(doc.file_url)
+    if not key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this document")
+
+    contents, content_type = await run_in_threadpool(get_file, key)
+    ext = key.rsplit(".", 1)[-1] if "." in key else "bin"
+    safe_name = "".join(c for c in doc.name if c.isalnum() or c in " -_") or "documento"
+    return Response(
+        content=contents,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.{ext}"'},
+    )
 
 
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)

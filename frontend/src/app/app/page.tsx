@@ -1,31 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
-import { supabase, apiUrl } from '@/lib/supabase'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
+import { useMaintenance, useParts } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
-
-/* ── helpers ── */
-async function apiGet(path: string) {
-  const token = (await supabase.auth.getSession()).data.session?.access_token
-  if (!token) return null
-  const res = await fetch(apiUrl(path), { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return null
-  return res.json()
-}
-
-async function apiPut(path: string, body: any) {
-  const token = (await supabase.auth.getSession()).data.session?.access_token
-  if (!token) return null
-  const res = await fetch(apiUrl(path), {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) return null
-  return res.json()
-}
+import HistoryStack from '@/components/HistoryStack'
+import ServiceFormModal from '@/components/ServiceFormModal'
+import PartFormModal from '@/components/PartFormModal'
+import QuickRegisterModal from '@/components/QuickRegisterModal'
+import CertificadosTab from '@/components/CertificadosTab'
+import DocumentosTab from '@/components/DocumentosTab'
+import GaleriaTab from '@/components/GaleriaTab'
+import DiagnosticoTab from '@/components/DiagnosticoTab'
 
 /* ── Color presets ── */
 const COLOR_PRESETS: Record<string, { bg: string; muted: string; ink: string; soft: string; chipBg: string; chip: string; border: string }> = {
@@ -44,7 +32,11 @@ function getPreset(color: string) {
   return COLOR_PRESETS[color] || COLOR_PRESETS.Negro
 }
 
-/* ── Countdown hook ── */
+/* ── Countdown hook ──
+   `targetMs` must be referentially stable across renders (memoize it at the call
+   site) — recomputing `Date.now() + …` inline on every render feeds the effect a
+   "new" dependency each time, which retriggers tick()'s setState and blows the
+   render loop ("Maximum update depth exceeded"). */
 function useCountdown(targetMs: number) {
   const [cd, setCd] = useState({ d: 0, h: 0, m: 0, s: 0 })
   useEffect(() => {
@@ -67,31 +59,22 @@ function useCountdown(targetMs: number) {
 
 /* ── Tab components ── */
 
-function FichaTab({ vehicle }: { vehicle: any }) {
-  if (!vehicle) return <_empty msg="Registra un vehículo primero" />
-
+function FichaTab({ vehicle, onAddService, onEditService, refreshKey }: { vehicle: any; onAddService: () => void; onEditService: (r: any) => void; refreshKey?: number }) {
+  const { records: maintenance, latest } = useMaintenance(vehicle?.id)
   const [flipped, setFlipped] = useState(false)
-  const [maintenance, setMaintenance] = useState<any[]>([])
-  const [latest, setLatest] = useState<any>(null)
-  const [loadingData, setLoadingData] = useState(true)
-  const p = getPreset(vehicle.color)
 
-  useEffect(() => {
-    if (!vehicle?.id) return
-    setLoadingData(true)
-    Promise.all([
-      apiGet(`/maintenance/vehicle/${vehicle.id}`).then(d => { if (d) setMaintenance(d) }),
-      apiGet(`/maintenance/vehicle/${vehicle.id}/latest`).then(d => { if (d) setLatest(d) }),
-    ]).finally(() => setLoadingData(false))
-  }, [vehicle?.id])
-
-  const totalServ = maintenance.length
   const currentKm = latest?.mileage
   const nextServiceKm = latest?.next_service_mileage
+  const hasCountdown = latest?.next_service_mileage != null && currentKm != null
+  const countdownTarget = useMemo(() => (hasCountdown ? Date.now() + 7 * 86400000 : 0), [hasCountdown])
+  const cd = useCountdown(countdownTarget)
+
+  if (!vehicle) return <_empty msg="Registra un vehículo primero" />
+
+  const p = getPreset(vehicle.color)
+  const totalServ = maintenance.length
   const kmToNext = nextServiceKm != null && currentKm != null ? Math.max(0, nextServiceKm - currentKm) : null
   const progWidth = nextServiceKm != null && currentKm != null ? `${Math.min(100, (currentKm / nextServiceKm) * 100)}%` : '0%'
-  const hasCountdown = latest?.next_service_mileage != null && currentKm != null
-  const cd = useCountdown(hasCountdown ? Date.now() + 7 * 86400000 : 0)
 
   const stamps = ['Aceite', 'Filtros', 'Frenos', 'Llantas', 'Suspensión', 'Batería'].map(label => ({
     label,
@@ -113,9 +96,17 @@ function FichaTab({ vehicle }: { vehicle: any }) {
     <div style={{ animation: 'sectionIn .55s cubic-bezier(0.22,1,0.36,1) both', maxWidth: 1000 }}>
       {/* Header */}
       <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
-        <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Ficha técnica digital</div>
-        <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>Estado del vehículo</h1>
-        <p style={{ color: '#b6b2a6', margin: '0 0 16px', maxWidth: '60ch', fontSize: 14 }}>Tarjeta viva de mantenimiento. Se actualiza sola con cada servicio.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Ficha técnica digital</div>
+            <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>Estado del vehículo</h1>
+            <p style={{ color: '#b6b2a6', margin: '0 0 16px', maxWidth: '60ch', fontSize: 14 }}>Tarjeta viva de mantenimiento. Se actualiza sola con cada servicio.</p>
+          </div>
+          <button onClick={onAddService} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)', whiteSpace: 'nowrap' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar servicio
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px', borderRadius: 14, background: '#141414', border: '1px solid rgba(245,197,24,0.22)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
             <span style={{ width: 38, height: 38, flex: '0 0 auto', borderRadius: 10, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
@@ -183,7 +174,6 @@ function FichaTab({ vehicle }: { vehicle: any }) {
             }}>
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: bgGradient }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
-                {/* Fidelity mini-card: always visible, shows real data when available */}
                 <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, padding: '15px 17px', background: 'linear-gradient(115deg,#0f0f0f 0%,#241b05 55%,#0d0d0d 100%)', border: '1px solid rgba(245,197,24,0.4)', boxShadow: '0 10px 26px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08)' }}>
                   <div style={{ position: 'absolute', top: '-40%', left: '-10%', width: '55%', height: '200%', background: 'linear-gradient(115deg,transparent 30%,rgba(255,255,255,.14) 48%,transparent 66%)', transform: 'skewX(-18deg)', pointerEvents: 'none' }} />
                   <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -217,7 +207,6 @@ function FichaTab({ vehicle }: { vehicle: any }) {
                   </div>
                 </div>
 
-                {/* Status badge: only when there's maintenance data */}
                 <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {latest && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 13px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', color: '#c99a00', fontSize: 12, fontWeight: 700 }}>
@@ -233,7 +222,6 @@ function FichaTab({ vehicle }: { vehicle: any }) {
                   )}
                 </div>
 
-                {/* Mileage: always visible, shows — when no data */}
                 <div style={{ margin: '18px 0 4px' }}>
                   <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: p.muted, fontWeight: 700 }}>Kilometraje actual</div>
                   <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 54, letterSpacing: '.01em', lineHeight: 1, color: p.ink }}>
@@ -241,7 +229,6 @@ function FichaTab({ vehicle }: { vehicle: any }) {
                   </div>
                 </div>
 
-                {/* Progress bar: only when next_service_mileage exists */}
                 {hasCountdown && (
                   <div style={{ margin: '12px 0 6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: p.soft, marginBottom: 7 }}>
@@ -254,13 +241,12 @@ function FichaTab({ vehicle }: { vehicle: any }) {
                   </div>
                 )}
 
-                {/* Service history grid: shows only when records exist */}
                 {maintenance.length > 0 && (
                   <>
                     <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: p.muted, fontWeight: 700, margin: '16px 0 7px' }}>Servicios realizados · pasa el cursor para el detalle</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
                       {maintenance.slice(0, 6).map((r, i) => (
-                        <div key={i} style={{ padding: '8px 10px', borderRadius: 10, background: p.chipBg, border: '1px solid rgba(255,255,255,0.06)', cursor: 'default', transition: 'all .15s' }}
+                        <div key={i} onClick={() => onEditService(r)} style={{ padding: '8px 10px', borderRadius: 10, background: p.chipBg, border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', transition: 'all .15s' }}
                           title={`${r.service_type}: ${r.description || ''}\n${r.mileage?.toLocaleString()} km · ${r.workshop || ''}`}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: p.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_type}</div>
                           <div style={{ fontSize: 10, color: p.soft }}>{r.mileage?.toLocaleString()} km</div>
@@ -293,7 +279,7 @@ function FichaTab({ vehicle }: { vehicle: any }) {
                   {maintenance.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: 40, color: '#7c786e', fontSize: 13 }}>Sin servicios registrados</div>
                   ) : maintenance.map((r, i) => (
-                    <div key={i} style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div key={i} onClick={() => onEditService(r)} style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ fontWeight: 700, fontSize: 13, color: p.ink }}>{r.service_type}</div>
                         <span style={{ fontSize: 11, color: p.muted, whiteSpace: 'nowrap' }}>{new Date(r.date).toLocaleDateString()}</span>
@@ -311,210 +297,88 @@ function FichaTab({ vehicle }: { vehicle: any }) {
             </div>
           </div>
         </div>
-
-        {/* Side panel: vehicle info + latest service */}
-        <div style={{ animation: 'textIn .5s .14s both', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ padding: '15px 18px', borderRadius: 16, background: '#141414', border: '1px solid rgba(245,197,24,0.2)' }}>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 8 }}>Vehículo</div>
-            {[
-              ['Marca', vehicle.brand],
-              ['Modelo', vehicle.model],
-              ['Año', String(vehicle.year)],
-              ['Tipo', vehicle.type],
-              ['Color', vehicle.color],
-              ['Placa', vehicle.plate],
-              ['Ciudad', vehicle.city],
-            ].map(([a, b]) => (
-              <div key={a as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13 }}>
-                <span style={{ color: '#7c786e' }}>{a as string}</span>
-                <span style={{ fontWeight: 600 }}>{b as string}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: '15px 18px', borderRadius: 16, background: '#141414', border: '1px solid rgba(245,197,24,0.2)' }}>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 8 }}>Último servicio</div>
-            {latest ? (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>{latest.service_type}</div>
-                <div style={{ fontSize: 12, color: '#b6b2a6', marginTop: 4 }}>{latest.description}</div>
-                <div style={{ fontSize: 12, color: '#7c786e', marginTop: 6 }}>
-                  {new Date(latest.date).toLocaleDateString()} · {latest.mileage?.toLocaleString()} km
-                </div>
-                {latest.workshop && <div style={{ fontSize: 12, color: '#7c786e', marginTop: 2 }}>📍 {latest.workshop}</div>}
-              </>
-            ) : (
-              <div style={{ color: '#7c786e', fontSize: 13 }}>Sin registros</div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   )
 }
 
-function useVehicleRecords(path: string, vehicleId?: string) {
-  const [data, setData] = useState<any[]>([])
-  const fetch = useCallback(async () => {
-    if (!vehicleId) return
-    const d = await apiGet(`${path}/vehicle/${vehicleId}`)
-    if (d) setData(d)
-  }, [path, vehicleId])
-  useEffect(() => { fetch() }, [fetch])
-  return data
-}
+function HistorialTab({ vehicleId, onAddService, onEditService, refreshKey }: { vehicleId?: string; onAddService: () => void; onEditService: (r: any) => void; refreshKey?: number }) {
+  const { records, loading, reload } = useMaintenance(vehicleId)
+  useEffect(() => { if (vehicleId) reload() }, [vehicleId, reload, refreshKey])
 
-function HistorialTab({ vehicleId }: { vehicleId?: string }) {
-  const records = useVehicleRecords('/maintenance', vehicleId)
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Historial de mantenimiento</_h2>
-      {!records.length ? <_empty msg="Aún no hay registros" /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {records.map((r, i) => (
-            <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{r.service_type}</div>
-                  <div style={{ fontSize: 13, color: '#b6b2a6', marginTop: 4 }}>{r.description}</div>
-                </div>
-                <span style={{ fontSize: 12, color: '#7c786e', whiteSpace: 'nowrap' }}>{new Date(r.date).toLocaleDateString()}</span>
-              </div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 12, fontSize: 13, color: '#b6b2a6' }}>
-                <span>{r.mileage?.toLocaleString()} km</span>
-                {r.cost > 0 && <span>· ${Number(r.cost).toLocaleString()}</span>}
-                <span>· {r.workshop || 'Taller no registrado'}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DiagnosticoTab({ vehicleId }: { vehicleId?: string }) {
-  const items = useVehicleRecords('/diagnostics', vehicleId)
-  return (
-    <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Diagnóstico</_h2>
-      {!items.length ? <_empty msg="Sin diagnósticos registrados" /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map((d, i) => (
-            <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700 }}>{d.alert_type}</span>
-                <span style={{ color: d.severity === 'critical' ? '#ef4444' : d.severity === 'warning' ? '#f59e0b' : '#22c55e', fontWeight: 700, fontSize: 12 }}>{d.severity}</span>
-              </div>
-              <div style={{ color: '#b6b2a6', fontSize: 13, marginTop: 6 }}>{d.description}</div>
-              <div style={{ fontSize: 12, color: '#7c786e', marginTop: 6 }}>{new Date(d.created_at).toLocaleDateString()}</div>
-            </div>
-          ))}
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <_h2>Historial de mantenimiento</_h2>
+        <button onClick={onAddService} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar servicio
+        </button>
+      </div>
+      {!loading && records.length === 0 ? <_empty msg="Aún no hay registros" /> : (
+        <HistoryStack records={records} onEdit={onEditService} />
       )}
     </div>
   )
 }
 
 function PartesTab({ vehicleId }: { vehicleId?: string }) {
-  const items = useVehicleRecords('/parts', vehicleId)
+  const { parts, loading, reload } = useParts(vehicleId)
+  const [showForm, setShowForm] = useState(false)
+  const [editPart, setEditPart] = useState<any>(null)
+
+  const onAdd = useCallback(() => { setEditPart(null); setShowForm(true) }, [])
+  const onEdit = useCallback((p: any) => { setEditPart(p); setShowForm(true) }, [])
+  const onClose = useCallback(() => { setShowForm(false); setEditPart(null) }, [])
+  const onSaved = useCallback(() => { reload() }, [reload])
+
+  const statusColor = (s: string) => s === 'ok' ? '#22c55e' : s === 'worn' ? '#f59e0b' : s === 'critical' ? '#ef4444' : '#7c786e'
+  const statusLabel = (s: string) => s === 'ok' ? 'Bien' : s === 'worn' ? 'Desgastada' : s === 'critical' ? 'Crítica' : 'Sin datos'
+
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Control de partes</_h2>
-      {!items.length ? <_empty msg="Sin partes registradas" /> : (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <_h2>Control de partes</_h2>
+        <button onClick={onAdd} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar parte
+        </button>
+      </div>
+      {!loading && parts.length === 0 ? <_empty msg="Sin partes registradas" /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-          {items.map((p, i) => (
-            <div key={i} style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontWeight: 700 }}>{p.name}</div>
-              <div style={{ color: '#b6b2a6', fontSize: 12 }}>{p.part_number}</div>
+          {parts.map((part: any) => (
+            <div key={part.id} onClick={() => onEdit(part)} style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}>
+              <div style={{ fontWeight: 700 }}>{part.name}</div>
+              {part.part_number && <div style={{ color: '#b6b2a6', fontSize: 12 }}>{part.part_number}</div>}
               <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: p.status === 'ok' ? '#22c55e' : p.status === 'worn' ? '#f59e0b' : p.status === 'critical' ? '#ef4444' : '#7c786e' }}>{p.status}</span>
+                <span style={{ color: statusColor(part.status) }}>{statusLabel(part.status)}</span>
               </div>
-              {p.mileage_installed && <div style={{ fontSize: 11, color: '#7c786e', marginTop: 4 }}>instalado a los {p.mileage_installed?.toLocaleString()} km</div>}
+              {part.mileage_installed && <div style={{ fontSize: 11, color: '#7c786e', marginTop: 4 }}>instalado a los {part.mileage_installed?.toLocaleString()} km</div>}
             </div>
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-function GaleriaTab({ vehicleId }: { vehicleId?: string }) {
-  const imgs = useVehicleRecords('/gallery', vehicleId)
-  return (
-    <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Galería</_h2>
-      {!imgs.length ? <_empty msg="Sin imágenes" /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 10 }}>
-          {imgs.map((g, i) => (
-            <div key={i} style={{ borderRadius: 12, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
-              <img src={g.image_url} alt={g.caption || ''} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
-              {g.caption && <div style={{ padding: '6px 10px', fontSize: 12, color: '#b6b2a6' }}>{g.caption}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function CertificadosTab({ vehicleId }: { vehicleId?: string }) {
-  const items = useVehicleRecords('/certificates', vehicleId)
-  return (
-    <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Certificados</_h2>
-      {!items.length ? <_empty msg="Sin certificados" /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map((c, i) => (
-            <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ fontWeight: 700 }}>{c.name}</div>
-                {c.expiry_date && <span style={{ fontSize: 11, color: '#7c786e', whiteSpace: 'nowrap' }}>vence {new Date(c.expiry_date).toLocaleDateString()}</span>}
-              </div>
-              <div style={{ color: '#b6b2a6', fontSize: 12, marginTop: 4 }}>expedido por {c.issued_by}</div>
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, fontSize: 12 }}>
-                {c.file_url && (
-                  <a href={c.file_url} target="_blank" rel="noreferrer" style={{ color: '#F5C518', fontWeight: 600 }}>
-                    Ver documento →
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DocumentosTab({ vehicleId }: { vehicleId?: string }) {
-  const items = useVehicleRecords('/documents', vehicleId)
-  return (
-    <div style={{ animation: 'sectionIn .4s both' }}>
-      <_h2>Documentos</_h2>
-      {!items.length ? <_empty msg="Sin documentos" /> : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map((d, i) => (
-            <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 700 }}>{d.name}</div>
-                <span style={{ fontSize: 11, color: '#7c786e' }}>{d.type}</span>
-              </div>
-              <div style={{ color: '#b6b2a6', fontSize: 13, marginTop: 4 }}>{d.notes}</div>
-              {d.file_url && <a href={d.file_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, color: '#F5C518', fontWeight: 600, fontSize: 13 }}>Abrir →</a>}
-            </div>
-          ))}
-        </div>
+      {showForm && vehicleId && (
+        <PartFormModal vehicleId={vehicleId} editPart={editPart} onClose={onClose} onSaved={() => { onSaved(); onClose() }} />
       )}
     </div>
   )
 }
 
 function TallerTab({ vehicleId }: { vehicleId?: string }) {
-  const items = useVehicleRecords('/service-logs', vehicleId)
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!vehicleId) { setLoading(false); return }
+    setLoading(true)
+    apiGet(`/service-logs/vehicle/${vehicleId}`).then(d => { if (d) setItems(d) }).finally(() => setLoading(false))
+  }, [vehicleId])
+
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
       <_h2>Taller — Bitácora de servicio</_h2>
-      {!items.length ? <_empty msg="Sin entradas de taller" /> : (
+      {!loading && items.length === 0 ? <_empty msg="Sin entradas de taller" /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((s, i) => (
             <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -533,7 +397,7 @@ function TallerTab({ vehicleId }: { vehicleId?: string }) {
 
 /* ── Sub-components ── */
 function _h2({ children }: { children: string }) {
-  return <h2 style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: '0 0 18px', textTransform: 'uppercase' }}>{children}</h2>
+  return <h2 style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: 0, textTransform: 'uppercase' }}>{children}</h2>
 }
 function _empty({ msg }: { msg: string }) {
   return (
@@ -555,6 +419,84 @@ export default function AppPage() {
   const [editTipo, setEditTipo] = useState('Sedán')
   const [editAnio, setEditAnio] = useState(2026)
   const [editColor, setEditColor] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editRecord, setEditRecord] = useState<any>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [showNfc, setShowNfc] = useState(false)
+  const [nfcTokens, setNfcTokens] = useState<any[]>([])
+  const [nfcLoading, setNfcLoading] = useState(false)
+  const [tokensLoading, setTokensLoading] = useState(false)
+  const [generatedUrl, setGeneratedUrl] = useState('')
+  const [genCopied, setGenCopied] = useState(false)
+  const [showQuickRegister, setShowQuickRegister] = useState(false)
+  const [appToast, setAppToast] = useState<string | null>(null)
+
+  const flashApp = useCallback((msg: string) => {
+    setAppToast(msg)
+    setTimeout(() => setAppToast(null), 2600)
+  }, [])
+
+  const toggleNfcActive = useCallback(async () => {
+    if (!vehicle?.id) return
+    const result = await apiPatch(`/vehicles/${vehicle.id}/nfc-toggle`, {})
+    if (result) {
+      setVehicle((prev: any) => ({ ...prev, nfc_active: result.nfc_active }))
+      flashApp(result.nfc_active ? 'Ficha pública activada' : 'Ficha pública oculta')
+    }
+  }, [vehicle?.id, flashApp])
+
+  useEffect(() => {
+    if (!showNfc || !user) return
+    setTokensLoading(true)
+    setGeneratedUrl('')
+    apiGet('/nfc/tokens').then(data => {
+      if (data) setNfcTokens(data)
+      setTokensLoading(false)
+    })
+  }, [showNfc, user])
+
+  const generateNfcToken = async () => {
+    if (!user) return
+    setNfcLoading(true)
+    setGeneratedUrl('')
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    const rawToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawToken))
+    const hashArr = new Uint8Array(hashBuf)
+    const tokenHash = Array.from(hashArr).map(b => b.toString(16).padStart(2, '0')).join('')
+    const tokenPrefix = rawToken.slice(0, 8)
+    const data = await apiPost('/nfc/tokens', { token_hash: tokenHash, token_prefix: tokenPrefix })
+    if (data) {
+      setNfcTokens(prev => [data, ...prev])
+      setGeneratedUrl(`${window.location.origin}/nfc/${rawToken}`)
+    }
+    setNfcLoading(false)
+  }
+
+  const revokeNfcToken = async (id: string) => {
+    const ok = await apiDelete(`/nfc/tokens/${id}`)
+    if (ok) setNfcTokens(prev => prev.filter(t => t.id !== id))
+  }
+
+  const onAddService = useCallback(() => {
+    setEditRecord(null)
+    setShowForm(true)
+  }, [])
+
+  const onEditService = useCallback((r: any) => {
+    setEditRecord(r)
+    setShowForm(true)
+  }, [])
+
+  const onCloseForm = useCallback(() => {
+    setShowForm(false)
+    setEditRecord(null)
+  }, [])
+
+  const onSaved = useCallback(() => {
+    setRefreshKey(k => k + 1)
+  }, [])
 
   useEffect(() => {
     if (loading) return
@@ -564,7 +506,7 @@ export default function AppPage() {
       if (data?.length) setVehicle(data[0])
       setVehicleLoading(false)
     })
-  }, [user, loading])
+  }, [user, loading, router])
 
   useEffect(() => {
     if (!showProfile) return
@@ -607,11 +549,13 @@ export default function AppPage() {
           anio: vehicle.year,
           tipo: vehicle.type,
           color: vehicle.color,
-          owner: vehicle.owner,
+          owner: ownerName,
         } : null}
         plateText={vehicle?.plate}
         city={vehicle?.city}
         vehicleLoading={vehicleLoading}
+        onLogout={signOut}
+        accountType={profile?.account_type || undefined}
       />
 
       <div style={{
@@ -619,8 +563,26 @@ export default function AppPage() {
         position: 'relative', minHeight: '100vh',
         background: 'radial-gradient(ellipse at 0 -40%, rgba(245,197,24,0.04) 0%, transparent 55%)',
       }}>
-        {/* Top-right profile button */}
+        {/* Top-right action buttons */}
         <div style={{ position: 'absolute', top: 20, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={() => setShowQuickRegister(true)} title="Registro rápido"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(20,20,20,0.8)', backdropFilter: 'blur(12px)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .16s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(20,20,20,0.8)'; e.currentTarget.style.color = '#F5C518' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Registro rápido
+          </button>
+
+          <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC"
+            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: showNfc ? '1px solid #F5C518' : '1px solid rgba(245,197,24,0.35)', background: showNfc ? 'rgba(245,197,24,0.2)' : 'rgba(20,20,20,0.8)', backdropFilter: 'blur(12px)', color: showNfc ? '#fff' : '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+            onMouseEnter={e => { if (!showNfc) { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' } }}
+            onMouseLeave={e => { if (!showNfc) { e.currentTarget.style.background = 'rgba(20,20,20,0.8)'; e.currentTarget.style.color = '#F5C518' } }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+            {nfcTokens.length > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', background: '#F5C518', color: '#111', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #0a0a0a' }}>{nfcTokens.length}</span>
+            )}
+          </button>
+
           <button onClick={() => setShowProfile(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 14px 6px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(20,20,20,0.8)', backdropFilter: 'blur(12px)', color: '#f5f3ec', cursor: 'pointer', transition: 'all .16s' }}>
             <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{initial}</span>
@@ -630,23 +592,43 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} /> :
-           activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
+           activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} /> :
            activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} /> :
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
-           activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} /> :
-           activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} /> :
+           activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
+           activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? <TallerTab vehicleId={vehicle?.id} /> :
-           <FichaTab vehicle={vehicle} />}
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} />}
         </div>
+
+        {/* App-level toast */}
+        {appToast && (
+          <div style={{ position: 'fixed', left: '50%', bottom: 34, zIndex: 60, transform: 'translateX(-50%)', animation: 'toastIn .4s both', display: 'flex', gap: 11, alignItems: 'center', padding: '14px 24px', borderRadius: 999, background: 'rgba(16,16,16,0.94)', backdropFilter: 'blur(14px)', border: '1px solid rgba(245,197,24,0.5)', color: '#fff8e6', fontWeight: 600, fontSize: 14 }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
+            {appToast}
+          </div>
+        )}
       </div>
 
-      {/* Profile modal */}
+      {/* Service form modal */}
+      {showForm && vehicle?.id && (
+        <ServiceFormModal
+          vehicleId={vehicle.id}
+          editRecord={editRecord}
+          onClose={onCloseForm}
+          onSaved={onSaved}
+        />
+      )}
+
+      {/* Profile right panel */}
       {showProfile && (
-        <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 460, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.3)', borderRadius: 22, padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', justifyContent: 'flex-end', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '100vw', height: '100%', overflowY: 'auto', background: '#141414', borderLeft: '1px solid rgba(245,197,24,0.3)', borderRadius: 0, boxShadow: '-40px 0 90px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, padding: '20px 24px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>{initial}</span>
                 <div>
@@ -658,50 +640,178 @@ export default function AppPage() {
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 10 }}>Datos del usuario</div>
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre completo</label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
-            </div>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Datos del vehículo</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Modelo / línea</label>
-                <input value={editModelo} onChange={e => setEditModelo(e.target.value)} placeholder="Ej. Mazda 3 Grand Touring" style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
+            <div style={{ flex: 1, padding: '0 24px 24px', overflowY: 'auto' }}>
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 10 }}>Datos del usuario</div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre completo</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo</label>
-                <select value={editTipo} onChange={e => setEditTipo(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-                  {VEHICLE_TYPES.map(vt => <option key={vt} value={vt}>{vt}</option>)}
-                </select>
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Datos del vehículo</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Modelo / línea</label>
+                  <input value={editModelo} onChange={e => setEditModelo(e.target.value)} placeholder="Ej. Mazda 3 Grand Touring" style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo</label>
+                  <select value={editTipo} onChange={e => setEditTipo(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                    {VEHICLE_TYPES.map(vt => <option key={vt} value={vt}>{vt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Año</label>
+                  <select value={editAnio} onChange={e => setEditAnio(Number(e.target.value))} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Color</label>
+                  <input value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Año</label>
-                <select value={editAnio} onChange={e => setEditAnio(Number(e.target.value))} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+              <button onClick={handleSaveProfile} style={{ marginTop: 18, width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Guardar cambios</button>
+              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+                <button onClick={() => setShowProfile(false)} style={{ flex: 1, padding: 13, borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#a8a496', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => { setShowProfile(false); signOut() }} style={{ padding: '13px 18px', borderRadius: 12, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                  Cerrar sesión
+                </button>
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Color</label>
-                <input value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
-              </div>
-            </div>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, background: 'rgba(245,197,24,0.08)', border: '1px dashed rgba(245,197,24,0.32)' }}>
-              <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700 }}>Placa</span>
-              <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, color: '#F5C518', letterSpacing: '.05em' }}>{vehicle?.plate}</span>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#7c786e' }} />
-              <span style={{ fontSize: 13, color: '#b6b2a6' }}>{vehicle?.city}</span>
-            </div>
-            <button onClick={handleSaveProfile} style={{ marginTop: 18, width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Guardar cambios</button>
-            <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowProfile(false)} style={{ flex: 1, padding: 13, borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#a8a496', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={() => { setShowProfile(false); signOut() }} style={{ padding: '13px 18px', borderRadius: 12, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-                Cerrar sesión
-              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* NFC llavero panel */}
+      {showNfc && (
+        <div onClick={() => { setShowNfc(false); setGeneratedUrl(''); setGenCopied(false) }} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 520, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.3)', borderRadius: 22, padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: '2px solid #F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+                </span>
+                <div>
+                  <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1.1 }}>Llavero NFC</div>
+                  <div style={{ fontSize: 11, color: '#7c786e', marginTop: 2 }}>Ficha pública de tu vehículo</div>
+                </div>
+              </div>
+              <button onClick={() => { setShowNfc(false); setGeneratedUrl(''); setGenCopied(false) }} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)', color: '#b6b2a6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: 16, borderRadius: 14, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: '#d8c98a', lineHeight: 1.5 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ flex: '0 0 auto', marginTop: 1 }}><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                <span>Al tocar tu llavero NFC contra el teléfono, se abre la ficha técnica al instante. El taller la actualiza en segundos.</span>
+              </div>
+            </div>
+
+            {/* Public NFC page visibility toggle */}
+            <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>Ficha pública</div>
+                <div style={{ fontSize: 11, color: '#7c786e', lineHeight: 1.4 }}>
+                  {vehicle?.nfc_active !== false ? 'Visible al escanear el llavero NFC.' : 'Oculta — el llavero no mostrará la ficha.'}
+                </div>
+              </div>
+              <button onClick={toggleNfcActive} role="switch" aria-checked={vehicle?.nfc_active !== false}
+                title={vehicle?.nfc_active !== false ? 'Desactivar ficha pública' : 'Activar ficha pública'}
+                style={{ position: 'relative', width: 44, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flex: '0 0 auto', background: vehicle?.nfc_active !== false ? '#2ecc71' : 'rgba(255,255,255,0.15)', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 2, left: vehicle?.nfc_active !== false ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.4)' }} />
+              </button>
+            </div>
+
+            {/* Generate / show new token */}
+            <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700 }}>Tus llaveros activos</div>
+                <button onClick={generateNfcToken} disabled={nfcLoading}
+                  style={{ padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(245,197,24,0.35)', background: nfcLoading ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: nfcLoading ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: nfcLoading ? 'default' : 'pointer', transition: 'all .16s' }}>
+                  {nfcLoading ? 'Generando…' : '+ Nuevo llavero'}
+                </button>
+              </div>
+
+              {tokensLoading ? (
+                <div style={{ fontSize: 12, color: '#7c786e', padding: '10px 0' }}>Cargando…</div>
+              ) : nfcTokens.length === 0 && !generatedUrl ? (
+                <div style={{ fontSize: 12, color: '#7c786e', padding: '10px 0', lineHeight: 1.5 }}>
+                  Aún no has generado ningún llavero. Presiona <b style={{ color: '#b6b2a6' }}>+ Nuevo llavero</b> para crear uno.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {nfcTokens.map(t => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, background: t.is_active ? 'rgba(46,204,113,0.05)' : 'rgba(255,55,55,0.05)', border: t.is_active ? '1px solid rgba(46,204,113,0.2)' : '1px solid rgba(255,55,55,0.15)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: t.is_active ? '#2ecc71' : '#ff4d6a', fontWeight: 700 }}>{t.token_prefix}…</span>
+                        <span style={{ fontSize: 11, color: '#7c786e' }}>
+                          {t.is_active ? `${t.access_count} accesos` : 'Revocado'}
+                          {t.last_accessed_at && ` · última vez ${new Date(t.last_accessed_at).toLocaleDateString()}`}
+                        </span>
+                      </div>
+                      {t.is_active && (
+                        <button onClick={() => revokeNfcToken(t.id)} title="Revocar"
+                          style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                          Revocar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {generatedUrl && (
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'rgba(245,197,24,0.1)', border: '2px solid #F5C518' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 6 }}>¡Nuevo llavero generado!</div>
+                  <div style={{ fontSize: 12, color: '#b6b2a6', marginBottom: 8, lineHeight: 1.4 }}>
+                    Este enlace es la <b>única vez que se muestra</b>. Copialo ahora para programar tu chip NFC:
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                    <input readOnly value={generatedUrl} onClick={e => (e.target as HTMLInputElement).select()}
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(0,0,0,0.4)', color: '#F5C518', fontSize: 11, fontFamily: "'JetBrains Mono',monospace", outline: 'none', cursor: 'text' }} />
+                    <button onClick={() => { navigator.clipboard.writeText(generatedUrl).then(() => { setGenCopied(true); setTimeout(() => setGenCopied(false), 2000) }).catch(() => {}) }}
+                      style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: genCopied ? '#2ecc71' : '#F5C518', color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .2s' }}>
+                      {genCopied ? 'Copiado ✓' : 'Copiar enlace'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: '#b6b2a6', lineHeight: 1.55 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>1</span>
+                <span>Genera el enlace único en esta pantalla y copialo.</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>2</span>
+                <span>El taller escribe el enlace en tu llavero NFC con un programador compatible.</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>3</span>
+                <span>Al acercar el llavero al teléfono, se abre tu ficha técnica al instante. Sin apps, sin búsquedas.</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.25)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+              <div style={{ fontSize: 12, color: '#5be89a', lineHeight: 1.4 }}>
+                <b style={{ fontWeight: 700 }}>Seguro por diseño.</b> El token de 256 bits se hashea con SHA-256 antes de almacenarse. El backend nunca ve la clave original. El endpoint público solo expone placa, modelo y color — nunca datos del dueño.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick register modal */}
+      {showQuickRegister && vehicle?.id && (
+        <QuickRegisterModal
+          vehicleId={vehicle.id}
+          onClose={() => setShowQuickRegister(false)}
+          onSuccess={flashApp}
+          onSaved={onSaved}
+        />
       )}
     </div>
   )

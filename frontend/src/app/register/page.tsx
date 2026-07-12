@@ -25,15 +25,34 @@ export default function RegisterPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
 
+  /* mode: persona (vehicle owner) or empresa (workshop) */
+  const [mode, setMode] = useState<'persona' | 'empresa'>('persona')
+
+  /* Persona fields */
   const [brand, setBrand] = useState('')
   const [regName, setRegName] = useState('')
   const [regPlate, setRegPlate] = useState('')
   const [regCity, setRegCity] = useState('Bogotá')
-
   const [regModel, setRegModel] = useState('')
   const [regYear, setRegYear] = useState(new Date().getFullYear())
   const [regType, setRegType] = useState(VEHICLE_TYPES[0])
   const [regColor, setRegColor] = useState(COLORS[0].name)
+
+  /* Empresa fields */
+  const [wsLegalId, setWsLegalId] = useState('')
+  const [wsName, setWsName] = useState('')
+  const [wsAddress, setWsAddress] = useState('')
+  const [wsCity, setWsCity] = useState('')
+  const [wsPhone, setWsPhone] = useState('')
+  const [wsDescription, setWsDescription] = useState('')
+  const [wsHasVehicle, setWsHasVehicle] = useState(false)
+  const [wsPlate, setWsPlate] = useState('')
+  const [wsBrand, setWsBrand] = useState('')
+  const [wsModel, setWsModel] = useState('')
+  const [wsYear, setWsYear] = useState(new Date().getFullYear())
+  const [wsType, setWsType] = useState(VEHICLE_TYPES[0])
+  const [wsColor, setWsColor] = useState(COLORS[0].name)
+
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -48,10 +67,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!user) { router.push('/'); return }
-    const token = supabase.auth.getSession().then(({ data: { session } }) => session?.access_token)
-    token.then(t => {
-      if (!t) return
-      fetch(apiUrl('/vehicles'), { headers: { Authorization: `Bearer ${t}` } })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.access_token) return
+      fetch(apiUrl('/vehicles'), { headers: { Authorization: `Bearer ${session.access_token}` } })
         .then(r => { if (r.ok) return r.json() })
         .then(d => { if (d?.length) router.push('/app') })
         .catch(() => {})
@@ -65,25 +83,26 @@ export default function RegisterPage() {
 
   const brandTiles = useMemo(() => BRANDS.map(b => ({
     name: b, initial: b[0],
-    onClick: () => setBrand(b),
-    bg: brand === b ? 'rgba(245,197,24,0.15)' : 'transparent',
-    border: brand === b ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.1)',
-    fg: brand === b ? '#F5C518' : '#b6b2a6',
-    badge: brand === b ? '#F5C518' : 'rgba(255,255,255,0.06)',
-    mark: brand === b ? '#111' : '#b6b2a6',
-  })), [brand])
+    onClick: () => { setBrand(b); setWsBrand(b) },
+    bg: brand === b || wsBrand === b ? 'rgba(245,197,24,0.15)' : 'transparent',
+    border: brand === b || wsBrand === b ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.1)',
+    fg: brand === b || wsBrand === b ? '#F5C518' : '#b6b2a6',
+    badge: brand === b || wsBrand === b ? '#F5C518' : 'rgba(255,255,255,0.06)',
+    mark: brand === b || wsBrand === b ? '#111' : '#b6b2a6',
+  })), [brand, wsBrand])
 
   const colorTiles = useMemo(() => COLORS.map(c => ({
     name: c.name, dot: c.hex,
-    onClick: () => setRegColor(c.name),
-    bg: regColor === c.name ? 'rgba(245,197,24,0.15)' : 'transparent',
-    border: regColor === c.name ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.1)',
-    fg: regColor === c.name ? '#F5C518' : '#b6b2a6',
-  })), [regColor])
+    onClick: () => { setRegColor(c.name); setWsColor(c.name) },
+    bg: regColor === c.name || wsColor === c.name ? 'rgba(245,197,24,0.15)' : 'transparent',
+    border: regColor === c.name || wsColor === c.name ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.1)',
+    fg: regColor === c.name || wsColor === c.name ? '#F5C518' : '#b6b2a6',
+  })), [regColor, wsColor])
 
   if (!user) return null
 
-  const doRegister = async () => {
+  /* ── Persona registration ── */
+  const doRegisterPersona = async () => {
     setErrorMsg('')
     if (!regPlate || !brand || !regModel || !regName) {
       setErrorMsg('Completa todos los campos obligatorios')
@@ -91,37 +110,65 @@ export default function RegisterPage() {
     }
     setSaving(true)
     const token = (await supabase.auth.getSession()).data.session?.access_token
-
+    if (!token) { setErrorMsg('Sesión expirada'); setSaving(false); return }
     try {
       const res = await fetch(apiUrl('/vehicles'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plate: regPlate.toUpperCase(), city: regCity, brand, model: regModel, year: regYear, type: regType, color: regColor }),
       })
-      if (res.ok) {
-        window.location.href = '/app'
-        return
-      }
-      let msg = `Error ${res.status}`
-      try {
-        const body = await res.text()
-        console.error('Error al registrar:', { status: res.status, body })
-        try {
-          const parsed = JSON.parse(body)
-          msg = typeof parsed.detail === 'string' ? parsed.detail : body
-        } catch {
-          msg = body || `Error ${res.status}`
-        }
-      } catch {
-        msg = `Error ${res.status}`
-      }
-      setErrorMsg(msg)
-    } catch (e) {
-      console.error('Error de conexión:', e)
-      setErrorMsg('Error de conexión con el servidor')
-    }
+      if (res.ok) { window.location.href = '/app'; return }
+      const body = await res.text()
+      try { setErrorMsg(JSON.parse(body).detail || body) } catch { setErrorMsg(body || `Error ${res.status}`) }
+    } catch (e: any) { setErrorMsg('Error de conexión') }
     finally { setSaving(false) }
   }
+
+  /* ── Empresa registration ── */
+  const doRegisterEmpresa = async () => {
+    setErrorMsg('')
+    if (!wsLegalId || !wsName) {
+      setErrorMsg('Completa NIT/RUT y nombre del taller')
+      return
+    }
+    if (wsHasVehicle && !wsPlate) {
+      setErrorMsg('Ingresa la placa del vehículo de prueba')
+      return
+    }
+    setSaving(true)
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) { setErrorMsg('Sesión expirada'); setSaving(false); return }
+    try {
+      const body: Record<string, any> = {
+        legal_id: wsLegalId,
+        name: wsName,
+        address: wsAddress,
+        city: wsCity,
+        phone: wsPhone,
+        description: wsDescription,
+      }
+      if (wsHasVehicle) {
+        body.plate = wsPlate.toUpperCase()
+        body.brand = wsBrand
+        body.model = wsModel
+        body.year = wsYear
+        body.vehicle_type = wsType
+        body.color = wsColor
+        body.vehicle_city = wsCity
+      }
+      const res = await fetch(apiUrl('/workshops'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) { window.location.href = '/app'; return }
+      const rb = await res.text()
+      try { setErrorMsg(JSON.parse(rb).detail || rb) } catch { setErrorMsg(rb || `Error ${res.status}`) }
+    } catch { setErrorMsg('Error de conexión') }
+    finally { setSaving(false) }
+  }
+
+  const doRegister = mode === 'persona' ? doRegisterPersona : doRegisterEmpresa
 
   return (
     <div style={{ minHeight: '100vh', background: '#060606', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -130,70 +177,206 @@ export default function RegisterPage() {
           <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
             Un último paso, {profile?.full_name?.split(' ')[0] || 'usuario'}
           </div>
-          <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,4vw,46px)', letterSpacing: '.01em', margin: '8px 0 6px', textTransform: 'uppercase' }}>Registra tu vehículo</h1>
-          <p style={{ color: '#b6b2a6', margin: 0, fontSize: 15 }}>Estos datos alimentan tu ficha técnica y las predicciones de mantenimiento.</p>
+          <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,4vw,46px)', letterSpacing: '.01em', margin: '8px 0 6px', textTransform: 'uppercase' }}>
+            {mode === 'persona' ? 'Registra tu vehículo' : 'Registra tu taller'}
+          </h1>
+          <p style={{ color: '#b6b2a6', margin: 0, fontSize: 15 }}>
+            {mode === 'persona' ? 'Estos datos alimentan tu ficha técnica y las predicciones de mantenimiento.' : 'Tu taller aparecerá en las búsquedas de tus clientes.'}
+          </p>
+        </div>
+
+        {/* Mode selector */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18, justifyContent: 'center' }}>
+          {(['persona', 'empresa'] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setErrorMsg('') }}
+              style={{
+                padding: '10px 24px', borderRadius: 999, cursor: 'pointer',
+                border: mode === m ? '2px solid #F5C518' : '1px solid rgba(255,255,255,0.14)',
+                background: mode === m ? 'rgba(245,197,24,0.12)' : 'rgba(255,255,255,0.03)',
+                color: mode === m ? '#F5C518' : '#b6b2a6',
+                fontWeight: 700, fontSize: 14, transition: 'all .15s',
+              }}>
+              {m === 'persona' ? '👤 Persona' : '🔧 Empresa (Taller)'}
+            </button>
+          ))}
         </div>
 
         <div style={{ background: 'rgba(14,14,14,0.74)', backdropFilter: 'blur(22px)', border: '1px solid rgba(245,197,24,0.2)', borderRadius: 20, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,.5)', animation: 'fadeUp .55s .06s both' }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 10 }}>Marca del vehículo</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
-            {brandTiles.map(b => (
-              <button key={b.name} onClick={b.onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '12px 6px', borderRadius: 13, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
-                <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 18, color: b.mark }}>{b.initial}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: b.fg }}>{b.name}</span>
-              </button>
-            ))}
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del propietario</label>
-              <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Modelo / línea</label>
-              <input value={regModel} onChange={e => setRegModel(e.target.value)} placeholder="Ej. Mazda 3 Grand Touring" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Año</label>
-              <select value={regYear} onChange={e => setRegYear(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Tipo</label>
-              <select value={regType} onChange={e => setRegType(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
-                {VEHICLE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-          </div>
+          {mode === 'persona' ? (
+            <>
+              {/* ── PERSONA MODE: vehicle registration ── */}
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 10 }}>Marca del vehículo</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
+                {brandTiles.map(b => (
+                  <button key={b.name} onClick={b.onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '12px 6px', borderRadius: 13, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
+                    <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 18, color: b.mark }}>{b.initial}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: b.fg }}>{b.name}</span>
+                  </button>
+                ))}
+              </div>
 
-          <div style={{ marginTop: 16 }}>
-            <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 8 }}>Color</label>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {colorTiles.map(c => (
-                <button key={c.name} onClick={c.onClick} title={c.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', borderRadius: 999, cursor: 'pointer', background: c.bg, border: `1.5px solid ${c.border}`, color: c.fg, fontSize: 12, fontWeight: 600 }}>
-                  <span style={{ width: 15, height: 15, borderRadius: '50%', background: c.dot, border: '1px solid rgba(255,255,255,.3)' }} />
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del propietario</label>
+                  <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Modelo / línea</label>
+                  <input value={regModel} onChange={e => setRegModel(e.target.value)} placeholder="Ej. Mazda 3 Grand Touring" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Año</label>
+                  <select value={regYear} onChange={e => setRegYear(Number(e.target.value))} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Tipo</label>
+                  <select value={regType} onChange={e => setRegType(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
+                    {VEHICLE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
 
-          <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Placa *</label>
-              <input value={regPlate} onChange={e => setRegPlate(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC 123"
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.03em', outline: 'none' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Ciudad de expedición</label>
-              <select value={regCity} onChange={e => setRegCity(e.target.value)}
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
-                {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
+              <div style={{ marginTop: 16 }}>
+                <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 8 }}>Color</label>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {colorTiles.map(c => (
+                    <button key={c.name} onClick={c.onClick} title={c.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', borderRadius: 999, cursor: 'pointer', background: c.bg, border: `1.5px solid ${c.border}`, color: c.fg, fontSize: 12, fontWeight: 600 }}>
+                      <span style={{ width: 15, height: 15, borderRadius: '50%', background: c.dot, border: '1px solid rgba(255,255,255,.3)' }} />
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Placa *</label>
+                  <input value={regPlate} onChange={e => setRegPlate(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC 123"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.03em', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Ciudad de expedición</label>
+                  <select value={regCity} onChange={e => setRegCity(e.target.value)}
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none', cursor: 'pointer' }}>
+                    {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* ── EMPRESA MODE: workshop registration ── */}
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>Datos del taller</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>NIT / RUT *</label>
+                  <input value={wsLegalId} onChange={e => setWsLegalId(e.target.value)} placeholder="Ej. 12345678-9"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del taller *</label>
+                  <input value={wsName} onChange={e => setWsName(e.target.value)} placeholder="Ej. Taller Pérez"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Dirección</label>
+                  <input value={wsAddress} onChange={e => setWsAddress(e.target.value)} placeholder="Cra 7 #45-12"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Ciudad</label>
+                  <input value={wsCity} onChange={e => setWsCity(e.target.value)} placeholder="Bogotá"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Teléfono</label>
+                  <input value={wsPhone} onChange={e => setWsPhone(e.target.value)} placeholder="300 123 4567"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Descripción</label>
+                  <input value={wsDescription} onChange={e => setWsDescription(e.target.value)} placeholder="Especialistas en frenos"
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+              </div>
+
+              {/* Optional test vehicle */}
+              <div style={{ marginBottom: 14, padding: 14, borderRadius: 12, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: '#d8c98a', fontWeight: 600 }}>
+                  <input type="checkbox" checked={wsHasVehicle} onChange={e => setWsHasVehicle(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: '#F5C518', cursor: 'pointer' }} />
+                  Registrar vehículo de prueba (opcional — para talleres certificados que necesitan ficha técnica)
+                </label>
+
+                {wsHasVehicle && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 8 }}>Vehículo de prueba</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>
+                        <input value={wsPlate} onChange={e => setWsPlate(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC 123"
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Modelo</label>
+                        <input value={wsModel} onChange={e => setWsModel(e.target.value)} placeholder="Mazda 3"
+                          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Año</label>
+                        <select value={wsYear} onChange={e => setWsYear(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                          {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Tipo</label>
+                        <select value={wsType} onChange={e => setWsType(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                          {VEHICLE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Marca</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 7 }}>
+                        {brandTiles.map(b => (
+                          <button key={b.name} onClick={() => setWsBrand(b.name)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 4px', borderRadius: 10, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
+                            <span style={{ width: 30, height: 30, borderRadius: 8, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 14, color: b.mark }}>{b.initial}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: b.fg }}>{b.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Color</label>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {colorTiles.map(c => (
+                          <button key={c.name} onClick={() => setWsColor(c.name)} title={c.name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999, cursor: 'pointer', background: c.bg, border: `1.5px solid ${c.border}`, color: c.fg, fontSize: 11, fontWeight: 600 }}>
+                            <span style={{ width: 12, height: 12, borderRadius: '50%', background: c.dot, border: '1px solid rgba(255,255,255,.3)' }} />
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 12, background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.2)', marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: '#5be89a', lineHeight: 1.5 }}>
+                  <b>ℹ️ Código único de taller</b> — Al registrarte, se generará automáticamente un código <b>TLR-XXXXX</b> único. Comparte este código con tus clientes para que te encuentren al instante.
+                </div>
+              </div>
+            </>
+          )}
 
           {errorMsg && (
             <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: 13, fontWeight: 600 }}>
@@ -201,7 +384,7 @@ export default function RegisterPage() {
             </div>
           )}
           <button onClick={doRegister} disabled={saving} style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: saving ? '#7c786e' : '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: saving ? 'not-allowed' : 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)' }}>
-            {saving ? 'Registrando...' : 'Registrar y entrar'}
+            {saving ? (mode === 'persona' ? 'Registrando...' : 'Registrando taller...') : (mode === 'persona' ? 'Registrar y entrar' : 'Crear taller')}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>

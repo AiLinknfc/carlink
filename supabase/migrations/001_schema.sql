@@ -95,6 +95,7 @@ CREATE TABLE parts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  brand TEXT DEFAULT '',
   part_number TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'worn', 'replaced', 'critical')),
   mileage_installed INTEGER,

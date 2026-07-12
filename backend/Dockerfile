@@ -23,13 +23,11 @@ WORKDIR /app
 RUN groupadd -r carlink && useradd -r -g carlink carlink
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev && \
+    libpq-dev tesseract-ocr tesseract-ocr-spa poppler-utils && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /root/.local /usr/local
 COPY app ./app
-COPY alembic.ini ./alembic.ini
-COPY alembic ./alembic
 
 RUN chown -R carlink:carlink /app
 USER carlink

@@ -9,6 +9,7 @@ interface Profile {
   email: string | null
   full_name: string | null
   avatar_url: string | null
+  account_type: string | null
 }
 
 interface AuthCtx {
@@ -30,11 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (uid: string) => {
-    const token = (await supabase.auth.getSession()).data.session?.access_token
-    const res = await fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) setProfile(await res.json())
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (!token) return
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) setProfile(await res.json())
+    } catch (e) {
+      console.warn('fetchProfile failed (backend unreachable?):', e)
+    }
   }
 
   useEffect(() => {
@@ -60,9 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async () => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${siteUrl}/auth/callback` },
     })
   }
 

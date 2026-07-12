@@ -1,0 +1,53 @@
+# ==========================
+# Información del Proyecto
+# ==========================
+
+PROJECT_NAME="carlink"
+PROJECT_DESCRIPTION="MVP-Keychain to vehicles"
+
+# ==========================
+# Perfil Git
+# ==========================
+
+GIT_PROFILE="ailink"
+DEFAULT_BRANCH="main"
+
+# ==========================
+# Repositorio
+# ==========================
+
+GIT_REMOTE="origin"
+
+# ==========================
+# Deploy
+# ==========================
+
+DEPLOY_ENABLED="false"
+DEPLOY_TYPE="none"
+
+# opciones:
+# none
+# docker
+# docker-compose
+# ssh
+# kubernetes
+
+DEPLOY_HOST=""
+DEPLOY_PATH=""
+
+# ==========================
+# Docker
+# ==========================
+
+DOCKER_IMAGE=""
+DOCKER_CONTAINER=""
+
+# ==========================
+# Entorno
+# ==========================
+
+ENVIRONMENT="development"
+
+# development
+# staging
+# production

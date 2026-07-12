@@ -17,8 +17,8 @@ async def upload_file_endpoint(
     file: UploadFile,
     user_id: Annotated[str, Depends(get_current_user)],
 ):
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files are allowed")
+    if not file.content_type or not (file.content_type.startswith("image/") or file.content_type == "application/pdf"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files and PDFs are allowed")
 
     contents = await file.read()
     if len(contents) > 10 * 1024 * 1024:
