@@ -22,11 +22,15 @@ class Profile(Base):
     full_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     account_type: Mapped[str] = mapped_column(Text, default="persona")
+    whatsapp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    whatsapp_number: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     vehicles = relationship("Vehicle", back_populates="owner", cascade="all, delete-orphan")
     workshops = relationship("Workshop", back_populates="owner", cascade="all, delete-orphan")
+    found_requests_received = relationship("FoundRequest", back_populates="owner", foreign_keys="FoundRequest.owner_id")
+    found_requests_found = relationship("FoundRequest", back_populates="finder", foreign_keys="FoundRequest.finder_id")
 
 
 class Vehicle(Base):
@@ -43,6 +47,13 @@ class Vehicle(Base):
     color: Mapped[str] = mapped_column(Text, default="")
     image_url: Mapped[str] = mapped_column(Text, default="")
     nfc_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sell_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    sell_price: Mapped[str] = mapped_column(Text, default="")
+    sell_city: Mapped[str] = mapped_column(Text, default="")
+    sell_zip: Mapped[str] = mapped_column(Text, default="")
+    sell_phone: Mapped[str] = mapped_column(Text, default="")
+    sell_description: Mapped[str] = mapped_column(Text, default="")
+    vehicle_condition: Mapped[str] = mapped_column(Text, default="usado")
     description_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -186,6 +197,7 @@ class Workshop(Base):
     phone: Mapped[str] = mapped_column(Text, default="")
     description: Mapped[str] = mapped_column(Text, default="")
     logo_url: Mapped[str] = mapped_column(Text, default="")
+    rating: Mapped[float] = mapped_column(default=0.0)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -204,3 +216,24 @@ class ServiceLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     vehicle = relationship("Vehicle", back_populates="service_logs")
+
+
+class FoundRequest(Base):
+    __tablename__ = "found_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"))
+    finder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    nfc_token_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("nfc_tokens.id", ondelete="SET NULL"), nullable=True)
+    message: Mapped[str] = mapped_column(Text, default="")
+    contact_method: Mapped[str] = mapped_column(Text, default="email")
+    finder_email: Mapped[str] = mapped_column(Text, default="")
+    finder_phone: Mapped[str] = mapped_column(Text, default="")
+    finder_name: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("Profile", back_populates="found_requests_received", foreign_keys=[owner_id])
+    finder = relationship("Profile", back_populates="found_requests_found", foreign_keys=[finder_id])
+    vehicle = relationship("Vehicle")

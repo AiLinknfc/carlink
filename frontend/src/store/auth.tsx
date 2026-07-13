@@ -10,6 +10,8 @@ interface Profile {
   full_name: string | null
   avatar_url: string | null
   account_type: string | null
+  whatsapp_enabled: boolean | null
+  whatsapp_number: string | null
 }
 
 interface AuthCtx {

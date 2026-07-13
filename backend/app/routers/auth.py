@@ -37,6 +37,10 @@ async def update_profile(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     if body.full_name is not None:
         profile.full_name = body.full_name
+    if body.whatsapp_enabled is not None:
+        profile.whatsapp_enabled = body.whatsapp_enabled
+    if body.whatsapp_number is not None:
+        profile.whatsapp_number = body.whatsapp_number
     await db.flush()
     await db.refresh(profile)
     return profile

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import NfcToken, Vehicle
+from app.models.models import MaintenanceRecord, NfcToken, Profile, Vehicle, Workshop
 from app.schemas.schemas import NfcTokenCreate, NfcTokenInfoPublic, NfcTokenOut
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
@@ -139,6 +139,39 @@ async def access_via_nfc(
     if not vehicle.nfc_active:
         raise HTTPException(status_code=404, detail="Ficha pública desactivada por el propietario")
 
+    # Fetch latest maintenance record for ficha técnica
+    m_result = await db.execute(
+        select(MaintenanceRecord)
+        .where(MaintenanceRecord.vehicle_id == vehicle.id)
+        .order_by(MaintenanceRecord.date.desc(), MaintenanceRecord.created_at.desc())
+        .limit(1)
+    )
+    latest = m_result.scalar_one_or_none()
+
+    # Count total services
+    count_result = await db.execute(
+        select(func.count()).select_from(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle.id)
+    )
+    total_services = count_result.scalar() or 0
+
+    # Fetch workshop rating from latest record
+    workshop_rating = 0.0
+    if latest and latest.workshop_id:
+        w_result = await db.execute(select(Workshop).where(Workshop.id == latest.workshop_id))
+        workshop = w_result.scalar_one_or_none()
+        if workshop:
+            workshop_rating = workshop.rating or 0.0
+
+    # Fetch owner WhatsApp info
+    owner_whatsapp = ""
+    owner_name = ""
+    owner_result = await db.execute(select(Profile).where(Profile.id == vehicle.owner_id))
+    owner = owner_result.scalar_one_or_none()
+    if owner:
+        owner_name = owner.full_name or ""
+        if owner.whatsapp_enabled:
+            owner_whatsapp = owner.whatsapp_number or ""
+
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
         brand=vehicle.brand,
@@ -147,4 +180,25 @@ async def access_via_nfc(
         color=vehicle.color,
         type=vehicle.type,
         vehicle_id=vehicle.id,
+        # Ficha técnica
+        current_mileage=latest.mileage if latest else None,
+        next_service_mileage=latest.next_service_mileage if latest else None,
+        lubricant_brand=latest.lubricant_brand if latest else "",
+        lubricant_type=latest.lubricant_type if latest else "",
+        total_services=total_services,
+        latest_service_date=str(latest.date) if latest and latest.date else None,
+        workshop_name=latest.workshop if latest else None,
+        workshop_rating=workshop_rating,
+        # Sell info
+        sell_enabled=vehicle.sell_enabled,
+        sell_price=vehicle.sell_price or "",
+        sell_city=vehicle.sell_city or "",
+        sell_zip=vehicle.sell_zip or "",
+        sell_phone=vehicle.sell_phone or "",
+        sell_description=vehicle.sell_description or "",
+        # Vehicle info
+        vehicle_condition=vehicle.vehicle_condition or "usado",
+        published_at=str(vehicle.created_at) if vehicle.created_at else None,
+        owner_whatsapp=owner_whatsapp,
+        owner_name=owner_name,
     )

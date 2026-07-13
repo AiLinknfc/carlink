@@ -38,6 +38,13 @@ class VehicleUpdate(BaseModel):
     color: str | None = None
     image_url: str | None = None
     nfc_active: bool | None = None
+    sell_enabled: bool | None = None
+    sell_price: str | None = None
+    sell_city: str | None = None
+    sell_zip: str | None = None
+    sell_phone: str | None = None
+    sell_description: str | None = None
+    vehicle_condition: str | None = None
 
     @field_validator('plate')
     @classmethod
@@ -62,6 +69,13 @@ class VehicleOut(BaseModel):
     color: str
     image_url: str
     nfc_active: bool
+    sell_enabled: bool = False
+    sell_price: str = ""
+    sell_city: str = ""
+    sell_zip: str = ""
+    sell_phone: str = ""
+    sell_description: str = ""
+    vehicle_condition: str = "usado"
     created_at: datetime
     updated_at: datetime
 
@@ -253,6 +267,8 @@ class ProfileOut(BaseModel):
     full_name: str | None
     avatar_url: str | None
     account_type: str = "persona"
+    whatsapp_enabled: bool = False
+    whatsapp_number: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -261,6 +277,8 @@ class ProfileOut(BaseModel):
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
     account_type: str | None = None
+    whatsapp_enabled: bool | None = None
+    whatsapp_number: str | None = None
 
 
 # =========== Workshops ===========
@@ -352,9 +370,65 @@ class NfcTokenInfoPublic(BaseModel):
     color: str
     type: str
     vehicle_id: UUID
+    # Ficha técnica (from latest maintenance record)
+    current_mileage: int | None = None
+    next_service_mileage: int | None = None
+    lubricant_brand: str = ""
+    lubricant_type: str = ""
+    total_services: int = 0
+    latest_service_date: str | None = None
+    workshop_name: str | None = None
+    workshop_rating: float = 0.0
+    # Sell info
+    sell_enabled: bool = False
+    sell_price: str = ""
+    sell_city: str = ""
+    sell_zip: str = ""
+    sell_phone: str = ""
+    sell_description: str = ""
+    # Vehicle info
+    vehicle_condition: str = "usado"
+    published_at: str | None = None
+    owner_whatsapp: str = ""
+    owner_name: str = ""
 
 
 # =========== Upload ===========
 class UploadOut(BaseModel):
     url: str
     key: str
+
+
+# =========== Found Requests ===========
+class FoundRequestCreate(BaseModel):
+    vehicle_id: UUID
+    nfc_token_id: UUID | None = None
+    message: str = ""
+    contact_method: str = "phone"
+    finder_email: str = ""
+    finder_phone: str = ""
+    finder_name: str = ""
+
+
+class FoundRequestOut(BaseModel):
+    id: UUID
+    owner_id: UUID
+    finder_id: UUID | None = None
+    vehicle_id: UUID
+    nfc_token_id: UUID | None = None
+    message: str
+    contact_method: str
+    finder_email: str
+    finder_phone: str
+    finder_name: str
+    status: str
+    created_at: datetime
+    # Joined data
+    vehicle_plate: str = ""
+    vehicle_brand: str = ""
+    vehicle_model: str = ""
+    owner_name: str = ""
+    owner_email: str = ""
+    owner_whatsapp: str = ""
+
+    model_config = {"from_attributes": True}

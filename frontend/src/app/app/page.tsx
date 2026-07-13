@@ -83,7 +83,7 @@ function useCountdown(targetMs: number) {
 
 /* ── Tab components ── */
 
-function FichaTab({ vehicle, onAddService, onEditService, refreshKey, theme }: { vehicle: any; onAddService: () => void; onEditService: (r: any) => void; refreshKey?: number; theme: 'light' | 'dark' }) {
+function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTokens, toggleNfcActive, refreshKey, theme }: { vehicle: any; onAddService: () => void; onEditService: (r: any) => void; onOpenPublicar: () => void; nfcTokens: any[]; toggleNfcActive: () => void; refreshKey?: number; theme: 'light' | 'dark' }) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id)
   const [flipped, setFlipped] = useState(false)
   const [bgPreset, setBgPreset] = useState('noche')
@@ -482,7 +482,7 @@ function FichaTab({ vehicle, onAddService, onEditService, refreshKey, theme }: {
             </div>
             <p style={{ margin: '10px 0 16px', fontSize: 13, color: sMuted, lineHeight: 1.55 }}>Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
             <button onClick={onAddService} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
-            <button style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>Publicar ficha pública</button>
+            <button onClick={onOpenPublicar} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: vehicle?.nfc_active !== false ? '1px solid rgba(46,204,113,0.4)' : '1px solid rgba(245,197,24,0.4)', background: vehicle?.nfc_active !== false ? 'rgba(46,204,113,0.08)' : 'rgba(245,197,24,0.06)', color: vehicle?.nfc_active !== false ? '#2ecc71' : '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>{vehicle?.nfc_active !== false ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>}{vehicle?.nfc_active !== false ? 'Ver ficha pública' : 'Publicar ficha pública'}</button>
             <button style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>Pedir llavero NFC a domicilio</button>
           </div>
 
@@ -669,6 +669,8 @@ export default function AppPage() {
   const [sellZip, setSellZip] = useState('')
   const [sellPhone, setSellPhone] = useState('')
   const [sellDescription, setSellDescription] = useState('')
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false)
+  const [whatsappNumber, setWhatsappNumber] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editRecord, setEditRecord] = useState<any>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -683,6 +685,8 @@ export default function AppPage() {
   const [payMethod, setPayMethod] = useState('card')
   const [appToast, setAppToast] = useState<string | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [foundRequests, setFoundRequests] = useState<any[]>([])
+  const [showFoundPanel, setShowFoundPanel] = useState(false)
 
   useEffect(() => {
     try { setTheme(window.localStorage.getItem('carlink_theme') === 'light' ? 'light' : 'dark') } catch { /* ignore */ }
@@ -726,6 +730,30 @@ export default function AppPage() {
     })
   }, [showNfc, user])
 
+  useEffect(() => {
+    if (!user) return
+    apiGet('/found-requests').then(data => {
+      if (data) setFoundRequests(data)
+    })
+  }, [user])
+
+  const markFoundRead = async (id: string) => {
+    await apiPatch(`/found-requests/${id}/read`, {})
+    setFoundRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'read' } : r))
+  }
+
+  const openPublicar = useCallback(() => {
+    if (nfcTokens.length > 0) {
+      const latest = nfcTokens[0]
+      const raw = localStorage.getItem(`nfc_raw_${latest.id}`)
+      if (raw) {
+        window.open(`/nfc/${raw}`, '_blank')
+        return
+      }
+    }
+    flashApp('Genera un llavero NFC primero desde el panel')
+  }, [nfcTokens, flashApp])
+
   const generateNfcToken = async () => {
     if (!user) return
     setNfcLoading(true)
@@ -739,6 +767,7 @@ export default function AppPage() {
     const tokenPrefix = rawToken.slice(0, 8)
     const data = await apiPost('/nfc/tokens', { token_hash: tokenHash, token_prefix: tokenPrefix })
     if (data) {
+      localStorage.setItem(`nfc_raw_${data.id}`, rawToken)
       setNfcTokens(prev => [data, ...prev])
       setGeneratedUrl(`${window.location.origin}/nfc/${rawToken}`)
     }
@@ -747,7 +776,10 @@ export default function AppPage() {
 
   const revokeNfcToken = async (id: string) => {
     const ok = await apiDelete(`/nfc/tokens/${id}`)
-    if (ok) setNfcTokens(prev => prev.filter(t => t.id !== id))
+    if (ok) {
+      localStorage.removeItem(`nfc_raw_${id}`)
+      setNfcTokens(prev => prev.filter(t => t.id !== id))
+    }
   }
 
   const onAddService = useCallback(() => {
@@ -786,6 +818,14 @@ export default function AppPage() {
     setEditTipo(vehicle?.type || 'Sedán')
     setEditAnio(vehicle?.year || 2026)
     setEditColor(vehicle?.color || '')
+    setSellEnabled(vehicle?.sell_enabled || false)
+    setSellPrice(vehicle?.sell_price || '')
+    setSellCity(vehicle?.sell_city || '')
+    setSellZip(vehicle?.sell_zip || '')
+    setSellPhone(vehicle?.sell_phone || '')
+    setSellDescription(vehicle?.sell_description || '')
+    setWhatsappEnabled(profile?.whatsapp_enabled || false)
+    setWhatsappNumber(profile?.whatsapp_number || '')
   }, [showProfile, vehicle, profile])
 
   if (loading || !user) return null
@@ -803,10 +843,14 @@ export default function AppPage() {
     const brand = nameParts[0] || ''
     const model = nameParts.slice(1).join(' ') || editModelo
     await Promise.all([
-      editName !== profile?.full_name ? apiPut('/auth/me', { full_name: editName }) : Promise.resolve(),
-      apiPut(`/vehicles/${vehicle.id}`, { brand, model, year: editAnio, type: editTipo, color: editColor }),
+      apiPut('/auth/me', { full_name: editName, whatsapp_enabled: whatsappEnabled, whatsapp_number: whatsappNumber }),
+      apiPut(`/vehicles/${vehicle.id}`, {
+        brand, model, year: editAnio, type: editTipo, color: editColor,
+        sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity,
+        sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription,
+      }),
     ])
-    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand, model, year: editAnio, type: editTipo, color: editColor } : prev)
+    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand, model, year: editAnio, type: editTipo, color: editColor, sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity, sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription } : prev)
     setShowProfile(false)
   }
 
@@ -877,6 +921,16 @@ export default function AppPage() {
             )}
           </button>
 
+          {foundRequests.filter(r => r.status === 'pending').length > 0 && (
+            <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados"
+              style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(255,107,107,0.4)', background: glassBg, backdropFilter: 'blur(12px)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.15)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = glassBg }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', background: '#ff6b6b', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${tDark ? '#141414' : '#f0efe8'}` }}>{foundRequests.filter(r => r.status === 'pending').length}</span>
+            </button>
+          )}
+
           <button onClick={() => setShowCart(true)} title="Solicitar llavero NFC"
             style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.4)', background: profileBtnBg, backdropFilter: 'blur(12px)', color: theme === 'light' ? '#b8860a' : '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
@@ -893,7 +947,7 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} theme={theme} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} /> :
            activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} /> :
@@ -901,7 +955,7 @@ export default function AppPage() {
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? <TallerTab vehicleId={vehicle?.id} /> :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} theme={theme} />}
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
         </div>
 
         {/* App-level toast */}
@@ -970,7 +1024,6 @@ export default function AppPage() {
                   <input value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
                 </div>
               </div>
-
               {/* Sell toggle */}
               <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: sellEnabled ? 'rgba(245,197,24,0.08)' : 'var(--surface-2)', border: `1px solid ${sellEnabled ? 'rgba(245,197,24,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -1012,6 +1065,29 @@ export default function AppPage() {
                       <textarea value={sellDescription} onChange={e => setSellDescription(e.target.value)} rows={3} placeholder="Ej. Vehículo en excelente estado, único dueño, documentación al día…"
                         style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* WhatsApp contact toggle */}
+              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: whatsappEnabled ? 'rgba(74,222,128,0.08)' : 'var(--surface-2)', border: `1px solid ${whatsappEnabled ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#4ade80' }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      Contacto WhatsApp
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Permite que quien encuentre tu llavero te contacte por WhatsApp</div>
+                  </div>
+                  <button onClick={() => setWhatsappEnabled(v => !v)} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: whatsappEnabled ? '#4ade80' : 'rgba(255,255,255,0.12)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                    <span style={{ position: 'absolute', top: 3, left: whatsappEnabled ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: whatsappEnabled ? '#111' : '#666', transition: 'left .2s' }} />
+                  </button>
+                </div>
+                {whatsappEnabled && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de WhatsApp</label>
+                    <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="Ej. +57 300 123 4567"
+                      style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                 )}
               </div>
@@ -1210,6 +1286,72 @@ export default function AppPage() {
             <button onClick={() => { setShowCart(false); flashApp('Pago aprobado — preparando tu envío') }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>Pagar $59.900
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Found Requests Panel ── */}
+      {showFoundPanel && (
+        <div onClick={() => setShowFoundPanel(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, textTransform: 'uppercase', color: '#ff6b6b' }}>Llaveros encontrados</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Personas que encontraron tu llavero NFC</div>
+              </div>
+              <button onClick={() => setShowFoundPanel(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {foundRequests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5c5c6a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Sin reportes aún</div>
+                <div style={{ fontSize: 13, color: 'var(--text-3)' }}>Cuando alguien encuentre tu llavero, recibirás una notificación aquí.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                {foundRequests.map((req) => (
+                  <div key={req.id} onClick={() => { if (req.status === 'pending') markFoundRead(req.id) }} style={{ padding: '14px 16px', borderRadius: 14, background: req.status === 'pending' ? 'rgba(255,107,107,0.08)' : 'var(--surface-2)', border: `1px solid ${req.status === 'pending' ? 'rgba(255,107,107,0.25)' : 'var(--border)'}`, cursor: req.status === 'pending' ? 'pointer' : 'default', transition: 'all .2s' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,107,107,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff6b6b', flex: '0 0 auto' }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: tDark ? '#fff' : '#17171a' }}>{req.finder_name || 'Anónimo'}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{new Date(req.created_at).toLocaleDateString()} · {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      </div>
+                      {req.status === 'pending' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff6b6b', flex: '0 0 auto', marginTop: 6 }} />}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 10 }}>{req.message}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {req.finder_phone && (
+                        <a href={`tel:${req.finder_phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.25)', color: '#F5C518', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          {req.finder_phone}
+                        </a>
+                      )}
+                      {req.finder_phone && (
+                        <a href={`https://wa.me/${req.finder_phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                          WhatsApp
+                        </a>
+                      )}
+                      {req.vehicle_plate && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-3)', fontSize: 11, fontWeight: 600 }}>
+                          {req.vehicle_brand} {req.vehicle_model} · {req.vehicle_plate}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

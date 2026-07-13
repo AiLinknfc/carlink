@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, certificates, diagnostics, documents, gallery, maintenance, nfc, ocr, parts, service_logs, upload, vehicles, workshops
+from app.routers import auth, certificates, diagnostics, documents, found_requests, gallery, maintenance, nfc, ocr, parts, service_logs, upload, vehicles, workshops
 from app.services.cache import close_redis
 
 settings = get_settings()
@@ -57,6 +57,7 @@ app.include_router(service_logs.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(workshops.router, prefix="/api")
 app.include_router(ocr.router, prefix="/api")
+app.include_router(found_requests.router, prefix="/api")
 
 
 if __name__ == "__main__":
