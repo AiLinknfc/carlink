@@ -224,7 +224,7 @@ export default function RegisterPage() {
             <>
               {/* ── PERSONA MODE: vehicle registration ── */}
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 10 }}>Marca del vehículo</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
+              <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
                 {brandTiles.map(b => (
                   <button key={b.name} onClick={b.onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '12px 6px', borderRadius: 13, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
                     <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 18, color: b.mark }}>{b.initial}</span>
@@ -233,7 +233,7 @@ export default function RegisterPage() {
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del propietario</label>
                   <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
@@ -268,7 +268,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="regGrid" style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Placa *</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -293,7 +293,7 @@ export default function RegisterPage() {
               {/* ── EMPRESA MODE: workshop registration ── */}
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>Datos del taller</div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>NIT / RUT *</label>
                   <input value={wsLegalId} onChange={e => setWsLegalId(e.target.value)} placeholder="Ej. 12345678-9"
@@ -306,7 +306,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Dirección</label>
                   <input value={wsAddress} onChange={e => setWsAddress(e.target.value)} placeholder="Cra 7 #45-12"
@@ -340,7 +340,7 @@ export default function RegisterPage() {
                 {wsHasVehicle && (
                   <div style={{ marginTop: 14 }}>
                     <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 8 }}>Vehículo de prueba</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
                         <label style={{ fontSize: 10, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -372,7 +372,7 @@ export default function RegisterPage() {
 
                     <div style={{ marginTop: 10 }}>
                       <label style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Marca</label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 7 }}>
+                      <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 7 }}>
                         {brandTiles.map(b => (
                           <button key={b.name} onClick={() => setWsBrand(b.name)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 4px', borderRadius: 10, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
                             <span style={{ width: 30, height: 30, borderRadius: 8, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 14, color: b.mark }}>{b.initial}</span>

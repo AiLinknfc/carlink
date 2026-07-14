@@ -275,7 +275,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
 
       {/* Client certificates */}
       {!isEmpty && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14, animation: 'textIn .5s .1s both' }}>
+        <div className="cert-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14, animation: 'textIn .5s .1s both' }}>
           {certificates.map((cert: Certificate) => {
             const status = determineStatus(cert)
             const statusColor = getStatusColor(status)
@@ -321,7 +321,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
                           {isPdfFile ? 'Ver' : 'Ampliar'}
                         </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
+                      <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
                         <button onClick={() => handleDownload(cert)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '9px 4px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 10.5, fontWeight: 600, cursor: 'pointer', transition: 'all .18s', minHeight: 46 }}
                           onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

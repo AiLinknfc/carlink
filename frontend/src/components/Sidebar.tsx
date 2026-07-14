@@ -35,9 +35,19 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const navItems = accountType === 'taller' ? TALLER_NAV_ITEMS : ALL_NAV_ITEMS
-  const railWidth = railExpanded ? 266 : 76
   const plateShort = plateText ? plateText.split('-')[0] : ''
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  const railWidth = isMobile ? 266 : railExpanded ? 266 : 76
 
   // Prefer the explicit `theme` prop; fall back to detecting --page-bg for callers that don't pass it.
   const isDark = theme ? theme === 'dark' : detectedDark
@@ -62,16 +72,47 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(17,17,17,0.06)'
 
   return (
+    <>
+      {/* Mobile hamburger button */}
+      {isMobile && !mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(true)}
+          style={{
+            position: 'fixed', top: 14, left: 14, zIndex: 35,
+            width: 42, height: 42, borderRadius: 11,
+            border: `1px solid ${sidebarBorder}`,
+            background: sidebarBg, backdropFilter: 'blur(24px)',
+            color: textPrimary, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Mobile overlay backdrop */}
+      {isMobile && mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 29,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          }}
+        />
+      )}
+
     <aside
-      onMouseEnter={() => setRailExpanded(true)}
-      onMouseLeave={() => setRailExpanded(false)}
+      onMouseEnter={() => { if (!isMobile) setRailExpanded(true) }}
+      onMouseLeave={() => { if (!isMobile) setRailExpanded(false) }}
       style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: railWidth,
+        position: 'fixed', left: isMobile ? (mobileOpen ? 0 : -266) : 0, top: 0, bottom: 0, width: railWidth,
         background: sidebarBg, backdropFilter: 'blur(24px)',
         borderRight: `1px solid ${sidebarBorder}`,
-        display: 'flex', flexDirection: 'column', zIndex: 30,
+        display: 'flex', flexDirection: 'column', zIndex: isMobile ? 30 : 30,
         overflow: 'hidden',
-        transition: 'width .22s cubic-bezier(0.22,1,0.36,1)',
+        transition: isMobile ? 'left .25s cubic-bezier(0.22,1,0.36,1)' : 'width .22s cubic-bezier(0.22,1,0.36,1)',
       }}
     >
       <div style={{ padding: '22px 20px 12px', display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -193,5 +234,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         </div>
       )}
     </aside>
+    </>
   )
 }

@@ -309,7 +309,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
       background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
     }}>
-      <div ref={modalRef} onClick={e => e.stopPropagation()} style={{
+      <div ref={modalRef} onClick={e => e.stopPropagation()} className="modal-panel" style={{
         width: 540, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
         background: '#141414', border: '1px solid rgba(245,197,24,0.3)',
         borderRadius: 22, padding: 24,
@@ -345,7 +345,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
             <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>
               Selecciona el tipo de servicio
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {SERVICE_TYPES.map(st => (
                 <button key={st.id} onClick={() => { setServiceType(st.id); setStep('form') }} style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
@@ -438,7 +438,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
 
             {/* Common fields */}
             <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
                 <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Kilometraje *</label>
                 <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}

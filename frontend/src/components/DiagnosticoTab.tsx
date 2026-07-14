@@ -81,7 +81,7 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
         </div>
       )}
 
-      <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start', animation: 'textIn .5s .1s both' }}>
+      <div className="diagnostico-grid grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start', animation: 'textIn .5s .1s both' }}>
         {/* Main card */}
         <div ref={React.createRef<HTMLDivElement>() as any} style={{ padding: 24, borderRadius: 22, background: 'linear-gradient(155deg,#1c1708,#141414)', border: '1px solid rgba(245,197,24,0.24)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>

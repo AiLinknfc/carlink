@@ -148,7 +148,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
         background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}>
-        <div onClick={e => e.stopPropagation()} style={{
+        <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
           width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto',
           background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 22,
           padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)',

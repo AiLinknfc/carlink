@@ -12,6 +12,7 @@ import HistoryStack from '@/components/HistoryStack'
 import ServiceFormModal from '@/components/ServiceFormModal'
 import PartFormModal from '@/components/PartFormModal'
 import QuickRegisterModal from '@/components/QuickRegisterModal'
+import TransferVehicleModal from '@/components/TransferVehicleModal'
 import CertificadosTab from '@/components/CertificadosTab'
 import DocumentosTab from '@/components/DocumentosTab'
 import GaleriaTab from '@/components/GaleriaTab'
@@ -225,13 +226,13 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
           </div>
         </div>
 
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 16, alignItems: 'center' }}>
+        <div className="tablero-grid" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 16, alignItems: 'center' }}>
           {/* GAUGE: Vida del aceite */}
           <div title="Vida útil restante del aceite según el kilometraje recorrido desde el último cambio. Al llegar a 0% toca cambiarlo." style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}>
-            <div style={{ position: 'relative', width: 170, height: 170, borderRadius: '50%', background: `conic-gradient(from 135deg, ${oilColor} 0deg ${oilDeg}deg, ${gaugeTrack} ${oilDeg}deg 270deg, transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 14px rgba(245,197,24,0.25))' }}>
-              <div style={{ position: 'absolute', inset: '14px', borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="gauge-container" style={{ position: 'relative', width: 170, height: 170, borderRadius: '50%', background: `conic-gradient(from 135deg, ${oilColor} 0deg ${oilDeg}deg, ${gaugeTrack} ${oilDeg}deg 270deg, transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 14px rgba(245,197,24,0.25))' }}>
+              <div className="gauge-inner" style={{ position: 'absolute', inset: '14px', borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={oilColor} style={{ marginBottom: 2 }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 34, lineHeight: 1, color: oilColor }}>{oilPct}%</div>
+                <div className="gauge-percent" style={{ fontFamily: "'Anton',sans-serif", fontSize: 34, lineHeight: 1, color: oilColor }}>{oilPct}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 3 }}>Vida aceite</div>
               </div>
             </div>
@@ -242,7 +243,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: sMuted, fontWeight: 700 }}>Odómetro</div>
             <div title="Kilometraje total actual del vehículo, tomado del último servicio registrado." style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, margin: '6px 0 4px', padding: '10px 18px', borderRadius: 12, background: odometerBg, border: '1px solid rgba(245,197,24,0.3)', boxShadow: odometerShadow, cursor: 'help' }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 38, letterSpacing: '.08em', color: tDark ? '#F5C518' : '#1a1a1a', textShadow: tDark ? '0 0 14px rgba(245,197,24,0.55)' : 'none' }}>{currentKm != null ? currentKm.toLocaleString() : '—'}</span>
+              <span className="odometer-value" style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 38, letterSpacing: '.08em', color: tDark ? '#F5C518' : '#1a1a1a', textShadow: tDark ? '0 0 14px rgba(245,197,24,0.55)' : 'none' }}>{currentKm != null ? currentKm.toLocaleString() : '—'}</span>
               <span style={{ fontSize: 14, color: odometerLabel, fontWeight: 600 }}>km</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 14 }}>
@@ -271,10 +272,10 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
 
           {/* GAUGE: Salud del vehículo */}
           <div title="Estado general del vehículo combinando mantenimientos al día, partes en buen estado y ausencia de alertas." style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'help' }}>
-            <div style={{ position: 'relative', width: 170, height: 170, borderRadius: '50%', background: `conic-gradient(from 135deg, ${healthColor} 0deg ${healthDeg}deg, ${gaugeTrack} ${healthDeg}deg 270deg, transparent 270deg 360deg)` }}>
-              <div style={{ position: 'absolute', inset: '14px', borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="gauge-container" style={{ position: 'relative', width: 170, height: 170, borderRadius: '50%', background: `conic-gradient(from 135deg, ${healthColor} 0deg ${healthDeg}deg, ${gaugeTrack} ${healthDeg}deg 270deg, transparent 270deg 360deg)` }}>
+              <div className="gauge-inner" style={{ position: 'absolute', inset: '14px', borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={healthColor} strokeWidth="1.8" style={{ marginBottom: 2 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 34, lineHeight: 1, color: healthColor }}>{healthPct}%</div>
+                <div className="gauge-percent" style={{ fontFamily: "'Anton',sans-serif", fontSize: 34, lineHeight: 1, color: healthColor }}>{healthPct}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 3 }}>Salud</div>
               </div>
             </div>
@@ -293,7 +294,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
               <div style={{ height: '100%', width: progWidthDisp, background: 'linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D)', borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="countdown-blocks" style={{ display: 'flex', gap: 8 }}>
             {['d', 'h', 'm', 's'].map(k => (
               <div key={k} style={{ textAlign: 'center', background: countdownBg, border: '1px solid rgba(245,197,24,0.25)', borderRadius: 11, padding: '8px 12px', minWidth: 54 }}>
                 <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, color: '#F5C518', lineHeight: 1 }}>{(cd as any)[k]}</div>
@@ -316,7 +317,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
             willChange: 'transform',
           }}>
             {/* FRONT */}
-            <div style={{
+            <div className="flip-card-front" style={{
               position: 'relative', minHeight: 486,
               backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
               borderRadius: 24, overflow: 'hidden',
@@ -370,7 +371,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
 
                 <div style={{ margin: '18px 0 4px' }}>
                   <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Kilometraje actual</div>
-                  <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 54, letterSpacing: '.01em', lineHeight: 1, color: cInk }}>
+                  <div className="ficha-mileage" style={{ fontFamily: "'Anton',sans-serif", fontSize: 54, letterSpacing: '.01em', lineHeight: 1, color: cInk }}>
                     {currentKm != null ? currentKm.toLocaleString() : '—'}<span style={{ fontSize: 20, color: cMuted, fontFamily: "'Inter'", fontWeight: 600 }}> km</span>
                   </div>
                 </div>
@@ -386,7 +387,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
                 </div>
 
                 <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700, margin: '16px 0 7px' }}>Servicios realizados · pasa el cursor para el detalle</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
+                <div className="service-chips-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
                   <ServiceChip cChipBg={cChipBg} cChipBd={cChipBd} cMuted={cMuted}
                     icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ flex: '0 0 auto' }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>}
                     title="Aceite" desc={`${latest?.lubricant_brand || '—'} · ${latest?.lubricant_type || '—'}. Filtro de aceite cambiado.`} />
@@ -416,7 +417,7 @@ function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, nfcTok
             </div>
 
             {/* BACK — Tu taller de confianza (Deslízala para ver quién te atendió) */}
-            <div style={{
+            <div className="flip-card-back" style={{
               position: 'absolute', inset: 0, minHeight: 486,
               backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
@@ -589,7 +590,7 @@ function PartesTab({ vehicleId }: { vehicleId?: string }) {
         Agregar parte
       </button>
       {!loading && parts.length === 0 ? <_empty msg="Sin partes registradas" /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+        <div className="partes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
           {parts.map((part: any) => (
             <div key={part.id} onClick={() => onEdit(part)} style={{ padding: 16, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', cursor: 'pointer' }}>
               <div style={{ fontWeight: 700 }}>{part.name}</div>
@@ -671,10 +672,11 @@ export default function AppPage() {
   const [sellDescription, setSellDescription] = useState('')
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
   const [whatsappNumber, setWhatsappNumber] = useState('')
-  const [showForm, setShowForm] = useState(false)
+const [showForm, setShowForm] = useState(false)
   const [editRecord, setEditRecord] = useState<any>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showNfc, setShowNfc] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
   const [nfcTokens, setNfcTokens] = useState<any[]>([])
   const [nfcLoading, setNfcLoading] = useState(false)
   const [tokensLoading, setTokensLoading] = useState(false)
@@ -719,6 +721,16 @@ export default function AppPage() {
       flashApp(result.nfc_active ? 'Ficha pública activada' : 'Ficha pública oculta')
     }
   }, [vehicle?.id, flashApp])
+
+  const openTransferModal = useCallback(() => {
+    if (!vehicle?.id) return
+    setShowTransferModal(true)
+  }, [vehicle?.id])
+
+  const onTransferSuccess = useCallback(() => {
+    setRefreshKey(k => k + 1)
+    flashApp('Solicitud de transferencia enviada')
+  }, [flashApp])
 
   useEffect(() => {
     if (!showNfc || !user) return
@@ -888,14 +900,15 @@ export default function AppPage() {
         theme={theme}
       />
 
-      <div style={{
+      <div className="sidebar-wrap" style={{
         marginLeft: 266, flex: 1, padding: '44px clamp(24px,4vw,56px) 72px',
         position: 'relative', zIndex: 2, minHeight: '100vh', color: rootTextColor,
         background: 'radial-gradient(ellipse at 0 -40%, rgba(245,197,24,0.04) 0%, transparent 55%)',
       }}>
         {/* Top-right action buttons */}
-        <div style={{ position: 'absolute', top: 20, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className="topbar-actions" style={{ position: 'absolute', top: 20, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
           <button onClick={toggleTheme} title="Cambiar apariencia"
+            className="btn-wide"
             style={{ width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: theme === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(20,20,20,0.82)', backdropFilter: 'blur(12px)', color: theme === 'light' ? '#17171a' : '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
@@ -941,7 +954,7 @@ export default function AppPage() {
           <button onClick={() => setShowProfile(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 14px 6px 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
             <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{initial}</span>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{ownerName}</span>
+            <span className="action-btn-text" style={{ fontSize: 13, fontWeight: 600 }}>{ownerName}</span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
         </div>
@@ -979,10 +992,19 @@ export default function AppPage() {
         />
       )}
 
+      {/* Transfer vehicle modal */}
+      {showTransferModal && vehicle && (
+        <TransferVehicleModal
+          vehicle={vehicle}
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={onTransferSuccess}
+        />
+      )}
+
       {/* Profile right panel */}
       {showProfile && (
         <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 72, background: 'transparent', display: 'flex', justifyContent: 'flex-end' }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: 'calc(100vw - 32px)', height: 'calc(100vh - 32px)', margin: 16, overflowY: 'auto', background: 'var(--panel-bg)', borderRadius: 20, boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 420, maxWidth: 'calc(100vw - 32px)', height: 'calc(100vh - 32px)', margin: 16, overflowY: 'auto', background: 'var(--panel-bg)', borderRadius: 20, boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, padding: '20px 24px 0', borderBottom: '1px solid var(--panel-border)', paddingBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>{initial}</span>
@@ -1069,6 +1091,26 @@ export default function AppPage() {
                 )}
               </div>
 
+              {/* Transfer vehicle button */}
+              <button
+                onClick={() => setShowTransferModal(true)}
+                style={{
+                  marginTop: 18, width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 0', borderRadius: 12,
+                  border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.1)', color: '#F5C518',
+                  fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                  transition: 'all .18s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.2)'; e.currentTarget.style.borderColor = '#F5C518' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+                Transferir vehículo
+              </button>
+
               {/* WhatsApp contact toggle */}
               <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: whatsappEnabled ? 'rgba(74,222,128,0.08)' : 'var(--surface-2)', border: `1px solid ${whatsappEnabled ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -1108,7 +1150,7 @@ export default function AppPage() {
       {/* NFC llavero panel */}
       {showNfc && (
         <div onClick={() => { setShowNfc(false); setGeneratedUrl(''); setGenCopied(false) }} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 520, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+          <div onClick={e => e.stopPropagation()} className="nfc-panel" style={{ width: 520, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: 12, background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>

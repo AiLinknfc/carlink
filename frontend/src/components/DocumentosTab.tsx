@@ -251,7 +251,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14, animation: 'textIn .5s .1s both' }}>
+      <div className="doc-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14, animation: 'textIn .5s .1s both' }}>
         {DOCUMENT_TYPES.map(dt => {
           const doc = documents.find((d: any) => d.type === dt.type)
           const status = doc?.status || 'pendiente'
@@ -324,7 +324,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                             {isPdfFile ? 'Ver' : 'Ampliar'}
                           </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
+                        <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 8 }}>
                           <button onClick={() => handleDownload(doc)} style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
                             padding: '9px 4px', borderRadius: 10,
