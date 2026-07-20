@@ -55,7 +55,7 @@ async def cache_delete(pattern: str) -> None:
 
 
 async def cache_invalidate_vehicle(vehicle_id: str) -> None:
-    await cache_delete(f"vehicles:{vehicle_id}:*")
+    await cache_delete(f"vehicles:{vehicle_id}")
     await cache_delete("vehicles:list:*")
 
 

@@ -14,8 +14,9 @@ export async function uploadFile(file: File, folder: string = 'general'): Promis
       body: formData,
     })
     if (!res.ok) {
-      const text = await res.text()
-      console.warn('upload failed:', text)
+      let msg = 'Error al subir'
+      try { const j = await res.json(); msg = j.detail || msg } catch { try { msg = await res.text() || msg } catch {} }
+      console.warn('upload failed:', res.status, msg)
       return null
     }
     const data = await res.json()

@@ -34,7 +34,7 @@ async def list_vehicles(
         select(Vehicle).where(Vehicle.owner_id == uuid.UUID(user_id)).order_by(Vehicle.created_at.desc())
     )
     vehicles = list(result.scalars().all())
-    await cache_set(f"vehicles:list:{user_id}", [v.__dict__ for v in vehicles], ttl=120)
+    await cache_set(f"vehicles:list:{user_id}", [VehicleOut.model_validate(v).model_dump() for v in vehicles], ttl=120)
     return vehicles
 
 
@@ -54,7 +54,7 @@ async def get_vehicle(
     vehicle = result.scalar_one_or_none()
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
-    await cache_set(f"vehicles:{vehicle_id}", vehicle.__dict__, ttl=120)
+    await cache_set(f"vehicles:{vehicle_id}", VehicleOut.model_validate(vehicle).model_dump(), ttl=120)
     return vehicle
 
 

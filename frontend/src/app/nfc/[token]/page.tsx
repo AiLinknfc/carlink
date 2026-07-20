@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { toPng } from 'html-to-image'
+import { getWalletBackground } from '@/lib/wallet-bg'
 
 interface NfcVehicle {
   plate: string
@@ -31,6 +31,9 @@ interface NfcVehicle {
   published_at: string | null
   owner_whatsapp: string
   owner_name: string
+  wallet_bg_preset_id: string | null
+  wallet_bg_custom_url: string | null
+  wallet_logo_url: string | null
 }
 
 const STAMPS = ['Aceite', 'Filtros', 'Frenos', 'Llantas', 'Suspensión', 'Batería']
@@ -50,16 +53,6 @@ export default function NfcPage() {
   const [reportSending, setReportSending] = useState(false)
   const [reportError, setReportError] = useState('')
   const [isAuthed, setIsAuthed] = useState(false)
-  const [cardBg, setCardBg] = useState<'dark' | 'light'>('dark')
-  const [downloading, setDownloading] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
-
-  const isDark = cardBg === 'dark'
-  const cPrimary = isDark ? '#f5f3ec' : '#17171a'
-  const cSecondary = isDark ? '#c9c6ba' : '#555'
-  const cMuted = isDark ? '#a8a496' : '#777'
-  const cFaint = isDark ? '#7c786e' : '#999'
-  const cPlate = isDark ? '#f5f3ec' : '#17171a'
 
   useEffect(() => {
     if (!token) return
@@ -139,24 +132,6 @@ export default function NfcPage() {
     setReportSending(false)
   }
 
-  const handleDownload = useCallback(async () => {
-    if (!cardRef.current) return
-    setDownloading(true)
-    try {
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2,
-        backgroundColor: cardBg === 'dark' ? '#0a0a0a' : '#f7f6f2',
-      })
-      const link = document.createElement('a')
-      link.download = `CarLink-${data?.plate || 'ficha'}.png`
-      link.href = dataUrl
-      link.click()
-    } catch (e) {
-      console.error('Download failed:', e)
-    }
-    setDownloading(false)
-  }, [cardBg, data?.plate])
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -204,23 +179,21 @@ export default function NfcPage() {
         <div style={{ width: 460, maxWidth: '100%', position: 'relative' }}>
           {/* Botón volver — solo si autenticado */}
           {isAuthed && (
-            <a href="/app" style={{ position: 'absolute', top: -40, left: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: '#111', border: '1px solid rgba(255,255,255,0.1)', color: '#7c786e', fontSize: 12, fontWeight: 500, textDecoration: 'none', cursor: 'pointer', zIndex: 2 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            <a href="/app" style={{ position: 'absolute', top: -44, left: 0, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#b6b2a6', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', zIndex: 2, transition: 'all .2s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#F5C518'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
               Volver
             </a>
           )}
-          <div ref={cardRef} style={{
+          <div style={{
             borderRadius: 26,
             overflow: 'hidden',
-            background: cardBg === 'dark'
-              ? 'linear-gradient(155deg,#1a1a1a 0%,#241b05 55%,#0d0d0d 100%)'
-              : 'linear-gradient(155deg,#ffffff 0%,#f9f8f4 55%,#f0efe8 100%)',
-            border: `1px solid ${cardBg === 'dark' ? 'rgba(245,197,24,0.35)' : 'rgba(180,160,60,0.3)'}`,
-            boxShadow: cardBg === 'dark'
-              ? '0 30px 80px rgba(0,0,0,.55),0 0 60px rgba(245,197,24,0.12)'
-              : '0 30px 80px rgba(0,0,0,.1),0 0 40px rgba(180,160,60,0.08)',
+            background: getWalletBackground(data, 'dark'),
+            border: '1px solid rgba(245,197,24,0.35)',
+            boxShadow: '0 30px 80px rgba(0,0,0,.55),0 0 60px rgba(245,197,24,0.12)',
             padding: 30,
-            color: cardBg === 'dark' ? '#f5f3ec' : '#17171a',
+            color: '#f5f3ec',
           }}>
             {/* Header: CarLink + Verificada */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -231,7 +204,7 @@ export default function NfcPage() {
                     <path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1"/>
                   </svg>
                 </span>
-                <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, color: cPrimary }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
+                <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, color: '#f5f3ec' }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
               </div>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', color: '#F5C518', fontSize: 11, fontWeight: 700 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F5C518', boxShadow: '0 0 6px #F5C518' }} />
@@ -240,7 +213,7 @@ export default function NfcPage() {
             </div>
 
             {/* Placa */}
-            <div style={{ margin: '6px 0 2px', fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Placa</div>
+            <div style={{ margin: '6px 0 2px', fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Placa</div>
             <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 42, color: '#F5C518', letterSpacing: '.02em' }}>{plateText}</div>
 
             {/* Info bar: stars */}
@@ -249,7 +222,7 @@ export default function NfcPage() {
                 {[1, 2, 3, 4, 5].map(s => (
                   <svg key={s} width="13" height="13" viewBox="0 0 24 24" fill={s <= Math.round(data.workshop_rating) ? '#F5C518' : 'none'} stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 ))}
-                <span style={{ fontSize: 11, color: cMuted, fontWeight: 600, marginLeft: 4 }}>{data.workshop_rating.toFixed(1)}/5</span>
+                <span style={{ fontSize: 11, color: '#a8a496', fontWeight: 600, marginLeft: 4 }}>{data.workshop_rating.toFixed(1)}/5</span>
               </div>
             )}
 
@@ -257,23 +230,23 @@ export default function NfcPage() {
             {data.sell_enabled && (
               <div style={{ marginTop: 22 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Vehículo</div><div style={{ fontSize: 15, fontWeight: 700, color: cPrimary, marginTop: 3 }}>{data.brand} {data.model}</div></div>
-                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Año</div><div style={{ fontSize: 15, fontWeight: 700, color: cPrimary, marginTop: 3 }}>{data.year}</div></div>
-                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Color</div><div style={{ fontSize: 15, fontWeight: 700, color: cPrimary, marginTop: 3 }}>{data.color || '—'}</div></div>
-                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Tipo</div><div style={{ fontSize: 15, fontWeight: 700, color: cPrimary, marginTop: 3 }}>{data.type || '—'}</div></div>
+                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Vehículo</div><div style={{ fontSize: 15, fontWeight: 700, color: '#f5f3ec', marginTop: 3 }}>{data.brand} {data.model}</div></div>
+                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Año</div><div style={{ fontSize: 15, fontWeight: 700, color: '#f5f3ec', marginTop: 3 }}>{data.year}</div></div>
+                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Color</div><div style={{ fontSize: 15, fontWeight: 700, color: '#f5f3ec', marginTop: 3 }}>{data.color || '—'}</div></div>
+                  <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Tipo</div><div style={{ fontSize: 15, fontWeight: 700, color: '#f5f3ec', marginTop: 3 }}>{data.type || '—'}</div></div>
                 </div>
                 <div style={{ marginTop: 20, padding: '16px 18px', borderRadius: 16, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <span style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Precio de venta</span>
+                    <span style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Precio de venta</span>
                     <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, color: '#F5C518' }}>{data.sell_price || 'Consultar'}</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {data.sell_city && <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Ciudad</div><div style={{ fontSize: 14, fontWeight: 600, color: cPrimary, marginTop: 2 }}>{data.sell_city}{data.sell_zip ? ` · ${data.sell_zip}` : ''}</div></div>}
-                    {data.sell_phone && <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Contacto</div><div style={{ fontSize: 14, fontWeight: 600, color: cPrimary, marginTop: 2 }}>{data.sell_phone}</div></div>}
+                    {data.sell_city && <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Ciudad</div><div style={{ fontSize: 14, fontWeight: 600, color: '#f5f3ec', marginTop: 2 }}>{data.sell_city}{data.sell_zip ? ` · ${data.sell_zip}` : ''}</div></div>}
+                    {data.sell_phone && <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Contacto</div><div style={{ fontSize: 14, fontWeight: 600, color: '#f5f3ec', marginTop: 2 }}>{data.sell_phone}</div></div>}
                   </div>
-                  {data.sell_description && <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`, fontSize: 13, color: cSecondary, lineHeight: 1.6 }}>{data.sell_description}</div>}
+                  {data.sell_description && <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 13, color: '#c9c6ba', lineHeight: 1.6 }}>{data.sell_description}</div>}
                   {data.published_at && (
-                    <div style={{ marginTop: 10, fontSize: 11, color: cMuted }}>Publicado {new Date(data.published_at).toLocaleDateString()}</div>
+                    <div style={{ marginTop: 10, fontSize: 11, color: '#a8a496' }}>Publicado {new Date(data.published_at).toLocaleDateString()}</div>
                   )}
                 </div>
               </div>
@@ -282,54 +255,54 @@ export default function NfcPage() {
             {/* ── FICHA TÉCNICA ── */}
             {hasFicha && (
               <>
-                <div style={{ marginTop: 24, paddingTop: 18, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}` }}>
-                  <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700, marginBottom: 16 }}>Ficha técnica</div>
+                <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700, marginBottom: 16 }}>Ficha técnica</div>
                   {data.lubricant_brand && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Lubricante</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: cPrimary, marginTop: 3 }}>{data.lubricant_brand}</div>
-                      {data.lubricant_type && <div style={{ fontSize: 12, color: cSecondary, marginTop: 2 }}>{data.lubricant_type}</div>}
+                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Lubricante</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#f5f3ec', marginTop: 3 }}>{data.lubricant_brand}</div>
+                      {data.lubricant_type && <div style={{ fontSize: 12, color: '#c9c6ba', marginTop: 2 }}>{data.lubricant_type}</div>}
                     </div>
                   )}
                   {currentKm != null && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Kilometraje actual</div>
-                      <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 40, letterSpacing: '.01em', lineHeight: 1, color: cPlate, marginTop: 4 }}>
-                        {currentKm.toLocaleString()}<span style={{ fontSize: 16, color: cMuted, fontFamily: "'Inter'", fontWeight: 600 }}> km</span>
+                      <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Kilometraje actual</div>
+                      <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 40, letterSpacing: '.01em', lineHeight: 1, color: '#f5f3ec', marginTop: 4 }}>
+                        {currentKm.toLocaleString()}<span style={{ fontSize: 16, color: '#a8a496', fontFamily: "'Inter'", fontWeight: 600 }}> km</span>
                       </div>
                     </div>
                   )}
                   {nextServiceKm != null && currentKm != null && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: cSecondary, marginBottom: 7 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#c9c6ba', marginBottom: 7 }}>
                         <span>Próximo servicio</span>
-                        <span style={{ color: cPrimary, fontWeight: 600 }}>{nextServiceKm.toLocaleString()} km · faltan {kmToNext?.toLocaleString()} km</span>
+                        <span style={{ color: '#f5f3ec', fontWeight: 600 }}>{nextServiceKm.toLocaleString()} km · faltan {kmToNext?.toLocaleString()} km</span>
                       </div>
-                      <div style={{ height: 9, borderRadius: 6, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                      <div style={{ height: 9, borderRadius: 6, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: progWidth, background: 'linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D)', borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
                       </div>
                     </div>
                   )}
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700, marginBottom: 8 }}>Servicios realizados</div>
+                    <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700, marginBottom: 8 }}>Servicios realizados</div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {stamps.map((st, i) => (
-                        <span key={i} title={st.label} style={{ width: 18, height: 18, borderRadius: '50%', background: st.on ? 'rgba(245,197,24,0.3)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'), border: '1.5px solid rgba(245,197,24,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
+                        <span key={i} title={st.label} style={{ width: 18, height: 18, borderRadius: '50%', background: st.on ? 'rgba(245,197,24,0.3)' : 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(245,197,24,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
                           {st.on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
                         </span>
                       ))}
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 10, color: cMuted }}>{data.total_services} sellos · Nivel Oro</div>
+                    <div style={{ marginTop: 6, fontSize: 10, color: '#a8a496' }}>{data.total_services} sellos · Nivel Oro</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                     <div>
-                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Atendido por</div>
+                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Atendido por</div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: '#F5C518', marginTop: 2 }}>{data.workshop_name || '—'}</div>
                     </div>
                     {data.latest_service_date && (
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700 }}>Último servicio</div>
-                        <div style={{ fontSize: 13, color: cSecondary, marginTop: 2 }}>{new Date(data.latest_service_date).toLocaleDateString()}</div>
+                        <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Último servicio</div>
+                        <div style={{ fontSize: 13, color: '#c9c6ba', marginTop: 2 }}>{new Date(data.latest_service_date).toLocaleDateString()}</div>
                       </div>
                     )}
                   </div>
@@ -338,8 +311,8 @@ export default function NfcPage() {
             )}
 
             {/* Footer message */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`, textAlign: 'center' }}>
-              <div style={{ fontSize: 12, color: cMuted }}>Ficha técnica verificada por tu taller de confianza</div>
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: '#a8a496' }}>Ficha técnica verificada por tu taller de confianza</div>
             </div>
           </div>
 
@@ -444,27 +417,6 @@ export default function NfcPage() {
               </>
             )}
           </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 16 }}>
-            <button onClick={() => setCardBg(b => b === 'dark' ? 'light' : 'dark')} title={cardBg === 'dark' ? 'Fondo claro' : 'Fondo oscuro'}
-              style={{ width: 42, height: 42, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.12)', background: '#111', color: '#7c786e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s' }}>
-              {cardBg === 'dark' ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              )}
-            </button>
-            <button onClick={handleDownload} disabled={downloading} title="Descargar ficha"
-              style={{ width: 42, height: 42, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.12)', background: '#111', color: downloading ? '#F5C518' : '#7c786e', cursor: downloading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s', opacity: downloading ? 0.6 : 1 }}>
-              {downloading ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin .8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              )}
-            </button>
-          </div>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
           {/* Footer */}
           <div style={{ textAlign: 'center', marginTop: 20, padding: 16 }}>

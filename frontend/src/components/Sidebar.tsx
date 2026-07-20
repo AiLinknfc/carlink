@@ -6,7 +6,7 @@ import Plate3D from '@/components/Plate3D'
 interface Props {
   activeTab: string
   onTabChange: (tab: string) => void
-  vehicle?: { modelo?: string; anio?: number; tipo?: string; color?: string; owner?: string } | null
+  vehicle?: { modelo?: string; anio?: number; tipo?: string; color?: string; owner?: string; wallet_bg_preset_id?: string | null; wallet_bg_custom_url?: string | null; wallet_logo_url?: string | null } | null
   plateText?: string
   city?: string
   vehicleLoading?: boolean
@@ -143,8 +143,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
           </svg>
         </button>
       </div>
-
-      {railExpanded && <div style={{ height: 32, flex: '0 0 32px' }} />}
 
       {railExpanded && !vehicleLoading && vehicle && (
         <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${dividerColor}`, whiteSpace: 'nowrap' }}>

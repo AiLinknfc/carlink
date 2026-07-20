@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { ServiceIcon } from '@/lib/icons'
+import { ServiceIcon } from '@/lib/icons_new'
 
 /* Sticky-stack tuning: each card sticks a little lower + a little more
    "in front" than the previous one, so scrolling reveals a fanned deck

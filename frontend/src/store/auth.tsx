@@ -19,12 +19,17 @@ interface AuthCtx {
   profile: Profile | null
   loading: boolean
   signIn: () => Promise<void>
+  signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
+  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthCtx>({
   user: null, profile: null, loading: true,
-  signIn: async () => {}, signOut: async () => {},
+  signIn: async () => {},
+  signInWithEmail: async () => ({}),
+  signUpWithEmail: async () => ({}),
+  signOut: async () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,6 +80,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error: error?.message }
+  }
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+    })
+    if (error) return { error: error.message }
+    // If email confirmation is required, Supabase returns a user without a session.
+    const needsConfirmation = !data.session
+    return { needsConfirmation }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
@@ -82,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   )

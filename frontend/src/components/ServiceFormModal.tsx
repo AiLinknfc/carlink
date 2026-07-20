@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ServiceIcon } from '@/lib/icons'
+import { ServiceIcon } from '@/lib/icons_new'
 
 /* ── Service type definitions ── */
 const SERVICE_TYPES = [
@@ -485,7 +485,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, onClose, onSav
                           background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
                           color: '#f5f3ec', fontSize: 13, cursor: 'pointer', textAlign: 'left',
                         }}>
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: '#F5C518', fontWeight: 700, flex: '0 0 auto' }}>{ws.code}</span>
+                        <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 11, color: '#F5C518', fontWeight: 700, flex: '0 0 auto' }}>{ws.code}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>
                             {ws.name}

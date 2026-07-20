@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-cyan: #FFD700;
+  --color-brand-lime: #FFD700;
+  --color-brand-amber: #FFD700;
+  --color-carbon-950: #0F1115;
+  --color-carbon-900: #15181E;
+  --color-carbon-800: #16191F;
+  --color-carbon-700: #1A1D23;
+  --color-carbon-600: #2C303B;
+  --color-carbon-400: #8E96A7;
+  --color-carbon-200: #E2E8F0;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-carbon-950);
+    color: #E2E8F0;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+  ::selection {
+    background-color: #FFD700;
+    color: #000000;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F1115;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A1D23;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FFD700;
+}
+
+/* Glassmorphism custom styles */
+.glass-panel {
+  background: rgba(21, 24, 30, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Hologram Scanning effect */
+@keyframes scan {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+.scan-line {
+  animation: scan 4s linear infinite;
+}
+
+/* Subtle glowing pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+  }
+}
+
+.glow-effect {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Shimmer metallic effect */
+@keyframes metal-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.metal-shimmer {
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 200% 100%;
+  animation: metal-shimmer 6s infinite linear;
+}
+
+/* Plate Embossing Shadow Effects */
+.plate-embossed {
+  text-shadow: 
+    -1px -1px 1px rgba(0,0,0,0.8), 
+    1px 1px 1px rgba(255,255,255,0.4),
+    2px 2px 3px rgba(0,0,0,0.7);
+}
+
+/* Card 3D Perspective Flip */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+

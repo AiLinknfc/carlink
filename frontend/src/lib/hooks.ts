@@ -1,20 +1,56 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from './api'
-import type { Vehicle, MaintenanceRecord, Part, Certificate, Document, GalleryImage, Diagnostic, Workshop, NfcToken, DocumentEnhanced } from './types'
+import {
+  vehicleApi,
+  maintenanceApi,
+  partsApi,
+  certificatesApi,
+  documentsApi,
+  galleryApi,
+  diagnosticsApi,
+  serviceLogsApi,
+  workshopApi,
+  nfcApi,
+  uploadApi,
+  profileApi,
+  authApi,
+} from './api'
+import type {
+  Vehicle,
+  MaintenanceRecord,
+  Part,
+  Certificate,
+  Document,
+  GalleryImage,
+  Diagnostic,
+  NfcToken,
+  Workshop,
+  ServiceLog,
+  Profile,
+} from './types'
 
 export function useVehicle(vehicleId: string | undefined) {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/vehicles/${vehicleId}`).then(d => {
-      if (d) setVehicle(d as Vehicle)
-    }).finally(() => setLoading(false))
+    try {
+      const data = await vehicleApi.get(vehicleId)
+      setVehicle(data)
+    } catch (e) {
+      console.error('Failed to load vehicle:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   return { vehicle, loading, reload: load }
 }
@@ -24,34 +60,56 @@ export function useMaintenance(vehicleId: string | undefined) {
   const [latest, setLatest] = useState<MaintenanceRecord | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    Promise.all([
-      apiGet(`/maintenance/vehicle/${vehicleId}`).then(d => { if (d) setRecords(d as MaintenanceRecord[]) }),
-      apiGet(`/maintenance/vehicle/${vehicleId}/latest`).then(d => { if (d) setLatest(d as MaintenanceRecord) }),
-    ]).finally(() => setLoading(false))
+    try {
+      const [recordsData, latestData] = await Promise.all([
+        maintenanceApi.listByVehicle(vehicleId),
+        maintenanceApi.getLatest(vehicleId),
+      ])
+      setRecords(recordsData || [])
+      setLatest(latestData)
+    } catch (e) {
+      console.error('Failed to load maintenance:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addRecord = useCallback(async (data: Partial<MaintenanceRecord> & { vehicle_id: string; service_type: string; mileage: number }) => {
-    const result = await apiPost('/maintenance', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const updateRecord = useCallback(async (id: string, data: Partial<MaintenanceRecord>) => {
-    const result = await apiPut(`/maintenance/${id}`, data)
-    if (result) load()
-    return result
-  }, [load])
+  const addRecord = useCallback(
+    async (data: Parameters<typeof maintenanceApi.create>[0]) => {
+      const result = await maintenanceApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
-  const deleteRecord = useCallback(async (id: string) => {
-    const ok = await apiDelete(`/maintenance/${id}`)
-    if (ok) load()
-    return ok
-  }, [load])
+  const updateRecord = useCallback(
+    async (id: string, data: Parameters<typeof maintenanceApi.update>[1]) => {
+      const result = await maintenanceApi.update(id, data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const deleteRecord = useCallback(
+    async (id: string) => {
+      const ok = await maintenanceApi.delete(id)
+      if (ok) await load()
+      return ok
+    },
+    [load]
+  )
 
   return { records, latest, loading, reload: load, addRecord, updateRecord, deleteRecord }
 }
@@ -60,33 +118,52 @@ export function useParts(vehicleId: string | undefined) {
   const [parts, setParts] = useState<Part[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/parts/vehicle/${vehicleId}`).then(d => {
-      if (d) setParts(d as Part[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await partsApi.listByVehicle(vehicleId)
+      setParts(data || [])
+    } catch (e) {
+      console.error('Failed to load parts:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addPart = useCallback(async (data: Partial<Part> & { vehicle_id: string; name: string }) => {
-    const result = await apiPost('/parts', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const updatePart = useCallback(async (id: string, data: Partial<Part>) => {
-    const result = await apiPut(`/parts/${id}`, data)
-    if (result) load()
-    return result
-  }, [load])
+  const addPart = useCallback(
+    async (data: Parameters<typeof partsApi.create>[0]) => {
+      const result = await partsApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
-  const deletePart = useCallback(async (id: string) => {
-    const ok = await apiDelete(`/parts/${id}`)
-    if (ok) load()
-    return ok
-  }, [load])
+  const updatePart = useCallback(
+    async (id: string, data: Parameters<typeof partsApi.update>[1]) => {
+      const result = await partsApi.update(id, data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const deletePart = useCallback(
+    async (id: string) => {
+      const ok = await partsApi.delete(id)
+      if (ok) await load()
+      return ok
+    },
+    [load]
+  )
 
   return { parts, loading, reload: load, addPart, updatePart, deletePart }
 }
@@ -95,33 +172,52 @@ export function useGallery(vehicleId: string | undefined) {
   const [images, setImages] = useState<GalleryImage[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/gallery/vehicle/${vehicleId}`).then(d => {
-      if (d) setImages(d as GalleryImage[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await galleryApi.listByVehicle(vehicleId)
+      setImages(data || [])
+    } catch (e) {
+      console.error('Failed to load gallery:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addImage = useCallback(async (data: { vehicle_id: string; image_url: string; caption?: string }) => {
-    const result = await apiPost('/gallery', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const deleteImage = useCallback(async (id: string) => {
-    const ok = await apiDelete(`/gallery/${id}`)
-    if (ok) load()
-    return ok
-  }, [load])
+  const addImage = useCallback(
+    async (data: Parameters<typeof galleryApi.create>[0]) => {
+      const result = await galleryApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
-  const updateImage = useCallback(async (id: string, data: Partial<GalleryImage>) => {
-    const result = await apiPatch(`/gallery/${id}`, data)
-    if (result) load()
-    return result
-  }, [load])
+  const updateImage = useCallback(
+    async (id: string, data: Parameters<typeof galleryApi.update>[1]) => {
+      const result = await galleryApi.update(id, data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const deleteImage = useCallback(
+    async (id: string) => {
+      const ok = await galleryApi.delete(id)
+      if (ok) await load()
+      return ok
+    },
+    [load]
+  )
 
   return { images, loading, reload: load, addImage, updateImage, deleteImage }
 }
@@ -130,33 +226,52 @@ export function useCertificates(vehicleId: string | undefined) {
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/certificates/vehicle/${vehicleId}`).then(d => {
-      if (d) setCertificates(d as Certificate[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await certificatesApi.listByVehicle(vehicleId)
+      setCertificates(data || [])
+    } catch (e) {
+      console.error('Failed to load certificates:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addCertificate = useCallback(async (data: { vehicle_id: string; name: string; issued_by?: string; file_url?: string; issue_date?: string; expiry_date?: string; notes?: string }) => {
-    const result = await apiPost('/certificates', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const updateCertificate = useCallback(async (id: string, data: Partial<Certificate>) => {
-    const result = await apiPut(`/certificates/${id}`, data)
-    if (result) load()
-    return result
-  }, [load])
+  const addCertificate = useCallback(
+    async (data: Parameters<typeof certificatesApi.create>[0]) => {
+      const result = await certificatesApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
-  const deleteCertificate = useCallback(async (id: string) => {
-    const ok = await apiDelete(`/certificates/${id}`)
-    if (ok) load()
-    return ok
-  }, [load])
+  const updateCertificate = useCallback(
+    async (id: string, data: Parameters<typeof certificatesApi.update>[1]) => {
+      const result = await certificatesApi.update(id, data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const deleteCertificate = useCallback(
+    async (id: string) => {
+      const ok = await certificatesApi.delete(id)
+      if (ok) await load()
+      return ok
+    },
+    [load]
+  )
 
   return { certificates, loading, reload: load, addCertificate, updateCertificate, deleteCertificate }
 }
@@ -165,33 +280,52 @@ export function useDocuments(vehicleId: string | undefined) {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/documents/vehicle/${vehicleId}`).then(d => {
-      if (d) setDocuments(d as Document[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await documentsApi.listByVehicle(vehicleId)
+      setDocuments(data || [])
+    } catch (e) {
+      console.error('Failed to load documents:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addDocument = useCallback(async (data: { vehicle_id: string; name: string; type?: string; file_url?: string; notes?: string }) => {
-    const result = await apiPost('/documents', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const updateDocument = useCallback(async (id: string, data: Partial<Document>) => {
-    const result = await apiPut(`/documents/${id}`, data)
-    if (result) load()
-    return result
-  }, [load])
+  const addDocument = useCallback(
+    async (data: Parameters<typeof documentsApi.create>[0]) => {
+      const result = await documentsApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
-  const deleteDocument = useCallback(async (id: string) => {
-    const ok = await apiDelete(`/documents/${id}`)
-    if (ok) load()
-    return ok
-  }, [load])
+  const updateDocument = useCallback(
+    async (id: string, data: Parameters<typeof documentsApi.update>[1]) => {
+      const result = await documentsApi.update(id, data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const deleteDocument = useCallback(
+    async (id: string) => {
+      const ok = await documentsApi.delete(id)
+      if (ok) await load()
+      return ok
+    },
+    [load]
+  )
 
   return { documents, loading, reload: load, addDocument, updateDocument, deleteDocument }
 }
@@ -200,27 +334,43 @@ export function useDiagnostics(vehicleId: string | undefined) {
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
-    if (!vehicleId) { setLoading(false); return }
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-    apiGet(`/diagnostics/vehicle/${vehicleId}`).then(d => {
-      if (d) setDiagnostics(d as Diagnostic[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await diagnosticsApi.listByVehicle(vehicleId)
+      setDiagnostics(data || [])
+    } catch (e) {
+      console.error('Failed to load diagnostics:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [vehicleId])
 
-  useEffect(() => { load() }, [load])
-
-  const addDiagnostic = useCallback(async (data: { vehicle_id: string; alert_type: string; description: string; severity?: string }) => {
-    const result = await apiPost('/diagnostics', data)
-    if (result) load()
-    return result
+  useEffect(() => {
+    load()
   }, [load])
 
-  const resolveDiagnostic = useCallback(async (id: string) => {
-    const result = await apiPut(`/diagnostics/${id}/resolve`, {})
-    if (result) load()
-    return result
-  }, [load])
+  const addDiagnostic = useCallback(
+    async (data: Parameters<typeof diagnosticsApi.create>[0]) => {
+      const result = await diagnosticsApi.create(data)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
+
+  const resolveDiagnostic = useCallback(
+    async (id: string) => {
+      const result = await diagnosticsApi.resolve(id)
+      if (result) await load()
+      return result
+    },
+    [load]
+  )
 
   return { diagnostics, loading, reload: load, addDiagnostic, resolveDiagnostic }
 }
@@ -229,14 +379,21 @@ export function useNfcTokens() {
   const [tokens, setTokens] = useState<NfcToken[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true)
-    apiGet('/nfc/tokens').then(d => {
-      if (d) setTokens(d as NfcToken[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await nfcApi.listTokens()
+      setTokens(data || [])
+    } catch (e) {
+      console.error('Failed to load NFC tokens:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
 
   return { tokens, loading, reload: load }
 }
@@ -270,13 +427,103 @@ export function useWorkshops() {
   const [workshops, setWorkshops] = useState<Workshop[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true)
-    apiGet('/workshops/search?q=').then(d => {
-      if (d) setWorkshops(d as Workshop[])
-    }).finally(() => setLoading(false))
+    try {
+      const data = await workshopApi.search('')
+      setWorkshops(data || [])
+    } catch (e) {
+      console.error('Failed to load workshops:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
+
   return { workshops, loading, reload: load }
+}
+
+export function useServiceLogs(vehicleId: string | undefined) {
+  const [logs, setLogs] = useState<ServiceLog[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    if (!vehicleId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    try {
+      const data = await serviceLogsApi.listByVehicle(vehicleId)
+      setLogs(data || [])
+    } catch (e) {
+      console.error('Failed to load service logs:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [vehicleId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { logs, loading, reload: load }
+}
+
+export function useUpload() {
+  const uploadFile = useCallback(
+    async (file: File, folder: string) => {
+      const result = await uploadApi.upload(file, folder)
+      return result?.url ?? null
+    },
+    []
+  )
+
+  return { uploadFile }
+}
+
+export function useProfile() {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await profileApi.getMe()
+      setProfile(data)
+    } catch (e) {
+      console.error('Failed to load profile:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const updateProfile = useCallback(
+    async (data: Parameters<typeof profileApi.updateMe>[0]) => {
+      const result = await profileApi.updateMe(data)
+      if (result) setProfile(result)
+      return result
+    },
+    []
+  )
+
+  return { profile, loading, reload: load, updateProfile }
+}
+
+export function useAuth() {
+  const googleLogin = useCallback(async () => {
+    const result = await authApi.googleLogin()
+    if (result?.url) {
+      window.location.href = result.url
+    }
+  }, [])
+
+  return { googleLogin }
 }

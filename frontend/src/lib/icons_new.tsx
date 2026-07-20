@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react'
 
-/* Line-style SVG logos that replace emojis across the app.
-   Rendered inline; color follows `currentColor`. */
-
-const svg = (children: ReactNode, size: number, strokeWidth = 1.7): ReactNode => (
+const svgIcon = (children: ReactNode, size: number, strokeWidth = 1.7): ReactNode => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 )
 
@@ -21,7 +18,7 @@ const SERVICE_PATHS: Record<string, ReactNode> = {
 }
 
 export function ServiceIcon({ type, size = 18, strokeWidth = 1.7 }: { type?: string; size?: number; strokeWidth?: number }): ReactNode {
-  return svg(SERVICE_PATHS[type || ''] || SERVICE_PATHS.Otro, size, strokeWidth)
+  return svgIcon(SERVICE_PATHS[type || ''] || SERVICE_PATHS.Otro, size, strokeWidth)
 }
 
 const CERT_PATHS: Record<string, ReactNode> = {
@@ -33,6 +30,18 @@ const CERT_PATHS: Record<string, ReactNode> = {
   otro: <><path d="M9 3h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2V4a1 1 0 0 1 1-1z" /><path d="M9 5h6" /></>,
 }
 
+const ICON_PATHS: Record<string, ReactNode> = {
+  ArrowRight: <path d="M5 12h14M12 5l7 7-7 7" />,
+  Mail: <><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6L12 13L2 6"/></>,
+  Eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
+  Key: <><path d="M14 21V5l-6-6-6 6M21 17v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><circle cx="16" cy="11" r="3"/></>,
+  X: <><path d="M18 6L6 18M6 6l12 12"/></>,
+}
+
+export function Icon({ type, size = 18, strokeWidth = 1.7 }: { type: keyof typeof ICON_PATHS; size?: number; strokeWidth?: number }): ReactNode {
+  return svgIcon(ICON_PATHS[type], size, strokeWidth)
+}
+
 export function CertIcon({ type, size = 20, strokeWidth = 1.7 }: { type?: string; size?: number; strokeWidth?: number }): ReactNode {
-  return svg(CERT_PATHS[type || ''] || CERT_PATHS.otro, size, strokeWidth)
+  return svgIcon(CERT_PATHS[type || ''] || CERT_PATHS.otro, size, strokeWidth)
 }

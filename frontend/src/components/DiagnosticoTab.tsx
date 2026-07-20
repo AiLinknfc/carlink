@@ -124,7 +124,7 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ padding: 18, borderRadius: 18, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>Certificado RTM</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: 'var(--text-2)', margin: '8px 0 4px' }}>{cdaCode}</div>
+            <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 13, color: 'var(--text-2)', margin: '8px 0 4px' }}>{cdaCode}</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
               <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Vence</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 700, color: '#ff8a3d', border: '1px solid #ff8a3d', background: 'rgba(255,138,61,0.08)' }}>{cdaExpiry}</span>

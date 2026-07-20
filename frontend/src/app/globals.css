@@ -7,8 +7,10 @@
   --surface-3: rgba(255,255,255,0.02);
   --border: rgba(255,255,255,0.08);
   --border-2: rgba(255,255,255,0.12);
+  --text-1: #f5f3ec;
   --text-2: #b6b2a6;
   --text-3: #7c786e;
+  --text-4: #6f6a5f;
   --gauge-inner: radial-gradient(circle at 50% 35%,#1a1d24,#0c0d11);
   --gauge-track: rgba(255,255,255,0.07);
   --gauge-border: rgba(255,255,255,0.06);
@@ -24,6 +26,60 @@
   --btn-ghost-border: rgba(255,255,255,0.14);
   --btn-ghost-color: #b6b2a6;
   --section-border: rgba(255,255,255,0.1);
+  --accent: #F5C518;
+  --accent-dim: rgba(245,197,24,0.14);
+  --accent-border: rgba(245,197,24,0.35);
+  --success: #2ecc71;
+  --success-dim: rgba(46,204,113,0.08);
+  --warning: #ff8a3d;
+  --warning-dim: rgba(255,138,61,0.08);
+  --danger: #ff4d6a;
+  --danger-dim: rgba(255,77,106,0.08);
+
+  /* Typography scale — max 2 families: Anton (display) + Inter (UI) */
+  --font-display: 'Anton', sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+
+  --fs-xs: 9px;
+  --fs-sm: 10px;
+  --fs-base: 11px;
+  --fs-md: 12px;
+  --fs-lg: 13px;
+  --fs-xl: 14px;
+  --fs-2xl: 15px;
+  --fs-3xl: 16px;
+  --fs-4xl: 18px;
+  --fs-5xl: 20px;
+  --fs-6xl: 22px;
+  --fs-7xl: 24px;
+  --fs-8xl: 27px;
+  --fs-9xl: 30px;
+  --fs-10xl: 34px;
+  --fs-11xl: 38px;
+  --fs-12xl: 42px;
+  --fs-13xl: 46px;
+  --fs-14xl: 54px;
+
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+
+  /* Wallet background presets (CSS gradients) */
+  --wallet-noche: linear-gradient(155deg,#1c1708 0%,#141414 55%,#0d0d0d 100%);
+  --wallet-ambar: linear-gradient(135deg,#4a3a08 0%,#1a1712 60%,#0d0d0d 100%);
+  --wallet-humo: linear-gradient(160deg,#2b2b2b 0%,#161616 55%,#0d0d0d 100%);
+  --wallet-destello: radial-gradient(120% 90% at 15% 0%,#3a2f08 0%,#141414 45%,#0b0b0b 100%);
+  --wallet-nitro: linear-gradient(135deg,#04212b 0%,#0d1418 55%,#0a0a0a 100%);
+  --wallet-nfc: linear-gradient(155deg,#3d3008 0%,#1a1712 45%,#141414 100%);
+  --wallet-blanco: linear-gradient(155deg,#ffffff 0%,#f3f1ea 60%,#e7e3d6 100%);
+  --wallet-papel: linear-gradient(135deg,#fbf7ec 0%,#f1ead6 100%);
+  --wallet-nieve: radial-gradient(120% 90% at 85% 0%,#fff7db 0%,#ffffff 45%,#eef0f2 100%);
+
+  /* Default wallet backgrounds per theme */
+  --wallet-default-dark: var(--wallet-noche);
+  --wallet-default-light: var(--wallet-blanco);
 }
 :root[data-theme="light"] {
   --surface: #ffffff;
@@ -31,8 +87,10 @@
   --surface-3: rgba(17,17,17,0.02);
   --border: rgba(17,17,17,0.10);
   --border-2: rgba(17,17,17,0.14);
+  --text-1: #17171a;
   --text-2: #5c584e;
   --text-3: #7a756a;
+  --text-4: #8f8a7a;
   --gauge-inner: radial-gradient(circle at 50% 35%,#f5f3ec,#e8e5dc);
   --gauge-track: rgba(17,17,17,0.08);
   --gauge-border: rgba(17,17,17,0.08);
@@ -48,12 +106,17 @@
   --btn-ghost-border: rgba(17,17,17,0.12);
   --btn-ghost-color: #5c584e;
   --section-border: rgba(17,17,17,0.08);
+  --accent-dim: rgba(245,197,24,0.18);
+  --accent-border: rgba(184,134,10,0.4);
+  --success-dim: rgba(46,204,113,0.1);
+  --warning-dim: rgba(255,138,61,0.1);
+  --danger-dim: rgba(255,77,106,0.1);
 }
 html, body {
   margin: 0; padding: 0;
   background: #060606;
   color: #f5f3ec;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }
 :root[data-theme="light"] html, :root[data-theme="light"] body {
@@ -97,14 +160,12 @@ select option { background: #141414; color: #f5f3ec; }
 
 /* ── Responsive: Mobile-first breakpoints ── */
 
-/* Tablets / small laptops */
 @media (max-width: 960px) {
   .fichagrid { grid-template-columns: 1fr !important; }
   .sidebar-wrap { margin-left: 76px !important; }
   .sidebar-wrap .topbar-actions { gap: 6px !important; }
 }
 
-/* Tablets */
 @media (max-width: 860px) {
   .heroform { flex-direction: column !important; }
   .heroform .divider { display: none !important; }
@@ -117,7 +178,6 @@ select option { background: #141414; color: #f5f3ec; }
   .topbar-actions { gap: 6px !important; }
 }
 
-/* Mobile */
 @media (max-width: 640px) {
   .sidebar-wrap { margin-left: 0 !important; }
   .sidebar-wrap .topbar-actions { flex-wrap: wrap !important; gap: 4px !important; }
@@ -145,7 +205,6 @@ select option { background: #141414; color: #f5f3ec; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
 }
 
-/* Very small phones */
 @media (max-width: 380px) {
   .topbar-actions .btn-wide { width: 34px !important; height: 34px !important; }
   .countdown-blocks > div { min-width: 38px !important; padding: 6px 8px !important; }
@@ -162,3 +221,18 @@ select option { background: #141414; color: #f5f3ec; }
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom) !important; }
 }
+
+/* Utility classes for typography */
+.text-display { font-family: var(--font-display); font-weight: var(--fw-black); text-transform: uppercase; }
+.text-label { font-family: var(--font-ui); font-weight: var(--fw-bold); letter-spacing: 0.14em; text-transform: uppercase; font-size: var(--fs-base); }
+.text-body { font-family: var(--font-ui); font-weight: var(--fw-normal); font-size: var(--fs-xl); line-height: 1.55; }
+.text-body-sm { font-family: var(--font-ui); font-weight: var(--fw-normal); font-size: var(--fs-lg); line-height: 1.5; }
+.text-muted { font-family: var(--font-ui); font-weight: var(--fw-medium); font-size: var(--fs-sm); color: var(--text-3); }
+.text-caption { font-family: var(--font-ui); font-weight: var(--fw-semibold); font-size: var(--fs-xs); color: var(--text-4); }
+.text-button { font-family: var(--font-ui); font-weight: var(--fw-black); font-size: var(--fs-xl); }
+.text-odometer { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-11xl); letter-spacing: 0.01em; }
+.text-odometer-sm { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-10xl); letter-spacing: 0.01em; }
+.text-gauge { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-10xl); }
+.text-mileage { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-14xl); letter-spacing: 0.01em; }
+.text-section-title { font-family: var(--font-display); font-weight: var(--fw-black); font-size: clamp(var(--fs-9xl), 3.8vw, var(--fs-13xl)); letter-spacing: 0.01em; text-transform: uppercase; }
+.text-subtitle { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-5xl); letter-spacing: 0.01em; text-transform: uppercase; }

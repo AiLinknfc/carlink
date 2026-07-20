@@ -291,7 +291,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   vehicleInfo: { textAlign: 'center' },
   vehicleTitle: { fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', marginBottom: 4 },
-  vehiclePlate: { fontFamily: "'JetBrains Mono',monospace", fontSize: 16, color: '#F5C518', fontWeight: 700, marginBottom: 4 },
+  vehiclePlate: { fontFamily: "'Anton',sans-serif", fontSize: 16, color: '#F5C518', fontWeight: 700, marginBottom: 4 },
   vehicleDetails: { display: 'flex', gap: 12, justifyContent: 'center', fontSize: 12, color: '#8f8a7a', marginBottom: 8, flexWrap: 'wrap' },
   fromInfo: { fontSize: 12, color: '#8f8a7a' },
   title: { fontFamily: "'Anton',sans-serif", fontSize: 26, textTransform: 'uppercase', margin: '0 0 12px', textAlign: 'center', letterSpacing: '.01em' },

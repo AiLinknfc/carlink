@@ -1,12 +1,18 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useGallery } from '@/lib/hooks'
 import { uploadFile } from '@/lib/upload'
 import type { GalleryImage } from '@/lib/types'
 
-const DEFAULT_CATEGORIES = [
-  'Frontal', 'Lateral', 'Trasera', 'Motor', 'Tablero', 'Llantas',
+const SUGGESTED_CATEGORIES = [
+  'Frontal', 'Lateral derecha', 'Lateral izquierda', 'Trasera',
+  'Motor', 'Tablero', 'Llantas', 'Maletero',
+  'Interior delantero', 'Interior trasero', 'Puertas abiertas',
+  'Capó abierto', 'Cajuela', 'Faroles', 'Parachoques',
+  'Espejos', 'Aros', 'Suspensión', 'Frenos',
+  'Kilometraje', 'Serial / VIN', 'Daños', 'Rayones',
 ]
 
 interface Props {
@@ -274,6 +280,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null)
   const [uploading, setUploading] = useState(false)
   const [extraSlots, setExtraSlots] = useState<{ id: string; caption: string }[]>([])
+  const [activeCategories, setActiveCategories] = useState<string[]>([...SUGGESTED_CATEGORIES.slice(0, 6)])
 
   const flash = useCallback((msg: string) => {
     setToast(msg)
@@ -308,10 +315,18 @@ export default function GaleriaTab({ vehicleId }: Props) {
   }, [updateImage, flash])
 
   const addExtraSlot = useCallback(() => {
+    const name = window.prompt('Nombre del espacio personalizado:')
+    if (!name?.trim()) return
     const id = 'slot-' + Date.now()
-    setExtraSlots(prev => [...prev, { id, caption: `Foto extra ${prev.length + 1}` }])
-    flash('Nuevo espacio para foto agregado')
+    setExtraSlots(prev => [...prev, { id, caption: name.trim() }])
+    flash(`"${name.trim()}" agregado a la galería`)
   }, [flash])
+
+  const toggleCategory = useCallback((cat: string) => {
+    setActiveCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    )
+  }, [])
 
   useEffect(() => { if (vehicleId) reload() }, [vehicleId, reload])
 
@@ -346,33 +361,27 @@ export default function GaleriaTab({ vehicleId }: Props) {
       )}
 
       {/* Lightbox */}
-      {lightbox && (
+      {lightbox && createPortal(
         <div onClick={() => setLightbox(null)} style={{
-          position: 'fixed', inset: 0, zIndex: 75,
-          background: 'rgba(4,4,4,0.88)', backdropFilter: 'blur(8px)',
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.92)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: 24, cursor: 'zoom-out',
         }}>
           <img src={lightbox.image_url} alt={lightbox.caption}
             style={{
-              maxWidth: '92vw', maxHeight: '80vh', borderRadius: 14,
+              maxWidth: '94vw', maxHeight: '82vh', borderRadius: 14,
               boxShadow: '0 30px 90px rgba(0,0,0,.7)',
               border: '1px solid rgba(245,197,24,0.3)',
+              objectFit: 'contain',
             }}
           />
-          <div style={{ marginTop: 12, fontSize: 14, color: 'var(--text-2)' }}>
+          <div style={{ marginTop: 12, fontSize: 14, color: '#fff8e6', fontWeight: 600 }}>
             {lightbox.caption}
           </div>
-          <button onClick={() => setLightbox(null)} style={{
-            marginTop: 16, padding: '10px 20px', borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.2)',
-            background: 'rgba(255,255,255,0.06)', color: '#fff',
-            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}>
-            Cerrar
-          </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Header */}
@@ -389,6 +398,32 @@ export default function GaleriaTab({ vehicleId }: Props) {
         <p style={{ color: 'var(--text-2)', margin: 0 }}>
           Toca cada espacio para subir fotos. Toca el título de la foto para editarlo.
         </p>
+      </div>
+
+      {/* Suggestion chips */}
+      <div style={{ marginBottom: 18, animation: 'textIn .5s .06s both' }}>
+        <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 10 }}>
+          Toca para agregar — {activeCategories.length + extraSlots.length} espacios activos
+        </div>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
+          {SUGGESTED_CATEGORIES.map(cat => {
+            const active = activeCategories.includes(cat)
+            return (
+              <button key={cat} onClick={() => toggleCategory(cat)} style={{
+                flex: '0 0 auto', padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+                border: `1px solid ${active ? 'rgba(245,197,24,0.5)' : 'var(--border-2)'}`,
+                background: active ? 'rgba(245,197,24,0.12)' : 'var(--surface-2)',
+                color: active ? '#F5C518' : 'var(--text-2)',
+                cursor: 'pointer', transition: 'all .18s', whiteSpace: 'nowrap',
+              }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.background = 'rgba(245,197,24,0.05)' } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.background = 'var(--surface-2)' } }}>
+                {active && <span style={{ marginRight: 4 }}>✓</span>}
+                {cat}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Upload progress */}
@@ -410,22 +445,6 @@ export default function GaleriaTab({ vehicleId }: Props) {
         </div>
       )}
 
-      {/* Add slot button */}
-      <button onClick={addExtraSlot}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '12px 20px', borderRadius: 12,
-          border: 'none', background: '#F5C518', color: '#111',
-          fontWeight: 800, fontSize: 13, cursor: 'pointer',
-          marginBottom: 16, transition: 'all .16s',
-          boxShadow: '0 0 20px rgba(245,197,24,0.35)',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#e6b300' }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        Agregar espacio
-      </button>
-
       {/* Gallery grid */}
       <div style={{
         display: 'grid',
@@ -433,10 +452,9 @@ export default function GaleriaTab({ vehicleId }: Props) {
         gap: 16,
         animation: 'textIn .5s .1s both',
       }}>
-        {([...DEFAULT_CATEGORIES, ...extraSlots] as (string | { id: string; caption: string })[]).map((slot, i) => {
-          const caption = typeof slot === 'string' ? slot : slot.caption
+        {([...activeCategories, ...extraSlots.map(s => s.caption)] as string[]).map((caption, i) => {
           const img = imageMap.get(caption)
-          const key = typeof slot === 'string' ? slot : slot.id
+          const key = caption
           return (
             <GalleryCard
               key={key}
@@ -452,9 +470,23 @@ export default function GaleriaTab({ vehicleId }: Props) {
         })}
       </div>
 
-      {!loading && images.length === 0 && extraSlots.length === 0 && (
+      {/* Add custom slot */}
+      <button onClick={addExtraSlot} style={{
+        marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: '10px 16px', borderRadius: 11,
+        border: '1px dashed rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.04)',
+        color: '#F5C518', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        transition: 'all .18s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Espacio personalizado
+      </button>
+
+      {!loading && images.length === 0 && activeCategories.length === 0 && extraSlots.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
-          Aún no hay fotos. Usa el botón &quot;+ Agregar espacio&quot; para empezar.
+          Selecciona categorías arriba o crea un espacio personalizado para empezar.
         </div>
       )}
     </div>
