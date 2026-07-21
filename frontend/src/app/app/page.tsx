@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
+import { useMaintenance } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
@@ -17,6 +18,8 @@ import FichaTab from '@/components/tabs/FichaTab'
 import HistorialTab from '@/components/tabs/HistorialTab'
 import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
+import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
+import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 
 export default function AppPage() {
   const router = useRouter()
@@ -55,6 +58,28 @@ export default function AppPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [foundRequests, setFoundRequests] = useState<Array<{id: string; status: string; finder_name?: string; finder_phone?: string; message?: string; created_at: string; vehicle_plate?: string; vehicle_brand?: string; vehicle_model?: string}>>([])
   const [showFoundPanel, setShowFoundPanel] = useState(false)
+  const [showPqrs, setShowPqrs] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const pqrsNew = usePqrsCount('nuevo')
+  const { records: maintenanceRecords, latest } = useMaintenance(vehicle?.id, refreshKey)
+
+  // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
+  const [notifsStampsRequired, setNotifsStampsRequired] = useState(6)
+  const [notifsPromoDesc, setNotifsPromoDesc] = useState('')
+  useEffect(() => {
+    if (!vehicle?.id) return
+    apiGet('/workshops/me').then((w: any) => {
+      if (w?.stamps_required) setNotifsStampsRequired(w.stamps_required)
+      if (w?.promotion_description) setNotifsPromoDesc(w.promotion_description)
+    }).catch(() => {})
+  }, [vehicle?.id])
+  const currentKmForNotifs = maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : 0
+  const latestAceiteForNotifs = [...maintenanceRecords].find(r => r.service_type === 'Aceite')
+  const oilNextKm = latestAceiteForNotifs?.next_service_mileage
+  const oilKmRemaining = oilNextKm != null ? oilNextKm - currentKmForNotifs : null
+  const urgentCount = (oilKmRemaining != null && oilKmRemaining <= 0 ? 1 : 0)
+    + (oilKmRemaining != null && oilKmRemaining > 0 && oilKmRemaining < 1000 ? 1 : 0)
+    + pqrsNew
 
   useEffect(() => {
     try { setTheme(window.localStorage.getItem('carlink_theme') === 'light' ? 'light' : 'dark') } catch { /* ignore */ }
@@ -147,6 +172,8 @@ export default function AppPage() {
       localStorage.setItem(`nfc_raw_${data.id}`, rawToken)
       setNfcTokens(prev => [data, ...prev])
       setGeneratedUrl(`${window.location.origin}/nfc/${rawToken}`)
+      const prev = parseInt(localStorage.getItem('carlink_keychain_count') || '225', 10)
+      localStorage.setItem('carlink_keychain_count', String(prev + 1))
     }
     setNfcLoading(false)
   }
@@ -311,6 +338,26 @@ export default function AppPage() {
             </button>
           )}
 
+          <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS"
+            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: glassBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
+            onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
+            {pqrsNew > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 4px', borderRadius: 9, background: '#F5C518', color: '#111', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${tDark ? '#141414' : '#f0efe8'}` }}>{pqrsNew}</span>
+            )}
+          </button>
+
+          <button onClick={() => setShowNotifications(true)} title="Notificaciones"
+            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: glassBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
+            onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            {urgentCount > 0 && (
+              <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 4px', borderRadius: 9, background: '#ff4d6a', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${theme === 'light' ? '#f0efe8' : '#141414'}` }}>{urgentCount}</span>
+            )}
+          </button>
+
           <button onClick={() => setShowCart(true)} title="Solicitar llavero NFC"
             style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.4)', background: profileBtnBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
@@ -327,15 +374,16 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} /> :
-           activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} /> :
+            activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? <TallerTab vehicleId={vehicle?.id} /> :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
+           activeTab === 'config' ? <WorkshopConfigTab theme={theme} /> :
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
         </div>
 
         {/* App-level toast */}
@@ -354,6 +402,7 @@ export default function AppPage() {
         <ServiceFormModal
           vehicleId={vehicle.id}
           editRecord={editRecord}
+          latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
           onClose={onCloseForm}
           onSaved={onSaved}
         />
@@ -756,6 +805,81 @@ export default function AppPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      <PqrsInbox isOpen={showPqrs} onClose={() => setShowPqrs(false)} theme={theme} />
+
+      {/* NOTIFICATIONS PANEL */}
+      {showNotifications && (
+        <div onClick={() => setShowNotifications(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 70 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 360, maxWidth: '92vw', maxHeight: '80vh', background: theme === 'dark' ? '#111318' : '#fff', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span style={{ fontSize: 15, fontWeight: 700, color: theme === 'dark' ? '#f5f3ec' : '#17171a' }}>Notificaciones</span>
+              </div>
+              <button onClick={() => setShowNotifications(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#8f8a7a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', maxHeight: 'calc(80vh - 60px)', padding: '12px 14px' }}>
+              {/* Alarma: Aceite */}
+              {oilKmRemaining != null && oilKmRemaining <= 0 && (
+                <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4d6a', boxShadow: '0 0 8px #ff4d6a' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#ff4d6a' }}>Alarma · Aceite vencido</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>El cambio de aceite superó el kilometraje recomendado. Se recomienda reemplazarlo urgentemente.</div>
+                </div>
+              )}
+
+              {/* Alarma: Aceite por vencer */}
+              {oilKmRemaining != null && oilKmRemaining > 0 && oilKmRemaining < 1000 && (
+                <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(255,176,32,0.08)', border: '1px solid rgba(255,176,32,0.25)', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffb020', boxShadow: '0 0 8px #ffb020' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#ffb020' }}>Advertencia · Aceite próximo a vencer</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Faltan menos de 1,000 km para el próximo cambio de aceite. Agenda tu cita pronto.</div>
+                </div>
+              )}
+
+              {/* Bono: Sellos acumulados */}
+              {maintenanceRecords.length >= notifsStampsRequired && (
+                <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2ecc71', boxShadow: '0 0 8px #2ecc71' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#2ecc71' }}>Bono · ¡Acumulaste puntos!</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Llegaste a {maintenanceRecords.length} servicios. ¡{notifsPromoDesc || 'Nivel Oro'} desbloqueado! Consulta tu recompensa en el taller.</div>
+                </div>
+              )}
+
+              {/* Info: Último servicio registrado */}
+              {latest && (
+                <div style={{ padding: '12px 14px', borderRadius: 13, background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>Info</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Último servicio: {latest.service_type} registrado el {latest.date ? new Date(latest.date).toLocaleDateString() : '—'}</div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!oilKmRemaining && maintenanceRecords.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px 10px' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={theme === 'dark' ? '#4a463c' : '#8f8a7a'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: theme === 'dark' ? '#8f8a7a' : '#6f6a5f' }}>Sin notificaciones</div>
+                  <div style={{ fontSize: 12, color: theme === 'dark' ? '#6f6a5f' : '#8f8a7a', marginTop: 4 }}>Tus alertas, bonos y recordatorios aparecerán aquí.</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

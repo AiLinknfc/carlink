@@ -1,6 +1,0 @@
-{
-  "name": "PlacaID",
-  "description": "Plataforma SaaS para la personalización de placas y certificación interactiva de mantenimiento vehicular.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

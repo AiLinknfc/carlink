@@ -86,7 +86,7 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
 
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: 20 }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: 'min(480px, 94vw)', maxHeight: '90vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 20, padding: 'clamp(16px, 3.5vw, 28px)', boxShadow: '0 30px 80px rgba(0,0,0,.7)' }}>
+      <div ref={ref} style={{ width: '100%', maxWidth: 'min(480px, 94vw)', maxHeight: '90vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 14, padding: 'clamp(16px, 3.5vw, 28px)', boxShadow: '0 30px 80px rgba(0,0,0,.7)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ margin: 0, fontFamily: "'Anton',sans-serif", fontSize: 'clamp(20px,5vw,24px)', letterSpacing: '.01em' }}>{editPart ? 'Editar parte' : 'Nueva parte'}</h2>
             <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#7c786e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>

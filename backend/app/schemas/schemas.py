@@ -290,6 +290,8 @@ class WorkshopCreate(BaseModel):
     phone: str = ""
     description: str = ""
     logo_url: str | None = None
+    stamps_required: int = 6
+    promotion_description: str = ""
     # Optional vehicle registration for workshops that need a test vehicle
     plate: str | None = None
     brand: str | None = None
@@ -312,6 +314,8 @@ class WorkshopOut(BaseModel):
     description: str
     logo_url: str
     is_verified: bool
+    stamps_required: int = 6
+    promotion_description: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -292,7 +292,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%', maxWidth: 520,
     background: 'var(--panel-bg, #141414)',
     border: '1px solid var(--panel-border, rgba(245,197,24,0.3))',
-    borderRadius: 22,
+    borderRadius: 14,
     padding: 24,
     boxShadow: '0 40px 90px rgba(0,0,0,.6)',
     color: '#f5f3ec',

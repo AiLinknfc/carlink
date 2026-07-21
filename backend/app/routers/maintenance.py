@@ -34,7 +34,7 @@ async def list_maintenance(
 ):
     await _verify_vehicle_owner(vehicle_id, user_id, db)
     result = await db.execute(
-        select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle_id).order_by(MaintenanceRecord.date.desc())
+        select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle_id).order_by(MaintenanceRecord.mileage.desc())
     )
     return list(result.scalars().all())
 
@@ -47,7 +47,7 @@ async def get_latest_maintenance(
 ):
     await _verify_vehicle_owner(vehicle_id, user_id, db)
     result = await db.execute(
-        select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle_id).order_by(MaintenanceRecord.date.desc()).limit(1)
+        select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle_id).order_by(MaintenanceRecord.mileage.desc()).limit(1)
     )
     return result.scalar_one_or_none()
 

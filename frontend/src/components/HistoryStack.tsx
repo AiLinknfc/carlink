@@ -140,11 +140,21 @@ export default function HistoryStack({ records, onEdit }: Props) {
               </div>
 
               {/* "card number" styled mileage — the embossed-digits look */}
-              <div style={{ margin: '22px 0 6px', position: 'relative' }}>
-                <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Kilometraje</div>
-                <div style={{ fontFamily: "'Courier New',monospace", fontSize: 27, letterSpacing: '.12em', color: theme.text, marginTop: 4, textShadow: '0 1px 0 rgba(0,0,0,0.4)' }}>
-                  {r.mileage != null ? r.mileage.toLocaleString() : '——————'} <span style={{ fontSize: 13, opacity: .7 }}>KM</span>
+              <div style={{ margin: '22px 0 6px', position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Kilometraje actual</div>
+                  <div style={{ fontFamily: "'Courier New',monospace", fontSize: 27, letterSpacing: '.12em', color: theme.text, marginTop: 4, textShadow: '0 1px 0 rgba(0,0,0,0.4)' }}>
+                    {r.mileage != null ? r.mileage.toLocaleString() : '——————'} <span style={{ fontSize: 13, opacity: .7 }}>KM</span>
+                  </div>
                 </div>
+                {r.next_service_mileage != null && (
+                  <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
+                    <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Próximo servicio</div>
+                    <div style={{ fontFamily: "'Courier New',monospace", fontSize: 16, letterSpacing: '.08em', color: theme.accent, marginTop: 2 }}>
+                      {r.next_service_mileage.toLocaleString()} <span style={{ fontSize: 11, opacity: .7 }}>KM</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {r.description && (
@@ -168,6 +178,12 @@ export default function HistoryStack({ records, onEdit }: Props) {
                     <div>
                       <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Lubricante</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.lubricant_brand}{r.lubricant_type ? ` · ${r.lubricant_type}` : ''}</div>
+                    </div>
+                  )}
+                  {r.next_service_mileage != null && r.mileage != null && (
+                    <div>
+                      <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Vida útil</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: theme.accent, marginTop: 2 }}>{(r.next_service_mileage - r.mileage).toLocaleString()} km</div>
                     </div>
                   )}
                 </div>

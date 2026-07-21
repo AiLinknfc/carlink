@@ -55,7 +55,7 @@ export function useVehicle(vehicleId: string | undefined) {
   return { vehicle, loading, reload: load }
 }
 
-export function useMaintenance(vehicleId: string | undefined) {
+export function useMaintenance(vehicleId: string | undefined, refreshKey?: number) {
   const [records, setRecords] = useState<MaintenanceRecord[]>([])
   const [latest, setLatest] = useState<MaintenanceRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,14 +71,14 @@ export function useMaintenance(vehicleId: string | undefined) {
         maintenanceApi.listByVehicle(vehicleId),
         maintenanceApi.getLatest(vehicleId),
       ])
-      setRecords(recordsData || [])
+      setRecords((recordsData || []).sort((a: any, b: any) => (b.mileage ?? 0) - (a.mileage ?? 0)))
       setLatest(latestData)
     } catch (e) {
       console.error('Failed to load maintenance:', e)
     } finally {
       setLoading(false)
     }
-  }, [vehicleId])
+  }, [vehicleId, refreshKey])
 
   useEffect(() => {
     load()
@@ -399,14 +399,12 @@ export function useNfcTokens() {
 }
 
 export function useCountdown(deadline: number | null) {
-  const targetRef = useRef(deadline)
-  if (deadline !== null) targetRef.current = deadline
-
   const [cd, setCd] = useState({ d: 0, h: 0, m: 0, s: 0 })
+  const targetRef = useRef<number | null>(null)
+
   useEffect(() => {
-    const ms = targetRef.current
-    if (ms == null) return
-    const deadline = ms
+    if (deadline == null || deadline === targetRef.current) return
+    targetRef.current = deadline
     function tick() {
       const diff = Math.max(0, deadline - Date.now())
       setCd({
@@ -419,7 +417,7 @@ export function useCountdown(deadline: number | null) {
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [deadline])
   return cd
 }
 

@@ -163,7 +163,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
       }}>
         <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
           width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto',
-          background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 22,
+          background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 14,
           padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
         }}>
           {/* Header */}
@@ -331,7 +331,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                         width: '100%', padding: '11px 13px', borderRadius: 10,
                         border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
                         background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
-                        fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                        fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
                       }} />
                   </div>
                   <div style={{ marginBottom: 14 }}>
@@ -358,7 +358,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                         width: '100%', padding: '11px 13px', borderRadius: 10,
                         border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
                         background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
-                        fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                        fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
                       }} />
                   </div>
                   <div style={{ marginBottom: 14 }}>

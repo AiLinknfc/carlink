@@ -7,15 +7,18 @@ import type { Part } from '@/lib/types'
 
 interface PartesTabProps {
   vehicleId?: string
+  accountType?: string
 }
 
 const BRANDS = ['Todas', 'Frenos', 'Motor', 'Suspensión', 'Eléctrico', 'Filtros', 'Transmisión', 'Enfriamiento']
 
-export default function PartesTab({ vehicleId }: PartesTabProps) {
+export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
   const { parts, loading, reload } = useParts(vehicleId)
   const [showForm, setShowForm] = useState(false)
   const [editPart, setEditPart] = useState<Part | null>(null)
   const [activeBrand, setActiveBrand] = useState('Todas')
+
+  const isWorkshop = accountType === 'empresa'
 
   const onAdd = useCallback(() => { setEditPart(null); setShowForm(true) }, [])
   const onEdit = useCallback((p: Part) => { setEditPart(p); setShowForm(true) }, [])
@@ -60,20 +63,27 @@ export default function PartesTab({ vehicleId }: PartesTabProps) {
 
       {/* Botón agregar + Filtro de categorías */}
       <div style={{ marginBottom: 22, animation: 'textIn .5s .08s both' }}>
-        <button onClick={onAdd}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '11px 18px', borderRadius: 12,
-            border: 'none', background: '#F5C518', color: '#111',
-            fontWeight: 800, fontSize: 13, cursor: 'pointer',
-            transition: 'all .18s',
-            boxShadow: '0 0 20px rgba(245,197,24,0.35)',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#FFD84D' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          Agregar parte
-        </button>
+        {isWorkshop && (
+          <button onClick={onAdd}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '11px 18px', borderRadius: 12,
+              border: 'none', background: '#F5C518', color: '#111',
+              fontWeight: 800, fontSize: 13, cursor: 'pointer',
+              transition: 'all .18s',
+              boxShadow: '0 0 20px rgba(245,197,24,0.35)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#FFD84D' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar parte
+          </button>
+        )}
+        {!isWorkshop && (
+          <div style={{ fontSize: 12, color: '#7c786e', fontStyle: 'italic' }}>
+            El control de partes es gestionado por el taller mecánico.
+          </div>
+        )}
 
         {/* Menú de categorías */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
@@ -126,7 +136,7 @@ export default function PartesTab({ vehicleId }: PartesTabProps) {
           {filteredParts.map((part) => (
             <div
               key={part.id}
-              onClick={() => onEdit(part)}
+              onClick={() => isWorkshop ? onEdit(part) : undefined}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '200px minmax(0,1fr) 104px',
@@ -137,11 +147,11 @@ export default function PartesTab({ vehicleId }: PartesTabProps) {
                 background: '#141414',
                 border: '1px solid rgba(255,255,255,0.08)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-                cursor: 'pointer',
+                cursor: isWorkshop ? 'pointer' : 'default',
                 transition: 'border-color .18s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+              onMouseEnter={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
+              onMouseLeave={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
               {/* Nombre + indicador */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <span style={{

@@ -104,7 +104,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       return
     }
 
-    // Authenticated → let the callback route to /app or /register
     router.push('/auth/callback')
   }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router])
 
@@ -114,8 +113,9 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setShowTermsError(true)
       return
     }
-    signIn() // redirects to Google OAuth
-  }, [acceptedTerms, signIn])
+    onClose()
+    requestAnimationFrame(() => signIn())
+  }, [acceptedTerms, signIn, onClose])
 
   if (!isOpen) return null
 
@@ -155,7 +155,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                 position: 'relative', width: '100%', maxWidth: 420,
                 maxHeight: 'calc(100vh - 32px)', overflowY: 'auto',
                 background: panelBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-                border: `1px solid ${borderColor}`, borderRadius: 22,
+                border: `1px solid ${borderColor}`, borderRadius: 14,
                 boxShadow: '0 40px 90px rgba(0,0,0,.55)',
                 padding: 'clamp(20px, 5vw, 28px)', color: textPrimary,
                 fontFamily: "'Inter',system-ui,sans-serif",
@@ -466,8 +466,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     animate={{ opacity: 1, y: 0 }}
                     style={{ padding: '20px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}
                   >
-                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(46,204,113,0.14)', border: '1px solid rgba(46,204,113,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <MailIcon width={26} height={26} style={{ color: '#2ecc71' }} />
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: `1px solid ${goldBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MailIcon width={26} height={26} style={{ color: gold }} />
                     </div>
                     <h3 style={{ fontFamily: "'Anton',sans-serif", fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: textPrimary }}>
                       Revisa tu correo
