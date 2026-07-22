@@ -158,7 +158,6 @@ export default function PqrsAgent({ isOpen, onClose, theme, plate, city, default
             <div style={{ padding: '14px 18px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', gap: 11 }}>
               <span style={{ position: 'relative', width: 40, height: 40, borderRadius: 12, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
-                <span style={{ position: 'absolute', bottom: 1, right: 1, width: 10, height: 10, borderRadius: '50%', background: GREEN, border: '2px solid #F5C518' }} />
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.1 }}>CarLia · Asistente PQRS</div>

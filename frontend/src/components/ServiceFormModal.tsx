@@ -4,6 +4,16 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ServiceIcon } from '@/lib/icons_new'
 
+/* Opciones de frenos: revisar y reemplazar en un mismo control. La última es la
+   única que renueva la pieza en Control de partes. */
+const REPLACED = 'Reemplazado hoy'
+const REPAIRED = 'Reparado hoy'
+const BRAKE_OPTIONS = ['Revisado — OK', 'Revisado — desgaste medio', REPLACED]
+const FLUID_OPTIONS = ['Revisado — OK', 'Revisado — nivel bajo', REPLACED]
+const ABS_OPTIONS = ['Revisado — OK', 'Revisado — falla detectada', REPAIRED]
+/* Valores que cuentan como intervención y renuevan la pieza. */
+const ACTION_VALUES = new Set([REPLACED, REPAIRED])
+
 /* ── Service type definitions ── */
 const SERVICE_TYPES = [
   {
@@ -15,6 +25,7 @@ const SERVICE_TYPES = [
       { key: 'oil_filter', label: 'Filtro de aceite', type: 'checkbox' },
     ],
     partNames: ['Aceite de motor'],
+    partCategory: 'Motor',
   },
   {
     id: 'Aire',
@@ -24,6 +35,7 @@ const SERVICE_TYPES = [
       { key: 'air_flow', label: 'Flujo de aire verificado', type: 'checkbox' },
     ],
     partNames: ['Filtro de aire'],
+    partCategory: 'Filtros',
   },
   {
     id: 'Combustible',
@@ -33,16 +45,29 @@ const SERVICE_TYPES = [
       { key: 'injection_check', label: 'Inyección revisada', type: 'checkbox' },
     ],
     partNames: ['Filtro de combustible'],
+    partCategory: 'Filtros',
   },
   {
     id: 'Frenos',
     label: 'Sistema de frenos',
     fields: [
-      { key: 'brake_pads', label: 'Pastillas', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
-      { key: 'brake_discs', label: 'Discos', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
-      { key: 'brake_fluid', label: 'Líquido de frenos', type: 'checkbox' },
+      { key: 'brake_pads', label: 'Pastillas', type: 'select', options: BRAKE_OPTIONS },
+      { key: 'brake_discs', label: 'Discos', type: 'select', options: BRAKE_OPTIONS },
+      { key: 'handbrake', label: 'Freno de mano', type: 'select', options: BRAKE_OPTIONS },
+      { key: 'brake_fluid', label: 'Líquido de frenos', type: 'select', options: FLUID_OPTIONS },
+      { key: 'abs', label: 'Sistema ABS', type: 'select', options: ABS_OPTIONS },
     ],
-    partNames: ['Pastillas de freno'],
+    /* Un solo control por componente: las dos primeras opciones son diagnóstico
+       y no tocan nada; REPLACED es la acción y renueva la pieza. */
+    partNames: [],
+    replacements: [
+      { key: 'brake_pads', part: 'Pastillas de freno' },
+      { key: 'brake_discs', part: 'Discos de freno' },
+      { key: 'handbrake', part: 'Freno de mano' },
+      { key: 'brake_fluid', part: 'Líquido de frenos' },
+      { key: 'abs', part: 'Sistema ABS' },
+    ],
+    partCategory: 'Frenos',
   },
   {
     id: 'Refrigerante',
@@ -52,6 +77,7 @@ const SERVICE_TYPES = [
       { key: 'coolant_temp', label: 'Temperatura', type: 'select', options: ['Normal', 'Alta', 'Baja'] },
     ],
     partNames: ['Refrigerante'],
+    partCategory: 'Enfriamiento',
   },
   {
     id: 'Llantas',
@@ -62,6 +88,7 @@ const SERVICE_TYPES = [
       { key: 'tire_tread', label: 'Labrado', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
     ],
     partNames: ['Llantas'],
+    partCategory: 'Llantas',
   },
   {
     id: 'Suspensión',
@@ -71,6 +98,7 @@ const SERVICE_TYPES = [
       { key: 'shock_absorbers', label: 'Amortiguadores', type: 'select', options: ['OK', 'Desgaste medio', 'Reemplazar'] },
     ],
     partNames: ['Amortiguadores'],
+    partCategory: 'Suspensión',
   },
   {
     id: 'Batería',
@@ -80,6 +108,7 @@ const SERVICE_TYPES = [
       { key: 'battery_voltage', label: 'Voltaje', type: 'text', placeholder: 'Ej. 12.6V' },
     ],
     partNames: ['Batería'],
+    partCategory: 'Eléctrico',
   },
   {
     id: 'Transmisión',
@@ -89,6 +118,7 @@ const SERVICE_TYPES = [
       { key: 'transmission_check', label: 'Revisión general', type: 'checkbox' },
     ],
     partNames: ['Transmisión'],
+    partCategory: 'Transmisión',
   },
   {
     id: 'Otro',
@@ -111,6 +141,25 @@ const DEFAULT_LIFESPAN_KM: Record<string, number> = {
   Suspensión: 25000,
   Batería: 36000,
   Transmisión: 40000,
+}
+
+/* Vida útil por pieza (km). Los componentes de un mismo servicio no duran lo
+   mismo: unas pastillas no aguantan lo que un disco, así que un único valor por
+   tipo de servicio no alcanza para predecir cuándo falla cada una. */
+const PART_LIFESPAN_KM: Record<string, number> = {
+  'Aceite de motor': 5000,
+  'Filtro de aire': 10000,
+  'Filtro de combustible': 20000,
+  'Pastillas de freno': 20000,
+  'Discos de freno': 60000,
+  'Freno de mano': 40000,
+  'Líquido de frenos': 40000,
+  'Sistema ABS': 60000,
+  'Refrigerante': 30000,
+  'Llantas': 40000,
+  'Amortiguadores': 50000,
+  'Batería': 36000,
+  'Transmisión': 40000,
 }
 
 /* Lubricant rules — viscosity/brand → lifespan (km + months) and price tier */
@@ -171,7 +220,9 @@ function buildDescription(type: string, extra: Record<string, any>): string {
   if (type === 'Frenos') {
     if (extra.brake_pads) parts.push(`Pastillas: ${extra.brake_pads}`)
     if (extra.brake_discs) parts.push(`Discos: ${extra.brake_discs}`)
-    if (extra.brake_fluid) parts.push('Líquido de frenos')
+    if (extra.handbrake) parts.push(`Freno de mano: ${extra.handbrake}`)
+    if (extra.brake_fluid) parts.push(`Líquido: ${extra.brake_fluid}`)
+    if (extra.abs) parts.push(`ABS: ${extra.abs}`)
     return parts.join(' · ') || 'Revisión de frenos'
   }
   if (type === 'Refrigerante') {
@@ -395,8 +446,17 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
 
       // Auto-create/update Part records — use lubricant rules for Aceite
       {
-        const stDef = SERVICE_TYPES.find(st => st.id === serviceType)
-        if (stDef && stDef.partNames.length > 0) {
+        const stDef = SERVICE_TYPES.find(st => st.id === serviceType) as any
+        /* Piezas a renovar: las fijas del tipo de servicio, más las que el
+           usuario marcó explícitamente como reemplazadas. Un diagnóstico
+           ("Requiere cambio") no renueva nada: la pieza sigue siendo la vieja. */
+        const replacedNames: string[] = [
+          ...(stDef?.partNames || []),
+          ...((stDef?.replacements || []) as { key: string; part: string }[])
+            .filter(r => ACTION_VALUES.has(extra[r.key]))
+            .map(r => r.part),
+        ]
+        if (stDef && replacedNames.length > 0) {
           const milVal = parseInt(mileage)
           let lifeKm: number | null = null
           let lifeMonths: number | null = null
@@ -404,7 +464,13 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
             const rule = getLubricantRule(extra.lubricant_type)
             if (rule) { lifeKm = rule.lifespanKm; lifeMonths = rule.lifespanMonths }
           }
-          for (const partName of stDef.partNames) {
+          for (const partName of replacedNames) {
+            /* El aceite manda su regla de lubricante; el resto toma la vida útil
+               de la pieza, y sólo si no la hay cae al valor del tipo de servicio.
+               Antes quedaba en null y la pieza nacía sin predicción. */
+            const partLife = (serviceType === 'Aceite' && lifeKm != null)
+              ? lifeKm
+              : (PART_LIFESPAN_KM[partName] ?? DEFAULT_LIFESPAN_KM[serviceType] ?? null)
             try {
               const existing = await fetch(`/api/parts/vehicle/${vehicleId}`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -412,16 +478,17 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                 parts.find((p: any) => p.name === partName)
               )
               if (existing) {
-                await fetch(`/api/parts/${existing.id}`, {
+                /* Sólo los campos que cambian: lifespan_mileage sólo si lo
+                   sabemos, para no borrar el que ya tuviera la pieza.
+                   updated_at lo maneja el servidor. */
+                const patch: Record<string, unknown> = { mileage_installed: milVal, status: 'ok' }
+                if (partLife != null) patch.lifespan_mileage = partLife
+                const r = await fetch(`/api/parts/${existing.id}`, {
                   method: 'PUT',
                   headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    mileage_installed: milVal,
-                    lifespan_mileage: lifeKm,
-                    status: 'ok',
-                    updated_at: new Date().toISOString(),
-                  }),
+                  body: JSON.stringify(patch),
                 })
+                if (!r.ok) console.warn('No se pudo actualizar la pieza', partName, await r.text())
               } else {
                 await fetch('/api/parts', {
                   method: 'POST',
@@ -429,15 +496,16 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                   body: JSON.stringify({
                     vehicle_id: vehicleId,
                     name: partName,
+                    category: stDef.partCategory || 'Otros',
                     brand: '',
                     status: 'ok',
                     mileage_installed: milVal,
-                    lifespan_mileage: lifeKm,
+                    lifespan_mileage: partLife,
                     notes: lifeMonths ? `Vida útil: ${lifeMonths} meses` : '',
                   }),
                 })
               }
-            } catch {}
+            } catch (e) { console.warn('Fallo al sincronizar la pieza', partName, e) }
           }
         }
       }
@@ -479,9 +547,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
     }}>
       <div ref={modalRef} onClick={e => e.stopPropagation()} className="modal-panel" style={{
-        width: 540, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
-        background: '#141414', border: '1px solid rgba(245,197,24,0.3)',
-        borderRadius: 14, padding: 24,
+        width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto',
+        background: 'var(--panel-bg)', color: 'var(--text-1)', border: '1px solid rgba(245,197,24,0.3)',
+        borderRadius: 20, padding: 24,
         boxShadow: '0 40px 90px rgba(0,0,0,.6)',
       }}>
         {/* Header */}
@@ -491,7 +559,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
               <ServiceIcon type={serviceType || 'Otro'} size={19} />
             </span>
             <div>
-              <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1 }}>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15 }}>
                 {editRecord ? 'Editar servicio' : 'Nuevo servicio'}
               </div>
               <div style={{ fontSize: 11, color: '#7c786e', marginTop: 2 }}>
@@ -681,12 +749,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
               </div>
               <div>
                 <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{
-                  width: '100%', padding: '11px 13px', borderRadius: 10,
-                  border: '1px solid var(--input-border, rgba(255,255,255,0.14))', background: 'var(--input-bg, rgba(255,255,255,0.04))',
-                  color: 'var(--text-1, #f5f3ec)', fontSize: 14, outline: 'none',
-                  colorScheme: 'dark',
-                }} />
+                <input type="date" className="date-field" value={date} onChange={e => setDate(e.target.value)} />
               </div>
               <div ref={wsRef} style={{ position: 'relative' }}>
                 <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Taller</label>

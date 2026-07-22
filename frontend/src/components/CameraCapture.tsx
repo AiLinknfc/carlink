@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Props {
   onCapture: (file: File) => void
@@ -72,9 +73,13 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
     onClose()
   }, [stream, onClose])
 
-  return (
+  /* Va por portal a document.body: si se renderiza en su sitio, queda atrapada
+     en el stacking context que crea el `animation` del contenedor de la pestaña
+     y los modales portaleados la tapan por muy alto que sea su z-index.
+     El z-index queda por encima de modales (200/210) y menús (300). */
+  return createPortal(
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 80,
+      position: 'fixed', inset: 0, zIndex: 500,
       background: '#000',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
@@ -118,6 +123,7 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -55,7 +55,7 @@ export default function WorkshopConfigTab({ theme }: WorkshopConfigTabProps) {
 
   return (
     <div style={{ animation: 'sectionIn .4s both', maxWidth: 560 }}>
-      <h2 style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: '0 0 6px', textTransform: 'uppercase' }}>
+      <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: '0 0 6px' }}>
         Configuración de promoción
       </h2>
       <p style={{ fontSize: 13, color: textMuted, margin: '0 0 24px', lineHeight: 1.5 }}>

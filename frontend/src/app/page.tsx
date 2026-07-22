@@ -10,6 +10,7 @@ import FobCheckoutModal from '@/components/FobCheckoutModal'
 import LandingSections from '@/components/LandingSections'
 import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
+import { CarLinkMark } from '@/lib/icons_new'
 
 const PLATE_TYPES = [
   { id: 'particular', name: 'Particular', tag: '' },
@@ -193,7 +194,7 @@ export default function LandingPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, fontFamily: "'Anton',sans-serif", fontSize: 22, letterSpacing: '.01em' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: '#F5C518', color: '#111' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="8.3" /><circle cx="12" cy="12" r="2.8" /><path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1" /></svg>
+            <CarLinkMark size={18} />
           </span>
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
         </div>

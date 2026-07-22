@@ -84,3 +84,60 @@ async def structure_receipt_data(raw_text: str) -> dict:
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
         logger.warning(f"DeepSeek receipt structuring failed: {e}")
         return fallback
+
+_VEHICLE_CARD_SYSTEM_PROMPT = """Eres un extractor de datos de tarjetas de propiedad vehicular de Colombia.
+Recibes el texto OCR crudo de una tarjeta (licencia de tránsito) y devuelves JSON con estas claves exactas:
+  plate            placa en formato ABC-123 (agrega el guión si falta), o null
+  city             ciudad de matrícula, o null
+  brand            marca, ej. "Mazda", o null
+  model            línea o modelo, ej. "3 Grand Touring", o null
+  year             año modelo como entero, o null
+  color            color del vehículo, o null
+  owner_name       nombre completo del propietario, o null
+  document_number  cédula o NIT del propietario, sólo dígitos y guiones, o null
+
+Reglas:
+- Si un dato no aparece con claridad, devuelve null. Nunca inventes ni completes a medias.
+- El OCR trae ruido: ignora encabezados, sellos y numeración de formato.
+- Devuelve únicamente el objeto JSON."""
+
+
+async def structure_vehicle_card_data(raw_text: str) -> dict:
+    """Estructura el texto OCR de una tarjeta de propiedad.
+
+    Sirve sólo para prellenar el registro: el usuario confirma cada campo. No
+    acredita nada — la verificación real la hace una persona en CarLink.
+    """
+    fallback = {
+        "plate": None, "city": None, "brand": None, "model": None,
+        "year": None, "color": None, "owner_name": None, "document_number": None,
+    }
+
+    if not raw_text.strip():
+        return fallback
+    if not settings.deepseek_api_key:
+        logger.warning("DEEPSEEK_API_KEY not configured; skipping vehicle card structuring")
+        return fallback
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.deepseek_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
+                json={
+                    "model": settings.deepseek_model,
+                    "messages": [
+                        {"role": "system", "content": _VEHICLE_CARD_SYSTEM_PROMPT},
+                        {"role": "user", "content": raw_text[:6000]},
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            parsed = json.loads(resp.json()["choices"][0]["message"]["content"])
+            return {**fallback, **{k: v for k, v in parsed.items() if k in fallback}}
+    except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+        logger.warning(f"DeepSeek vehicle card structuring failed: {e}")
+        return fallback

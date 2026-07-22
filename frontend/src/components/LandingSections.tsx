@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Wifi } from 'lucide-react'
+import { NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 
 type Theme = 'light' | 'dark'
 
@@ -296,7 +296,7 @@ export default function LandingSections({ theme, onStart, onOpenPolicy, onOpenPq
             <div key={np.name} style={{ padding: 24, borderRadius: 20, ...card(np.tag ? 'rgba(245,197,24,0.4)' : k.glassBorder), position: 'relative', textAlign: 'center' }}>
               {np.tag && <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{np.tag}</span>}
               <div style={{ width: 76, height: 76, margin: '0 auto 16px', borderRadius: '50%', background: np.premium ? GOLD : 'rgba(245,197,24,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={np.premium ? '#111' : GOLD} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8.5a6 6 0 0 1 12 0" /><path d="M3.5 11a9 9 0 0 1 17 0" /><circle cx="12" cy="15" r="1.6" fill={np.premium ? '#111' : GOLD} stroke="none" /></svg>
+                <span style={{ color: np.premium ? '#111' : GOLD, display: 'flex' }}><NfcKeyIcon size={34} strokeWidth={1.6} /></span>
               </div>
               <div style={{ fontSize: 16, fontWeight: 600 }}>{np.name}</div>
               <p style={{ ...lead, fontSize: 13, lineHeight: 1.5, margin: '8px 0 14px', minHeight: 40 }}>{np.desc}</p>
@@ -422,12 +422,11 @@ export default function LandingSections({ theme, onStart, onOpenPolicy, onOpenPq
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 0 40px rgba(245,197,24,0.3)',
               }}>
-                <Wifi size={32} color={GOLD} strokeWidth={2} style={{ transform: 'rotate(90deg)' }} />
+                <span style={{ color: GOLD, display: 'flex' }}><NfcKeyIcon size={32} strokeWidth={1.9} /></span>
               </div>
             </div>
 
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2ecc71', boxShadow: '0 0 10px #2ecc71' }} />
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
               <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(36px,6vw,56px)', lineHeight: 1, color: GOLD, letterSpacing: '.01em' }}><CountUp target={keychainCount} live /></div>
             </div>
             <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: k.muted }}>llaveros activos · en vivo</div>
@@ -479,7 +478,6 @@ export default function LandingSections({ theme, onStart, onOpenPolicy, onOpenPq
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
-              <span style={{ position: 'absolute', bottom: 2, right: 2, width: 11, height: 11, borderRadius: '50%', background: '#2ecc71', border: '2px solid #F5C518' }} />
             </span>
             <div>
               <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }}>PQRS · Habla con CarLia</div>
@@ -500,7 +498,7 @@ export default function LandingSections({ theme, onStart, onOpenPolicy, onOpenPq
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: "'Anton',sans-serif", fontSize: 20, marginBottom: 12 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: GOLD, color: '#111' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="8.3" /><circle cx="12" cy="12" r="2.8" /><path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1" /></svg>
+                <CarLinkMark size={15} />
               </span>
               <span>Car<span style={{ color: GOLD }}>Link</span></span>
             </div>

@@ -49,9 +49,17 @@ export function validatePlate(plate: string, type: PlateType = 'car'): boolean {
   return type === 'car' ? CAR_PATTERN.test(upper) : MOTO_PATTERN.test(upper);
 }
 
+/* Colapsa cualquier placa a su forma canónica: 3 letras, un guion, el resto.
+   Repara valores viejos con doble guion o sin guion. */
+export function normalizePlate(raw: string): string {
+  const alnum = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (alnum.length <= 3) return alnum;
+  return `${alnum.slice(0, 3)}-${alnum.slice(3)}`;
+}
+
 export function getPlateDisplay(plate: string): string {
   const parsed = parsePlate(plate);
-  return parsed?.formatted || plate;
+  return parsed?.formatted || normalizePlate(plate);
 }
 
 export function getPlateConfig(type: PlateType) {

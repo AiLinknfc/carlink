@@ -163,7 +163,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
       }}>
         <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
           width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto',
-          background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 14,
+          background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 20,
           padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
         }}>
           {/* Header */}
@@ -183,7 +183,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                 </svg>
               </span>
               <div>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1.1, color: 'var(--text-2, #f5f3ec)' }}>
+                <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>
                   {step === 'scan' ? 'Escanear documento' : 'Validar datos'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-3, #7c786e)', marginTop: 2 }}>
@@ -326,13 +326,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha del documento</label>
-                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)}
-                      style={{
-                        width: '100%', padding: '11px 13px', borderRadius: 10,
-                        border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
-                        background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
-                        fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
-                      }} />
+                    <input type="date" className="date-field" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo (opcional)</label>
@@ -353,13 +347,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                 <>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento</label>
-                    <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)}
-                      style={{
-                        width: '100%', padding: '11px 13px', borderRadius: 10,
-                        border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
-                        background: 'var(--input-bg, rgba(255,255,255,0.04))', color: 'var(--text-2, #f5f3ec)',
-                        fontSize: 14, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark',
-                      }} />
+                    <input type="date" className="date-field" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de documento</label>

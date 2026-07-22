@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import Part, Vehicle
-from app.schemas.schemas import PartCreate, PartOut
+from app.schemas.schemas import PartCreate, PartOut, PartUpdate
 from app.services.cache import cache_invalidate_vehicle
 
 router = APIRouter(prefix="/parts", tags=["parts"])
@@ -56,7 +56,7 @@ async def create_part(
 @router.put("/{part_id}", response_model=PartOut)
 async def update_part(
     part_id: UUID,
-    body: PartCreate,
+    body: PartUpdate,
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):

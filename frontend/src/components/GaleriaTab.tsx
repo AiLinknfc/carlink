@@ -12,7 +12,7 @@ const SUGGESTED_CATEGORIES = [
   'Interior delantero', 'Interior trasero', 'Puertas abiertas',
   'Capó abierto', 'Cajuela', 'Faroles', 'Parachoques',
   'Espejos', 'Aros', 'Suspensión', 'Frenos',
-  'Kilometraje', 'Serial / VIN', 'Daños', 'Rayones',
+  'Kilometraje', 'Serial / VIN', 'Daños', 'Rayones', 'Techo',
 ]
 
 interface Props {
@@ -118,6 +118,7 @@ function GalleryCard({
   onDelete,
   onLightbox,
   onSaveCaption,
+  onRemoveSpace,
 }: {
   caption: string
   image: GalleryImage | undefined
@@ -126,6 +127,7 @@ function GalleryCard({
   onDelete: (id: string, caption: string) => void
   onLightbox: (img: GalleryImage) => void
   onSaveCaption: (id: string, caption: string) => Promise<void>
+  onRemoveSpace: () => void
 }) {
   return (
     <div
@@ -187,11 +189,13 @@ function GalleryCard({
                 Ampliar
               </span>
             </div>
-            {/* Delete button — always visible on mobile (via translucent bg), visible on hover on desktop */}
+            {/* Borrar la foto (deja el espacio vacío) — papelera para no
+                confundirse con la × de quitar el espacio, a su derecha. */}
             <button
               onClick={e => { e.preventDefault(); e.stopPropagation(); onDelete(image.id, caption) }}
+              title="Borrar la foto"
               style={{
-                position: 'absolute', top: 6, right: 6,
+                position: 'absolute', top: 6, right: 44,
                 width: 32, height: 32,
                 borderRadius: '50%', border: 'none',
                 background: 'rgba(0,0,0,0.55)',
@@ -201,7 +205,7 @@ function GalleryCard({
                 backdropFilter: 'blur(4px)',
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </>
         ) : (
@@ -219,6 +223,24 @@ function GalleryCard({
             <span>{caption}</span>
           </div>
         )}
+        {/* Quitar el espacio — esquina superior derecha, exista o no la foto */}
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onRemoveSpace() }}
+          title="Quitar este espacio de la galería"
+          style={{
+            position: 'absolute', top: 6, right: 6,
+            width: 32, height: 32,
+            borderRadius: '50%', border: 'none',
+            background: 'rgba(0,0,0,0.55)',
+            color: '#fff', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 3, backdropFilter: 'blur(4px)', transition: 'all .18s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#ff4d6a' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
         <input type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
       </label>
 
@@ -280,6 +302,8 @@ export default function GaleriaTab({ vehicleId }: Props) {
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null)
   const [uploading, setUploading] = useState(false)
   const [extraSlots, setExtraSlots] = useState<{ id: string; caption: string }[]>([])
+  const [showSlotModal, setShowSlotModal] = useState(false)
+  const [slotName, setSlotName] = useState('')
   const [activeCategories, setActiveCategories] = useState<string[]>([...SUGGESTED_CATEGORIES.slice(0, 6)])
 
   const flash = useCallback((msg: string) => {
@@ -314,19 +338,35 @@ export default function GaleriaTab({ vehicleId }: Props) {
     flash('Título actualizado')
   }, [updateImage, flash])
 
-  const addExtraSlot = useCallback(() => {
-    const name = window.prompt('Nombre del espacio personalizado:')
-    if (!name?.trim()) return
-    const id = 'slot-' + Date.now()
-    setExtraSlots(prev => [...prev, { id, caption: name.trim() }])
-    flash(`"${name.trim()}" agregado a la galería`)
+  /* Un espacio activo puede venir de una categoría sugerida o de uno propio;
+     el chip los trata igual y sólo se diferencian al quitarlos. */
+  const activeSpaces = [
+    ...activeCategories.map(c => ({ key: `cat-${c}`, caption: c, isCategory: true })),
+    ...extraSlots.map(sl => ({ key: sl.id, caption: sl.caption, isCategory: false })),
+  ]
+
+  /* Sugerencias que aún no están activas — son las que ofrece el desplegable. */
+  const availableCategories = SUGGESTED_CATEGORIES.filter(c => !activeCategories.includes(c))
+
+  const removeSpace = useCallback((sp: { key: string; caption: string; isCategory: boolean }) => {
+    if (sp.isCategory) setActiveCategories(prev => prev.filter(c => c !== sp.caption))
+    else setExtraSlots(prev => prev.filter(sl => sl.id !== sp.key))
+    flash(`"${sp.caption}" quitado de la galería`)
   }, [flash])
 
-  const toggleCategory = useCallback((cat: string) => {
-    setActiveCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    )
-  }, [])
+  const addExtraSlot = useCallback(() => {
+    const name = slotName.trim()
+    if (!name) return
+    /* Si coincide con una sugerida se activa como categoría en vez de duplicarla
+       como espacio propio, así el chip y el desplegable no se contradicen. */
+    if (SUGGESTED_CATEGORIES.includes(name)) {
+      if (!activeCategories.includes(name)) setActiveCategories(prev => [...prev, name])
+    } else {
+      setExtraSlots(prev => [...prev, { id: 'slot-' + Date.now(), caption: name }])
+    }
+    setShowSlotModal(false)
+    flash(`"${name}" agregado a la galería`)
+  }, [slotName, activeCategories, flash])
 
   useEffect(() => { if (vehicleId) reload() }, [vehicleId, reload])
 
@@ -371,7 +411,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
         }}>
           <img src={lightbox.image_url} alt={lightbox.caption}
             style={{
-              maxWidth: '94vw', maxHeight: '82vh', borderRadius: 14,
+              maxWidth: '94vw', maxHeight: '82vh', borderRadius: 20,
               boxShadow: '0 30px 90px rgba(0,0,0,.7)',
               border: '1px solid rgba(245,197,24,0.3)',
               objectFit: 'contain',
@@ -384,45 +424,144 @@ export default function GaleriaTab({ vehicleId }: Props) {
         document.body
       )}
 
+      {/* Modal espacio personalizado — mismo patrón que "Nuevo documento" */}
+      {showSlotModal && createPortal(
+        <div onClick={() => setShowSlotModal(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 72,
+          background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
+            width: 480, maxWidth: '94vw',
+            background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20,
+            padding: 22, boxShadow: '0 30px 80px rgba(0,0,0,.55)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{
+                  width: 40, height: 40, borderRadius: 11,
+                  background: 'rgba(245,197,24,0.12)', border: '1px solid rgba(245,197,24,0.35)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                </span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Espacio personalizado</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Crea un espacio propio para tus fotos</div>
+                </div>
+              </div>
+              <button onClick={() => setShowSlotModal(false)} style={{
+                width: 32, height: 32, borderRadius: 8,
+                border: '1px solid var(--btn-ghost-border)',
+                background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Sugerencias que aún no están activas */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Espacios sugeridos</label>
+              <select value={SUGGESTED_CATEGORIES.includes(slotName) ? slotName : ''}
+                onChange={e => setSlotName(e.target.value)}
+                disabled={availableCategories.length === 0}
+                style={{
+                  width: '100%', padding: '11px 13px', borderRadius: 10,
+                  border: '1px solid var(--input-border)', background: 'var(--input-bg)',
+                  color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  cursor: availableCategories.length ? 'pointer' : 'default',
+                  opacity: availableCategories.length ? 1 : 0.5,
+                }}>
+                <option value="">{availableCategories.length ? 'Elige uno de la lista…' : 'Ya agregaste todos los sugeridos'}</option>
+                {availableCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <span style={{ fontSize: 10.5, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>o</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre propio</label>
+              <input value={slotName} onChange={e => setSlotName(e.target.value)} autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && slotName.trim()) addExtraSlot() }}
+                placeholder="Ej. Techo panorámico"
+                style={{
+                  width: '100%', padding: '11px 13px', borderRadius: 10,
+                  border: '1px solid var(--input-border)', background: 'var(--input-bg)',
+                  color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowSlotModal(false)} style={{
+                flex: 1, padding: 12, borderRadius: 12,
+                border: '1px solid rgba(245,197,24,0.3)', background: 'transparent',
+                color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              }}>Cancelar</button>
+              <button onClick={addExtraSlot} disabled={!slotName.trim()} style={{
+                flex: 2, padding: 13, borderRadius: 12, border: 'none',
+                background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14,
+                cursor: slotName.trim() ? 'pointer' : 'default',
+                transition: 'all .18s', opacity: slotName.trim() ? 1 : 0.5,
+              }}>Crear espacio</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Header */}
-      <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both' }}>
         <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
           Evidencia visual
         </div>
         <h1 style={{
-          fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)',
-          letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase',
+          fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)',
+          fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px',
         }}>
           Galería del vehículo
         </h1>
         <p style={{ color: 'var(--text-2)', margin: 0 }}>
           Toca cada espacio para subir fotos. Toca el título de la foto para editarlo.
         </p>
+        <button onClick={() => { setSlotName(''); setShowSlotModal(true) }} style={{
+          marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '12px 20px', borderRadius: 12,
+          border: 'none', background: '#F5C518', color: '#111',
+          fontWeight: 800, fontSize: 13, cursor: 'pointer',
+          boxShadow: '0 0 20px rgba(245,197,24,0.35)', transition: 'all .16s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#e6b300' }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Espacio personalizado
+        </button>
       </div>
 
-      {/* Suggestion chips */}
-      <div style={{ marginBottom: 18, animation: 'textIn .5s .06s both' }}>
+      {/* Espacios activos — las sugerencias sin activar viven en el modal */}
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .06s both' }}>
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 10 }}>
-          Toca para agregar — {activeCategories.length + extraSlots.length} espacios activos
+          {activeSpaces.length} espacios activos
         </div>
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
-          {SUGGESTED_CATEGORIES.map(cat => {
-            const active = activeCategories.includes(cat)
-            return (
-              <button key={cat} onClick={() => toggleCategory(cat)} style={{
-                flex: '0 0 auto', padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-                border: `1px solid ${active ? 'rgba(245,197,24,0.5)' : 'var(--border-2)'}`,
-                background: active ? 'rgba(245,197,24,0.12)' : 'var(--surface-2)',
-                color: active ? '#F5C518' : 'var(--text-2)',
-                cursor: 'pointer', transition: 'all .18s', whiteSpace: 'nowrap',
-              }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.background = 'rgba(245,197,24,0.05)' } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.background = 'var(--surface-2)' } }}>
-                {active && <span style={{ marginRight: 4 }}>✓</span>}
-                {cat}
-              </button>
-            )
-          })}
+        {/* Solo indicativos: quitar un espacio se hace desde su propia card. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {activeSpaces.map(sp => (
+            <span key={sp.key} style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+              border: '1px solid rgba(245,197,24,0.5)', background: 'rgba(245,197,24,0.12)',
+              color: '#F5C518', whiteSpace: 'nowrap', userSelect: 'none',
+            }}>
+              {sp.caption}
+            </span>
+          ))}
+          {activeSpaces.length === 0 && (
+            <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>Ninguno todavía — agrega uno con el botón de arriba.</span>
+          )}
         </div>
       </div>
 
@@ -452,12 +591,12 @@ export default function GaleriaTab({ vehicleId }: Props) {
         gap: 16,
         animation: 'textIn .5s .1s both',
       }}>
-        {([...activeCategories, ...extraSlots.map(s => s.caption)] as string[]).map((caption, i) => {
+        {activeSpaces.map(sp => {
+          const caption = sp.caption
           const img = imageMap.get(caption)
-          const key = caption
           return (
             <GalleryCard
-              key={key}
+              key={sp.key}
               caption={caption}
               image={img}
               uploading={uploading}
@@ -465,28 +604,15 @@ export default function GaleriaTab({ vehicleId }: Props) {
               onDelete={handleDelete}
               onLightbox={setLightbox}
               onSaveCaption={handleSaveCaption}
+              onRemoveSpace={() => removeSpace(sp)}
             />
           )
         })}
       </div>
 
-      {/* Add custom slot */}
-      <button onClick={addExtraSlot} style={{
-        marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8,
-        padding: '10px 16px', borderRadius: 11,
-        border: '1px dashed rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.04)',
-        color: '#F5C518', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-        transition: 'all .18s',
-      }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        Espacio personalizado
-      </button>
-
       {!loading && images.length === 0 && activeCategories.length === 0 && extraSlots.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
-          Selecciona categorías arriba o crea un espacio personalizado para empezar.
+          Agrega un espacio con el botón «Espacio personalizado» para empezar.
         </div>
       )}
     </div>

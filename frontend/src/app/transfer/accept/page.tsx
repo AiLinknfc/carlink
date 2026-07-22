@@ -290,11 +290,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 24,
   },
   vehicleInfo: { textAlign: 'center' },
-  vehicleTitle: { fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', marginBottom: 4 },
+  vehicleTitle: { fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, marginBottom: 4 },
   vehiclePlate: { fontFamily: "'Anton',sans-serif", fontSize: 16, color: '#F5C518', fontWeight: 700, marginBottom: 4 },
   vehicleDetails: { display: 'flex', gap: 12, justifyContent: 'center', fontSize: 12, color: '#8f8a7a', marginBottom: 8, flexWrap: 'wrap' },
   fromInfo: { fontSize: 12, color: '#8f8a7a' },
-  title: { fontFamily: "'Anton',sans-serif", fontSize: 26, textTransform: 'uppercase', margin: '0 0 12px', textAlign: 'center', letterSpacing: '.01em' },
+  title: { fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: '0 0 12px', textAlign: 'center' },
   description: { color: '#b6b2a6', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 },
   featureList: { 
     margin: '0 0 20px 18px', padding: 0, color: '#d8d4c8', fontSize: 13, lineHeight: 1.8,

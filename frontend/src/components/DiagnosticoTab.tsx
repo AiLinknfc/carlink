@@ -68,9 +68,9 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
         </div>
       )}
 
-      <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both' }}>
         <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Revisión técnica</div>
-        <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>Centro de diagnóstico automotor</h1>
+        <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>Centro de diagnóstico automotor</h1>
         <p style={{ color: 'var(--text-2)', margin: 0, maxWidth: '62ch' }}>Resultados de tu última visita al CDA, con vencimiento y descarga del certificado.</p>
       </div>
 
@@ -96,8 +96,7 @@ export default function DiagnosticoTab({ vehicleId }: Props) {
                 </div>
               </div>
             </div>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 999, background: 'rgba(46,204,113,0.14)', border: '1px solid rgba(46,204,113,0.45)', color: '#5be89a', fontSize: 12, fontWeight: 800 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2ecc71', boxShadow: '0 0 8px #2ecc71' }}></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 13px', borderRadius: 999, background: 'rgba(46,204,113,0.14)', border: '1px solid rgba(46,204,113,0.45)', color: '#5be89a', fontSize: 12, fontWeight: 800 }}>
               APROBADO
             </span>
           </div>

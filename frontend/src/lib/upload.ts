@@ -120,3 +120,39 @@ export async function deleteUploadedFile(key: string): Promise<boolean> {
     return false
   }
 }
+
+export interface VehicleCardScan {
+  plate: string | null
+  city: string | null
+  brand: string | null
+  model: string | null
+  year: number | null
+  color: string | null
+  owner_name: string | null
+  document_number: string | null
+  raw_text: string
+}
+
+/* Lee una tarjeta de propiedad para prellenar el registro. Es ayuda de captura:
+   el usuario confirma los campos y la verificación real la hace una persona. */
+export async function scanVehicleCard(file: File): Promise<VehicleCardScan | null> {
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) return null
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch('/api/ocr/vehicle-card', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (!res.ok) {
+      console.warn('Vehicle card scan failed:', await res.text())
+      return null
+    }
+    return res.json()
+  } catch (e) {
+    console.warn('Vehicle card scan error:', e)
+    return null
+  }
+}

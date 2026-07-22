@@ -211,8 +211,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         <ShieldCheck width={24} height={24} style={{ color: gold }} />
                       </div>
                       <h2 id="login-title" style={{
-                        fontFamily: "'Anton',sans-serif", fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: 400,
-                        letterSpacing: '.01em', textTransform: 'uppercase', marginBottom: 6, color: textPrimary,
+                        fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800,
+                        marginBottom: 6, color: textPrimary,
                       }}>
                         Acceso de Conductor
                       </h2>

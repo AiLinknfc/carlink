@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { CarLinkMark } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 
 interface Props {
@@ -42,13 +43,25 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   const plateShort = plateText ? plateText.split('-')[0] : ''
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 640)
+    /* 900px, no 640: entre 641 y 960 el rail seguía siendo fijo y con el tablero
+       ya en una columna se comía el ancho. Ahí debe comportarse como cajón. */
+    const check = () => setIsMobile(window.innerWidth <= 900)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const railWidth = isMobile ? 266 : railExpanded ? 266 : 76
+  /* En móvil el cajón siempre va expandido: mide 266px de ancho, así que
+     mostrarlo en modo compacto dejaba los iconos centrados y sin texto. */
+  const expanded = isMobile ? true : railExpanded
+
+  const railWidth = expanded ? 266 : 76
+
+  /* El contenido tenía marginLeft fijo en 266px: al encogerse el rail a 76px
+     quedaba un hueco muerto de 190px y el tablero no reflowaba. */
+  useEffect(() => {
+    document.documentElement.style.setProperty('--rail-w', isMobile ? '0px' : `${railWidth}px`)
+  }, [railWidth, isMobile])
 
   // Prefer the explicit `theme` prop; fall back to detecting --page-bg for callers that don't pass it.
   const isDark = theme ? theme === 'dark' : detectedDark
@@ -117,13 +130,13 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       }}
     >
       <div style={{ padding: '22px 20px 12px', display: 'flex', alignItems: 'center', gap: 11 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9, background: '#F5C518', color: '#111', flex: '0 0 auto' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v5.6M12 15.2v5.6M3.2 12h5.6M15.2 12h5.6"/></svg>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 11, background: '#F5C518', color: '#111', flex: '0 0 auto' }}>
+          <CarLinkMark size={20} />
         </span>
         <div
           style={{
             fontFamily: "'Anton',sans-serif", fontSize: 27, letterSpacing: '.01em', lineHeight: 1,
-            whiteSpace: 'nowrap', opacity: railExpanded ? 1 : 0, transition: 'opacity .15s',
+            whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity .15s',
             color: textPrimary,
           }}
         >
@@ -133,19 +146,19 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
           onClick={() => setRailExpanded(!railExpanded)}
           title="Fijar / colapsar menú"
           style={{
-            marginLeft: 'auto', flex: '0 0 auto', width: 26, height: 26, borderRadius: 7,
+            marginLeft: 'auto', flex: '0 0 auto', width: 42, height: 42, borderRadius: 11,
             border: `1px solid ${sidebarBorder}`, background: isDark ? 'rgba(17,17,17,0.03)' : 'rgba(17,17,17,0.03)',
             color: textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            opacity: railExpanded ? 1 : 0, transition: 'opacity .15s',
+            opacity: expanded ? 1 : 0, transition: 'opacity .15s',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: railExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
       </div>
 
-      {railExpanded && !vehicleLoading && vehicle && (
+      {expanded && !vehicleLoading && vehicle && (
         <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${dividerColor}`, whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: textSecondary, fontWeight: 700 }}>Vehículo</div>
           <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
@@ -160,27 +173,30 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         </div>
       )}
 
-      {!railExpanded && !vehicleLoading && vehicle && plateText && (
+      {!expanded && !vehicleLoading && vehicle && plateText && (
         <div style={{ padding: '0 0 8px', borderBottom: `1px solid ${dividerColor}`, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <span style={{ width: 38, height: 38, borderRadius: 10, background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{plateShort}</span>
+          {/* Ancho automático: con 38px fijos una placa como "ABC 123" desborda
+              la caja y el sobrante se recorta contra el overflow:hidden del rail,
+              con lo que el texto se ve descentrado. */}
+          <span style={{ minWidth: 38, maxWidth: 60, height: 38, padding: '0 6px', borderRadius: 10, background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, whiteSpace: 'nowrap', boxSizing: 'border-box', overflow: 'hidden' }}>{plateShort}</span>
         </div>
       )}
 
-      <nav style={{ flex: 1, overflowY: 'auto', padding: railExpanded ? '14px 12px' : '14px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'hidden', alignItems: railExpanded ? 'stretch' : 'center' }}>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: expanded ? '14px 12px' : '14px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'hidden', alignItems: expanded ? 'stretch' : 'center' }}>
         {navItems.map(item => {
           const isActive = activeTab === item.id
           const isHovered = hoveredTab === item.id
           const showGlow = isActive || isHovered
           return (
-            <button key={item.id} onClick={() => onTabChange(item.id)}
+            <button key={item.id} onClick={() => { onTabChange(item.id); if (isMobile) setMobileOpen(false) }}
               onMouseEnter={() => setHoveredTab(item.id)}
               onMouseLeave={() => setHoveredTab(null)}
               style={{
                 position: 'relative', display: 'flex', alignItems: 'center', gap: 12,
-                width: railExpanded ? '100%' : 44, justifyContent: railExpanded ? 'flex-start' : 'center',
-                padding: railExpanded ? '12px 14px' : '12px 0', border: 'none',
+                width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
+                padding: expanded ? '12px 14px' : '12px 0', border: 'none',
                 background: 'transparent', color: isActive ? textPrimary : isHovered ? textPrimary : textSecondary,
-                cursor: 'pointer', textAlign: railExpanded ? 'left' : 'center', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 600,
                 borderRadius: 11, transition: 'color .2s',
               }}>
               <span style={{
@@ -201,7 +217,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
               <span
                 style={{
                   position: 'relative', zIndex: 1, whiteSpace: 'nowrap',
-                  display: railExpanded ? 'inline' : 'none',
+                  display: expanded ? 'inline' : 'none',
                 }}
               >
                 {item.label}
@@ -216,7 +232,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
           <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flex: '0 0 auto' }}>
             {(vehicle.owner?.charAt(0) || 'U').toUpperCase()}
           </span>
-          {railExpanded && (
+          {expanded && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>
                 {vehicle.owner}

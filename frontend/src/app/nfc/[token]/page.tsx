@@ -85,8 +85,13 @@ export default function NfcPage() {
   const currentKm = data?.current_mileage
   const nextServiceKm = data?.next_service_mileage
   const kmToNext = nextServiceKm != null && currentKm != null ? Math.max(0, nextServiceKm - currentKm) : null
-  const progWidth = nextServiceKm != null && currentKm != null && nextServiceKm > 0
-    ? `${Math.min(100, (currentKm / nextServiceKm) * 100)}%`
+  /* Igual que el club de socios: el llenado es el avance dentro del ciclo actual
+     (último servicio → próximo), no la fracción del odómetro total. Sin el km del
+     último servicio se asume un ciclo de 5.000 km terminando en el próximo. */
+  const oilCycleKm = 5000
+  const cycleStart = nextServiceKm != null ? nextServiceKm - oilCycleKm : null
+  const progWidth = nextServiceKm != null && currentKm != null && cycleStart != null
+    ? `${Math.min(100, Math.max(0, ((currentKm - cycleStart) / oilCycleKm) * 100))}%`
     : '0%'
 
   const stamps = useMemo(() => STAMPS.map((label, i) => ({
@@ -176,14 +181,14 @@ export default function NfcPage() {
       )}
 
       {data && (
-        <div style={{ width: 460, maxWidth: '100%', position: 'relative' }}>
-          {/* Botón volver — solo si autenticado */}
+        <div style={{ width: 460, maxWidth: '100%' }}>
+          {/* Botón volver — fuera del card, alineado a la izquierda */}
           {isAuthed && (
-            <a href="/app" style={{ position: 'absolute', top: -44, left: 0, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#b6b2a6', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', zIndex: 2, transition: 'all .2s' }}
+            <a href="/app" style={{ marginBottom: 14, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#b6b2a6', fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', transition: 'all .2s' }}
               onMouseEnter={e => { e.currentTarget.style.color = '#F5C518'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
               onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
-              Volver
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+              Volver al panel
             </a>
           )}
           <div style={{
@@ -296,12 +301,14 @@ export default function NfcPage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                     <div>
-                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Atendido por</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F5C518', marginTop: 2 }}>{data.workshop_name || '—'}</div>
+                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Servicios tomados</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F5C518', marginTop: 2 }}>
+                        {data.total_services} {data.total_services === 1 ? 'servicio registrado' : 'servicios registrados'}
+                      </div>
                     </div>
                     {data.latest_service_date && (
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Último servicio</div>
+                        <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Más reciente</div>
                         <div style={{ fontSize: 13, color: '#c9c6ba', marginTop: 2 }}>{new Date(data.latest_service_date).toLocaleDateString()}</div>
                       </div>
                     )}

@@ -7,7 +7,7 @@ import { apiGet, apiPut } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
-import { ServiceIcon } from '@/lib/icons_new'
+import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 import type { Vehicle, MaintenanceRecord, NfcToken } from '@/lib/types'
 
 const TALLER_INFO = {
@@ -21,6 +21,14 @@ const TALLER_INFO = {
   web: 'tallerdeconfianza.com',
 }
 
+/* Gris de "sin datos", común a testigos y medidores. */
+const NO_DATA_COLOR = '#9a968a'
+
+/* Los nombres de pieza se comparan sin acentos ni mayúsculas: el tablero exigía
+   coincidencia exacta, así que una "Bateria" escrita a mano no se reconocía. */
+const normalizePart = (n: string) =>
+  (n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+
 const PARTS = [
   { name: 'Aceite de motor', interval: 5000, lastKm: 0 },
   { name: 'Filtro de aire', interval: 10000, lastKm: 0 },
@@ -28,10 +36,13 @@ const PARTS = [
   { name: 'Llantas', interval: 40000, lastKm: 0 },
   { name: 'Refrigerante', interval: 30000, lastKm: 0 },
   { name: 'Batería', interval: 36000, lastKm: 0 },
-  { name: 'Correa de accesorios', interval: 25000, lastKm: 0 },
-  { name: 'Bujías', interval: 15000, lastKm: 0 },
   { name: 'Filtro de combustible', interval: 20000, lastKm: 0 },
   { name: 'Transmisión', interval: 40000, lastKm: 0 },
+  { name: 'Discos de freno', interval: 60000, lastKm: 0 },
+  { name: 'Freno de mano', interval: 40000, lastKm: 0 },
+  { name: 'Líquido de frenos', interval: 40000, lastKm: 0 },
+  { name: 'Sistema ABS', interval: 60000, lastKm: 0 },
+  { name: 'Amortiguadores', interval: 50000, lastKm: 0 },
 ]
 
 interface FichaTabProps {
@@ -39,6 +50,8 @@ interface FichaTabProps {
   onAddService: () => void
   onEditService: (r: MaintenanceRecord) => void
   onOpenPublicar: () => void
+  onOpenTransfer: () => void
+  transferLocked?: boolean
   onNavigate: (tab: string) => void
   nfcTokens: NfcToken[]
   toggleNfcActive: () => void
@@ -46,7 +59,7 @@ interface FichaTabProps {
   theme: 'light' | 'dark'
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -58,6 +71,37 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const [tellOpen, setTellOpen] = useState<string | null>(null)
   const [citaStep, setCitaStep] = useState<'detail' | 'cita'>('detail')
   const logoInputRef = useRef<HTMLInputElement>(null)
+
+  /* Taller de confianza: solo se considera vinculado cuando el taller que el cliente
+     registró en algún servicio corresponde a un taller dado de alta en modo empresa.
+     `maintenance` viene ordenado por kilometraje descendente, así que el primer match
+     es el taller más reciente. Se cruza por workshop_id y, como respaldo para registros
+     antiguos capturados a mano, por nombre normalizado. */
+  const linkedWorkshop = useMemo(() => {
+    if (!workshops.length || !maintenance.length) return null
+    const byId = new Map(workshops.map(w => [w.id, w]))
+    const byName = new Map(workshops.map(w => [w.name.trim().toLowerCase(), w]))
+    for (const r of maintenance) {
+      const match = (r.workshop_id && byId.get(r.workshop_id))
+        || (r.workshop && byName.get(r.workshop.trim().toLowerCase()))
+      if (match) return match
+    }
+    return null
+  }, [workshops, maintenance])
+
+  /* El giro de la ficha solo se habilita si existe ese taller vinculado: sin él,
+     el reverso no tendría datos reales que mostrar. */
+  const canFlip = linkedWorkshop != null
+
+  /* Datos del reverso: se toman del taller vinculado y solo caen al placeholder
+     mientras ese taller no tenga el campo diligenciado en su perfil de empresa. */
+  const tallerName = linkedWorkshop?.name || latest?.workshop || TALLER_INFO.name
+  const tallerAddress = linkedWorkshop?.address || linkedWorkshop?.city || TALLER_INFO.address
+  const tallerPhone = linkedWorkshop?.phone || TALLER_INFO.phone
+
+  useEffect(() => {
+    if (!canFlip) setFlipped(false)
+  }, [canFlip])
 
   useEffect(() => {
     if (refreshKey != null && refreshKey > 0) reloadParts()
@@ -114,7 +158,8 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     : null
 
   const hasCountdown = nextServiceKm != null && currentKm != null && kmToNext != null && kmToNext > 0
-  const countdownTarget = predictedDateMs ?? (Date.now() + 90 * 86400000)
+  const fallbackTarget = useMemo(() => Date.now() + 90 * 86400000, [])
+  const countdownTarget = predictedDateMs ?? fallbackTarget
   const cd = useCountdown(countdownTarget)
 
   if (!vehicle) return (
@@ -138,19 +183,35 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
   // --- Dynamic PARTS calculations (use real dbParts when available) ---
   const currentKmVal = currentKm || 0
-  const parts = PARTS.map(p => {
-    const dbPart = dbParts.find((dp: any) => dp.name === p.name)
-    const lastKm = dbPart?.mileage_installed ?? p.lastKm
-    const interval = dbPart?.lifespan_mileage || p.interval
+  const partDefaults = new Map(PARTS.map(p => [p.name, p]))
+  const partNames = Array.from(new Set([
+    ...PARTS.map(p => p.name),
+    ...dbParts.map((dp: any) => dp.name as string),
+  ]))
+  const parts = partNames.map(name => {
+    const p = partDefaults.get(name)
+    const dbPart = dbParts.find((dp: any) => normalizePart(dp.name) === normalizePart(name))
+    /* Sin registro en la base la pieza nunca se ha atendido: no es "vencida",
+       es desconocida. Marcarla en rojo hacía que el testigo se viera igual antes
+       y después de registrar el servicio, como si no respondiera. */
+    const tracked = Boolean(dbPart)
+    /* Registrada sin kilometraje (el campo es opcional en el alta manual): se
+       asume instalada ahora, que es lo que significa acabar de darla de alta.
+       Antes caía a 0 y el desgaste salía como si llevara todo el odómetro. */
+    const lastKm = dbPart ? (dbPart.mileage_installed ?? currentKmVal) : (p?.lastKm ?? 0)
+    const interval = dbPart?.lifespan_mileage || p?.interval || 30000
     const next = lastKm + interval
     const rem = next - currentKmVal
-    const pct = Math.max(0, Math.min(1, rem / interval))
+    const pct = tracked ? Math.max(0, Math.min(1, rem / interval)) : 1
     let estado: string, color: string
-    if (rem <= 0) { estado = 'Vencido'; color = '#ff4d6a' }
-    else if (pct <= 0.12) { estado = 'Urgente'; color = '#ff4d6a' }
-    else if (pct <= 0.30) { estado = 'Pronto'; color = '#ffb020' }
+    /* Naranja desde la mitad de la vida útil: es el aviso de que a la pieza le
+       queda menos de lo que ya gastó. Antes empezaba al 30%, demasiado tarde. */
+    if (!tracked) { estado = 'Sin datos'; color = NO_DATA_COLOR }
+    else if (rem <= 0) { estado = 'Vencido'; color = '#ff4d6a' }
+    else if (pct <= 0.15) { estado = 'Urgente'; color = '#ff4d6a' }
+    else if (pct <= 0.50) { estado = 'Media vida'; color = '#ffb020' }
     else { estado = 'Al día'; color = '#2ecc71' }
-    return { name: p.name, interval, next, rem: Math.max(0, rem), pct, estado, color }
+    return { name, interval, next, rem: Math.max(0, rem), pct, estado, color, tracked }
   })
 
   // --- Oil life (derive from latest Aceite maintenance record) ---
@@ -160,17 +221,21 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const oilLastKm = latestAceite?.mileage ?? dbParts.find((dp: any) => dp.name === 'Aceite de motor')?.mileage_installed ?? 0
   const oilRemaining = Math.max(0, (oilLastKm + oilInterval) - currentKmVal)
   const oilLife = oilInterval > 0 ? Math.max(0, Math.min(1, oilRemaining / oilInterval)) : 1
-  const oilPctDyn = Math.round(oilLife * 100)
-  const oilColorDyn = oilLife > 0.5 ? '#22c55e' : oilLife > 0.3 ? '#F5C518' : oilLife > 0.12 ? '#ffb020' : '#ff4d6a'
-  const oilDegDyn = Math.round(oilLife * 270)
+  /* Sin un servicio de aceite registrado no hay nada que medir: el 100% verde
+     que salía antes era inventado a partir del intervalo por defecto. */
+  const oilTracked = Boolean(latestAceite || (dbParts.find((dp: any) => dp.name === 'Aceite de motor')?.mileage_installed ?? 0) > 0)
+  const oilPctDyn = oilTracked ? Math.round(oilLife * 100) : 0
+  const oilColorDyn = !oilTracked ? NO_DATA_COLOR
+    : oilLife > 0.5 ? '#22c55e' : oilLife > 0.3 ? '#F5C518' : oilLife > 0.12 ? '#ffb020' : '#ff4d6a'
+  const oilDegDyn = oilTracked ? Math.round(oilLife * 270) : 0
 
-  // --- Health (average of all parts) ---
-  const healthArr = parts.map(p => p.pct)
-  const health = healthArr.length ? healthArr.reduce((a, b) => a + b, 0) / healthArr.length : 1
-  const healthPctDyn = Math.round(health * 100)
-  const healthColorDyn = health > 0.5 ? '#22c55e' : health > 0.25 ? '#ffb020' : '#ff4d6a'
-  const healthLabelDyn = health > 0.5 ? 'Óptimo' : health > 0.25 ? 'Atención' : 'Crítico'
-  const healthDegDyn = Math.round(health * 270)
+  /* Marca del lubricante como dato principal; la viscosidad sólo la acompaña.
+     Si no hay marca registrada, al menos se muestra la viscosidad. */
+  const oilBrand = fichaRecord?.lubricant_brand?.trim()
+  const oilVisc = fichaRecord?.lubricant_type?.trim()
+  const oilLabel = oilBrand
+    ? (oilVisc ? `${oilBrand} · ${oilVisc}` : oilBrand)
+    : (oilVisc || 'Sin aceite registrado')
 
   // --- Urgentes ---
   const urgentesCount = parts.filter(p => p.pct <= 0.12).length
@@ -181,45 +246,104 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const prog = nextServiceDisp > 0 ? Math.min(1, currentKmVal / nextServiceDisp) : 0
   const needleDegDefault = -90 + prog * 180
 
+  /* Piezas efectivamente reemplazadas: las que tienen kilometraje de instalación
+     registrado por un servicio o a mano. */
+  const replacedPartsCount = dbParts.filter((dp: any) => (dp.mileage_installed ?? 0) > 0).length
+
   const findPart = (name: string) => parts.find(p => p.name === name)
+  const NO_DATA = { name: '', estado: 'Sin datos', color: NO_DATA_COLOR, pct: 1, rem: 0, tracked: false }
   const worstOf = (...names: string[]) => {
-    const found = names.map(findPart).filter(Boolean) as typeof parts
-    if (!found.length) return { estado: 'Al día', color: '#2ecc71', pct: 1, rem: 0 }
+    /* Sólo cuentan las piezas con historial; si ninguna lo tiene, el grupo
+       entero queda "Sin datos" en vez de fingir que está al día. */
+    const found = (names.map(findPart).filter(Boolean) as typeof parts).filter(p => p.tracked)
+    if (!found.length) return NO_DATA
     return found.reduce((worst, p) => p.pct < worst.pct ? p : worst, found[0])
   }
 
-  const brakesP = findPart('Pastillas de freno') || { color: '#2ecc71', estado: 'Al día', pct: 1, rem: 0 }
-  const tiresP = findPart('Llantas') || { color: '#2ecc71', estado: 'Al día', pct: 1, rem: 0 }
-  const engineP = worstOf('Aceite de motor', 'Bujías', 'Correa de accesorios', 'Refrigerante')
+  /* Frenos agrupa pastillas, discos y líquido: el testigo debe encenderse por la
+     peor de las tres, no sólo por las pastillas. */
+  /* Un único testigo para todo el sistema de frenos. Cada componente conserva su
+     propia vida útil; el testigo toma el peor y el detalle dice cuál es, para que
+     no haya que adivinar qué lo está encendiendo. */
+  const brakesP = worstOf('Pastillas de freno', 'Discos de freno', 'Sistema ABS', 'Freno de mano', 'Líquido de frenos')
+  /* El freno de mano leía la pieza de las pastillas, así que mostraba un estado
+     que no era el suyo. Ahora lee su propia pieza. */
+  const tiresP = findPart('Llantas') || NO_DATA
+  /* Temperatura: la alimenta el refrigerante, que es la pieza que el servicio de
+     refrigeración registra. Reemplaza al testigo de motor, que duplicaba el
+     aceite ya representado por el medidor de vida de aceite. */
+  const tempP = findPart('Refrigerante') || NO_DATA
+  const filtersP = worstOf('Filtro de aire', 'Filtro de combustible')
+  const suspensionP = findPart('Amortiguadores') || NO_DATA
+  const transmissionP = findPart('Transmisión') || NO_DATA
 
+  /* Batería: envejece por tiempo y por uso a la vez, así que se calculan las dos
+     vidas y manda la que se agote primero. Antes los "meses" salían de dividir
+     los km entre 1500 — un número inventado que no medía el tiempo real. */
   const BATTERY_LIFESPAN_MONTHS = 24
-  const battDbPart = dbParts.find((dp: any) => dp.name === 'Batería')
-  const battLastKm = battDbPart?.mileage_installed ?? 0
-  const battKmUsed = Math.max(0, currentKmVal - battLastKm)
-  const battMonthsElapsed = Math.min(BATTERY_LIFESPAN_MONTHS, battKmUsed / 1500)
-  const battPct = Math.max(0, 1 - battMonthsElapsed / BATTERY_LIFESPAN_MONTHS)
-  const battRemMonths = Math.max(0, Math.round(BATTERY_LIFESPAN_MONTHS - battMonthsElapsed))
-  const battColor = battPct <= 0.12 ? '#ff4d6a' : battPct <= 0.30 ? '#ffb020' : '#2ecc71'
+  const battDbPart = dbParts.find((dp: any) => normalizePart(dp.name) === 'bateria')
+  const battTracked = Boolean(battDbPart)
 
-  const fuelPct = Math.max(0.06, 1 - ((currentKmVal % 550) / 550))
-  const fuelColor = fuelPct <= 0.15 ? '#ff4d6a' : fuelPct <= 0.3 ? '#ffb020' : '#2ecc71'
+  /* Desgaste por kilómetros, igual que cualquier otra pieza. */
+  const battKmLife = battDbPart?.lifespan_mileage || 36000
+  const battKmUsed = Math.max(0, currentKmVal - (battDbPart?.mileage_installed ?? currentKmVal))
+  const battKmPct = Math.max(0, Math.min(1, 1 - battKmUsed / battKmLife))
+  const battRemKm = Math.max(0, battKmLife - battKmUsed)
+
+  /* Desgaste por tiempo desde el último reemplazo (updated_at de la pieza). */
+  const battInstalledAt = battDbPart?.updated_at || battDbPart?.created_at
+  const battMonthsElapsed = battInstalledAt
+    ? Math.max(0, (Date.now() - new Date(battInstalledAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+    : 0
+  const battTimePct = Math.max(0, Math.min(1, 1 - battMonthsElapsed / BATTERY_LIFESPAN_MONTHS))
+  const battRemMonths = Math.max(0, Math.round(BATTERY_LIFESPAN_MONTHS - battMonthsElapsed))
+
+  /* Manda la vida que se agote primero, y se informa en esa misma unidad. */
+  const battTimeIsLimit = battTimePct <= battKmPct
+  const battPct = battTracked ? Math.min(battKmPct, battTimePct) : 1
+  const battColor = !battTracked ? NO_DATA_COLOR
+    : battPct <= 0.15 ? '#ff4d6a'
+    : battPct <= 0.50 ? '#ffb020'
+    : '#2ecc71'
+
+  /* Combustible: pendiente de alimentarse con el escaneo de recibos de recarga.
+     Hasta entonces se muestra en naranja dentro del odómetro, sin dato real. */
+  const FUEL_PENDING_COLOR = '#ffb020'
 
   // --- Telltale definitions ---
-  interface TellDef { label: string; color: string; critical: boolean; pct: number; iconKey: string; remVal: number | string; unit: string }
-  const tellDef = (label: string, p: { color: string; estado: string; pct: number; rem: number }, iconKey: string, unit = 'km'): TellDef => ({
+  interface TellDef { label: string; color: string; critical: boolean; pct: number; iconKey: string; remVal: number | string; unit: string; tracked: boolean; part?: string }
+  const tellDef = (label: string, p: { name?: string; color: string; estado: string; pct: number; rem: number; tracked?: boolean }, iconKey: string, unit = 'km'): TellDef => ({
     label, color: p.color,
     critical: p.estado === 'Urgente' || p.estado === 'Vencido',
     pct: p.pct, iconKey, remVal: Math.round(p.rem), unit,
+    tracked: p.tracked !== false,
+    part: p.name || undefined,
   })
 
   const telltales: TellDef[] = [
-    tellDef('ABS / Frenos', brakesP, 'abs'),
-    tellDef('Freno de mano', brakesP, 'handbrake'),
+    tellDef('Frenos', brakesP, 'brakes'),
     tellDef('Llantas', tiresP, 'tire'),
-    { label: 'Batería', color: battColor, critical: battPct <= 0.12, pct: battPct, iconKey: 'battery', remVal: battRemMonths, unit: 'meses' },
-    { label: 'Revisión motor', color: engineP.color, critical: engineP.estado === 'Urgente' || engineP.estado === 'Vencido', pct: engineP.pct, iconKey: 'engine', remVal: Math.round(engineP.rem), unit: 'km' },
-    { label: 'Combustible', color: fuelColor, critical: fuelPct <= 0.15, pct: fuelPct, iconKey: 'fuel', remVal: Math.round(fuelPct * 100), unit: '%' },
+    tellDef('Filtros', filtersP, 'filter'),
+    tellDef('Suspensión', suspensionP, 'suspension'),
+    tellDef('Transmisión', transmissionP, 'transmission'),
+    { label: 'Batería', color: battColor, critical: battTracked && battPct <= 0.15, pct: battPct, iconKey: 'battery',
+      remVal: battTimeIsLimit ? battRemMonths : Math.round(battRemKm),
+      unit: battTimeIsLimit ? 'meses' : 'km', tracked: battTracked, part: 'Batería' },
+    tellDef('Temperatura', tempP, 'temp'),
   ]
+
+  /* Salud del vehículo: promedio de los testigos del tablero, que es lo que el
+     usuario ve. Antes promediaba la lista interna de piezas, que incluía piezas
+     que ningún servicio alimenta. */
+  const tracked = telltales.filter(t => t.tracked)
+  const healthTracked = tracked.length > 0
+  const health = healthTracked ? tracked.reduce((a, t) => a + t.pct, 0) / tracked.length : 0
+  const healthPctDyn = healthTracked ? Math.round(health * 100) : 0
+  const healthColorDyn = !healthTracked ? NO_DATA_COLOR
+    : health > 0.5 ? '#22c55e' : health > 0.25 ? '#ffb020' : '#ff4d6a'
+  const healthLabelDyn = !healthTracked ? 'Sin datos'
+    : health > 0.5 ? 'Óptimo' : health > 0.25 ? 'Atención' : 'Crítico'
+  const healthDegDyn = healthTracked ? Math.round(health * 270) : 0
 
   // --- Hover telltale ---
   const hoveredTell = hoverTellKey ? telltales.find(t => t.iconKey === hoverTellKey) : null
@@ -244,7 +368,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const hoverTellColor = hoveredTell ? hoveredTell.color : '#F5C518'
   const defaultLabelOpacity = hoveredTell ? 0 : 1
   const hoverLabelOpacity = hoveredTell ? 1 : 0
-  const hoverTellLabel = hoveredTell ? hoveredTell.label : ''
+  /* Un testigo que agrupa componentes (frenos) debe decir cuál lo enciende:
+     "FRENOS · PASTILLAS DE FRENO" en vez de sólo "FRENOS". */
+  const tellFullLabel = (t: TellDef) =>
+    t.part && t.part !== t.label ? `${t.label} · ${t.part}` : t.label
+  const tellEstado = (t: TellDef) =>
+    !t.tracked ? 'Sin datos' : t.critical ? 'Urgente' : t.pct <= 0.5 ? 'Media vida' : 'Al día'
+  const hoverTellLabel = hoveredTell ? tellFullLabel(hoveredTell) : ''
 
   // --- Dial ticks (13 ticks from -90deg to +90deg) ---
   const dialTicks = Array.from({ length: 13 }, (_, i) => {
@@ -258,7 +388,6 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
   const investTotal = maintenance.reduce((sum, r) => sum + (Number(r.cost) || 0), 0)
   const investFmt = investTotal > 0 ? `$${investTotal.toLocaleString()}` : '$0'
-  const kmRan = Math.max(0, currentKmVal - (maintenance[0]?.mileage || 0))
 
   const latestDate = latest?.date ? new Date(latest.date).toLocaleDateString() : null
 
@@ -306,16 +435,16 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
   return (
     <div style={{ animation: 'sectionIn .55s cubic-bezier(0.22,1,0.36,1) both', maxWidth: 1000 }}>
-      <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both' }}>
         <div>
           <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Ficha técnica digital</div>
-          <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>Estado del vehículo</h1>
+          <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>Estado del vehículo</h1>
           <p style={{ color: '#b6b2a6', margin: 0, maxWidth: '60ch', fontSize: 14 }}>Tarjeta viva de mantenimiento. Se actualiza sola con cada servicio.</p>
         </div>
       </div>
 
       {/* TABLERO VEHICULAR */}
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, marginBottom: 20, padding: 22, background: tableroBg, border: '1px solid rgba(245,197,24,0.22)', boxShadow: tDark ? 'inset 0 1px 0 rgba(255,255,255,0.06),0 24px 60px rgba(0,0,0,.5)' : 'inset 0 1px 0 rgba(255,255,255,0.6),0 20px 50px rgba(0,0,0,.12)', animation: 'textIn .5s .05s both' }}>
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, marginBottom: 16, padding: 22, background: tableroBg, border: '1px solid rgba(245,197,24,0.22)', boxShadow: tDark ? 'inset 0 1px 0 rgba(255,255,255,0.06),0 24px 60px rgba(0,0,0,.5)' : 'inset 0 1px 0 rgba(255,255,255,0.6),0 20px 50px rgba(0,0,0,.12)', animation: 'textIn .5s .05s both' }}>
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `repeating-linear-gradient(90deg,${scanLines} 0 1px,transparent 1px 3px)`, opacity: 0.5 }} />
 
         {/* Header */}
@@ -323,14 +452,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 800 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M12 3a9 9 0 0 0-9 9h3M12 3v3M21 12a9 9 0 0 0-9-9"/><path d="M18.4 6.6 15 10"/></svg>Tablero del vehículo
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 999, background: tDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)', border: `1px solid ${urgentesColor}` }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: urgentesColor, boxShadow: `0 0 8px ${urgentesColor}` }} />
+          <div style={{ display: 'flex', alignItems: 'center', padding: '5px 12px', borderRadius: 999, background: tDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)', border: `1px solid ${urgentesColor}` }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: urgentesColor }}>{urgentesLabel}</span>
           </div>
         </div>
 
         {/* 3-column grid: Oil Gauge | Odometer Dial | Health Gauge */}
-        <div className="tablero-grid" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 10, alignItems: 'center' }}>
+        <div className="tablero-grid" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 16, alignItems: 'center' }}>
 
           {/* GAUGE: Vida del aceite */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -341,7 +469,9 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 2 }}>Vida aceite</div>
               </div>
             </div>
-            <div style={{ marginTop: 6, fontSize: 12, color: sMuted }}>{fichaRecord?.lubricant_type || 'Sintético 5W-30'}</div>
+            {/* Qué aceite se puso, no su viscosidad: "5W-30" o "50" solos no dicen
+                nada al dueño. Mismo tratamiento que la etiqueta de salud. */}
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: oilColorDyn }}>{oilLabel}</div>
           </div>
 
           {/* ODÓMETRO CENTRAL — dial analógico con aguja */}
@@ -368,6 +498,22 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               {/* Center pivot */}
               <div style={{ position: 'absolute', left: '50%', top: '50%', width: 16, height: 16, borderRadius: '50%', background: tDark ? 'radial-gradient(circle at 35% 30%,#f3f3f3,#8a8a8a 70%,#3a3a3a 100%)' : 'radial-gradient(circle at 35% 30%,#fff,#ccc 70%,#888 100%)', transform: 'translate(-50%,-50%)', boxShadow: '0 1px 4px rgba(0,0,0,.6)' }} />
 
+              {/* Combustible — a la altura del kilometraje, en el hueco libre del
+                  dial a la derecha; no desplaza aguja, pivote ni lectura central.
+                  Naranja fijo: aún no tiene dato real. */}
+              <div title="Funcionalidad de combustible pronto"
+                style={{ position: 'absolute', right: 22, top: '64%', display: 'flex', alignItems: 'center', gap: 6, opacity: 0.75 }}>
+                {/* Icono 40% más grande (20 -> 28px) para que se lea bien */}
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={FUEL_PENDING_COLOR} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/>
+                  <path d="M12 8.4l3 2.6v6.6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/>
+                </svg>
+                {/* Barra vertical: se llena desde abajo, como un aforo real */}
+                <div style={{ width: 5, height: 28, borderRadius: 3, background: tDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
+                  <div style={{ width: '100%', height: '45%', background: FUEL_PENDING_COLOR, borderRadius: 3 }} />
+                </div>
+              </div>
+
               {/* Center readout */}
               <div style={{ position: 'absolute', left: '50%', top: '66%', transform: 'translate(-50%,0)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, padding: '5px 16px', borderRadius: 10, background: tDark ? '#08090c' : '#f0ede4', border: `1px solid ${odoBorder}`, boxShadow: odoGlowShadow, animation: odoAnim, transition: 'border-color .4s' }}>
                 <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.02em', color: needleColorLive, textShadow: odoTextShadow, transition: 'color .3s,text-shadow .4s' }}>{odoCenterValue}</span>
@@ -382,8 +528,8 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>servicios</div>
               </div>
               <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: `1px solid ${statCardBorder}` }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, lineHeight: 1, color: statCardText }}>{kmRan.toLocaleString()}</div>
-                <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>km recorridos</div>
+                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, lineHeight: 1, color: statCardText }}>{replacedPartsCount}</div>
+                <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>partes reemplazadas</div>
               </div>
               <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: '1px solid rgba(245,197,24,0.22)' }}>
                 <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 17, lineHeight: 1, color: '#F5C518' }}>{investFmt}</div>
@@ -392,13 +538,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             </div>
           </div>
 
-          {/* GAUGE: Salud del vehículo */}
+          {/* GAUGE: Salud vehículo */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ position: 'relative', width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(from 135deg, ${healthColorDyn} 0deg ${healthDegDyn}deg, ${gaugeTrack} ${healthDegDyn}deg 270deg, transparent 270deg 360deg)` }}>
               <div style={{ position: 'absolute', inset: 13, borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={healthColorDyn} strokeWidth="1.8" style={{ marginBottom: 2 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
                 <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 30, lineHeight: 1, color: healthColorDyn }}>{healthPctDyn}%</div>
-                <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 3 }}>Salud del vehículo</div>
+                <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 3 }}>Salud vehículo</div>
               </div>
             </div>
             <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: healthColorDyn }}>{healthLabelDyn}</div>
@@ -408,17 +554,23 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
         {/* TELLTALE WARNING INDICATORS */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
           {telltales.map(t => (
-            <button key={t.iconKey} title={`${t.label} — ${t.critical ? 'Urgente' : 'OK'}`}
+            <button key={t.iconKey} title={`${tellFullLabel(t)} — ${tellEstado(t)}`}
               onClick={() => setTellOpen(t.iconKey)}
               onMouseEnter={() => setHoverTellKey(t.iconKey)}
               onMouseLeave={() => setHoverTellKey(null)}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 11, background: tDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)', border: `1.5px solid ${t.color}`, color: t.color, opacity: t.critical ? 1 : 0.55, animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
-              {t.iconKey === 'abs' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.5"/><text x="12" y="15" textAnchor="middle" fontFamily="Arial,sans-serif" fontSize="7.2" fontWeight="800" stroke="none" fill="currentColor">ABS</text></svg>}
-              {t.iconKey === 'handbrake' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 8a3 3 0 0 1 0 8"/><path d="M14.5 8a3 3 0 0 0 0 8"/><line x1="12" y1="8.2" x2="12" y2="13.5"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>}
-              {t.iconKey === 'tire' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9.5a6.4 3.6 0 0 1 12 0v3a6.4 3.6 0 0 1-12 0z"/><path d="M6.6 8.4a5.6 3 0 0 0 10.8 0"/><path d="M9 8.8v5.6M12 8.4v6.4M15 8.8v5.6"/><line x1="12" y1="16" x2="12" y2="18.6"/><circle cx="12" cy="19.6" r="1" fill="currentColor" stroke="none"/></svg>}
-              {t.iconKey === 'battery' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="8" width="17" height="10" rx="1.6"/><path d="M8 8V6.4a1 1 0 0 1 1-1h1.4a1 1 0 0 1 1 1V8"/><path d="M14.6 8V6.4a1 1 0 0 1 1-1H17a1 1 0 0 1 1 1V8"/><line x1="7.6" y1="13" x2="10.6" y2="13"/><line x1="9.1" y1="11.5" x2="9.1" y2="14.5"/><line x1="13.6" y1="13" x2="16.6" y2="13"/></svg>}
-              {t.iconKey === 'engine' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 16.5V13l2-2.2h3.2l1 1.2h3.6l.9-2.4h3.3a2 2 0 0 1 2 2v1.8"/><path d="M20.5 13.4H18"/><path d="M8.7 10.8V8.6h2.8v2.2"/><path d="M3.5 16.5h17"/><circle cx="7" cy="17.8" r="1.6"/><circle cx="17" cy="17.8" r="1.6"/></svg>}
-              {t.iconKey === 'fuel' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/><path d="M12 8.4l3 2.6v6.6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/></svg>}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 11, background: tDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)',
+                /* "Sin datos" va gris; con la opacidad de 0.55 que tenían los no
+                   críticos quedaba tan tenue que parecía un testigo sin icono. */
+                border: t.tracked ? `1.5px solid ${t.color}` : `1.5px dashed ${t.color}`,
+                color: t.color, opacity: !t.tracked ? 0.9 : t.critical ? 1 : 0.75,
+                animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
+              {t.iconKey === 'brakes' && <ServiceIcon type="Frenos" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'tire' && <CarLinkMark size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'battery' && <ServiceIcon type="Batería" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'temp' && <ServiceIcon type="Refrigerante" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'filter' && <ServiceIcon type="Aire" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'suspension' && <ServiceIcon type="Suspensión" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'transmission' && <ServiceIcon type="Transmisión" size={20} strokeWidth={1.5} />}
             </button>
           ))}
         </div>
@@ -429,15 +581,19 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: sMuted, fontWeight: 700 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.9"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Próximo cambio de aceite
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: sInk, margin: '5px 0 8px' }}>{nextServiceDisp.toLocaleString()} km · faltan {kmToNextDisp.toLocaleString()} km{predictedDateStr ? ` · ${predictedDateStr}` : ''}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: oilTracked ? sInk : NO_DATA_COLOR, margin: '5px 0 8px' }}>
+              {oilTracked
+                ? `${nextServiceDisp.toLocaleString()} km · faltan ${kmToNextDisp.toLocaleString()} km${predictedDateStr ? ` · ${predictedDateStr}` : ''}`
+                : '0 km · faltan 0 km'}
+            </div>
             <div style={{ height: 8, borderRadius: 6, background: tableroTrack, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: progWidthDisp, background: 'linear-gradient(90deg,#FFD84D,#F5C518,#8a6a00)', borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
+              <div style={{ height: '100%', width: oilTracked ? progWidthDisp : '0%', background: oilTracked ? 'linear-gradient(90deg,#FFD84D,#F5C518,#8a6a00)' : NO_DATA_COLOR, borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {(['d', 'h', 'm', 's'] as const).map(k => (
-              <div key={k} style={{ textAlign: 'center', background: countdownBg, border: '1px solid rgba(245,197,24,0.25)', borderRadius: 11, padding: '8px 12px', minWidth: 54 }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, color: '#F5C518', lineHeight: 1 }}>{(cd as any)[k]}</div>
+              <div key={k} style={{ textAlign: 'center', background: countdownBg, border: `1px solid ${oilTracked ? 'rgba(245,197,24,0.25)' : 'rgba(154,150,138,0.25)'}`, borderRadius: 11, padding: '8px 12px', minWidth: 54 }}>
+                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, color: oilTracked ? '#F5C518' : NO_DATA_COLOR, lineHeight: 1 }}>{oilTracked ? (cd as any)[k] : 0}</div>
                 <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: odometerLabel }}>{k === 'd' ? 'días' : k === 'h' ? 'hrs' : k === 'm' ? 'min' : 'seg'}</div>
               </div>
             ))}
@@ -449,37 +605,48 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
       {tellOpen && (() => {
         const t = telltales.find(x => x.iconKey === tellOpen)
         if (!t) return null
-        const estado = t.critical ? 'Atención requerida' : t.pct <= 0.3 ? 'Próximo a revisar' : 'Al día'
-        const desc = t.critical
-          ? `${t.label} está en estado crítico según su vida útil — se recomienda atenderlo pronto.`
-          : t.pct <= 0.3
-            ? `${t.label} se acerca a su intervalo de revisión — agenda pronto para evitar imprevistos.`
-            : `${t.label} está dentro de su vida útil normal.`
-        const iconSvg = t.iconKey === 'abs' ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.5"/><text x="12" y="15" textAnchor="middle" fontFamily="Arial,sans-serif" fontSize="7.2" fontWeight="800" stroke="none" fill="currentColor">ABS</text></svg>
-          : t.iconKey === 'handbrake' ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 8a3 3 0 0 1 0 8"/><path d="M14.5 8a3 3 0 0 0 0 8"/><line x1="12" y1="8.2" x2="12" y2="13.5"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
-          : t.iconKey === 'tire' ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9.5a6.4 3.6 0 0 1 12 0v3a6.4 3.6 0 0 1-12 0z"/><path d="M6.6 8.4a5.6 3 0 0 0 10.8 0"/><path d="M9 8.8v5.6M12 8.4v6.4M15 8.8v5.6"/><line x1="12" y1="16" x2="12" y2="18.6"/><circle cx="12" cy="19.6" r="1" fill="currentColor" stroke="none"/></svg>
-          : t.iconKey === 'battery' ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="8" width="17" height="10" rx="1.6"/><path d="M8 8V6.4a1 1 0 0 1 1-1h1.4a1 1 0 0 1 1 1V8"/><path d="M14.6 8V6.4a1 1 0 0 1 1-1H17a1 1 0 0 1 1 1V8"/><line x1="7.6" y1="13" x2="10.6" y2="13"/><line x1="9.1" y1="11.5" x2="9.1" y2="14.5"/><line x1="13.6" y1="13" x2="16.6" y2="13"/></svg>
-          : t.iconKey === 'engine' ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 16.5V13l2-2.2h3.2l1 1.2h3.6l.9-2.4h3.3a2 2 0 0 1 2 2v1.8"/><path d="M20.5 13.4H18"/><path d="M8.7 10.8V8.6h2.8v2.2"/><path d="M3.5 16.5h17"/><circle cx="7" cy="17.8" r="1.6"/><circle cx="17" cy="17.8" r="1.6"/></svg>
+        const estado = !t.tracked ? 'Sin datos' : t.critical ? 'Atención requerida' : t.pct <= 0.5 ? 'Media vida útil' : 'Al día'
+        /* Cuando el testigo agrupa varios componentes (frenos), nombra el que lo
+           está encendiendo en vez de dejar al usuario adivinando. */
+        const quien = t.part && t.part !== t.label ? t.part : t.label
+        const desc = !t.tracked
+          ? `Todavía no hay servicios registrados para ${t.label.toLowerCase()}. Registra uno para empezar a calcular su vida útil.`
+          : t.critical
+            ? `${quien} está en estado crítico según su vida útil — se recomienda atenderlo pronto.`
+            : t.pct <= 0.5
+              ? `${quien} pasó la mitad de su vida útil — le quedan ${Math.round(t.pct * 100)}% de su intervalo. Ve agendando la revisión.`
+              : `${quien} está dentro de su vida útil normal.`
+        const iconSvg = t.iconKey === 'brakes' ? <ServiceIcon type="Frenos" size={22} strokeWidth={1.5} />
+          : t.iconKey === 'tire' ? <CarLinkMark size={22} strokeWidth={1.5} />
+          : t.iconKey === 'filter' ? <ServiceIcon type="Aire" size={22} strokeWidth={1.5} />
+          : t.iconKey === 'suspension' ? <ServiceIcon type="Suspensión" size={22} strokeWidth={1.5} />
+          : t.iconKey === 'transmission' ? <ServiceIcon type="Transmisión" size={22} strokeWidth={1.5} />
+          : t.iconKey === 'battery' ? <ServiceIcon type="Batería" size={22} strokeWidth={1.5} />
+          : t.iconKey === 'temp' ? <ServiceIcon type="Refrigerante" size={22} strokeWidth={1.5} />
           : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/><path d="M12 8.4l3 2.6v6.6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/></svg>
 
         return createPortal(
           <div onClick={() => { setTellOpen(null); setCitaStep('detail') }} style={{ position: 'fixed', inset: 0, zIndex: 78, background: 'rgba(4,4,4,0.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '92vw', background: '#111318', border: `1px solid ${t.color}`, borderRadius: 22, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,.6)' }}>
+            <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', background: 'var(--panel-bg)', color: 'var(--text-1)', border: `1px solid ${t.color}`, borderRadius: 20, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
               {citaStep === 'detail' ? (
                 <>
                   {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                       <span style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(0,0,0,0.4)', border: `1px solid ${t.color}`, color: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{iconSvg}</span>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: '#f5f3ec' }}>{t.label}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#f5f3ec' }}>{t.label}</div>
+                        {t.part && t.part !== t.label && (
+                          <div style={{ fontSize: 11.5, color: t.color, fontWeight: 600, marginTop: 1 }}>{t.part}</div>
+                        )}
+                      </div>
                     </div>
                     <button onClick={() => { setTellOpen(null); setCitaStep('detail') }} style={{ width: 30, height: 30, borderRadius: 9, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#8f8a7a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                   </div>
                   {/* Status pill */}
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 13px', borderRadius: 999, background: 'rgba(0,0,0,0.35)', border: `1px solid ${t.color}`, color: t.color, fontSize: 12, fontWeight: 800, marginBottom: 14 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.color, boxShadow: `0 0 8px ${t.color}` }} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 13px', borderRadius: 999, background: 'rgba(0,0,0,0.35)', border: `1px solid ${t.color}`, color: t.color, fontSize: 12, fontWeight: 800, marginBottom: 14 }}>
                     {estado}
                   </div>
                   {/* Progress bar */}
@@ -502,7 +669,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                       <span style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(245,197,24,0.12)', border: '1px solid rgba(245,197,24,0.4)', color: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                       </span>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: '#f5f3ec' }}>Agendar cita</span>
+                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, color: '#f5f3ec' }}>Agendar cita</span>
                     </div>
                     <button onClick={() => setCitaStep('detail')} style={{ width: 30, height: 30, borderRadius: 9, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#8f8a7a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -545,7 +712,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
       })()}
 
       {/* Main grid: ficha (flip) + right column */}
-      <div className="fichagrid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 22, alignItems: 'start' }}>
+      <div className="fichagrid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 16, alignItems: 'start' }}>
         {/* Flip card */}
         <div style={{ animation: 'textIn .5s .1s both', perspective: 2200 }}>
           <div style={{
@@ -556,7 +723,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             willChange: 'transform',
           }}>
             {/* FRONT */}
-            <div className="flip-card-front" onClick={() => setFlipped(f => !f)} style={{
+            <div className="flip-card-front" onClick={canFlip ? () => setFlipped(true) : undefined} title={canFlip ? 'Ver tu taller de confianza' : undefined} style={{
               position: 'relative', minHeight: 356,
               backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
               borderRadius: 22, overflow: 'hidden',
@@ -565,7 +732,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               background: walletBg,
               boxShadow: flipped ? '0 16px 50px rgba(0,0,0,0.35)' : '0 24px 70px rgba(0,0,0,0.45)',
               transition: 'box-shadow .5s',
-              cursor: 'pointer',
+              cursor: canFlip ? 'pointer' : 'default',
             }}>
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: bgGradient }} />
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -587,9 +754,6 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                       )}
                     </div>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setFlipped(f => !f) }} title="Dar vuelta a la ficha" style={{ flex: '0 0 auto', width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(245,197,24,0.45)', background: 'rgba(245,197,24,0.12)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .18s' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
-                  </button>
                 </div>
 
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
@@ -614,8 +778,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                     const statusColor = isOverdue ? '#ff4d6a' : isWarning ? '#ff4d6a' : isApproaching ? '#ffb020' : '#22c55e'
                     const statusText = isOverdue ? 'Atrasado en mantenimiento' : isWarning ? 'Cambio urgente de aceite' : isApproaching ? 'Se acerca el próximo cambio' : 'Mantenimiento al día'
                     return (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: `${statusColor}18`, border: `1px solid ${statusColor}66`, color: statusColor, fontSize: 11, fontWeight: 700, transition: 'all .3s' }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, boxShadow: `0 0 8px ${statusColor}` }}></span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: `${statusColor}18`, border: `1px solid ${statusColor}66`, color: statusColor, fontSize: 11, fontWeight: 700, transition: 'all .3s' }}>
                         {statusText}
                       </span>
                     )
@@ -716,7 +879,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             </div>
 
             {/* BACK — Tu taller de confianza */}
-            <div className="flip-card-back" onClick={() => setFlipped(f => !f)} style={{
+            <div className="flip-card-back" onClick={() => setFlipped(false)} style={{
               position: 'absolute', inset: 0, minHeight: 356,
               backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
@@ -730,10 +893,10 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
                   <span onClick={() => logoInputRef.current?.click()} title="Clic para cambiar logo del taller" style={{ width: 52, height: 52, borderRadius: 14, background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 20, color: '#111', boxShadow: '0 0 20px rgba(245,197,24,0.4)', cursor: 'pointer', overflow: 'hidden', position: 'relative', flex: '0 0 auto' }}>
-                    {workshopLogo ? (
-                      <img src={workshopLogo} alt="Logo del taller" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {(workshopLogo || linkedWorkshop?.logo_url) ? (
+                      <img src={workshopLogo || linkedWorkshop?.logo_url} alt="Logo del taller" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <>TC</>
+                      <>{tallerName.slice(0, 2).toUpperCase()}</>
                     )}
                     <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .18s' }}
                       onMouseEnter={e => e.currentTarget.style.opacity = '1'}
@@ -743,21 +906,21 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                   </span>
                   <div>
                     <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#c99a00', fontWeight: 800 }}>Tu taller de confianza</div>
-                    <div style={{ fontSize: 19, fontWeight: 700, color: sInk }}>{latest?.workshop || TALLER_INFO.name}</div>
+                    <div style={{ fontSize: 19, fontWeight: 700, color: sInk }}>{tallerName}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#ffcf5a' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
                       {TALLER_INFO.rating} <span style={{ color: '#6f6a5f' }}>· {TALLER_INFO.reviews} reseñas</span>
                     </div>
                   </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); setFlipped(f => !f) }} title="Volver a la ficha" style={{ flex: '0 0 auto', width: 38, height: 38, borderRadius: 11, border: '1px solid rgba(245,197,24,0.45)', background: 'rgba(245,197,24,0.12)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .18s' }}>
+                <button onClick={(e) => { e.stopPropagation(); setFlipped(false) }} title="Volver a la ficha" style={{ flex: '0 0 auto', width: 38, height: 38, borderRadius: 11, border: '1px solid rgba(245,197,24,0.45)', background: 'rgba(245,197,24,0.12)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .18s' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
                 </button>
               </div>
               <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: sMuted }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>{TALLER_INFO.address}</div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>{tallerAddress}</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{TALLER_INFO.hours}</div>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>{TALLER_INFO.phone}</div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>{tallerPhone}</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: '#F5C518' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>{TALLER_INFO.web}</div>
               </div>
               <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 14, background: 'linear-gradient(135deg,rgba(245,197,24,0.14),rgba(245,197,24,0.05))', border: '1px dashed rgba(245,197,24,0.4)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -778,11 +941,32 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'textIn .5s .16s both' }}>
           <div style={{ borderRadius: 20, padding: 22, background: tableroBg, border: '1px solid rgba(245,197,24,0.22)', boxShadow: tDark ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: tDark ? '#F5C518' : '#b8860a' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8.5a6 6 0 0 1 12 0"/><path d="M3.5 11a9 9 0 0 1 17 0"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>Vinculado a llavero NFC
+              <NfcKeyIcon size={16} strokeWidth={1.8} />Vinculado a llavero NFC
             </div>
             <p style={{ margin: '10px 0 16px', fontSize: 13, color: sMuted, lineHeight: 1.55 }}>Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
             <button onClick={onAddService} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
             <button onClick={onOpenPublicar} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: vehicle?.nfc_active !== false ? '1px solid rgba(46,204,113,0.4)' : '1px solid rgba(245,197,24,0.4)', background: vehicle?.nfc_active !== false ? 'rgba(46,204,113,0.08)' : 'rgba(245,197,24,0.06)', color: vehicle?.nfc_active !== false ? '#2ecc71' : '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>{vehicle?.nfc_active !== false ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>}{vehicle?.nfc_active !== false ? 'Ver ficha pública' : 'Publicar ficha pública'}</button>
+            <button onClick={onOpenTransfer} title={transferLocked ? 'Requiere perfil verificado' : undefined} style={{
+              position: 'relative', overflow: 'hidden',
+              opacity: transferLocked ? 0.55 : 1,
+              width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              padding: 12, borderRadius: 12,
+              border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.1)', color: '#F5C518',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.2)'; e.currentTarget.style.borderColor = '#F5C518' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
+              {transferLocked
+                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>}
+              Transferir vehículo
+              {/* Cinta "Próximamente", mismo tratamiento que en el login */}
+              <span style={{
+                marginLeft: 2, fontSize: 8.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase',
+                color: '#F5C518', background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.35)',
+                borderRadius: 999, padding: '2px 8px', flex: '0 0 auto',
+              }}>Próximamente</span>
+            </button>
 
           </div>
         </div>

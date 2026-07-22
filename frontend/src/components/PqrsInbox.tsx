@@ -110,10 +110,9 @@ export default function PqrsInbox({ isOpen, onClose, theme }: Props) {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,197,24,0.14)', color: GOLD }}>{KIND_LABEL[e.kind]}</span>
-                          <span style={{ fontFamily: 'monospace', fontSize: 11.5, color: textMuted }}>{e.ticket}</span>
+                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', color: textMuted }}>{e.ticket}</span>
                         </div>
-                        <button onClick={() => updatePqrsStatus(e.id, NEXT[e.status])} title="Cambiar estado" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, border: `1px solid ${STATUS_COLOR[e.status]}55`, background: `${STATUS_COLOR[e.status]}18`, color: STATUS_COLOR[e.status], fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: '0 0 auto' }}>
-                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_COLOR[e.status] }} />
+                        <button onClick={() => updatePqrsStatus(e.id, NEXT[e.status])} title="Cambiar estado" style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, border: `1px solid ${STATUS_COLOR[e.status]}55`, background: `${STATUS_COLOR[e.status]}18`, color: STATUS_COLOR[e.status], fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: '0 0 auto' }}>
                           {STATUS_LABEL[e.status]}
                         </button>
                       </div>

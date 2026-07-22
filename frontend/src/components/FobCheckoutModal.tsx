@@ -96,7 +96,7 @@ export default function FobCheckoutModal({ isOpen, onClose, theme, initialProduc
                   <span style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(46,204,113,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                   </span>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{channel === 'stripe' ? 'Te llevamos al pago seguro' : 'Confirmemos tu pedido'}</h3>
+                  <h3 style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800 }}>{channel === 'stripe' ? 'Te llevamos al pago seguro' : 'Confirmemos tu pedido'}</h3>
                   <p style={{ margin: 0, fontSize: 13.5, color: textMuted, maxWidth: 420, lineHeight: 1.6 }}>
                     {channel === 'stripe'
                       ? 'Abrimos la página segura de Stripe para completar el pago de tu llavero. Si no se abrió, revisa las ventanas emergentes.'

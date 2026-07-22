@@ -10,6 +10,10 @@ interface Profile {
   full_name: string | null
   avatar_url: string | null
   account_type: string | null
+  document_number: string | null
+  verification_status: 'unverified' | 'pending' | 'verified' | 'rejected' | null
+  verification_doc_url: string | null
+  verification_note: string | null
   whatsapp_enabled: boolean | null
   whatsapp_number: string | null
 }
@@ -22,6 +26,7 @@ interface AuthCtx {
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
   signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthCtx>({
@@ -29,6 +34,7 @@ const AuthContext = createContext<AuthCtx>({
   signIn: async () => {},
   signInWithEmail: async () => ({}),
   signUpWithEmail: async () => ({}),
+  refreshProfile: async () => {},
   signOut: async () => {},
 })
 
@@ -48,6 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('fetchProfile failed (backend unreachable?):', e)
     }
+  }
+
+  /* Permite refrescar el perfil tras pedir la verificación, sin recargar. */
+  const refreshProfile = async () => {
+    const uid = (await supabase.auth.getSession()).data.session?.user?.id
+    if (uid) await fetchProfile(uid)
   }
 
   useEffect(() => {
@@ -105,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

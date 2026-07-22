@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
+import { uploadFile } from '@/lib/upload'
+import { isBusinessAccount } from '@/lib/constants'
+import { CarLinkMark } from '@/lib/icons_new'
 import { useMaintenance } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
@@ -23,7 +26,14 @@ import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 
 export default function AppPage() {
   const router = useRouter()
-  const { user, loading, profile, signOut } = useAuth()
+  const { user, loading, profile, signOut, refreshProfile } = useAuth()
+  const verifyStatus = profile?.verification_status || 'unverified'
+  const isVerified = verifyStatus === 'verified'
+  const [verifying, setVerifying] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  /* La bandeja PQRS es herramienta de gestión: sólo para taller/empresa. El
+     conductor radica sus PQRS desde el asistente de la landing. */
+  const isBusiness = isBusinessAccount(profile?.account_type)
   const [activeTab, setActiveTab] = useState('ficha')
   const [vehicle, setVehicle] = useState<any>(null)
   const [vehicleLoading, setVehicleLoading] = useState(true)
@@ -79,7 +89,9 @@ export default function AppPage() {
   const oilKmRemaining = oilNextKm != null ? oilNextKm - currentKmForNotifs : null
   const urgentCount = (oilKmRemaining != null && oilKmRemaining <= 0 ? 1 : 0)
     + (oilKmRemaining != null && oilKmRemaining > 0 && oilKmRemaining < 1000 ? 1 : 0)
-    + pqrsNew
+    /* Sin bandeja PQRS no debe sumar al contador: el conductor vería un
+       pendiente que no puede abrir desde ningún lado. */
+    + (isBusiness ? pqrsNew : 0)
 
   useEffect(() => {
     try { setTheme(window.localStorage.getItem('carlink_theme') === 'light' ? 'light' : 'dark') } catch { /* ignore */ }
@@ -97,6 +109,55 @@ export default function AppPage() {
       return next
     })
   }, [])
+
+  /* La tarjeta de propiedad que se sube para verificar es el mismo documento que
+     pide la sección de Documentos: se registra allí para no pedirla dos veces. */
+  const syncPropiedadDoc = useCallback(async (fileUrl: string) => {
+    if (!vehicle?.id) return
+    try {
+      const docs = await apiGet(`/documents/vehicle/${vehicle.id}`)
+      const existing = (docs || []).find((d: any) => d.type === 'propiedad')
+      if (existing) {
+        if (!existing.file_url) await apiPut(`/documents/${existing.id}`, { file_url: fileUrl })
+      } else {
+        await apiPost('/documents', {
+          vehicle_id: vehicle.id,
+          name: 'Tarjeta de propiedad',
+          type: 'propiedad',
+          file_url: fileUrl,
+          notes: 'status=vigente;type=propiedad',
+        })
+      }
+      setRefreshKey(k => k + 1)
+    } catch (e) { console.warn('No se pudo registrar la tarjeta en Documentos', e) }
+  }, [vehicle?.id])
+
+  /* Bienvenida sólo la primera vez que el usuario entra a su tablero. Se marca
+     por id de usuario para que no reaparezca al recargar ni tras cerrar sesión. */
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `carlink_welcomed_${user.id}`
+    if (localStorage.getItem(key)) return
+    localStorage.setItem(key, '1')
+    setShowWelcome(true)
+  }, [user?.id])
+
+  /* Botones del topbar: una sola definición para que midan y se comporten igual.
+     El acento se pasa aparte porque "Llaveros encontrados" es rojo por semántica. */
+  const topBtn = (accent = '#F5C518'): React.CSSProperties => ({
+    position: 'relative', width: 42, height: 42, borderRadius: 11,
+    border: `1px solid ${accent}59`, background: glassBg, backdropFilter: 'blur(12px)',
+    color: accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', transition: 'all .16s', flex: '0 0 auto',
+  })
+  const topBtnHover = (e: React.MouseEvent<HTMLButtonElement>, accent = '#F5C518') => {
+    e.currentTarget.style.background = accent
+    e.currentTarget.style.color = '#111'
+  }
+  const topBtnLeave = (e: React.MouseEvent<HTMLButtonElement>, accent = '#F5C518') => {
+    e.currentTarget.style.background = glassBg
+    e.currentTarget.style.color = accent
+  }
 
   const flashApp = useCallback((msg: string) => {
     setAppToast(msg)
@@ -295,31 +356,31 @@ export default function AppPage() {
       />
 
       <div className="sidebar-wrap" style={{
-        marginLeft: 266, flex: 1, padding: '44px clamp(24px,4vw,56px) 72px',
+        marginLeft: 'var(--rail-w, 266px)', transition: 'margin-left .22s cubic-bezier(0.22,1,0.36,1)', flex: 1, padding: '44px clamp(24px,4vw,56px) 72px',
         position: 'relative', zIndex: 2, minHeight: '100vh', color: rootTextColor,
         background: 'radial-gradient(ellipse at 0 -40%, rgba(245,197,24,0.04) 0%, transparent 55%)',
       }}>
         {/* Top-right action buttons */}
-        <div className="topbar-actions" style={{ position: 'absolute', top: 20, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button onClick={toggleTheme} title="Cambiar apariencia"
-            className="btn-wide"
-            style={{ width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: theme === 'light' ? 'rgba(255,255,255,0.85)' : 'rgba(20,20,20,0.82)', backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
+        <div className="topbar-actions" style={{ position: 'absolute', top: 14, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={toggleTheme} title="Cambiar apariencia" className="topbar-theme"
+            style={topBtn()}
+            onMouseEnter={topBtnHover}
+            onMouseLeave={topBtnLeave}>
             {theme === 'light'
               ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.4 4.4l1.7 1.7M17.9 17.9l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.4 19.6l1.7-1.7M17.9 6.1l1.7-1.7"/></svg>
               : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.9A9 9 0 1 1 9.1 3.3a7.2 7.2 0 0 0 11.6 11.6z"/></svg>}
           </button>
 
           <button onClick={() => setShowQuickRegister(true)} title="Escanear documento"
-            style={{ width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: glassBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+            style={topBtn()}
+            onMouseEnter={topBtnHover}
+            onMouseLeave={topBtnLeave}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
           </button>
 
           <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC"
-            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: showNfc ? '1px solid #F5C518' : '1px solid rgba(245,197,24,0.35)', background: showNfc ? 'rgba(245,197,24,0.2)' : glassBg, backdropFilter: 'blur(12px)', color: showNfc ? (theme === 'light' ? '#17171a' : '#fff') : '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+            /* Único con estado activo: es un interruptor, no una acción. */
+            style={{ ...topBtn(), ...(showNfc ? { border: '1px solid #F5C518', background: 'rgba(245,197,24,0.2)', color: theme === 'light' ? '#17171a' : '#fff' } : null) }}
             onMouseEnter={e => { if (!showNfc) { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' } }}
             onMouseLeave={e => { if (!showNfc) { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' } }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6M8.5 12a3.5 3.5 0 0 1 3.5-3.5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
@@ -330,51 +391,53 @@ export default function AppPage() {
 
           {foundRequests.filter(r => r.status === 'pending').length > 0 && (
             <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados"
-              style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(255,107,107,0.4)', background: glassBg, backdropFilter: 'blur(12px)', color: '#ff6b6b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,107,107,0.15)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = glassBg }}>
+              style={topBtn('#ff6b6b')}
+              onMouseEnter={e => topBtnHover(e, '#ff6b6b')}
+              onMouseLeave={e => topBtnLeave(e, '#ff6b6b')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               <span style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, borderRadius: '50%', background: '#ff6b6b', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${tDark ? '#141414' : '#f0efe8'}` }}>{foundRequests.filter(r => r.status === 'pending').length}</span>
             </button>
           )}
 
+          {isBusiness && (
           <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS"
-            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: glassBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+            style={topBtn()}
+            onMouseEnter={topBtnHover}
+            onMouseLeave={topBtnLeave}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
             {pqrsNew > 0 && (
               <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 4px', borderRadius: 9, background: '#F5C518', color: '#111', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${tDark ? '#141414' : '#f0efe8'}` }}>{pqrsNew}</span>
             )}
           </button>
+          )}
 
           <button onClick={() => setShowNotifications(true)} title="Notificaciones"
-            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.35)', background: glassBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+            style={topBtn()}
+            onMouseEnter={topBtnHover}
+            onMouseLeave={topBtnLeave}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {urgentCount > 0 && (
               <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, padding: '0 4px', borderRadius: 9, background: '#ff4d6a', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${theme === 'light' ? '#f0efe8' : '#141414'}` }}>{urgentCount}</span>
             )}
           </button>
 
-          <button onClick={() => setShowCart(true)} title="Solicitar llavero NFC"
-            style={{ position: 'relative', width: 46, height: 46, borderRadius: 13, border: '1px solid rgba(245,197,24,0.4)', background: profileBtnBg, backdropFilter: 'blur(12px)', color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .16s' }}
+          <button onClick={() => setShowCart(true)} title="Solicitar llavero NFC" className="topbar-cart"
+            style={topBtn()}
             onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
             onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
           </button>
 
-          <button onClick={() => setShowProfile(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 14px 6px 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
-            <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{initial}</span>
+          <button onClick={() => setShowProfile(true)} className="topbar-profile"
+            style={{ display: 'flex', alignItems: 'center', gap: 9, height: 42, padding: '0 14px 0 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
+            <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>{initial}</span>
             <span className="action-btn-text" style={{ fontSize: 13, fontWeight: 600 }}>{ownerName}</span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -383,10 +446,45 @@ export default function AppPage() {
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? <TallerTab vehicleId={vehicle?.id} /> :
            activeTab === 'config' ? <WorkshopConfigTab theme={theme} /> :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
         </div>
 
-        {/* App-level toast */}
+        {/* Bienvenida */}
+      {showWelcome && (
+        <div onClick={() => setShowWelcome(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
+            width: 480, maxWidth: '94vw', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+            borderRadius: 20, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,.55)', textAlign: 'center',
+          }}>
+            <span style={{
+              width: 58, height: 58, borderRadius: 16, margin: '0 auto 14px',
+              background: 'rgba(245,197,24,0.12)', border: '1px solid rgba(245,197,24,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
+            }}>
+              <CarLinkMark size={30} />
+            </span>
+            <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>
+              Bienvenido{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, margin: '12px 0 6px' }}>
+              Este es el tablero de tu vehículo. A medida que registres servicios, los indicadores se irán activando
+              y podrás anticipar cuándo atender cada pieza.
+            </p>
+            <p style={{ fontSize: 13.5, color: 'var(--text-3)', lineHeight: 1.6, margin: '0 0 22px' }}>
+              Siempre estaremos atentos a lo que necesites — no dudes en escribirnos.
+            </p>
+            <button onClick={() => setShowWelcome(false)} style={{
+              width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111',
+              fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)',
+            }}>Empezar</button>
+          </div>
+        </div>
+      )}
+
+      {/* App-level toast */}
         {appToast && (
           <div style={{ position: 'fixed', left: '50%', bottom: 34, zIndex: 60, transform: 'translateX(-50%)', animation: 'toastIn .4s both', display: 'flex', gap: 11, alignItems: 'center', padding: '14px 24px', borderRadius: 999, background: 'rgba(16,16,16,0.94)', backdropFilter: 'blur(14px)', border: '1px solid rgba(245,197,24,0.5)', color: '#fff8e6', fontWeight: 600, fontSize: 14 }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
@@ -420,13 +518,31 @@ export default function AppPage() {
       {/* Profile right panel */}
       {showProfile && (
         <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 72, background: 'transparent', display: 'flex', justifyContent: 'flex-end' }}>
-          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 420, maxWidth: 'calc(100vw - 32px)', height: 'calc(100vh - 32px)', margin: 16, overflowY: 'auto', background: 'var(--panel-bg)', borderRadius: 20, boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 266, maxWidth: '100vw', height: '100vh', margin: 0, overflowY: 'auto', background: 'var(--panel-bg)', borderLeft: '1px solid var(--panel-border)', boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, padding: '20px 24px 0', borderBottom: '1px solid var(--panel-border)', paddingBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>{initial}</span>
                 <div>
-                  <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, textTransform: 'uppercase', lineHeight: 1 }}>Mi perfil</div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Mi perfil</div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{profile?.email}</div>
+                  {(() => {
+                    const v = {
+                      verified:   { bg: 'rgba(46,204,113,0.12)', bd: 'rgba(46,204,113,0.5)', fg: '#2ecc71', label: 'Verificado' },
+                      pending:    { bg: 'rgba(255,176,32,0.12)', bd: 'rgba(255,176,32,0.5)', fg: '#ffb020', label: 'En revisión' },
+                      rejected:   { bg: 'rgba(255,77,106,0.12)', bd: 'rgba(255,77,106,0.5)', fg: '#ff4d6a', label: 'Rechazado' },
+                      unverified: { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' },
+                    }[verifyStatus] || { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' }
+                    return (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, padding: '3px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', background: v.bg, border: `1px solid ${v.bd}`, color: v.fg }}>
+                        {verifyStatus === 'verified'
+                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                          : verifyStatus === 'pending'
+                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                          : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>}
+                        {v.label}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
               <button onClick={() => setShowProfile(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -439,6 +555,49 @@ export default function AppPage() {
                 <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre completo</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
               </div>
+              {/* Verificación de identidad — habilita vender y transferir */}
+              <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
+                  {isVerified ? 'Perfil verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Perfil sin verificar'}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 }}>
+                  {isVerified
+                    ? 'Puedes publicar tu vehículo en venta y transferirlo.'
+                    : verifyStatus === 'pending'
+                    ? 'Recibimos tu tarjeta de propiedad. Te avisaremos cuando CarLink la revise.'
+                    : verifyStatus === 'rejected'
+                    ? `No pudimos validar el documento${profile?.verification_note ? `: ${profile.verification_note}` : ''}. Puedes subir otro.`
+                    : 'Sube tu tarjeta de propiedad para poder vender o transferir el vehículo. El resto de la app funciona sin esto.'}
+                </div>
+                {!isVerified && (
+                  <label style={{
+                    marginTop: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '10px 16px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111',
+                    fontWeight: 800, fontSize: 12.5, cursor: verifying ? 'default' : 'pointer', opacity: verifying ? 0.6 : 1,
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
+                    {verifying ? 'Subiendo…' : verifyStatus === 'pending' ? 'Reemplazar documento' : 'Subir tarjeta de propiedad'}
+                    <input type="file" accept="image/*,application/pdf" disabled={verifying} style={{ display: 'none' }}
+                      onChange={async e => {
+                        const f = e.target.files?.[0]
+                        e.target.value = ''
+                        if (!f) return
+                        setVerifying(true)
+                        try {
+                          const url = await uploadFile(f, 'verification')
+                          if (!url) { flashApp('No se pudo subir el documento'); return }
+                          const ok = await apiPost('/auth/me/verification', { verification_doc_url: url })
+                          if (ok) {
+                            await syncPropiedadDoc(url)
+                            await refreshProfile()
+                            flashApp('Documento enviado — queda en revisión')
+                          } else flashApp('No se pudo enviar a revisión')
+                        } finally { setVerifying(false) }
+                      }} />
+                  </label>
+                )}
+              </div>
+
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Datos del vehículo</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -467,9 +626,11 @@ export default function AppPage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>Publicar mi perfil</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Ofrecer este vehículo en venta</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{isVerified ? 'Ofrecer este vehículo en venta' : 'Requiere perfil verificado'}</div>
                   </div>
-                  <button onClick={() => setSellEnabled(v => !v)} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: sellEnabled ? '#F5C518' : 'rgba(255,255,255,0.12)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                  <button onClick={() => isVerified ? setSellEnabled(v => !v) : flashApp('Verifica tu perfil para publicar el vehículo en venta')}
+                    title={isVerified ? undefined : 'Requiere perfil verificado'}
+                    style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: sellEnabled ? '#F5C518' : 'rgba(255,255,255,0.12)', cursor: isVerified ? 'pointer' : 'not-allowed', opacity: isVerified ? 1 : 0.5, position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
                     <span style={{ position: 'absolute', top: 3, left: sellEnabled ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: sellEnabled ? '#111' : '#666', transition: 'left .2s' }} />
                   </button>
                 </div>
@@ -506,25 +667,6 @@ export default function AppPage() {
                   </div>
                 )}
               </div>
-
-              <button
-                onClick={() => setShowTransferModal(true)}
-                style={{
-                  marginTop: 18, width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '12px 0', borderRadius: 12,
-                  border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.1)', color: '#F5C518',
-                  fontWeight: 800, fontSize: 13, cursor: 'pointer',
-                  transition: 'all .18s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.2)'; e.currentTarget.style.borderColor = '#F5C518' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  <path d="M9 12l2 2 4-4"/>
-                </svg>
-                Transferir vehículo
-              </button>
 
               <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: whatsappEnabled ? 'rgba(74,222,128,0.08)' : 'var(--surface-2)', border: `1px solid ${whatsappEnabled ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -564,14 +706,14 @@ export default function AppPage() {
       {/* NFC llavero panel */}
       {showNfc && (
         <div onClick={() => { setShowNfc(false); setGeneratedUrl(''); setGenCopied(false) }} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} className="nfc-panel" style={{ width: 520, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+          <div onClick={e => e.stopPropagation()} className="nfc-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: 12, background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v5.6M12 15.2v5.6M3.2 12h5.6M15.2 12h5.6"/></svg>
                 </span>
                 <div>
-                  <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 20, textTransform: 'uppercase', lineHeight: 1.1 }}>Llavero NFC</div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Llavero NFC</div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Ficha pública de tu vehículo</div>
                 </div>
               </div>
@@ -693,20 +835,20 @@ export default function AppPage() {
       {/* Cart — Solicitar llavero NFC */}
       {showCart && (
         <div onClick={() => setShowCart(false)} style={{ position: 'fixed', inset: 0, zIndex: 74, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 460, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, textTransform: 'uppercase' }}>Solicitar llavero NFC</div>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Solicitar llavero NFC</div>
               <button onClick={() => setShowCart(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 14, borderRadius: 16, background: tDark ? 'linear-gradient(135deg,rgba(245,197,24,0.14),rgba(20,20,20,0.6))' : 'linear-gradient(135deg,rgba(245,197,24,0.12),rgba(247,246,242,0.9))', border: '1px solid rgba(245,197,24,0.28)', margin: '10px 0 16px' }}>
-              <span style={{ width: 60, height: 60, flex: '0 0 auto', borderRadius: 14, background: 'radial-gradient(circle at 40% 35%,#3a3a3a,#141414)', border: '2px solid #F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518', boxShadow: '0 0 22px rgba(245,197,24,0.35)' }}>
+              <span style={{ width: 60, height: 60, flex: '0 0 auto', borderRadius: 14, background: tDark ? 'radial-gradient(circle at 40% 35%,#3a3a3a,#141414)' : 'radial-gradient(circle at 40% 35%,#fffdf4,#f0ead6)', border: '2px solid #F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518', boxShadow: '0 0 22px rgba(245,197,24,0.35)' }}>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6M8.5 12a3.5 3.5 0 0 1 3.5-3.5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
               </span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: tDark ? '#fff' : '#17171a' }}>Llavero NFC CarLink</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>Llavero NFC CarLink</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Aro metálico + chip programado con tu ficha. Envío a domicilio 3–5 días.</div>
               </div>
             </div>
@@ -746,7 +888,7 @@ export default function AppPage() {
       {/* Found Requests Panel */}
       {showFoundPanel && (
         <div onClick={() => setShowFoundPanel(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 22, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div>
                 <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, textTransform: 'uppercase', color: '#ff6b6b' }}>Llaveros encontrados</div>
@@ -809,17 +951,17 @@ export default function AppPage() {
         </div>
       )}
 
-      <PqrsInbox isOpen={showPqrs} onClose={() => setShowPqrs(false)} theme={theme} />
+      {isBusiness && <PqrsInbox isOpen={showPqrs} onClose={() => setShowPqrs(false)} theme={theme} />}
 
       {/* NOTIFICATIONS PANEL */}
       {showNotifications && (
         <div onClick={() => setShowNotifications(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.82)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 70 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 360, maxWidth: '92vw', maxHeight: '80vh', background: theme === 'dark' ? '#111318' : '#fff', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '80vh', background: theme === 'dark' ? '#111318' : '#fff', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 20, overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                <span style={{ fontSize: 15, fontWeight: 700, color: theme === 'dark' ? '#f5f3ec' : '#17171a' }}>Notificaciones</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Notificaciones</span>
               </div>
               <button onClick={() => setShowNotifications(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#8f8a7a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -831,7 +973,6 @@ export default function AppPage() {
               {oilKmRemaining != null && oilKmRemaining <= 0 && (
                 <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff4d6a', boxShadow: '0 0 8px #ff4d6a' }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#ff4d6a' }}>Alarma · Aceite vencido</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>El cambio de aceite superó el kilometraje recomendado. Se recomienda reemplazarlo urgentemente.</div>
@@ -842,7 +983,6 @@ export default function AppPage() {
               {oilKmRemaining != null && oilKmRemaining > 0 && oilKmRemaining < 1000 && (
                 <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(255,176,32,0.08)', border: '1px solid rgba(255,176,32,0.25)', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ffb020', boxShadow: '0 0 8px #ffb020' }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#ffb020' }}>Advertencia · Aceite próximo a vencer</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Faltan menos de 1,000 km para el próximo cambio de aceite. Agenda tu cita pronto.</div>
@@ -853,7 +993,6 @@ export default function AppPage() {
               {maintenanceRecords.length >= notifsStampsRequired && (
                 <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2ecc71', boxShadow: '0 0 8px #2ecc71' }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#2ecc71' }}>Bono · ¡Acumulaste puntos!</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Llegaste a {maintenanceRecords.length} servicios. ¡{notifsPromoDesc || 'Nivel Oro'} desbloqueado! Consulta tu recompensa en el taller.</div>

@@ -281,7 +281,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                       {/* Support form */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <div>
-                          <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Enviar ticket de soporte</h3>
+                          <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: 0 }}>Enviar ticket de soporte</h3>
                           <p style={{ fontSize: 12.5, color: textMuted, margin: '4px 0 0' }}>Nuestro equipo responde al correo asociado en menos de 2 horas.</p>
                         </div>
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -342,7 +342,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
 
             {/* Footer */}
             <div style={{ padding: '14px 24px', borderTop: `1px solid ${subtle}`, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: textMuted, fontFamily: 'monospace' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: textMuted, fontFamily: 'var(--font-ui)', letterSpacing: '.04em' }}>
                 <span style={{ padding: '2px 7px', borderRadius: 6, background: cardBg, border: `1px solid ${subtle}`, color: GREEN }}>v1.0</span>
                 <span>ID: {plateText}-AES-256</span>
               </div>

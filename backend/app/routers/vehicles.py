@@ -119,9 +119,9 @@ async def update_vehicle(
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
+    # plate/city/type ya no existen en VehicleUpdate: Pydantic los descarta aunque
+    # el cliente los mande, así que el congelado es efectivo aquí.
     update_data = body.model_dump(exclude_unset=True)
-    if "plate" in update_data:
-        update_data["plate"] = update_data["plate"].upper()
     for key, val in update_data.items():
         setattr(vehicle, key, val)
 

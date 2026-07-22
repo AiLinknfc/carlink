@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
+import { PART_CATEGORIES } from '@/lib/part-categories'
 
 interface Props {
   vehicleId: string
@@ -13,6 +14,7 @@ interface Props {
 
 export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }: Props) {
   const [name, setName] = useState('')
+  const [category, setCategory] = useState<string>(PART_CATEGORIES[0])
   const [brand, setBrand] = useState('')
   const [partNumber, setPartNumber] = useState('')
   const [status, setStatus] = useState('ok')
@@ -26,6 +28,7 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
   useEffect(() => {
     if (editPart) {
       setName(editPart.name || '')
+      setCategory(editPart.category || PART_CATEGORIES[0])
       setBrand(editPart.brand || '')
       setPartNumber(editPart.part_number || '')
       setStatus(editPart.status || 'ok')
@@ -50,6 +53,7 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
     const body = {
       vehicle_id: vehicleId,
       name: name.trim(),
+      category,
       brand: brand.trim(),
       part_number: partNumber.trim(),
       status,
@@ -86,15 +90,21 @@ export default function PartFormModal({ vehicleId, editPart, onClose, onSaved }:
 
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: 20 }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: 'min(480px, 94vw)', maxHeight: '90vh', overflowY: 'auto', background: '#141414', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 14, padding: 'clamp(16px, 3.5vw, 28px)', boxShadow: '0 30px 80px rgba(0,0,0,.7)' }}>
+      <div ref={ref} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--panel-bg)', color: 'var(--text-1)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0, fontFamily: "'Anton',sans-serif", fontSize: 'clamp(20px,5vw,24px)', letterSpacing: '.01em' }}>{editPart ? 'Editar parte' : 'Nueva parte'}</h2>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800 }}>{editPart ? 'Editar parte' : 'Nueva parte'}</h2>
             <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: '#7c786e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 5 }}>Nombre de la parte *</label>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Pastillas de freno" style={{ width: '100%', padding: '11px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 5 }}>Categoría *</label>
+              <select value={category} onChange={e => setCategory(e.target.value)} style={{ width: '100%', padding: '11px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                {PART_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>

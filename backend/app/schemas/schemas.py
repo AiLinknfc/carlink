@@ -29,12 +29,12 @@ class VehicleCreate(BaseModel):
 
 
 class VehicleUpdate(BaseModel):
-    plate: str | None = None
-    city: str | None = None
+    # plate, city y type quedan fuera a propósito: la placa está ligada al
+    # llavero y sólo se renueva con una compra. Bloquearlos sólo en la UI no
+    # sirve — el endpoint los aceptaba y cualquiera podía cambiarlos.
     brand: str | None = None
     model: str | None = None
     year: int | None = None
-    type: str | None = None
     color: str | None = None
     image_url: str | None = None
     nfc_active: bool | None = None
@@ -46,15 +46,8 @@ class VehicleUpdate(BaseModel):
     sell_description: str | None = None
     vehicle_condition: str | None = None
 
-    @field_validator('plate')
-    @classmethod
-    def validate_plate(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        v = v.upper().strip()
-        if not re.match(r'^[A-Z]{3}-\d{3}$', v):
-            raise ValueError('Placa debe tener formato ABC-123 (3 letras, guión, 3 números)')
-        return v
+    # El validador de placa vivía aquí; se fue con el campo. La validación de
+    # formato sigue en VehicleCreate, que es donde la placa se fija.
 
 
 class VehicleOut(BaseModel):
@@ -119,6 +112,7 @@ class MaintenanceOut(BaseModel):
 class PartCreate(BaseModel):
     vehicle_id: UUID
     name: str
+    category: str = "Otros"
     brand: str = ""
     part_number: str = ""
     status: str = "ok"
@@ -127,10 +121,25 @@ class PartCreate(BaseModel):
     notes: str = ""
 
 
+class PartUpdate(BaseModel):
+    """Actualización parcial. Antes el PUT reutilizaba PartCreate, que exige
+    vehicle_id y name, así que toda actualización enviada por el formulario de
+    servicios era rechazada con 422 — y el front la descartaba en silencio."""
+    name: str | None = None
+    category: str | None = None
+    brand: str | None = None
+    part_number: str | None = None
+    status: str | None = None
+    mileage_installed: int | None = None
+    lifespan_mileage: int | None = None
+    notes: str | None = None
+
+
 class PartOut(BaseModel):
     id: UUID
     vehicle_id: UUID
     name: str
+    category: str
     brand: str
     part_number: str
     status: str
@@ -138,6 +147,9 @@ class PartOut(BaseModel):
     lifespan_mileage: int | None
     notes: str
     created_at: datetime
+    # Fecha del último reemplazo: la batería envejece por tiempo, no sólo por km.
+    # El tipo del frontend ya lo declaraba, pero el backend nunca lo enviaba.
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -208,6 +220,20 @@ class DocumentOut(BaseModel):
 
 
 # =========== OCR ===========
+class VehicleCardResult(BaseModel):
+    """Datos leídos de una tarjeta de propiedad. Sólo prellenan el registro:
+    el usuario confirma y la verificación real la hace una persona."""
+    plate: str | None = None
+    city: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    color: str | None = None
+    owner_name: str | None = None
+    document_number: str | None = None
+    raw_text: str
+
+
 class OcrExtractResult(BaseModel):
     title: str | None = None
     vendor: str | None = None
@@ -267,6 +293,11 @@ class ProfileOut(BaseModel):
     full_name: str | None
     avatar_url: str | None
     account_type: str = "persona"
+    document_number: str = ""
+    verification_status: str = "unverified"
+    verification_doc_url: str = ""
+    verification_note: str = ""
+    verified_at: datetime | None = None
     whatsapp_enabled: bool = False
     whatsapp_number: str = ""
     created_at: datetime
@@ -277,8 +308,15 @@ class ProfileOut(BaseModel):
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
     account_type: str | None = None
+    document_number: str | None = None
     whatsapp_enabled: bool | None = None
     whatsapp_number: str | None = None
+    # verification_status queda fuera a propósito: el usuario no puede
+    # auto-verificarse. Sólo /auth/me/verification lo mueve a "pending".
+
+
+class VerificationRequest(BaseModel):
+    verification_doc_url: str
 
 
 # =========== Workshops ===========

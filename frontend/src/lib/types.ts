@@ -45,6 +45,7 @@ export interface Part {
   id: string;
   vehicle_id: string;
   name: string;
+  category: string;
   brand: string;
   part_number: string;
   status: string;
@@ -107,12 +108,19 @@ export interface Diagnostic {
   created_at: string;
 }
 
+export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
+
 export interface Profile {
   id: string;
   email: string | null;
   full_name: string | null;
   avatar_url: string | null;
   account_type: string;
+  document_number: string;
+  verification_status: VerificationStatus;
+  verification_doc_url: string;
+  verification_note: string;
+  verified_at: string | null;
   whatsapp_enabled: boolean;
   whatsapp_number: string;
   created_at: string;
@@ -221,6 +229,7 @@ export type MaintenanceUpdate = Partial<MaintenanceCreate>;
 export type PartCreate = {
   vehicle_id: string;
   name: string;
+  category?: string;
   brand?: string;
   part_number?: string;
   status?: string;

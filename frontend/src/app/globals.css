@@ -185,7 +185,7 @@ select option { background: #141414; color: #f5f3ec; }
 
 @media (max-width: 960px) {
   .fichagrid { grid-template-columns: 1fr !important; }
-  .sidebar-wrap { margin-left: 76px !important; }
+  /* El margen lo dicta --rail-w, que el Sidebar actualiza según su ancho real. */
   .sidebar-wrap .topbar-actions { gap: 6px !important; }
 }
 
@@ -197,21 +197,47 @@ select option { background: #141414; color: #f5f3ec; }
   .fichagrid { grid-template-columns: 1fr !important; }
   .grid2 { grid-template-columns: 1fr !important; }
   .footergrid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
-  .tablero-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .tablero-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .service-chips-grid { grid-template-columns: 1fr 1fr !important; }
   .topbar-actions { gap: 6px !important; }
 }
 
-@media (max-width: 640px) {
-  .sidebar-wrap { margin-left: 0 !important; }
-  .sidebar-wrap .topbar-actions { flex-wrap: wrap !important; gap: 4px !important; }
+@media (max-width: 900px) {
+  /* El topbar es absolute y al envolverse crece hacia abajo: se le reserva
+     altura para que no se solape con el título de la sección. */
+  .sidebar-wrap { padding-top: 84px !important; }
+  /* Se acota por la izquierda para que las filas envueltas nunca lleguen debajo
+     del botón hamburguesa, que flota fijo en la esquina (left 14 + 42 de ancho). */
+  .topbar-actions { left: 66px !important; flex-wrap: wrap !important; gap: 6px !important; justify-content: flex-end !important; }
+  .sidebar-wrap .topbar-actions { flex-wrap: wrap !important; gap: 6px !important; justify-content: flex-end !important; }
+  /* El perfil encabeza el grupo para quedar siempre en la fila de arriba. */
+  .topbar-profile { order: -1 !important; }
+  /* Prioridad al ocultar en pantallas estrechas: primero el cambio de apariencia. */
+  .topbar-theme { display: none !important; }
   .topbar-actions { flex-wrap: wrap !important; gap: 4px !important; }
   .topbar-actions .action-btn-text { display: none !important; }
-  .topbar-actions .btn-wide { width: 38px !important; height: 38px !important; padding: 0 !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
-  .profile-panel { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; border-radius: 0 !important; height: 100vh !important; max-height: 100vh !important; }
-  .nfc-panel { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; border-radius: 0 !important; max-height: 100vh !important; }
-  .modal-panel { width: 100vw !important; max-width: 100vw !important; margin: 0 !important; border-radius: 0 !important; max-height: 100vh !important; }
+  /* Todos los paneles se comportan como el cajón hamburguesa: ocupan el alto
+     disponible, con el contenido arriba (scroll interno) y esquinas suaves.
+     El de perfil queda pegado a la derecha; los demás, centrados. */
+  .profile-panel, .nfc-panel, .modal-panel {
+    height: 100dvh !important; max-height: 100dvh !important;
+    overflow-y: auto !important; border-radius: 20px !important;
+  }
+  .profile-panel {
+    width: 300px !important; max-width: 90vw !important; margin: 0 !important;
+    /* Pegado al borde derecho: sólo se redondea el lado interno. */
+    border-radius: 20px 0 0 20px !important;
+  }
+  .nfc-panel, .modal-panel {
+    width: 480px !important; max-width: calc(100vw - 24px) !important; margin: 0 auto !important;
+    /* El overlay centra con padding 20; se descuentan 40px para que el panel
+       quepa completo sin recortar el contenido superior. */
+    height: calc(100dvh - 40px) !important; max-height: calc(100dvh - 40px) !important;
+  }
+  /* Las filas de Control de partes apilan: la rejilla fija desbordaba la card. */
+  .parte-row { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .parte-row > * { min-width: 0 !important; }
   .regGrid { grid-template-columns: 1fr !important; }
   .footergrid { grid-template-columns: 1fr !important; }
   .partes-grid { grid-template-columns: 1fr !important; }
@@ -231,7 +257,6 @@ select option { background: #141414; color: #f5f3ec; }
 }
 
 @media (max-width: 380px) {
-  .topbar-actions .btn-wide { width: 34px !important; height: 34px !important; }
   .countdown-blocks > div { min-width: 38px !important; padding: 6px 8px !important; }
   .odometer-value { font-size: 24px !important; }
   .ficha-mileage { font-size: 30px !important; }
@@ -246,6 +271,46 @@ select option { background: #141414; color: #f5f3ec; }
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom) !important; }
 }
+
+/* Campo de fecha — patrón único para todos los modales.
+   El widget nativo necesita color-scheme para que el calendario emergente y los
+   spinners sigan el tema; sin él el navegador dibuja siempre la variante clara,
+   que es lo que rompía la consistencia entre modales. */
+.date-field {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-1);
+  font-size: var(--fs-xl);
+  outline: none;
+  box-sizing: border-box;
+  color-scheme: dark;
+  transition: border-color .18s, box-shadow .18s;
+}
+:root[data-theme="light"] .date-field { color-scheme: light; }
+.date-field:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+/* Icono de calendario en ámbar CarLink — se reemplaza el glifo nativo para que
+   el color no dependa del tema ni del navegador. */
+.date-field::-webkit-calendar-picker-indicator {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  opacity: .8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F5C518' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transition: opacity .18s;
+}
+.date-field::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+/* Variante compacta — modales de edición en línea, más estrechos */
+.date-field--sm { padding: 10px 12px; }
 
 /* Utility classes for typography */
 .text-display { font-family: var(--font-display); font-weight: var(--fw-black); text-transform: uppercase; }

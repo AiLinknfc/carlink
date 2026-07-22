@@ -19,7 +19,7 @@ export default function TallerTab({ vehicleId }: TallerTabProps) {
 
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
-      <h2 style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: 0, textTransform: 'uppercase' }}>Taller — Bitácora de servicio</h2>
+      <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: 0 }}>Taller — Bitácora de servicio</h2>
       {!loading && items.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14, border: '1px dashed var(--border-2)', borderRadius: 16, marginTop: 16 }}>
           Sin entradas de taller

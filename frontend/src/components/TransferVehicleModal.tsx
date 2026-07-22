@@ -304,7 +304,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 20, gap: 12,
   },
   headerIcon: { flex: '0 0 auto' },
-  title: { fontFamily: "'Anton',sans-serif", fontSize: 24, textTransform: 'uppercase', margin: 0, letterSpacing: '.01em' },
+  title: { fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: 0 },
   closeBtn: {
     width: 36, height: 36, borderRadius: 10,
     border: '1px solid var(--btn-ghost-border, rgba(255,255,255,0.14))',

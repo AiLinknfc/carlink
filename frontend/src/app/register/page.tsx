@@ -6,6 +6,7 @@ import { useAuth } from '@/store/auth'
 import { CITIES } from '@/lib/constants'
 import { supabase, apiUrl } from '@/lib/supabase'
 import { formatPlate, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
+import { scanVehicleCard } from '@/lib/upload'
 
 const BRANDS = [
   'Chevrolet', 'Renault', 'Mazda', 'Toyota', 'Nissan', 'Kia', 'Hyundai',
@@ -32,6 +33,9 @@ export default function RegisterPage() {
 /* Persona fields */
   const [brand, setBrand] = useState('')
   const [regName, setRegName] = useState('')
+  const [regDocument, setRegDocument] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [scanHint, setScanHint] = useState<string | null>(null)
   const [regPlateLetters, setRegPlateLetters] = useState('')
   const [regPlateNumbers, setRegPlateNumbers] = useState('')
   const [regCity, setRegCity] = useState('Bogotá')
@@ -114,11 +118,41 @@ export default function RegisterPage() {
 
   if (!user) return null
 
+  /* Prellenado desde la tarjeta de propiedad. Sólo rellena campos vacíos o los
+     que el OCR sí pudo leer; el usuario revisa y corrige antes de guardar. */
+  const handleScanCard = async (file: File) => {
+    setScanning(true)
+    setScanHint(null)
+    try {
+      const data = await scanVehicleCard(file)
+      if (!data) { setScanHint('No pudimos leer la tarjeta. Completa los datos a mano.'); return }
+      const filled: string[] = []
+      if (data.plate) {
+        const m = data.plate.toUpperCase().match(/([A-Z]{3})-?(\d{3})/)
+        if (m) { setRegPlateLetters(m[1]); setRegPlateNumbers(m[2]); filled.push('placa') }
+      }
+      if (data.city && CITIES.includes(data.city)) { setRegCity(data.city); filled.push('ciudad') }
+      if (data.brand) { setBrand(data.brand); filled.push('marca') }
+      if (data.model) { setRegModel(data.model); filled.push('modelo') }
+      if (data.year && data.year > 1900) { setRegYear(data.year); filled.push('año') }
+      if (data.color) {
+        const match = COLORS.find(c => c.name.toLowerCase() === data.color!.toLowerCase())
+        setRegColor(match ? match.name : data.color)
+        filled.push('color')
+      }
+      if (data.owner_name) { setRegName(data.owner_name); filled.push('propietario') }
+      if (data.document_number) { setRegDocument(data.document_number.replace(/[^0-9A-Za-z.-]/g, '')); filled.push('documento') }
+      setScanHint(filled.length
+        ? `Leímos: ${filled.join(', ')}. Revisa que esté correcto antes de continuar.`
+        : 'No pudimos leer datos claros. Completa el formulario a mano.')
+    } finally { setScanning(false) }
+  }
+
   /* ── Persona registration ── */
   const doRegisterPersona = async () => {
     setErrorMsg('')
-    const plate = `${regPlateLetters.toUpperCase()}-${regPlateNumbers}`
-    if (!plate || !brand || !regModel || !regName) {
+    const plate = formatPlate(regPlateLetters, regPlateNumbers)
+    if (!plate || !brand || !regModel || !regName || !regDocument.trim()) {
       setErrorMsg('Completa todos los campos obligatorios')
       return
     }
@@ -126,6 +160,13 @@ export default function RegisterPage() {
     const token = (await supabase.auth.getSession()).data.session?.access_token
     if (!token) { setErrorMsg('Sesión expirada'); setSaving(false); return }
     try {
+      /* El documento de identidad queda en el perfil: es el dato que luego se
+         contrasta con la tarjeta de propiedad al pedir la verificación. */
+      await fetch(apiUrl('/auth/me'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ full_name: regName, document_number: regDocument.trim() }),
+      }).catch(() => {})
       const res = await fetch(apiUrl('/vehicles'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -233,10 +274,37 @@ export default function RegisterPage() {
                 ))}
               </div>
 
+              {/* Atajo: leer la tarjeta de propiedad y prellenar. No verifica nada. */}
+              <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 13, background: 'rgba(245,197,24,0.06)', border: '1px dashed rgba(245,197,24,0.35)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#f5f3ec' }}>¿Tienes la tarjeta de propiedad a mano?</div>
+                    <div style={{ fontSize: 11.5, color: '#9a968a', marginTop: 3, lineHeight: 1.5 }}>Escanéala y llenamos el formulario por ti. Luego revisas los datos.</div>
+                  </div>
+                  <label style={{
+                    flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '10px 16px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111',
+                    fontWeight: 800, fontSize: 12.5, cursor: scanning ? 'default' : 'pointer', opacity: scanning ? 0.6 : 1,
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    {scanning ? 'Leyendo…' : 'Escanear tarjeta'}
+                    <input type="file" accept="image/*,application/pdf" disabled={scanning} style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleScanCard(f) }} />
+                  </label>
+                </div>
+                {scanHint && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(245,197,24,0.2)', fontSize: 12, color: '#d8c98a', lineHeight: 1.5 }}>{scanHint}</div>
+                )}
+              </div>
+
               <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del propietario</label>
                   <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Documento de identidad</label>
+                  <input value={regDocument} onChange={e => setRegDocument(e.target.value.replace(/[^0-9A-Za-z.-]/g, ''))} placeholder="Ej. 1020304050" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, display: 'block', marginBottom: 6 }}>Modelo / línea</label>

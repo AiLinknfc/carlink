@@ -34,3 +34,11 @@ export const DEPARTMENTS = [
 ]
 
 export const CITIES = DEPARTMENTS.flatMap(d => d.cities).sort((a, b) => a.localeCompare(b))
+
+/* Cuenta de taller/empresa. El backend sólo asigna 'persona' o 'taller'
+   (workshops.py:75); 'empresa' y 'business' viven en la UI de registro y login
+   pero nunca llegan a la base, así que se aceptan los tres para no depender de
+   por dónde se creó la cuenta. */
+export function isBusinessAccount(accountType?: string | null): boolean {
+  return accountType === 'taller' || accountType === 'empresa' || accountType === 'business'
+}

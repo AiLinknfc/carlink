@@ -180,3 +180,30 @@ export function ServiceLogo({ type, size = 48 }: { type: string; size?: number }
   }
   return logos[type] || logos.Otro
 }
+
+/* Logo del llavero NFC — cuerpo del llavero con su anilla y las ondas de lectura.
+   Reemplaza al icono de arcos tipo wifi, que no representaba el producto. */
+export function NfcKeyIcon({ size = 18, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="11" height="18" rx="5.5" />
+      <circle cx="8.5" cy="7.8" r="1.5" />
+      <path d="M17.2 9.2a4.6 4.6 0 0 1 0 5.6" />
+      <path d="M20 6.6a8.4 8.4 0 0 1 0 10.8" />
+    </svg>
+  )
+}
+
+/* Marca CarLink — la rueda del topbar del landing (8 radios, aro fino), tomada
+   como referencia única. Antes la app usaba otra versión de 4 radios. */
+export function CarLinkMark({ size = 20, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.3" />
+      <circle cx="12" cy="12" r="2.8" />
+      <path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1" />
+    </svg>
+  )
+}

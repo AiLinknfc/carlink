@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useParts } from '@/lib/hooks'
 import PartFormModal from '@/components/PartFormModal'
+import { PART_CATEGORIES } from '@/lib/part-categories'
+import { isBusinessAccount } from '@/lib/constants'
 import type { Part } from '@/lib/types'
 
 interface PartesTabProps {
@@ -10,15 +12,15 @@ interface PartesTabProps {
   accountType?: string
 }
 
-const BRANDS = ['Todas', 'Frenos', 'Motor', 'Suspensión', 'Eléctrico', 'Filtros', 'Transmisión', 'Enfriamiento']
+const CATEGORY_FILTERS = ['Todas', ...PART_CATEGORIES]
 
 export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
   const { parts, loading, reload } = useParts(vehicleId)
   const [showForm, setShowForm] = useState(false)
   const [editPart, setEditPart] = useState<Part | null>(null)
-  const [activeBrand, setActiveBrand] = useState('Todas')
+  const [activeCategory, setActiveCategory] = useState('Todas')
 
-  const isWorkshop = accountType === 'empresa'
+  const isWorkshop = isBusinessAccount(accountType)
 
   const onAdd = useCallback(() => { setEditPart(null); setShowForm(true) }, [])
   const onEdit = useCallback((p: Part) => { setEditPart(p); setShowForm(true) }, [])
@@ -29,9 +31,11 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
   const statusLabel = (s: string) => s === 'ok' ? 'Óptimo' : s === 'worn' ? 'Desgastada' : s === 'critical' ? 'Crítica' : 'Sin datos'
 
   const filteredParts = useMemo(() => {
-    if (activeBrand === 'Todas') return parts
-    return parts.filter(p => p.brand?.toLowerCase() === activeBrand.toLowerCase())
-  }, [parts, activeBrand])
+    if (activeCategory === 'Todas') return parts
+    /* Las partes creadas antes de que existiera la columna no traen categoría;
+       caen en "Otros" para que ninguna quede fuera de todas las pestañas. */
+    return parts.filter(p => (p.category || 'Otros') === activeCategory)
+  }, [parts, activeCategory])
 
   const getLifePct = (p: Part) => {
     if (!p.mileage_installed || !p.lifespan_mileage) return '0%'
@@ -49,11 +53,11 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
   return (
     <div style={{ animation: 'sectionIn .55s cubic-bezier(0.22,1,0.36,1) both', maxWidth: 960 }}>
       {/* Header */}
-      <div style={{ marginBottom: 22, animation: 'textIn .5s .04s both' }}>
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both' }}>
         <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
           Predicciones inteligentes
         </div>
-        <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,3.8vw,46px)', letterSpacing: '.01em', margin: '8px 0 8px', textTransform: 'uppercase' }}>
+        <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>
           Control de partes
         </h1>
         <p style={{ color: '#b6b2a6', margin: 0, maxWidth: '62ch', fontSize: 14 }}>
@@ -62,7 +66,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
       </div>
 
       {/* Botón agregar + Filtro de categorías */}
-      <div style={{ marginBottom: 22, animation: 'textIn .5s .08s both' }}>
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .08s both' }}>
         {isWorkshop && (
           <button onClick={onAdd}
             style={{
@@ -80,31 +84,31 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
           </button>
         )}
         {!isWorkshop && (
-          <div style={{ fontSize: 12, color: '#7c786e', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' }}>
             El control de partes es gestionado por el taller mecánico.
           </div>
         )}
 
         {/* Menú de categorías */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-          <span style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, alignSelf: 'center', marginRight: 4 }}>
+          <span style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, alignSelf: 'center', marginRight: 4 }}>
             Categoría:
           </span>
-          {BRANDS.map(brand => {
-            const isActive = activeBrand === brand
+          {CATEGORY_FILTERS.map(brand => {
+            const isActive = activeCategory === brand
             return (
               <button
                 key={brand}
-                onClick={() => setActiveBrand(brand)}
+                onClick={() => setActiveCategory(brand)}
                 style={{
                   padding: '8px 16px',
                   borderRadius: 999,
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: `1px solid ${isActive ? '#F5C518' : 'rgba(255,255,255,0.12)'}`,
+                  border: `1px solid ${isActive ? '#F5C518' : 'var(--border-2)'}`,
                   background: isActive ? 'rgba(245,197,24,0.14)' : 'transparent',
-                  color: isActive ? '#F5C518' : '#9a968a',
+                  color: isActive ? '#F5C518' : 'var(--text-3)',
                   transition: 'all .2s',
                 }}
                 onMouseEnter={e => {
@@ -115,8 +119,8 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                 }}
                 onMouseLeave={e => {
                   if (!isActive) {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
-                    e.currentTarget.style.color = '#9a968a'
+                    e.currentTarget.style.borderColor = 'var(--border-2)'
+                    e.currentTarget.style.color = 'var(--text-3)'
                   }
                 }}>
                 {brand}
@@ -128,30 +132,31 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
 
       {/* Lista de partes */}
       {!loading && filteredParts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#7c786e', fontSize: 14, border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 16 }}>
-          {activeBrand === 'Todas' ? 'Sin partes registradas' : `Sin partes en categoría "${activeBrand}"`}
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14, border: '1px dashed var(--border-2)', borderRadius: 16 }}>
+          {activeCategory === 'Todas' ? 'Sin partes registradas' : `Sin partes en categoría "${activeCategory}"`}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'textIn .5s .12s both' }}>
           {filteredParts.map((part) => (
             <div
               key={part.id}
+              className="parte-row"
               onClick={() => isWorkshop ? onEdit(part) : undefined}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '200px minmax(0,1fr) 104px',
-                gap: 18,
+                gridTemplateColumns: 'minmax(140px,200px) minmax(0,1fr) 104px',
+                gap: 16,
                 alignItems: 'center',
                 padding: '16px 20px',
                 borderRadius: 16,
-                background: '#141414',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-1)',
                 cursor: isWorkshop ? 'pointer' : 'default',
                 transition: 'border-color .18s',
               }}
               onMouseEnter={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-              onMouseLeave={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}>
+              onMouseLeave={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'var(--border)' }}>
               {/* Nombre + indicador */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <span style={{
@@ -166,7 +171,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                   <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {part.name}
                   </div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: '#7c786e' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                     {part.brand || 'Sin marca'} · {part.part_number || '—'}
                   </div>
                 </div>
@@ -174,19 +179,19 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
 
               {/* Barra de progreso */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9a968a', marginBottom: 7, gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 7, columnGap: 12, rowGap: 2 }}>
                   <span style={{ whiteSpace: 'nowrap' }}>
-                    Instalado: <b style={{ color: '#d8d4c8', fontWeight: 600 }}>
+                    Instalado: <b style={{ color: 'var(--text-1)', fontWeight: 600 }}>
                       {part.mileage_installed ? `${part.mileage_installed.toLocaleString()} km` : '—'}
                     </b>
                   </span>
                   <span style={{ whiteSpace: 'nowrap' }}>
-                    Vida útil: <b style={{ color: '#d8d4c8', fontWeight: 600 }}>
+                    Vida útil: <b style={{ color: 'var(--text-1)', fontWeight: 600 }}>
                       {part.lifespan_mileage ? `${part.lifespan_mileage.toLocaleString()} km` : '—'}
                     </b>
                   </span>
                 </div>
-                <div style={{ height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                <div style={{ height: 8, borderRadius: 6, background: 'var(--surface-2)', overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
                     width: getLifePct(part),
@@ -199,7 +204,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
               </div>
 
               {/* Estado */}
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'right', minWidth: 0 }}>
                 <span style={{
                   display: 'inline-block',
                   padding: '6px 13px',
@@ -207,7 +212,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                   fontSize: 12,
                   fontWeight: 700,
                   color: statusColor(part.status),
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'var(--surface-2)',
                   border: `1px solid ${statusColor(part.status)}`,
                 }}>
                   {statusLabel(part.status)}
