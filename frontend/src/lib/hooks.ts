@@ -406,7 +406,7 @@ export function useCountdown(deadline: number | null) {
     if (deadline == null || deadline === targetRef.current) return
     targetRef.current = deadline
     function tick() {
-      const diff = Math.max(0, deadline - Date.now())
+      const diff = Math.max(0, deadline! - Date.now())
       setCd({
         d: Math.floor(diff / 86400000),
         h: Math.floor((diff % 86400000) / 3600000),
