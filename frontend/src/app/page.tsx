@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useAuth } from '@/store/auth'
+import { useTheme } from '@/store/theme'
 import { CITIES } from '@/lib/constants'
 import LoginModal from '@/components/LoginModal'
 import PolicyModal, { PolicyTab } from '@/components/PolicyModal'
@@ -57,7 +58,8 @@ const PLATE_DEFAULTS: Record<string, { letters: string; numbers: string }> = {
 export default function LandingPage() {
   const { signIn } = useAuth()
   const [plates, setPlates] = useState<Record<string, { letters: string; numbers: string }>>(() => ({ ...PLATE_DEFAULTS }))
-  const [city, setCity] = useState('Bogotá D.C.')
+  // Debe coincidir con un valor de CITIES para que el selector y el prefill del registro funcionen.
+  const [city, setCity] = useState('Bogotá')
   const [type, setType] = useState('particular')
   const [cityOpen, setCityOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
@@ -66,7 +68,7 @@ export default function LandingPage() {
   const [pqrsOpen, setPqrsOpen] = useState(false)
   const [fobOpen, setFobOpen] = useState(false)
   const [fobProduct, setFobProduct] = useState<string | undefined>(undefined)
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const { theme, isDark: dark, toggleTheme } = useTheme()
   const cityRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -77,25 +79,6 @@ export default function LandingPage() {
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
-
-  useEffect(() => {
-    try { setTheme(window.localStorage.getItem('carlink_theme') === 'light' ? 'light' : 'dark') } catch { /* ignore */ }
-  }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    return () => { delete document.documentElement.dataset.theme }
-  }, [theme])
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => {
-      const next = prev === 'light' ? 'dark' : 'light'
-      try { window.localStorage.setItem('carlink_theme', next) } catch { /* ignore */ }
-      return next
-    })
-  }, [])
-
-  const dark = theme !== 'light'
   const tk = {
     pageBg: dark ? '#060606' : '#f7f6f2',
     vignette: dark

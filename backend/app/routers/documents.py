@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import Annotated
 from uuid import UUID
 
@@ -11,18 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import Document, Vehicle
 from app.schemas.schemas import DocumentCreate, DocumentOut, DocumentUpdate
 from app.services.storage import get_file, key_from_url
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-
-async def _verify_vehicle(vehicle_id: UUID, user_id: str, db: AsyncSession):
-    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id)))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
 
 @router.get("/vehicle/{vehicle_id}", response_model=list[DocumentOut])
@@ -31,7 +24,7 @@ async def list_documents(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _verify_vehicle(vehicle_id, user_id, db)
+    await verify_vehicle(vehicle_id, user_id, db)
     result = await db.execute(
         select(Document).where(Document.vehicle_id == vehicle_id).order_by(Document.created_at.desc())
     )
@@ -44,7 +37,7 @@ async def create_document(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _verify_vehicle(body.vehicle_id, user_id, db)
+    await verify_vehicle(body.vehicle_id, user_id, db)
     doc = Document(**body.model_dump())
     db.add(doc)
     await db.flush()
@@ -63,7 +56,7 @@ async def update_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    await _verify_vehicle(doc.vehicle_id, user_id, db)
+    await verify_vehicle(doc.vehicle_id, user_id, db)
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(doc, key, val)
     await db.flush()
@@ -81,7 +74,7 @@ async def download_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    await _verify_vehicle(doc.vehicle_id, user_id, db)
+    await verify_vehicle(doc.vehicle_id, user_id, db)
 
     key = key_from_url(doc.file_url)
     if not key:
@@ -107,5 +100,5 @@ async def delete_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
-    await _verify_vehicle(doc.vehicle_id, user_id, db)
+    await verify_vehicle(doc.vehicle_id, user_id, db)
     await db.delete(doc)

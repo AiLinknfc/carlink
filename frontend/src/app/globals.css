@@ -197,7 +197,7 @@ select option { background: #141414; color: #f5f3ec; }
   .fichagrid { grid-template-columns: 1fr !important; }
   .grid2 { grid-template-columns: 1fr !important; }
   .footergrid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
-  .tablero-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .tablero-grid { grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
   .service-chips-grid { grid-template-columns: 1fr 1fr !important; }
   .topbar-actions { gap: 6px !important; }
 }
@@ -217,23 +217,18 @@ select option { background: #141414; color: #f5f3ec; }
   .topbar-actions { flex-wrap: wrap !important; gap: 4px !important; }
   .topbar-actions .action-btn-text { display: none !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
-  /* Todos los paneles se comportan como el cajón hamburguesa: ocupan el alto
-     disponible, con el contenido arriba (scroll interno) y esquinas suaves.
-     El de perfil queda pegado a la derecha; los demás, centrados. */
-  .profile-panel, .nfc-panel, .modal-panel {
+  /* Paneles: ajustados al contenido, centrados, con scroll si superan la pantalla.
+     El perfil queda como drawer pegado a la derecha. */
+  .profile-panel {
     height: 100dvh !important; max-height: 100dvh !important;
     overflow-y: auto !important; border-radius: 20px !important;
-  }
-  .profile-panel {
     width: 300px !important; max-width: 90vw !important; margin: 0 !important;
-    /* Pegado al borde derecho: sólo se redondea el lado interno. */
     border-radius: 20px 0 0 20px !important;
   }
   .nfc-panel, .modal-panel {
     width: 480px !important; max-width: calc(100vw - 24px) !important; margin: 0 auto !important;
-    /* El overlay centra con padding 20; se descuentan 40px para que el panel
-       quepa completo sin recortar el contenido superior. */
-    height: calc(100dvh - 40px) !important; max-height: calc(100dvh - 40px) !important;
+    height: auto !important; max-height: calc(100dvh - 40px) !important;
+    overflow-y: auto !important; border-radius: 20px !important;
   }
   /* Las filas de Control de partes apilan: la rejilla fija desbordaba la card. */
   .parte-row { grid-template-columns: 1fr !important; gap: 12px !important; }
@@ -254,6 +249,16 @@ select option { background: #141414; color: #f5f3ec; }
   .flip-card-front { min-height: auto !important; padding: 18px !important; }
   .flip-card-back { min-height: auto !important; padding: 18px !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Rejilla de marcas del registro: siempre en varias columnas (a diferencia de
+   .regGrid, que colapsa a 1fr). En pantallas estrechas se aprietan las celdas
+   para que sigan cabiendo 3+ marcas por fila sin desbordar. */
+@media (max-width: 480px) {
+  .regBrandGrid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)) !important; gap: 7px !important; }
+}
+@media (max-width: 360px) {
+  .regBrandGrid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)) !important; }
 }
 
 @media (max-width: 380px) {

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import time
 import uuid
 from typing import Annotated
 from uuid import UUID
@@ -12,28 +11,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import MaintenanceRecord, NfcToken, Profile, Vehicle, Workshop
+from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, Profile, Vehicle, Workshop
 from app.schemas.schemas import NfcTokenCreate, NfcTokenInfoPublic, NfcTokenOut
+from app.services.alerts import check_and_create_alerts
+from app.services.cache import get_redis
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
-# In-memory per-IP rate limiter for the public endpoint
-# Production: replace with Redis-based rate limiting via the existing cache service
-_rate_store: dict[str, list[float]] = {}
 _RATE_WINDOW = 60
 _RATE_MAX = 30
 
 
-def _check_rate(ip: str) -> bool:
-    now = time.time()
-    cutoff = now - _RATE_WINDOW
-    if ip not in _rate_store:
-        _rate_store[ip] = []
-    _rate_store[ip] = [t for t in _rate_store[ip] if t > cutoff]
-    if len(_rate_store[ip]) >= _RATE_MAX:
-        return False
-    _rate_store[ip].append(now)
-    return True
+async def _check_rate(ip: str) -> bool:
+    r = await get_redis()
+    if r is None:
+        return True
+    key = f"rate:nfc:{ip}"
+    count = await r.incr(key)
+    if count == 1:
+        await r.expire(key, _RATE_WINDOW)
+    return count <= _RATE_MAX
 
 
 # ── Concrete /tokens routes BEFORE parameterized /{token} ──
@@ -113,7 +110,7 @@ async def access_via_nfc(
     Rate-limited to 30 req/min per IP. Never exposes owner info.
     """
     ip = request.client.host if request.client else "unknown"
-    if not _check_rate(ip):
+    if not await _check_rate(ip):
         raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
 
     if len(token) != 64:
@@ -126,6 +123,21 @@ async def access_via_nfc(
     nfc_token = result.scalar_one_or_none()
     if not nfc_token:
         raise HTTPException(status_code=404, detail="Invalid or revoked token")
+
+    if nfc_token.status != "active":
+        raise HTTPException(status_code=404, detail="Token is not active")
+
+    # Log access
+    ua = request.headers.get("user-agent", "")
+    access_log = NfcAccessLog(
+        token_id=nfc_token.id,
+        ip_address=ip,
+        user_agent=ua[:500] if ua else None,
+    )
+    db.add(access_log)
+
+    # Check for alerts
+    await check_and_create_alerts(nfc_token.id, ip, db)
 
     nfc_token.access_count = (nfc_token.access_count or 0) + 1
     nfc_token.last_accessed_at = func.now()

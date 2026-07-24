@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     port: int = 8000
     environment: str = "development"
 
+    # Admin
+    admin_user_id: str = ""
+
     model_config = {"env_file": ".env", "case_sensitive": False}
 
     @property

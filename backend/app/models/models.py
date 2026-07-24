@@ -187,6 +187,9 @@ class NfcToken(Base):
     token_prefix: Mapped[str] = mapped_column(Text)
     label: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    tag_uid: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="active")
+    token_type: Mapped[str] = mapped_column(Text, default="personal")
     last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     access_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -247,3 +250,50 @@ class FoundRequest(Base):
     owner = relationship("Profile", back_populates="found_requests_received", foreign_keys=[owner_id])
     finder = relationship("Profile", back_populates="found_requests_found", foreign_keys=[finder_id])
     vehicle = relationship("Vehicle")
+
+
+class NfcTokenLimit(Base):
+    __tablename__ = "nfc_token_limits"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_type: Mapped[str] = mapped_column(Text, unique=True)
+    max_tokens_per_vehicle: Mapped[int] = mapped_column(Integer, default=1)
+    max_daily_access: Mapped[int] = mapped_column(Integer, default=100)
+    max_unique_ips_24h: Mapped[int] = mapped_column(Integer, default=10)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NfcAccessLog(Base):
+    __tablename__ = "nfc_access_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("nfc_tokens.id", ondelete="CASCADE"))
+    ip_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str | None] = mapped_column(Text, nullable=True)
+    city: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scanned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NfcAlert(Base):
+    __tablename__ = "nfc_alerts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    token_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("nfc_tokens.id", ondelete="CASCADE"))
+    alert_type: Mapped[str] = mapped_column(Text)
+    severity: Mapped[str] = mapped_column(Text, default="warning")
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NfcTokenWhitelist(Base):
+    __tablename__ = "nfc_token_whitelist"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tag_uid: Mapped[str] = mapped_column(Text, unique=True)
+    label: Mapped[str] = mapped_column(Text, default="")
+    added_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

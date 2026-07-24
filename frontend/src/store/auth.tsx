@@ -2,21 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import type { Profile } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
-
-interface Profile {
-  id: string
-  email: string | null
-  full_name: string | null
-  avatar_url: string | null
-  account_type: string | null
-  document_number: string | null
-  verification_status: 'unverified' | 'pending' | 'verified' | 'rejected' | null
-  verification_doc_url: string | null
-  verification_note: string | null
-  whatsapp_enabled: boolean | null
-  whatsapp_number: string | null
-}
 
 interface AuthCtx {
   user: User | null

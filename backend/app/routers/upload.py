@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.dependencies import get_current_user
 from app.services.storage import delete_file, upload_file
+from app.utils import validate_upload_file
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -17,12 +18,7 @@ async def upload_file_endpoint(
     file: UploadFile,
     user_id: Annotated[str, Depends(get_current_user)],
 ):
-    if not file.content_type or not (file.content_type.startswith("image/") or file.content_type == "application/pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files and PDFs are allowed")
-
-    contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large (max 10MB)")
+    contents = await validate_upload_file(file)
 
     ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
     key = f"{user_id}/{uuid.uuid4()}.{ext}"

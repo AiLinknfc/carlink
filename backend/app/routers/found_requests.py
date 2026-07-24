@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import FoundRequest, NfcToken, Profile, Vehicle
 from app.schemas.schemas import FoundRequestCreate, FoundRequestOut
+from app.services.cache import get_redis
 from app.services.email import send_found_request_email
 
 router = APIRouter(prefix="/found-requests", tags=["found-requests"])
@@ -93,9 +94,20 @@ async def create_found_request(
 @router.post("/public", response_model=FoundRequestOut, status_code=status.HTTP_201_CREATED)
 async def create_found_request_public(
     body: FoundRequestCreate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Unauthenticated user reports finding a lost NFC key (phone-based)."""
+    ip = request.client.host if request.client else "unknown"
+    r = await get_redis()
+    if r is not None:
+        key = f"rate:found:{ip}"
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, 60)
+        if count > 10:
+            raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+
     if not body.finder_name.strip() or not body.finder_phone.strip():
         raise HTTPException(status_code=400, detail="Nombre y teléfono son requeridos")
 

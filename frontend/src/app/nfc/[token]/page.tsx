@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getWalletBackground } from '@/lib/wallet-bg'
+import { normalizePlate } from '@/lib/plate'
 
 interface NfcVehicle {
   plate: string
@@ -79,8 +80,7 @@ export default function NfcPage() {
     supabase.auth.getSession().then(({ data: { session } }) => setIsAuthed(!!session)).catch(() => {})
   }, [])
 
-  const rawPlate = data?.plate ?? ''
-  const plateText = rawPlate.length > 6 ? `${rawPlate.slice(0, 3)}-${rawPlate.slice(3)}` : rawPlate
+  const plateText = normalizePlate(data?.plate ?? '')
 
   const currentKm = data?.current_mileage
   const nextServiceKm = data?.next_service_mileage
@@ -182,9 +182,9 @@ export default function NfcPage() {
 
       {data && (
         <div style={{ width: 460, maxWidth: '100%' }}>
-          {/* Botón volver — fuera del card, alineado a la izquierda */}
+          {/* Botón volver — flotante, alineado a la izquierda al mismo nivel que CarLink */}
           {isAuthed && (
-            <a href="/app" style={{ marginBottom: 14, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: '#b6b2a6', fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', transition: 'all .2s' }}
+            <a href="/app" style={{ position: 'fixed', top: 24, left: 24, zIndex: 30, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, background: 'rgba(10,10,10,0.85)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.14)', color: '#b6b2a6', fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer', transition: 'all .2s' }}
               onMouseEnter={e => { e.currentTarget.style.color = '#F5C518'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
               onMouseLeave={e => { e.currentTarget.style.color = '#b6b2a6'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>

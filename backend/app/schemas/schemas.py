@@ -474,3 +474,117 @@ class FoundRequestOut(BaseModel):
     owner_whatsapp: str = ""
 
     model_config = {"from_attributes": True}
+
+
+# =========== NFC Admin ===========
+class NfcTokenAdminOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    vehicle_id: UUID
+    token_prefix: str
+    label: str
+    is_active: bool
+    tag_uid: str | None = None
+    status: str = "active"
+    token_type: str = "personal"
+    last_accessed_at: datetime | None = None
+    access_count: int = 0
+    created_at: datetime
+    # Joined
+    user_email: str = ""
+    user_name: str = ""
+    vehicle_plate: str = ""
+    vehicle_brand: str = ""
+
+    model_config = {"from_attributes": True}
+
+
+class NfcTokenCreate(BaseModel):
+    user_id: UUID
+    vehicle_id: UUID
+    token_hash: str
+    token_prefix: str
+    label: str = ""
+    tag_uid: str | None = None
+    token_type: str = "personal"
+
+
+class NfcTokenUpdate(BaseModel):
+    label: str | None = None
+    status: str | None = None
+    tag_uid: str | None = None
+    is_active: bool | None = None
+
+
+class NfcTokenLimitOut(BaseModel):
+    id: UUID
+    account_type: str
+    max_tokens_per_vehicle: int
+    max_daily_access: int
+    max_unique_ips_24h: int
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NfcTokenLimitUpdate(BaseModel):
+    max_tokens_per_vehicle: int | None = None
+    max_daily_access: int | None = None
+    max_unique_ips_24h: int | None = None
+
+
+class NfcAccessLogOut(BaseModel):
+    id: UUID
+    token_id: UUID
+    ip_address: str | None = None
+    user_agent: str | None = None
+    country: str | None = None
+    city: str | None = None
+    scanned_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NfcAlertOut(BaseModel):
+    id: UUID
+    token_id: UUID
+    alert_type: str
+    severity: str
+    message: str | None = None
+    resolved: bool
+    resolved_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NfcAlertResolve(BaseModel):
+    resolved: bool = True
+
+
+class NfcWhitelistOut(BaseModel):
+    id: UUID
+    tag_uid: str
+    label: str
+    added_by: UUID | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NfcWhitelistCreate(BaseModel):
+    tag_uid: str
+    label: str = ""
+
+
+class NfcWhitelistBulkCreate(BaseModel):
+    entries: list[NfcWhitelistCreate]
+
+
+class NfcStatsOut(BaseModel):
+    total_tokens: int
+    active_tokens: int
+    total_access_today: int
+    total_alerts: int
+    unresolved_alerts: int
+    whitelist_count: int

@@ -12,6 +12,7 @@ import type {
   NfcToken, NfcTokenCreate, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
+  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcStats,
 } from './types'
 
 async function request<T = unknown>(
@@ -147,4 +148,20 @@ export const profileApi = {
 
 export const authApi = {
   googleLogin: () => request<{ url: string }>('GET', '/auth/google'),
+}
+
+export const adminApi = {
+  stats: () => request<NfcStats>('GET', '/admin/nfc/stats'),
+  listTokens: (status?: string) => request<NfcTokenAdmin[]>('GET', `/admin/nfc/tokens${status ? `?status=${status}` : ''}`),
+  updateToken: (id: string, data: Partial<NfcTokenAdmin>) => request<NfcTokenAdmin>('PATCH', `/admin/nfc/tokens/${id}`, data),
+  revokeToken: (id: string) => request('DELETE', `/admin/nfc/tokens/${id}`),
+  getTokenLogs: (id: string) => request<NfcAccessLog[]>('GET', `/admin/nfc/tokens/${id}/logs`),
+  listAlerts: (resolved?: boolean) => request<NfcAlert[]>('GET', `/admin/nfc/alerts${resolved !== undefined ? `?resolved=${resolved}` : ''}`),
+  resolveAlert: (id: string, resolved: boolean) => request<NfcAlert>('PATCH', `/admin/nfc/alerts/${id}/resolve`, { resolved }),
+  listWhitelist: () => request<NfcWhitelistEntry[]>('GET', '/admin/nfc/whitelist'),
+  addToWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistEntry>('POST', '/admin/nfc/whitelist', { tag_uid, label: label || '' }),
+  bulkWhitelist: (entries: { tag_uid: string; label?: string }[]) => request<NfcWhitelistEntry[]>('POST', '/admin/nfc/whitelist/bulk', { entries }),
+  removeFromWhitelist: (id: string) => request('DELETE', `/admin/nfc/whitelist/${id}`),
+  listLimits: () => request<NfcTokenLimit[]>('GET', '/admin/nfc/limits'),
+  updateLimit: (accountType: string, data: Partial<NfcTokenLimit>) => request<NfcTokenLimit>('PATCH', `/admin/nfc/limits/${accountType}`, data),
 }

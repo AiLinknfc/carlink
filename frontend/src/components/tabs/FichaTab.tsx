@@ -7,6 +7,7 @@ import { apiGet, apiPut } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
+import { normalizePlate } from '@/lib/plate'
 import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 import type { Vehicle, MaintenanceRecord, NfcToken } from '@/lib/types'
 
@@ -430,8 +431,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const countdownBg = tDark ? 'rgba(0,0,0,0.4)' : 'rgba(17,17,17,0.05)'
   const scanLines = tDark ? 'rgba(255,255,255,0.02)' : 'rgba(17,17,17,0.015)'
   const odometerLabel = tDark ? '#6f6a5f' : '#7a756a'
-  const rawPlate = vehicle.plate || '—'
-  const plateText = rawPlate.length > 6 ? `${rawPlate.slice(0, 3)}-${rawPlate.slice(3)}` : rawPlate
+  const plateText = normalizePlate(vehicle.plate || '') || '—'
 
   return (
     <div style={{ animation: 'sectionIn .55s cubic-bezier(0.22,1,0.36,1) both', maxWidth: 1000 }}>

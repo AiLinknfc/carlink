@@ -115,14 +115,14 @@ export interface Profile {
   email: string | null;
   full_name: string | null;
   avatar_url: string | null;
-  account_type: string;
-  document_number: string;
-  verification_status: VerificationStatus;
-  verification_doc_url: string;
-  verification_note: string;
+  account_type: string | null;
+  document_number: string | null;
+  verification_status: VerificationStatus | null;
+  verification_doc_url: string | null;
+  verification_note: string | null;
   verified_at: string | null;
-  whatsapp_enabled: boolean;
-  whatsapp_number: string;
+  whatsapp_enabled: boolean | null;
+  whatsapp_number: string | null;
   created_at: string;
 }
 
@@ -289,3 +289,72 @@ export type NfcTokenCreate = {
 export type ProfileUpdate = Partial<Profile>;
 
 export type UploadOut = { url: string; key: string };
+
+
+// ── NFC Admin Types ──
+
+export interface NfcTokenAdmin {
+  id: string;
+  user_id: string;
+  vehicle_id: string;
+  token_prefix: string;
+  label: string;
+  is_active: boolean;
+  tag_uid: string | null;
+  status: string;
+  token_type: string;
+  last_accessed_at: string | null;
+  access_count: number;
+  created_at: string;
+  user_email: string;
+  user_name: string;
+  vehicle_plate: string;
+  vehicle_brand: string;
+}
+
+export interface NfcTokenLimit {
+  id: string;
+  account_type: string;
+  max_tokens_per_vehicle: number;
+  max_daily_access: number;
+  max_unique_ips_24h: number;
+  updated_at: string;
+}
+
+export interface NfcAccessLog {
+  id: string;
+  token_id: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  country: string | null;
+  city: string | null;
+  scanned_at: string;
+}
+
+export interface NfcAlert {
+  id: string;
+  token_id: string;
+  alert_type: string;
+  severity: string;
+  message: string | null;
+  resolved: boolean;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface NfcWhitelistEntry {
+  id: string;
+  tag_uid: string;
+  label: string;
+  added_by: string | null;
+  created_at: string;
+}
+
+export interface NfcStats {
+  total_tokens: number;
+  active_tokens: number;
+  total_access_today: number;
+  total_alerts: number;
+  unresolved_alerts: number;
+  whitelist_count: number;
+}

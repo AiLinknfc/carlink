@@ -13,6 +13,7 @@ from app.services.ocr import (
     structure_receipt_data,
     structure_vehicle_card_data,
 )
+from app.utils import validate_upload_file
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
 
@@ -27,12 +28,7 @@ async def scan_document(
     Runs Tesseract OCR to pull raw text, then DeepSeek to structure it. Never fails hard
     on a bad scan — callers fall back to manual entry when fields come back null.
     """
-    if not file.content_type or not (file.content_type.startswith("image/") or file.content_type == "application/pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files and PDFs are allowed")
-
-    contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large (max 10MB)")
+    contents = await validate_upload_file(file)
 
     try:
         raw_text = await run_in_threadpool(extract_text_from_file, contents, file.content_type)
@@ -54,12 +50,7 @@ async def scan_vehicle_card(
     documento auténtico de uno alterado, así que esto nunca cambia
     verification_status. Ese salto sólo lo da una revisión humana.
     """
-    if not file.content_type or not (file.content_type.startswith("image/") or file.content_type == "application/pdf"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files and PDFs are allowed")
-
-    contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large (max 10MB)")
+    contents = await validate_upload_file(file)
 
     try:
         raw_text = await run_in_threadpool(extract_text_from_file, contents, file.content_type)

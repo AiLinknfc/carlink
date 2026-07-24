@@ -1,0 +1,312 @@
+from __future__ import annotations
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.dependencies import get_current_admin
+from app.models.models import (
+    NfcAccessLog,
+    NfcAlert,
+    NfcToken,
+    NfcTokenLimit,
+    NfcTokenWhitelist,
+    Profile,
+    Vehicle,
+)
+from app.schemas.schemas import (
+    NfcAccessLogOut,
+    NfcAlertOut,
+    NfcAlertResolve,
+    NfcStatsOut,
+    NfcTokenAdminOut,
+    NfcTokenLimitOut,
+    NfcTokenLimitUpdate,
+    NfcTokenUpdate,
+    NfcWhitelistBulkCreate,
+    NfcWhitelistCreate,
+    NfcWhitelistOut,
+)
+
+router = APIRouter(prefix="/admin/nfc", tags=["admin-nfc"])
+
+
+# ── Dashboard Stats ──
+
+@router.get("/stats", response_model=NfcStatsOut)
+async def get_nfc_stats(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    total = (await db.execute(select(func.count(NfcToken.id)))).scalar() or 0
+    active = (await db.execute(
+        select(func.count(NfcToken.id)).where(NfcToken.is_active == True)
+    )).scalar() or 0
+
+    from datetime import datetime, timezone, timedelta
+    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    today_access = (await db.execute(
+        select(func.count(NfcAccessLog.id)).where(NfcAccessLog.scanned_at >= day_ago)
+    )).scalar() or 0
+
+    total_alerts = (await db.execute(select(func.count(NfcAlert.id)))).scalar() or 0
+    unresolved = (await db.execute(
+        select(func.count(NfcAlert.id)).where(NfcAlert.resolved == False)
+    )).scalar() or 0
+
+    whitelist_count = (await db.execute(select(func.count(NfcTokenWhitelist.id)))).scalar() or 0
+
+    return NfcStatsOut(
+        total_tokens=total,
+        active_tokens=active,
+        total_access_today=today_access,
+        total_alerts=total_alerts,
+        unresolved_alerts=unresolved,
+        whitelist_count=whitelist_count,
+    )
+
+
+# ── Tokens CRUD ──
+
+@router.get("/tokens", response_model=list[NfcTokenAdminOut])
+async def list_all_tokens(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = Query(None, alias="status"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    stmt = select(NfcToken)
+    if status_filter:
+        stmt = stmt.where(NfcToken.status == status_filter)
+    stmt = stmt.order_by(NfcToken.created_at.desc()).offset(offset).limit(limit)
+    result = await db.execute(stmt)
+    tokens = list(result.scalars().all())
+
+    out = []
+    for t in tokens:
+        user_result = await db.execute(select(Profile).where(Profile.id == t.user_id))
+        user = user_result.scalar_one_or_none()
+        v_result = await db.execute(select(Vehicle).where(Vehicle.id == t.vehicle_id))
+        vehicle = v_result.scalar_one_or_none()
+        out.append(NfcTokenAdminOut(
+            id=t.id, user_id=t.user_id, vehicle_id=t.vehicle_id,
+            token_prefix=t.token_prefix, label=t.label, is_active=t.is_active,
+            tag_uid=t.tag_uid, status=t.status, token_type=t.token_type,
+            last_accessed_at=t.last_accessed_at, access_count=t.access_count,
+            created_at=t.created_at,
+            user_email=user.email if user else "",
+            user_name=user.full_name if user else "",
+            vehicle_plate=vehicle.plate if vehicle else "",
+            vehicle_brand=vehicle.brand if vehicle else "",
+        ))
+    return out
+
+
+@router.patch("/tokens/{token_id}", response_model=NfcTokenAdminOut)
+async def update_token(
+    token_id: UUID,
+    body: NfcTokenUpdate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(NfcToken).where(NfcToken.id == token_id))
+    token = result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(token, field, value)
+    await db.flush()
+    await db.refresh(token)
+
+    user_result = await db.execute(select(Profile).where(Profile.id == token.user_id))
+    user = user_result.scalar_one_or_none()
+    v_result = await db.execute(select(Vehicle).where(Vehicle.id == token.vehicle_id))
+    vehicle = v_result.scalar_one_or_none()
+
+    return NfcTokenAdminOut(
+        id=token.id, user_id=token.user_id, vehicle_id=token.vehicle_id,
+        token_prefix=token.token_prefix, label=token.label, is_active=token.is_active,
+        tag_uid=token.tag_uid, status=token.status, token_type=token.token_type,
+        last_accessed_at=token.last_accessed_at, access_count=token.access_count,
+        created_at=token.created_at,
+        user_email=user.email if user else "",
+        user_name=user.full_name if user else "",
+        vehicle_plate=vehicle.plate if vehicle else "",
+        vehicle_brand=vehicle.brand if vehicle else "",
+    )
+
+
+@router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_token_admin(
+    token_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(NfcToken).where(NfcToken.id == token_id))
+    token = result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    token.is_active = False
+    token.status = "revoked"
+    await db.flush()
+
+
+# ── Access Logs ──
+
+@router.get("/tokens/{token_id}/logs", response_model=list[NfcAccessLogOut])
+async def get_token_logs(
+    token_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(50, ge=1, le=200),
+):
+    result = await db.execute(
+        select(NfcAccessLog)
+        .where(NfcAccessLog.token_id == token_id)
+        .order_by(NfcAccessLog.scanned_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+# ── Alerts ──
+
+@router.get("/alerts", response_model=list[NfcAlertOut])
+async def list_alerts(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    resolved: bool | None = None,
+    limit: int = Query(50, ge=1, le=200),
+):
+    stmt = select(NfcAlert)
+    if resolved is not None:
+        stmt = stmt.where(NfcAlert.resolved == resolved)
+    stmt = stmt.order_by(NfcAlert.created_at.desc()).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+@router.patch("/alerts/{alert_id}/resolve", response_model=NfcAlertOut)
+async def resolve_alert(
+    alert_id: UUID,
+    body: NfcAlertResolve,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from datetime import datetime, timezone
+    result = await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))
+    alert = result.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.resolved = body.resolved
+    alert.resolved_at = datetime.now(timezone.utc) if body.resolved else None
+    await db.flush()
+    await db.refresh(alert)
+    return alert
+
+
+# ── Whitelist ──
+
+@router.get("/whitelist", response_model=list[NfcWhitelistOut])
+async def list_whitelist(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(NfcTokenWhitelist).order_by(NfcTokenWhitelist.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+@router.post("/whitelist", response_model=NfcWhitelistOut, status_code=status.HTTP_201_CREATED)
+async def add_to_whitelist(
+    body: NfcWhitelistCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    existing = await db.execute(
+        select(NfcTokenWhitelist).where(NfcTokenWhitelist.tag_uid == body.tag_uid)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="UID already whitelisted")
+
+    entry = NfcTokenWhitelist(tag_uid=body.tag_uid, label=body.label)
+    db.add(entry)
+    await db.flush()
+    await db.refresh(entry)
+    return entry
+
+
+@router.post("/whitelist/bulk", response_model=list[NfcWhitelistOut], status_code=status.HTTP_201_CREATED)
+async def bulk_add_whitelist(
+    body: NfcWhitelistBulkCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    created = []
+    for item in body.entries:
+        existing = await db.execute(
+            select(NfcTokenWhitelist).where(NfcTokenWhitelist.tag_uid == item.tag_uid)
+        )
+        if existing.scalar_one_or_none():
+            continue
+        entry = NfcTokenWhitelist(tag_uid=item.tag_uid, label=item.label)
+        db.add(entry)
+        await db.flush()
+        await db.refresh(entry)
+        created.append(entry)
+    return created
+
+
+@router.delete("/whitelist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_whitelist(
+    entry_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(NfcTokenWhitelist).where(NfcTokenWhitelist.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Whitelist entry not found")
+    await db.delete(entry)
+    await db.flush()
+
+
+# ── Token Limits ──
+
+@router.get("/limits", response_model=list[NfcTokenLimitOut])
+async def list_limits(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(NfcTokenLimit).order_by(NfcTokenLimit.account_type))
+    return list(result.scalars().all())
+
+
+@router.patch("/limits/{account_type}", response_model=NfcTokenLimitOut)
+async def update_limit(
+    account_type: str,
+    body: NfcTokenLimitUpdate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
+    )
+    limit = result.scalar_one_or_none()
+    if not limit:
+        raise HTTPException(status_code=404, detail="Limit not found for this account type")
+
+    from datetime import datetime, timezone
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(limit, field, value)
+    limit.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(limit)
+    return limit

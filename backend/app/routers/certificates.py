@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import Annotated
 from uuid import UUID
 
@@ -11,18 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import Certificate, Vehicle
 from app.schemas.schemas import CertificateCreate, CertificateOut, CertificateUpdate
 from app.services.storage import get_file, key_from_url
 
 router = APIRouter(prefix="/certificates", tags=["certificates"])
-
-
-async def _verify_vehicle(vehicle_id: UUID, user_id: str, db: AsyncSession):
-    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id)))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
 
 @router.get("/vehicle/{vehicle_id}", response_model=list[CertificateOut])
@@ -31,7 +24,7 @@ async def list_certificates(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _verify_vehicle(vehicle_id, user_id, db)
+    await verify_vehicle(vehicle_id, user_id, db)
     result = await db.execute(
         select(Certificate).where(Certificate.vehicle_id == vehicle_id).order_by(Certificate.issue_date.desc())
     )
@@ -44,7 +37,7 @@ async def create_certificate(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _verify_vehicle(body.vehicle_id, user_id, db)
+    await verify_vehicle(body.vehicle_id, user_id, db)
     cert = Certificate(**body.model_dump())
     db.add(cert)
     await db.flush()
@@ -63,7 +56,7 @@ async def update_certificate(
     cert = result.scalar_one_or_none()
     if not cert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
-    await _verify_vehicle(cert.vehicle_id, user_id, db)
+    await verify_vehicle(cert.vehicle_id, user_id, db)
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(cert, key, val)
     await db.flush()
@@ -81,7 +74,7 @@ async def download_certificate(
     cert = result.scalar_one_or_none()
     if not cert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
-    await _verify_vehicle(cert.vehicle_id, user_id, db)
+    await verify_vehicle(cert.vehicle_id, user_id, db)
 
     key = key_from_url(cert.file_url)
     if not key:
@@ -107,5 +100,5 @@ async def delete_certificate(
     cert = result.scalar_one_or_none()
     if not cert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
-    await _verify_vehicle(cert.vehicle_id, user_id, db)
+    await verify_vehicle(cert.vehicle_id, user_id, db)
     await db.delete(cert)

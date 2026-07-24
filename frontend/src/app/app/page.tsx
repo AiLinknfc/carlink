@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
+import { useTheme } from '@/store/theme'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount } from '@/lib/constants'
@@ -34,6 +35,7 @@ export default function AppPage() {
   /* La bandeja PQRS es herramienta de gestión: sólo para taller/empresa. El
      conductor radica sus PQRS desde el asistente de la landing. */
   const isBusiness = isBusinessAccount(profile?.account_type)
+  const isAdmin = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
   const [activeTab, setActiveTab] = useState('ficha')
   const [vehicle, setVehicle] = useState<any>(null)
   const [vehicleLoading, setVehicleLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function AppPage() {
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
   const [appToast, setAppToast] = useState<string | null>(null)
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const { theme, toggleTheme } = useTheme()
   const [foundRequests, setFoundRequests] = useState<Array<{id: string; status: string; finder_name?: string; finder_phone?: string; message?: string; created_at: string; vehicle_plate?: string; vehicle_brand?: string; vehicle_model?: string}>>([])
   const [showFoundPanel, setShowFoundPanel] = useState(false)
   const [showPqrs, setShowPqrs] = useState(false)
@@ -92,23 +94,6 @@ export default function AppPage() {
     /* Sin bandeja PQRS no debe sumar al contador: el conductor vería un
        pendiente que no puede abrir desde ningún lado. */
     + (isBusiness ? pqrsNew : 0)
-
-  useEffect(() => {
-    try { setTheme(window.localStorage.getItem('carlink_theme') === 'light' ? 'light' : 'dark') } catch { /* ignore */ }
-  }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    return () => { delete document.documentElement.dataset.theme }
-  }, [theme])
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => {
-      const next = prev === 'light' ? 'dark' : 'light'
-      try { window.localStorage.setItem('carlink_theme', next) } catch { /* ignore */ }
-      return next
-    })
-  }, [])
 
   /* La tarjeta de propiedad que se sube para verificar es el mismo documento que
      pide la sección de Documentos: se registra allí para no pedirla dos veces. */
@@ -353,6 +338,7 @@ export default function AppPage() {
         onLogout={signOut}
         accountType={profile?.account_type || undefined}
         theme={theme}
+        isAdmin={isAdmin}
       />
 
       <div className="sidebar-wrap" style={{
@@ -427,6 +413,15 @@ export default function AppPage() {
             onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
           </button>
+
+          {isAdmin && (
+            <a href="/admin" title="Admin NFC"
+              style={{ ...topBtn(), textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
+              onMouseLeave={e => { e.currentTarget.style.background = glassBg; e.currentTarget.style.color = '#F5C518' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </a>
+          )}
 
           <button onClick={() => setShowProfile(true)} className="topbar-profile"
             style={{ display: 'flex', alignItems: 'center', gap: 9, height: 42, padding: '0 14px 0 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
@@ -763,18 +758,25 @@ export default function AppPage() {
                   {nfcTokens.map(t => (
                     <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, background: t.is_active ? 'rgba(46,204,113,0.05)' : 'rgba(255,55,55,0.05)', border: t.is_active ? '1px solid rgba(46,204,113,0.2)' : '1px solid rgba(255,55,55,0.15)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 13, color: t.is_active ? '#2ecc71' : '#ff4d6a', fontWeight: 700 }}>{t.token_prefix}…</span>
+                        <span style={{ fontFamily: "'Inter',system-ui,sans-serif", fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '.04em', color: t.is_active ? '#2ecc71' : '#ff4d6a' }}>{t.token_prefix}…</span>
                         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                           {t.is_active ? `${t.access_count} accesos` : 'Revocado'}
                           {t.last_accessed_at && ` · última vez ${new Date(t.last_accessed_at).toLocaleDateString()}`}
                         </span>
                       </div>
-                      {t.is_active && (
-                        <button onClick={() => revokeNfcToken(t.id)} title="Revocar"
-                          style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                          Revocar
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {(t as any).tag_uid && (
+                          <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace', background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4 }}>
+                            {(t as any).tag_uid.slice(0, 8)}…
+                          </span>
+                        )}
+                        {t.is_active && (
+                          <button onClick={() => revokeNfcToken(t.id)} title="Revocar"
+                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            Revocar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -788,7 +790,7 @@ export default function AppPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
                     <input readOnly value={generatedUrl} onClick={e => (e.target as HTMLInputElement).select()}
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'var(--inset-dark)', color: '#F5C518', fontSize: 11, fontFamily: "'Anton',sans-serif", outline: 'none', cursor: 'text' }} />
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'var(--inset-dark)', color: '#F5C518', fontSize: 12, fontFamily: "'Inter',system-ui,sans-serif", fontWeight: 600, letterSpacing: '.03em', outline: 'none', cursor: 'text' }} />
                     <button onClick={() => { navigator.clipboard.writeText(generatedUrl).then(() => { setGenCopied(true); setTimeout(() => setGenCopied(false), 2000) }).catch(() => {}) }}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, border: 'none', background: genCopied ? '#2ecc71' : '#F5C518', color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .2s' }}>
                       {genCopied && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}{genCopied ? 'Copiado' : 'Copiar enlace'}

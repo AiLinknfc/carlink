@@ -37,8 +37,8 @@ async def create_workshop(
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
     if not profile:
-        from app.routers.vehicles import _ensure_profile
-        await _ensure_profile(str(uid), db)
+        from app.services.auth import ensure_profile
+        await ensure_profile(str(uid), db)
         p_result = await db.execute(select(Profile).where(Profile.id == uid))
         profile = p_result.scalar_one_or_none()
 

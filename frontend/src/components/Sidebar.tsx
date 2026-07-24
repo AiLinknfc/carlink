@@ -14,6 +14,7 @@ interface Props {
   onLogout?: () => void
   accountType?: string
   theme?: 'light' | 'dark'
+  isAdmin?: boolean
 }
 
 const ALL_NAV_ITEMS = [
@@ -33,7 +34,7 @@ const TALLER_NAV_ITEMS = [
   { id: 'config', label: 'Promoción', icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -183,6 +184,24 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       )}
 
       <nav style={{ flex: 1, overflowY: 'auto', padding: expanded ? '14px 12px' : '14px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'hidden', alignItems: expanded ? 'stretch' : 'center' }}>
+        {isAdmin && (
+          <a href="/admin" style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
+            padding: expanded ? '12px 14px' : '12px 0', border: 'none', textDecoration: 'none',
+            background: 'rgba(245,197,24,0.12)', color: '#F5C518',
+            cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 700,
+            borderRadius: 11, marginBottom: 8, letterSpacing: '.02em',
+          }}>
+            <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', display: expanded ? 'inline' : 'none' }}>
+              Admin NFC
+            </span>
+          </a>
+        )}
         {navItems.map(item => {
           const isActive = activeTab === item.id
           const isHovered = hoveredTab === item.id
