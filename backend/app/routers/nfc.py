@@ -175,6 +175,79 @@ async def reactivate_nfc_token(
     return token
 
 
+@router.get("/my-preview", response_model=NfcTokenInfoPublic)
+async def my_ficha_preview(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Authenticated endpoint — lets the owner preview their public ficha without needing the raw token."""
+    uid = uuid.UUID(user_id)
+
+    v_result = await db.execute(
+        select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
+    )
+    vehicle = v_result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="No vehicles found")
+
+    m_result = await db.execute(
+        select(MaintenanceRecord)
+        .where(MaintenanceRecord.vehicle_id == vehicle.id)
+        .order_by(MaintenanceRecord.date.desc(), MaintenanceRecord.created_at.desc())
+        .limit(1)
+    )
+    latest = m_result.scalar_one_or_none()
+
+    count_result = await db.execute(
+        select(func.count()).select_from(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle.id)
+    )
+    total_services = count_result.scalar() or 0
+
+    workshop_rating = 0.0
+    if latest and latest.workshop_id:
+        w_result = await db.execute(select(Workshop).where(Workshop.id == latest.workshop_id))
+        workshop = w_result.scalar_one_or_none()
+        if workshop:
+            workshop_rating = workshop.rating or 0.0
+
+    owner_result = await db.execute(select(Profile).where(Profile.id == uid))
+    owner = owner_result.scalar_one_or_none()
+    owner_whatsapp = ""
+    owner_name = ""
+    if owner:
+        owner_name = owner.full_name or ""
+        if owner.whatsapp_enabled:
+            owner_whatsapp = owner.whatsapp_number or ""
+
+    return NfcTokenInfoPublic(
+        plate=vehicle.plate,
+        brand=vehicle.brand,
+        model=vehicle.model,
+        year=vehicle.year,
+        color=vehicle.color,
+        type=vehicle.type,
+        vehicle_id=vehicle.id,
+        current_mileage=latest.mileage if latest else None,
+        next_service_mileage=latest.next_service_mileage if latest else None,
+        lubricant_brand=latest.lubricant_brand if latest else "",
+        lubricant_type=latest.lubricant_type if latest else "",
+        total_services=total_services,
+        latest_service_date=str(latest.date) if latest and latest.date else None,
+        workshop_name=latest.workshop if latest else None,
+        workshop_rating=workshop_rating,
+        sell_enabled=vehicle.sell_enabled,
+        sell_price=vehicle.sell_price or "",
+        sell_city=vehicle.sell_city or "",
+        sell_zip=vehicle.sell_zip or "",
+        sell_phone=vehicle.sell_phone or "",
+        sell_description=vehicle.sell_description or "",
+        vehicle_condition=vehicle.vehicle_condition or "usado",
+        published_at=str(vehicle.created_at) if vehicle.created_at else None,
+        owner_whatsapp=owner_whatsapp,
+        owner_name=owner_name,
+    )
+
+
 # ── Public parameterized route (MUST be last to avoid catching /tokens) ──
 
 @router.get("/{token}", response_model=NfcTokenInfoPublic)

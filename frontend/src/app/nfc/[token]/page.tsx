@@ -57,6 +57,23 @@ export default function NfcPage() {
 
   useEffect(() => {
     if (!token) return
+    if (token === '__my__') {
+      setLoading(true)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.access_token) {
+          setError('not_found')
+          setLoading(false)
+          return
+        }
+        fetch('/api/nfc/my-preview', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+          .then(r => { if (!r.ok) throw new Error('not_found'); return r.json() })
+          .then(j => { setData(j); setLoading(false) })
+          .catch(() => { setError('not_found'); setLoading(false) })
+      })
+      return
+    }
     if (token.length !== 64) {
       setError('short_token')
       setLoading(false)

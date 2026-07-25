@@ -208,8 +208,8 @@ export default function AppPage() {
         return
       }
     }
-    flashApp('Genera un llavero NFC primero desde el panel')
-  }, [nfcTokens, flashApp])
+    window.open('/nfc/__my__', '_blank')
+  }, [nfcTokens])
 
   const generateNfcToken = async () => {
     if (!user) return
