@@ -36,7 +36,7 @@ async def _check_rate(ip: str) -> bool:
 
 # ── Concrete /tokens routes BEFORE parameterized /{token} ──
 
-@router.post("/tokens", response_model=NfcTokenOut, status_code=status.HTTP_201_CREATED)
+@router.post("/tokens", status_code=status.HTTP_201_CREATED)
 async def create_nfc_token(
     body: NfcTokenCreate,
     user_id: Annotated[str, Depends(get_current_user)],
@@ -93,6 +93,7 @@ async def create_nfc_token(
     db.add(nfc_token)
     await db.flush()
 
+    url_stored = False
     if encrypted_url:
         try:
             await db.execute(
@@ -100,11 +101,22 @@ async def create_nfc_token(
                 {"url": encrypted_url, "id": str(nfc_token.id)},
             )
             await db.flush()
+            url_stored = True
         except Exception:
             pass
 
     await db.refresh(nfc_token)
-    return nfc_token
+    return NfcTokenOut(
+        id=nfc_token.id,
+        vehicle_id=nfc_token.vehicle_id,
+        token_prefix=nfc_token.token_prefix,
+        label=nfc_token.label,
+        is_active=nfc_token.is_active,
+        has_url=url_stored,
+        last_accessed_at=nfc_token.last_accessed_at,
+        access_count=nfc_token.access_count,
+        created_at=nfc_token.created_at,
+    )
 
 
 @router.get("/tokens", response_model=list[NfcTokenOut])
@@ -197,7 +209,7 @@ async def revoke_nfc_token(
     await db.flush()
 
 
-@router.post("/tokens/{token_id}/reactivate", response_model=NfcTokenOut)
+@router.post("/tokens/{token_id}/reactivate")
 async def reactivate_nfc_token(
     token_id: UUID,
     user_id: Annotated[str, Depends(get_current_user)],
@@ -248,7 +260,17 @@ async def reactivate_nfc_token(
     token.status = "active"
     await db.flush()
     await db.refresh(token)
-    return token
+    return NfcTokenOut(
+        id=token.id,
+        vehicle_id=token.vehicle_id,
+        token_prefix=token.token_prefix,
+        label=token.label,
+        is_active=token.is_active,
+        has_url=False,
+        last_accessed_at=token.last_accessed_at,
+        access_count=token.access_count,
+        created_at=token.created_at,
+    )
 
 
 @router.get("/my-preview", response_model=NfcTokenInfoPublic)
