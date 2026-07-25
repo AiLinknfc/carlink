@@ -119,6 +119,42 @@ async def create_nfc_token(
     )
 
 
+@router.get("/limits/me")
+async def get_my_token_limit(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return the current user's token limit and usage."""
+    uid = uuid.UUID(user_id)
+
+    v_result = await db.execute(
+        select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
+    )
+    vehicle = v_result.scalar_one_or_none()
+    if not vehicle:
+        return {"max": 1, "used": 0}
+
+    p_result = await db.execute(select(Profile).where(Profile.id == uid))
+    profile = p_result.scalar_one_or_none()
+    account_type = profile.account_type if profile else "persona"
+
+    limit_result = await db.execute(
+        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
+    )
+    limit_row = limit_result.scalar_one_or_none()
+    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+
+    count_result = await db.execute(
+        select(func.count()).select_from(NfcToken).where(
+            NfcToken.vehicle_id == vehicle.id,
+            NfcToken.is_active == True,
+        )
+    )
+    active_count = count_result.scalar() or 0
+
+    return {"max": max_tokens, "used": active_count}
+
+
 @router.get("/tokens", response_model=list[NfcTokenOut])
 async def list_nfc_tokens(
     user_id: Annotated[str, Depends(get_current_user)],

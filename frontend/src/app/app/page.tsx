@@ -177,17 +177,15 @@ export default function AppPage() {
     if (!showNfc || !user) return
     setTokensLoading(true)
     setGeneratedUrl('')
-    apiGet('/nfc/tokens').then(data => {
-      if (data) {
-        setNfcTokens(data)
-        const activeCount = (data as any[]).filter((t: any) => t.is_active).length
-        const accountType = profile?.account_type || 'persona'
-        const maxMap: Record<string, number> = { persona: 1, taller: 5, admin: 99 }
-        setTokenLimit({ max: maxMap[accountType] || 1, used: activeCount })
-      }
+    Promise.all([
+      apiGet('/nfc/tokens'),
+      apiGet<{ max: number; used: number }>('/nfc/limits/me'),
+    ]).then(([tokens, limits]) => {
+      if (tokens) setNfcTokens(tokens)
+      if (limits) setTokenLimit(limits)
       setTokensLoading(false)
     })
-  }, [showNfc, user, profile])
+  }, [showNfc, user])
 
   useEffect(() => {
     if (!user) return
