@@ -63,6 +63,9 @@ export default function AppPage() {
   const [tokensLoading, setTokensLoading] = useState(false)
   const [generatedUrl, setGeneratedUrl] = useState('')
   const [genCopied, setGenCopied] = useState(false)
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
+  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
+  const [tokenLimit, setTokenLimit] = useState<{ max: number; used: number } | null>(null)
   const [showQuickRegister, setShowQuickRegister] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
@@ -173,10 +176,16 @@ export default function AppPage() {
     setTokensLoading(true)
     setGeneratedUrl('')
     apiGet('/nfc/tokens').then(data => {
-      if (data) setNfcTokens(data)
+      if (data) {
+        setNfcTokens(data)
+        const activeCount = (data as any[]).filter((t: any) => t.is_active).length
+        const accountType = profile?.account_type || 'persona'
+        const maxMap: Record<string, number> = { persona: 1, taller: 5, admin: 99 }
+        setTokenLimit({ max: maxMap[accountType] || 1, used: activeCount })
+      }
       setTokensLoading(false)
     })
-  }, [showNfc, user])
+  }, [showNfc, user, profile])
 
   useEffect(() => {
     if (!user) return
@@ -225,10 +234,32 @@ export default function AppPage() {
   }
 
   const revokeNfcToken = async (id: string) => {
-    const ok = await apiDelete(`/nfc/tokens/${id}`)
+    setRevokeTargetId(id)
+    setShowRevokeConfirm(true)
+  }
+
+  const confirmRevoke = async () => {
+    if (!revokeTargetId) return
+    const ok = await apiDelete(`/nfc/tokens/${revokeTargetId}`)
     if (ok) {
-      localStorage.removeItem(`nfc_raw_${id}`)
-      setNfcTokens(prev => prev.filter(t => t.id !== id))
+      localStorage.removeItem(`nfc_raw_${revokeTargetId}`)
+      setNfcTokens(prev => prev.map(t => t.id === revokeTargetId ? { ...t, is_active: false, status: 'revoked' } : t))
+      if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used - 1 } : prev)
+    }
+    setShowRevokeConfirm(false)
+    setRevokeTargetId(null)
+  }
+
+  const cancelRevoke = () => {
+    setShowRevokeConfirm(false)
+    setRevokeTargetId(null)
+  }
+
+  const reactivateNfcToken = async (id: string) => {
+    const data = await apiPost(`/nfc/tokens/${id}/reactivate`, {})
+    if (data) {
+      setNfcTokens(prev => prev.map(t => t.id === id ? { ...t, is_active: true, status: 'active' } : t))
+      if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used + 1 } : prev)
     }
   }
 
@@ -740,9 +771,11 @@ export default function AppPage() {
 
             <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--section-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>Tus llaveros activos</div>
-                <button onClick={generateNfcToken} disabled={nfcLoading}
-                  style={{ padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(245,197,24,0.35)', background: nfcLoading ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: nfcLoading ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: nfcLoading ? 'default' : 'pointer', transition: 'all .16s' }}>
+                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>
+                  Tus llaveros{tokenLimit ? ` (${tokenLimit.used}/${tokenLimit.max})` : ''}
+                </div>
+                <button onClick={generateNfcToken} disabled={nfcLoading || !!(tokenLimit && tokenLimit.used >= tokenLimit.max)}
+                  style={{ padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(245,197,24,0.35)', background: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? 'default' : 'pointer', transition: 'all .16s' }}>
                   {nfcLoading ? 'Generando…' : '+ Nuevo llavero'}
                 </button>
               </div>
@@ -770,10 +803,15 @@ export default function AppPage() {
                             {(t as any).tag_uid.slice(0, 8)}…
                           </span>
                         )}
-                        {t.is_active && (
+                        {t.is_active ? (
                           <button onClick={() => revokeNfcToken(t.id)} title="Revocar"
                             style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                             Revocar
+                          </button>
+                        ) : (
+                          <button onClick={() => reactivateNfcToken(t.id)} title="Reactivar"
+                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.15)', color: '#F5C518', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            Reactivar
                           </button>
                         )}
                       </div>
@@ -1020,6 +1058,32 @@ export default function AppPage() {
                   <div style={{ fontSize: 12, color: theme === 'dark' ? '#6f6a5f' : '#8f8a7a', marginTop: 4 }}>Tus alertas, bonos y recordatorios aparecerán aquí.</div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirm revoke modal */}
+      {showRevokeConfirm && (
+        <div onClick={cancelRevoke} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,55,55,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>¿Revocar llavero?</div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5, marginBottom: 18 }}>
+              El chip NFC físico dejará de funcionar. Si lo tienes programado, deberás generarlo y escribirlo de nuevo.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={cancelRevoke}
+                style={{ padding: '8px 18px', borderRadius: 10, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmRevoke}
+                style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: 'rgba(255,55,55,0.15)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Sí, revocar
+              </button>
             </div>
           </div>
         </div>

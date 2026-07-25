@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, Profile, Vehicle, Workshop
+from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcTokenLimit, Profile, Vehicle, Workshop
 from app.schemas.schemas import NfcTokenCreate, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
@@ -55,6 +55,29 @@ async def create_nfc_token(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Token already exists")
 
+    p_result = await db.execute(select(Profile).where(Profile.id == uid))
+    profile = p_result.scalar_one_or_none()
+    account_type = profile.account_type if profile else "persona"
+
+    limit_result = await db.execute(
+        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
+    )
+    limit_row = limit_result.scalar_one_or_none()
+    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+
+    count_result = await db.execute(
+        select(func.count()).select_from(NfcToken).where(
+            NfcToken.vehicle_id == vehicle.id,
+            NfcToken.is_active == True,
+        )
+    )
+    active_count = count_result.scalar() or 0
+    if active_count >= max_tokens:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Límite de {max_tokens} llavero(s) por vehículo alcanzado. Revoca uno antes de crear otro.",
+        )
+
     nfc_token = NfcToken(
         user_id=uid,
         vehicle_id=vehicle.id,
@@ -94,7 +117,62 @@ async def revoke_nfc_token(
     if not token:
         raise HTTPException(status_code=404, detail="Token not found")
     token.is_active = False
+    token.status = "revoked"
     await db.flush()
+
+
+@router.post("/tokens/{token_id}/reactivate", response_model=NfcTokenOut)
+async def reactivate_nfc_token(
+    token_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reactivate a previously revoked NFC token."""
+    result = await db.execute(
+        select(NfcToken).where(NfcToken.id == token_id, NfcToken.user_id == uuid.UUID(user_id))
+    )
+    token = result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    if token.is_active:
+        raise HTTPException(status_code=400, detail="Token is already active")
+
+    uid = uuid.UUID(user_id)
+    v_result = await db.execute(
+        select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
+    )
+    vehicle = v_result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="No vehicles found")
+
+    p_result = await db.execute(select(Profile).where(Profile.id == uid))
+    profile = p_result.scalar_one_or_none()
+    account_type = profile.account_type if profile else "persona"
+
+    limit_result = await db.execute(
+        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
+    )
+    limit_row = limit_result.scalar_one_or_none()
+    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+
+    count_result = await db.execute(
+        select(func.count()).select_from(NfcToken).where(
+            NfcToken.vehicle_id == vehicle.id,
+            NfcToken.is_active == True,
+        )
+    )
+    active_count = count_result.scalar() or 0
+    if active_count >= max_tokens:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Límite de llaveros alcanzados ({max_tokens}). Revoca uno antes de reactivar otro.",
+        )
+
+    token.is_active = True
+    token.status = "active"
+    await db.flush()
+    await db.refresh(token)
+    return token
 
 
 # ── Public parameterized route (MUST be last to avoid catching /tokens) ──
