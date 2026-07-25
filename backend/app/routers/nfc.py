@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -79,16 +79,30 @@ async def create_nfc_token(
             detail=f"Límite de {max_tokens} llavero(s) por vehículo alcanzado. Revoca uno antes de crear otro.",
         )
 
+    encrypted_url = None
+    if body.token_url:
+        encrypted_url = encrypt_url(body.token_url)
+
     nfc_token = NfcToken(
         user_id=uid,
         vehicle_id=vehicle.id,
         token_hash=body.token_hash,
         token_prefix=body.token_prefix,
         label="Llavero NFC",
-        token_url_encrypted=encrypt_url(body.token_url) if body.token_url else None,
     )
     db.add(nfc_token)
     await db.flush()
+
+    if encrypted_url:
+        try:
+            await db.execute(
+                text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
+                {"url": encrypted_url, "id": str(nfc_token.id)},
+            )
+            await db.flush()
+        except Exception:
+            pass
+
     await db.refresh(nfc_token)
     return nfc_token
 
@@ -102,7 +116,35 @@ async def list_nfc_tokens(
     result = await db.execute(
         select(NfcToken).where(NfcToken.user_id == uuid.UUID(user_id)).order_by(NfcToken.created_at.desc())
     )
-    return list(result.scalars().all())
+    tokens = list(result.scalars().all())
+
+    has_url_map: dict[str, bool] = {}
+    try:
+        ids = [str(t.id) for t in tokens]
+        if ids:
+            placeholders = ", ".join([f"'{i}'" for i in ids])
+            url_result = await db.execute(
+                text(f"SELECT id, token_url_encrypted IS NOT NULL AND token_url_encrypted != '' AS has_url FROM nfc_tokens WHERE id IN ({placeholders})")
+            )
+            for row in url_result:
+                has_url_map[str(row[0])] = bool(row[1])
+    except Exception:
+        pass
+
+    out = []
+    for t in tokens:
+        out.append(NfcTokenOut(
+            id=t.id,
+            vehicle_id=t.vehicle_id,
+            token_prefix=t.token_prefix,
+            label=t.label,
+            is_active=t.is_active,
+            has_url=has_url_map.get(str(t.id), False),
+            last_accessed_at=t.last_accessed_at,
+            access_count=t.access_count,
+            created_at=t.created_at,
+        ))
+    return out
 
 
 @router.get("/tokens/{token_id}/url")
@@ -118,9 +160,20 @@ async def get_token_url(
     token = result.scalar_one_or_none()
     if not token:
         raise HTTPException(status_code=404, detail="Token not found")
-    if not token.token_url_encrypted:
+
+    try:
+        url_result = await db.execute(
+            text("SELECT token_url_encrypted FROM nfc_tokens WHERE id = :id"),
+            {"id": str(token_id)},
+        )
+        row = url_result.first()
+        encrypted = row[0] if row else None
+    except Exception:
+        encrypted = None
+
+    if not encrypted:
         raise HTTPException(status_code=404, detail="URL not available for this token. It was created before URL recovery was enabled.")
-    url = decrypt_url(token.token_url_encrypted)
+    url = decrypt_url(encrypted)
     if not url:
         raise HTTPException(status_code=500, detail="Failed to decrypt URL")
     return {"url": url}
