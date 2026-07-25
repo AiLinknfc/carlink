@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Admin
     admin_user_id: str = ""
 
+    # Encryption (AES-256-GCM, 64-char hex = 32 bytes)
+    encryption_key: str = ""
+
     model_config = {"env_file": ".env", "case_sensitive": False}
 
     @property

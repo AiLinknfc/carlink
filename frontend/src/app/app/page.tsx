@@ -66,6 +66,8 @@ export default function AppPage() {
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
   const [tokenLimit, setTokenLimit] = useState<{ max: number; used: number } | null>(null)
+  const [copyingTokenId, setCopyingTokenId] = useState<string | null>(null)
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null)
   const [showQuickRegister, setShowQuickRegister] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
@@ -199,7 +201,7 @@ export default function AppPage() {
     setFoundRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'read' } : r))
   }
 
-  const openPublicar = useCallback(() => {
+  const openPublicar = useCallback(async () => {
     if (nfcTokens.length > 0) {
       const latest = nfcTokens[0]
       const raw = localStorage.getItem(`nfc_raw_${latest.id}`)
@@ -207,9 +209,16 @@ export default function AppPage() {
         window.open(`/nfc/${raw}`, '_blank')
         return
       }
+      try {
+        const data = await apiGet<{ url: string }>(`/nfc/tokens/${latest.id}/url`)
+        if (data?.url) {
+          window.open(data.url, '_blank')
+          return
+        }
+      } catch {}
     }
-    window.open('/nfc/__my__', '_blank')
-  }, [nfcTokens])
+    flashApp('No se pudo obtener el enlace. Escanea el chip NFC con tu teléfono.')
+  }, [nfcTokens, flashApp])
 
   const generateNfcToken = async () => {
     if (!user) return
@@ -222,7 +231,7 @@ export default function AppPage() {
     const hashArr = new Uint8Array(hashBuf)
     const tokenHash = Array.from(hashArr).map(b => b.toString(16).padStart(2, '0')).join('')
     const tokenPrefix = rawToken.slice(0, 8)
-    const data = await apiPost('/nfc/tokens', { token_hash: tokenHash, token_prefix: tokenPrefix })
+    const data = await apiPost('/nfc/tokens', { token_hash: tokenHash, token_prefix: tokenPrefix, token_url: `${window.location.origin}/nfc/${rawToken}` })
     if (data) {
       localStorage.setItem(`nfc_raw_${data.id}`, rawToken)
       setNfcTokens(prev => [data, ...prev])
@@ -261,6 +270,29 @@ export default function AppPage() {
       setNfcTokens(prev => prev.map(t => t.id === id ? { ...t, is_active: true, status: 'active' } : t))
       if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used + 1 } : prev)
     }
+  }
+
+  const copyTokenUrl = async (id: string) => {
+    const raw = localStorage.getItem(`nfc_raw_${id}`)
+    if (raw) {
+      const url = `${window.location.origin}/nfc/${raw}`
+      try {
+        await navigator.clipboard.writeText(url)
+        setCopiedTokenId(id)
+        setTimeout(() => setCopiedTokenId(null), 2000)
+      } catch {}
+      return
+    }
+    setCopyingTokenId(id)
+    try {
+      const data = await apiGet<{ url: string }>(`/nfc/tokens/${id}/url`)
+      if (data?.url) {
+        await navigator.clipboard.writeText(data.url)
+        setCopiedTokenId(id)
+        setTimeout(() => setCopiedTokenId(null), 2000)
+      }
+    } catch {}
+    setCopyingTokenId(null)
   }
 
   const onAddService = useCallback(() => {
@@ -802,6 +834,12 @@ export default function AppPage() {
                           <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace', background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4 }}>
                             {(t as any).tag_uid.slice(0, 8)}…
                           </span>
+                        )}
+                        {t.is_active && (t as any).has_url && (
+                          <button onClick={() => copyTokenUrl(t.id)} disabled={copyingTokenId === t.id}
+                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: copiedTokenId === t.id ? 'rgba(46,204,113,0.15)' : 'rgba(245,197,24,0.15)', color: copiedTokenId === t.id ? '#2ecc71' : '#F5C518', fontSize: 11, fontWeight: 600, cursor: copyingTokenId === t.id ? 'default' : 'pointer', transition: 'all .16s' }}>
+                            {copiedTokenId === t.id ? '✓ Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
+                          </button>
                         )}
                         {t.is_active ? (
                           <button onClick={() => revokeNfcToken(t.id)} title="Revocar"

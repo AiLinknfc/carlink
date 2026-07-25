@@ -15,6 +15,7 @@ from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcToke
 from app.schemas.schemas import NfcTokenCreate, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
+from app.services.crypto import encrypt_url, decrypt_url
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
@@ -84,6 +85,7 @@ async def create_nfc_token(
         token_hash=body.token_hash,
         token_prefix=body.token_prefix,
         label="Llavero NFC",
+        token_url_encrypted=encrypt_url(body.token_url) if body.token_url else None,
     )
     db.add(nfc_token)
     await db.flush()
@@ -101,6 +103,27 @@ async def list_nfc_tokens(
         select(NfcToken).where(NfcToken.user_id == uuid.UUID(user_id)).order_by(NfcToken.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+@router.get("/tokens/{token_id}/url")
+async def get_token_url(
+    token_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return the decrypted NFC URL for the owner. Used when localStorage is lost."""
+    result = await db.execute(
+        select(NfcToken).where(NfcToken.id == token_id, NfcToken.user_id == uuid.UUID(user_id))
+    )
+    token = result.scalar_one_or_none()
+    if not token:
+        raise HTTPException(status_code=404, detail="Token not found")
+    if not token.token_url_encrypted:
+        raise HTTPException(status_code=404, detail="URL not available for this token. It was created before URL recovery was enabled.")
+    url = decrypt_url(token.token_url_encrypted)
+    if not url:
+        raise HTTPException(status_code=500, detail="Failed to decrypt URL")
+    return {"url": url}
 
 
 @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)

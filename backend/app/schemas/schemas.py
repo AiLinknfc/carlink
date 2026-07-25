@@ -388,6 +388,7 @@ class ServiceLogOut(BaseModel):
 class NfcTokenCreate(BaseModel):
     token_hash: str
     token_prefix: str
+    token_url: str | None = None
 
 
 class NfcTokenOut(BaseModel):
@@ -396,6 +397,7 @@ class NfcTokenOut(BaseModel):
     token_prefix: str
     label: str
     is_active: bool
+    has_url: bool = False
     last_accessed_at: datetime | None = None
     access_count: int = 0
     created_at: datetime

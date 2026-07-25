@@ -192,7 +192,12 @@ class NfcToken(Base):
     token_type: Mapped[str] = mapped_column(Text, default="personal")
     last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     access_count: Mapped[int] = mapped_column(Integer, default=0)
+    token_url_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def has_url(self) -> bool:
+        return self.token_url_encrypted is not None and len(self.token_url_encrypted) > 0
 
 
 class Workshop(Base):
