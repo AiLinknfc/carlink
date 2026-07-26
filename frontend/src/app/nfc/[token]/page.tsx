@@ -64,14 +64,25 @@ export default function NfcPage() {
     }
     setLoading(true)
     fetch(`/api/nfc/${encodeURIComponent(token)}`)
-      .then(r => {
+      .then(async r => {
         if (r.status === 429) throw new Error('rate_limited')
-        if (!r.ok) throw new Error('not_found')
+        if (r.status === 410) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error('deactivated:' + (body.detail || ''))
+        }
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error('not_found:' + (body.detail || ''))
+        }
         return r.json()
       })
       .then(j => { setData(j); setLoading(false) })
       .catch(e => {
-        setError(e.message === 'rate_limited' ? 'rate_limited' : 'not_found')
+        const msg = e.message || ''
+        if (msg === 'rate_limited') setError('rate_limited')
+        else if (msg.startsWith('deactivated:')) setError('deactivated')
+        else if (msg.startsWith('not_found:')) setError('not_found')
+        else setError('not_found')
         setLoading(false)
       })
   }, [token])
@@ -169,6 +180,14 @@ export default function NfcPage() {
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#ff6b6b' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/><path d="M2 2l20 20"/></svg></div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Enlace incompleto</div>
           <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>Este enlace no es válido. Si eres el propietario, abre CarLink y usa "Ver ficha pública" desde el panel NFC.</div>
+        </div>
+      )}
+
+      {error === 'deactivated' && (
+        <div style={{ textAlign: 'center', padding: '40px 32px', borderRadius: 20, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)', maxWidth: 380 }}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#F5C518' }}>Ficha desactivada</div>
+          <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>El propietario ha desactivado temporalmente la ficha pública. Intenta de nuevo más tarde.</div>
         </div>
       )}
 

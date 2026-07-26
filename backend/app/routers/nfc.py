@@ -399,7 +399,7 @@ async def access_via_nfc(
         raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
 
     if len(token) != 64:
-        raise HTTPException(status_code=404, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Enlace incompleto o inválido")
 
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     result = await db.execute(
@@ -407,10 +407,10 @@ async def access_via_nfc(
     )
     nfc_token = result.scalar_one_or_none()
     if not nfc_token:
-        raise HTTPException(status_code=404, detail="Invalid or revoked token")
+        raise HTTPException(status_code=404, detail="Enlace no válido o revocado")
 
     if nfc_token.status != "active":
-        raise HTTPException(status_code=404, detail="Token is not active")
+        raise HTTPException(status_code=404, detail="Este llavero fue desactivado por el propietario")
 
     # Log access
     ua = request.headers.get("user-agent", "")
@@ -434,7 +434,7 @@ async def access_via_nfc(
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     if not vehicle.nfc_active:
-        raise HTTPException(status_code=404, detail="Ficha pública desactivada por el propietario")
+        raise HTTPException(status_code=410, detail="La ficha pública está desactivada por el propietario")
 
     # Fetch latest maintenance record for ficha técnica
     m_result = await db.execute(

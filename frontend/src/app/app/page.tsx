@@ -201,7 +201,7 @@ export default function AppPage() {
 
   const openPublicar = useCallback(async () => {
     if (nfcTokens.length > 0) {
-      const latest = nfcTokens[0]
+      const latest = nfcTokens.find(t => t.is_active) || nfcTokens[0]
       const raw = localStorage.getItem(`nfc_raw_${latest.id}`)
       if (raw) {
         window.open(`/nfc/${raw}`, '_blank')
@@ -215,7 +215,7 @@ export default function AppPage() {
         }
       } catch {}
     }
-    flashApp('No se pudo obtener el enlace. Escanea el chip NFC con tu teléfono.')
+    flashApp('No se pudo obtener el enlace. Escanea el chip NFC con tu teléfono para ver la ficha.')
   }, [nfcTokens, flashApp])
 
   const generateNfcToken = async () => {
@@ -288,8 +288,12 @@ export default function AppPage() {
         await navigator.clipboard.writeText(data.url)
         setCopiedTokenId(id)
         setTimeout(() => setCopiedTokenId(null), 2000)
+      } else {
+        flashApp('No se pudo recuperar el enlace. Escanea el chip NFC con tu teléfono.')
       }
-    } catch {}
+    } catch {
+      flashApp('No se pudo recuperar el enlace. Escanea el chip NFC con tu teléfono.')
+    }
     setCopyingTokenId(null)
   }
 
@@ -833,7 +837,7 @@ export default function AppPage() {
                             {(t as any).tag_uid.slice(0, 8)}…
                           </span>
                         )}
-                        {t.is_active && (t as any).has_url && (
+                        {t.is_active && (
                           <button onClick={() => copyTokenUrl(t.id)} disabled={copyingTokenId === t.id}
                             style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: copiedTokenId === t.id ? 'rgba(46,204,113,0.15)' : 'rgba(245,197,24,0.15)', color: copiedTokenId === t.id ? '#2ecc71' : '#F5C518', fontSize: 11, fontWeight: 600, cursor: copyingTokenId === t.id ? 'default' : 'pointer', transition: 'all .16s' }}>
                             {copiedTokenId === t.id ? '✓ Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
@@ -853,6 +857,12 @@ export default function AppPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {tokenLimit && tokenLimit.used >= tokenLimit.max && !generatedUrl && (
+                <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.2)', fontSize: 11, color: '#d8c98a', lineHeight: 1.5 }}>
+                  Límite alcanzado. Revoca el llavero actual para crear uno nuevo.
                 </div>
               )}
 
