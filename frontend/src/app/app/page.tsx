@@ -68,6 +68,10 @@ export default function AppPage() {
   const [tokenLimit, setTokenLimit] = useState<{ max: number; used: number } | null>(null)
   const [copyingTokenId, setCopyingTokenId] = useState<string | null>(null)
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null)
+  const [urlRecoveryFailed, setUrlRecoveryFailed] = useState<Record<string, boolean>>({})
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [regenerateTargetId, setRegenerateTargetId] = useState<string | null>(null)
+  const [regenerating, setRegenerating] = useState(false)
   const [showQuickRegister, setShowQuickRegister] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
@@ -214,8 +218,14 @@ export default function AppPage() {
           return
         }
       } catch {}
+      // Raw token lost and no encrypted backup (token created before URL recovery was enabled).
+      // Don't dead-end here — surface the regenerate option instead of just an error toast.
+      setUrlRecoveryFailed(prev => ({ ...prev, [latest.id]: true }))
+      setShowNfc(true)
+      flashApp('No se pudo recuperar el enlace de tu llavero actual. Regenéralo abajo para seguir publicando tu ficha.')
+      return
     }
-    flashApp('No se pudo obtener el enlace. Escanea el chip NFC con tu teléfono para ver la ficha.')
+    flashApp('Genera un llavero NFC primero para poder publicar tu ficha.')
   }, [nfcTokens, flashApp])
 
   const generateNfcToken = async () => {
@@ -277,6 +287,7 @@ export default function AppPage() {
       try {
         await navigator.clipboard.writeText(url)
         setCopiedTokenId(id)
+        setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[id]; return next })
         setTimeout(() => setCopiedTokenId(null), 2000)
       } catch {}
       return
@@ -287,14 +298,47 @@ export default function AppPage() {
       if (data?.url) {
         await navigator.clipboard.writeText(data.url)
         setCopiedTokenId(id)
+        setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[id]; return next })
         setTimeout(() => setCopiedTokenId(null), 2000)
       } else {
-        flashApp('No se pudo recuperar el enlace. Escanea el chip NFC con tu teléfono.')
+        setUrlRecoveryFailed(prev => ({ ...prev, [id]: true }))
+        flashApp('No se pudo recuperar el enlace de este llavero. Puedes regenerarlo abajo.')
       }
     } catch {
-      flashApp('No se pudo recuperar el enlace. Escanea el chip NFC con tu teléfono.')
+      setUrlRecoveryFailed(prev => ({ ...prev, [id]: true }))
+      flashApp('No se pudo recuperar el enlace de este llavero. Puedes regenerarlo abajo.')
     }
     setCopyingTokenId(null)
+  }
+
+  const regenerateNfcToken = (id: string) => {
+    setRegenerateTargetId(id)
+    setShowRegenerateConfirm(true)
+  }
+
+  const confirmRegenerate = async () => {
+    if (!regenerateTargetId) return
+    const oldId = regenerateTargetId
+    setRegenerating(true)
+    const ok = await apiDelete(`/nfc/tokens/${oldId}`)
+    if (ok) {
+      localStorage.removeItem(`nfc_raw_${oldId}`)
+      setNfcTokens(prev => prev.map(t => t.id === oldId ? { ...t, is_active: false, status: 'revoked' } : t))
+      setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[oldId]; return next })
+      if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: Math.max(0, prev.used - 1) } : prev)
+      await generateNfcToken()
+      flashApp('Llavero regenerado. Copia el enlace nuevo y grábalo en un llavero físico nuevo.')
+    } else {
+      flashApp('No se pudo regenerar el llavero. Intenta de nuevo.')
+    }
+    setRegenerating(false)
+    setShowRegenerateConfirm(false)
+    setRegenerateTargetId(null)
+  }
+
+  const cancelRegenerate = () => {
+    setShowRegenerateConfirm(false)
+    setRegenerateTargetId(null)
   }
 
   const onAddService = useCallback(() => {
@@ -837,10 +881,16 @@ export default function AppPage() {
                             {(t as any).tag_uid.slice(0, 8)}…
                           </span>
                         )}
-                        {t.is_active && (
+                        {t.is_active && !urlRecoveryFailed[t.id] && (
                           <button onClick={() => copyTokenUrl(t.id)} disabled={copyingTokenId === t.id}
                             style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: copiedTokenId === t.id ? 'rgba(46,204,113,0.15)' : 'rgba(245,197,24,0.15)', color: copiedTokenId === t.id ? '#2ecc71' : '#F5C518', fontSize: 11, fontWeight: 600, cursor: copyingTokenId === t.id ? 'default' : 'pointer', transition: 'all .16s' }}>
                             {copiedTokenId === t.id ? '✓ Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
+                          </button>
+                        )}
+                        {t.is_active && urlRecoveryFailed[t.id] && (
+                          <button onClick={() => regenerateNfcToken(t.id)} title="El enlace de este llavero no se puede recuperar — genera uno nuevo"
+                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,159,10,0.4)', background: 'rgba(255,159,10,0.12)', color: '#ff9f0a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            Regenerar enlace
                           </button>
                         )}
                         {t.is_active ? (
@@ -1129,6 +1179,32 @@ export default function AppPage() {
               <button onClick={confirmRevoke}
                 style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: 'rgba(255,55,55,0.15)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Sí, revocar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirm regenerate modal — for tokens whose raw URL can't be recovered (localStorage lost + no encrypted backup) */}
+      {showRegenerateConfirm && (
+        <div onClick={regenerating ? undefined : cancelRegenerate} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,159,10,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>¿Regenerar llavero?</div>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5, marginBottom: 18 }}>
+              El enlace de este llavero no se pudo recuperar (se generó antes de que la recuperación de enlaces estuviera activa). Vamos a revocarlo y crear uno nuevo — deberás grabar el enlace nuevo en un llavero NFC. Si el chip viejo ya estaba grabado, dejará de funcionar.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={cancelRegenerate} disabled={regenerating}
+                style={{ padding: '8px 18px', borderRadius: 10, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', fontSize: 13, fontWeight: 600, cursor: regenerating ? 'default' : 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmRegenerate} disabled={regenerating}
+                style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: 'rgba(255,159,10,0.18)', color: '#ff9f0a', fontSize: 13, fontWeight: 700, cursor: regenerating ? 'default' : 'pointer' }}>
+                {regenerating ? 'Regenerando…' : 'Sí, regenerar'}
               </button>
             </div>
           </div>

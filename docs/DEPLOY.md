@@ -16,6 +16,7 @@ DATABASE_URL=postgresql://...
 SUPABASE_JWT_SECRET=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ADMIN_USER_ID=<UUID del usuario admin en Supabase>
+ENCRYPTION_KEY=<64 chars hex, 32 bytes — openssl rand -hex 32>
 REDIS_URL=redis://...
 SMTP_HOST=...
 SMTP_USER=...
@@ -24,6 +25,8 @@ ENVIRONMENT=production
 PORT=8000
 CORS_ORIGINS=https://carlink.app,https://www.carlink.app
 ```
+
+**`ENCRYPTION_KEY` es crítica para el flujo NFC**: sin ella, `encrypt_url()` (`app/services/crypto.py`) degrada silenciosamente y el enlace del llavero nunca se guarda cifrado, por lo que el owner no puede recuperarlo si pierde el `localStorage` (falla el botón "Copiar enlace"). Verificar que esté seteada es parte del checklist de post-despliegue.
 
 ### Frontend (Vercel)
 ```
@@ -104,12 +107,29 @@ jobs:
 
 ## Migraciones en producción
 
+**Local, staging y producción comparten la misma instancia de Supabase** (ver tabla de Ambientes arriba) — no hay separación de base de datos entre entornos todavía. Hasta que exista un proyecto Supabase separado para dev/staging (ver sección siguiente), cualquier migración nueva debe correrse manualmente contra esta única base y quedar registrada aquí de inmediato — de lo contrario el código y el esquema real se desincronizan silenciosamente (esto ya pasó con las migraciones 016 y 017, corridas en el código antes que en la base).
+
 ```bash
 # Conectar a Supabase
 psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/postgres"
 
-# Ejecutar migraciones en orden
+# Ejecutar migraciones en orden — mantener esta lista al día con supabase/migrations/
 \i supabase/migrations/013_nfc_admin_tokens.sql
 \i supabase/migrations/014_nfc_token_limits_access_logs.sql
 \i supabase/migrations/015_nfc_alerts_whitelist.sql
+\i supabase/migrations/016_nfc_token_url_encrypted.sql
+\i supabase/migrations/017_increase_persona_token_limit.sql
+\i supabase/migrations/018_revert_persona_token_limit_to_1.sql
 ```
+
+**Nota sobre 017/018**: la 017 subió el límite de llaveros activos de `persona` a 2 sin una razón de producto documentada. Se decidió revertir a 1 (un token = un llavero, sin excepción) — la 018 corrige esto. Correr ambas en orden dado que no se puede confirmar si la 017 ya se aplicó antes en producción; el resultado neto es 1 de cualquier forma.
+
+**Regla:** cada vez que se agregue un archivo a `supabase/migrations/`, en el mismo PR se debe (1) correrlo contra la base real y (2) añadir su línea `\i` aquí. Este checklist es actualmente la única fuente de verdad de qué se aplicó — no hay tabla de control de versión de esquema (ver "Pendiente: separación de ambientes" abajo).
+
+### Pendiente: separación de ambientes
+
+El estado actual (una sola base de datos para los tres entornos) es la causa raíz de varios bugs de producción recientes: migraciones corridas de forma inconsistente, código defensivo agregado para tolerar un esquema desconocido en vez de corregirlo. Recomendado:
+
+1. Crear un proyecto Supabase separado para desarrollo/staging (plan free sirve).
+2. `local` y `staging` apuntan al proyecto nuevo; solo `production` (Railway prod + Vercel prod) apunta al proyecto actual.
+3. Adoptar `supabase migration up` (o Alembic) en vez de `\i` manual, para que las migraciones aplicadas queden registradas en una tabla y el comando sea idempotente/rastreable por entorno.
