@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import secrets
+import uuid
 from typing import Annotated
 from uuid import UUID
 
@@ -7,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.models import (
@@ -30,9 +34,19 @@ from app.schemas.schemas import (
     NfcWhitelistBulkCreate,
     NfcWhitelistCreate,
     NfcWhitelistOut,
+    NfcWhitelistProvisionCreate,
+    NfcWhitelistProvisionOut,
 )
+from app.services.crypto import encrypt_url
 
 router = APIRouter(prefix="/admin/nfc", tags=["admin-nfc"])
+
+# No 0/O/1/I/L — avoids confusion when a human reads the code off a printed label.
+_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def _generate_activation_code(length: int = 10) -> str:
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))
 
 
 # ── Dashboard Stats ──
@@ -221,7 +235,22 @@ async def list_whitelist(
     result = await db.execute(
         select(NfcTokenWhitelist).order_by(NfcTokenWhitelist.created_at.desc())
     )
-    return list(result.scalars().all())
+    entries = list(result.scalars().all())
+
+    out = []
+    for e in entries:
+        claimer = None
+        if e.claimed_by:
+            c_result = await db.execute(select(Profile).where(Profile.id == e.claimed_by))
+            claimer = c_result.scalar_one_or_none()
+        out.append(NfcWhitelistOut(
+            id=e.id, tag_uid=e.tag_uid, label=e.label, status=e.status,
+            added_by=e.added_by, claimed_by=e.claimed_by, claimed_at=e.claimed_at,
+            created_at=e.created_at,
+            claimed_by_email=claimer.email if claimer else "",
+            claimed_by_name=claimer.full_name if claimer else "",
+        ))
+    return out
 
 
 @router.post("/whitelist", response_model=NfcWhitelistOut, status_code=status.HTTP_201_CREATED)
@@ -230,17 +259,70 @@ async def add_to_whitelist(
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """Register a known-good physical chip UID without provisioning a token
+    yet (anti-clone tracking only). Use /whitelist/provision to also generate
+    the activation code + pre-written URL a user can actually claim."""
     existing = await db.execute(
         select(NfcTokenWhitelist).where(NfcTokenWhitelist.tag_uid == body.tag_uid)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="UID already whitelisted")
 
-    entry = NfcTokenWhitelist(tag_uid=body.tag_uid, label=body.label)
+    entry = NfcTokenWhitelist(tag_uid=body.tag_uid, label=body.label, added_by=uuid.UUID(admin))
     db.add(entry)
     await db.flush()
     await db.refresh(entry)
-    return entry
+    return NfcWhitelistOut(
+        id=entry.id, tag_uid=entry.tag_uid, label=entry.label, status=entry.status,
+        added_by=entry.added_by, claimed_by=None, claimed_at=None, created_at=entry.created_at,
+    )
+
+
+@router.post("/whitelist/provision", response_model=NfcWhitelistProvisionOut, status_code=status.HTTP_201_CREATED)
+async def provision_whitelist_entry(
+    body: NfcWhitelistProvisionCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Pre-program a physical keychain before it ships: generates the raw
+    token to write onto the chip and a separate activation code to print on
+    its packaging. Both are returned ONCE here — only their hashes are
+    stored, so this response cannot be reconstructed later."""
+    existing = await db.execute(
+        select(NfcTokenWhitelist).where(NfcTokenWhitelist.tag_uid == body.tag_uid)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Este tag UID ya está registrado")
+
+    raw_token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token_prefix = raw_token[:8]
+    token_url = f"{get_settings().frontend_url}/nfc/{raw_token}"
+    encrypted_url = encrypt_url(token_url)
+
+    activation_code = _generate_activation_code()
+    activation_code_hash = hashlib.sha256(activation_code.encode()).hexdigest()
+
+    entry = NfcTokenWhitelist(
+        tag_uid=body.tag_uid,
+        label=body.label,
+        added_by=uuid.UUID(admin),
+        activation_code_hash=activation_code_hash,
+        token_hash=token_hash,
+        token_prefix=token_prefix,
+        token_url_encrypted=encrypted_url,
+        status="available",
+    )
+    db.add(entry)
+    await db.flush()
+    await db.refresh(entry)
+
+    return NfcWhitelistProvisionOut(
+        id=entry.id,
+        tag_uid=entry.tag_uid,
+        activation_code=activation_code,
+        token_url=token_url,
+    )
 
 
 @router.post("/whitelist/bulk", response_model=list[NfcWhitelistOut], status_code=status.HTTP_201_CREATED)

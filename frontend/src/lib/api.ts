@@ -9,10 +9,10 @@ import type {
   Diagnostic, DiagnosticCreate,
   ServiceLog, ServiceLogCreate,
   Workshop, WorkshopUpdate,
-  NfcToken, NfcTokenCreate, NfcTokenPublicInfo,
+  NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
-  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcStats,
+  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
 } from './types'
 
 async function request<T = unknown>(
@@ -118,9 +118,26 @@ export const workshopApi = {
 
 export const nfcApi = {
   listTokens: () => request<NfcToken[]>('GET', '/nfc/tokens'),
-  createToken: (data: NfcTokenCreate) => request<NfcToken>('POST', '/nfc/tokens', data),
   toggleActive: (id: string) => request<NfcToken>('PATCH', `/nfc/tokens/${id}/toggle`, {}),
   getPublic: (token: string) => request<NfcTokenPublicInfo>('GET', `/nfc/public/${token}`),
+}
+
+// Bypasses the generic `request()` helper because activation failures need
+// to surface the backend's specific reason ("Código inválido o ya
+// utilizado.", rate limit, etc.) instead of a generic null.
+export async function activateNfcCode(activation_code: NfcActivateRequest['activation_code']): Promise<{ data: NfcToken | null; error: string | null }> {
+  try {
+    const token = await getAccessToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch('/api/nfc/activate', { method: 'POST', headers, body: JSON.stringify({ activation_code }) })
+    const text = await res.text()
+    const body = text ? JSON.parse(text) : {}
+    if (!res.ok) return { data: null, error: body.detail || 'No se pudo activar el llavero.' }
+    return { data: body as NfcToken, error: null }
+  } catch {
+    return { data: null, error: 'No se pudo activar el llavero. Intenta de nuevo.' }
+  }
 }
 
 export const uploadApi = {
@@ -161,6 +178,7 @@ export const adminApi = {
   listWhitelist: () => request<NfcWhitelistEntry[]>('GET', '/admin/nfc/whitelist'),
   addToWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistEntry>('POST', '/admin/nfc/whitelist', { tag_uid, label: label || '' }),
   bulkWhitelist: (entries: { tag_uid: string; label?: string }[]) => request<NfcWhitelistEntry[]>('POST', '/admin/nfc/whitelist/bulk', { entries }),
+  provisionWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistProvisionResult>('POST', '/admin/nfc/whitelist/provision', { tag_uid, label: label || '' }),
   removeFromWhitelist: (id: string) => request('DELETE', `/admin/nfc/whitelist/${id}`),
   listLimits: () => request<NfcTokenLimit[]>('GET', '/admin/nfc/limits'),
   updateLimit: (accountType: string, data: Partial<NfcTokenLimit>) => request<NfcTokenLimit>('PATCH', `/admin/nfc/limits/${accountType}`, data),

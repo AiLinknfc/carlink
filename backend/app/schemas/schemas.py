@@ -385,10 +385,10 @@ class ServiceLogOut(BaseModel):
 
 
 # =========== NFC Tokens ===========
-class NfcTokenCreate(BaseModel):
-    token_hash: str
-    token_prefix: str
-    token_url: str | None = None
+class NfcActivateRequest(BaseModel):
+    """A token can only become active by claiming a keychain CarLink already
+    provisioned — there is no self-service creation anymore."""
+    activation_code: str
 
 
 class NfcTokenOut(BaseModel):
@@ -501,16 +501,6 @@ class NfcTokenAdminOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class NfcTokenCreate(BaseModel):
-    user_id: UUID
-    vehicle_id: UUID
-    token_hash: str
-    token_prefix: str
-    label: str = ""
-    tag_uid: str | None = None
-    token_type: str = "personal"
-
-
 class NfcTokenUpdate(BaseModel):
     label: str | None = None
     status: str | None = None
@@ -568,8 +558,14 @@ class NfcWhitelistOut(BaseModel):
     id: UUID
     tag_uid: str
     label: str
+    status: str = "available"
     added_by: UUID | None = None
+    claimed_by: UUID | None = None
+    claimed_at: datetime | None = None
     created_at: datetime
+    # Joined
+    claimed_by_email: str = ""
+    claimed_by_name: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -581,6 +577,21 @@ class NfcWhitelistCreate(BaseModel):
 
 class NfcWhitelistBulkCreate(BaseModel):
     entries: list[NfcWhitelistCreate]
+
+
+class NfcWhitelistProvisionCreate(BaseModel):
+    tag_uid: str
+    label: str = ""
+
+
+class NfcWhitelistProvisionOut(BaseModel):
+    """Returned ONCE at provisioning time: the raw activation code and raw
+    token URL to print on the physical keychain / packaging. Neither is
+    ever stored in plaintext, so this response cannot be reconstructed later."""
+    id: UUID
+    tag_uid: str
+    activation_code: str
+    token_url: str
 
 
 class NfcStatsOut(BaseModel):

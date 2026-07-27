@@ -281,9 +281,8 @@ export type ServiceLogCreate = {
 
 export type WorkshopUpdate = Partial<Workshop>;
 
-export type NfcTokenCreate = {
-  vehicle_id: string;
-  label?: string;
+export type NfcActivateRequest = {
+  activation_code: string;
 };
 
 export type ProfileUpdate = Partial<Profile>;
@@ -346,8 +345,20 @@ export interface NfcWhitelistEntry {
   id: string;
   tag_uid: string;
   label: string;
+  status: string;
   added_by: string | null;
+  claimed_by: string | null;
+  claimed_at: string | null;
   created_at: string;
+  claimed_by_email: string;
+  claimed_by_name: string;
+}
+
+export interface NfcWhitelistProvisionResult {
+  id: string;
+  tag_uid: string;
+  activation_code: string;
+  token_url: string;
 }
 
 export interface NfcStats {

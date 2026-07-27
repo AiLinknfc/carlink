@@ -296,4 +296,14 @@ class NfcTokenWhitelist(Base):
     tag_uid: Mapped[str] = mapped_column(Text, unique=True)
     label: Mapped[str] = mapped_column(Text, default="")
     added_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True)
+    # Provisioning: filled in when CarLink pre-programs a physical keychain,
+    # before it's ever claimed by a user.
+    activation_code_hash: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
+    token_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_prefix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_url_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="available")
+    claimed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    claimed_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,10 +1,19 @@
 #!/bin/bash
 # NFC Keychain Flow Tests
 # Tests: token creation, listing, URL recovery, public ficha access, nfc_active toggle
+#
+# Requires env vars (do NOT hardcode secrets here):
+#   DATABASE_URL     - postgres connection string (psycopg2-compatible)
+#   ENCRYPTION_KEY    - hex AES-256 key used to test encrypt/decrypt
+#   TEST_VEHICLE_ID   - a vehicle id to use for the nfc_active toggle test
 set -e
 
-API="https://api.carlink.com.co"
-FRONTEND="https://carlink.com.co"
+API="${API:-https://api.carlink.com.co}"
+FRONTEND="${FRONTEND:-https://carlink.com.co}"
+
+: "${DATABASE_URL:?Set DATABASE_URL before running this script}"
+: "${ENCRYPTION_KEY:?Set ENCRYPTION_KEY before running this script}"
+: "${TEST_VEHICLE_ID:?Set TEST_VEHICLE_ID before running this script}"
 
 echo "=== NFC Flow Tests ==="
 echo ""
@@ -50,8 +59,8 @@ echo ""
 # 4. Get the existing active token hash from DB to test public access
 echo "4. Get real token info from DB..."
 TOKEN_INFO=$(python3 -c "
-import psycopg2, hashlib
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2, hashlib
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
 cur.execute(\"SELECT id, token_prefix, token_hash, status, is_active FROM nfc_tokens WHERE is_active = TRUE ORDER BY created_at DESC LIMIT 1\")
 row = cur.fetchone()
@@ -78,10 +87,10 @@ echo ""
 echo "5. Test nfc_active=off returns 410..."
 # We'll test this by temporarily disabling nfc_active on the vehicle
 python3 -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
-cur.execute(\"UPDATE vehicles SET nfc_active = FALSE WHERE id = '08190a51-bacf-4b89-9651-c15c7123f89d'\")
+cur.execute('UPDATE vehicles SET nfc_active = FALSE WHERE id = %s', (os.environ['TEST_VEHICLE_ID'],))
 print(f'Vehicles updated: {cur.rowcount}')
 conn.commit()
 cur.close()
@@ -94,10 +103,10 @@ conn.close()
 echo "   (Skipping HTTP test — requires raw token which is not stored in DB)"
 echo "   Verifying nfc_active is now FALSE..."
 python3 -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
-cur.execute(\"SELECT nfc_active FROM vehicles WHERE id = '08190a51-bacf-4b89-9651-c15c7123f89d'\")
+cur.execute('SELECT nfc_active FROM vehicles WHERE id = %s', (os.environ['TEST_VEHICLE_ID'],))
 row = cur.fetchone()
 print(f'   nfc_active = {row[0]}')
 conn.commit()
@@ -108,10 +117,10 @@ conn.close()
 # Restore nfc_active
 echo "   Restoring nfc_active to TRUE..."
 python3 -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
-cur.execute(\"UPDATE vehicles SET nfc_active = TRUE WHERE id = '08190a51-bacf-4b89-9651-c15c7123f89d'\")
+cur.execute('UPDATE vehicles SET nfc_active = TRUE WHERE id = %s', (os.environ['TEST_VEHICLE_ID'],))
 conn.commit()
 cur.close()
 conn.close()
@@ -122,8 +131,8 @@ echo ""
 # 6. Test token limit
 echo "6. Verify persona token limit = 1..."
 LIMITS=$(python3 -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
 cur.execute(\"SELECT max_tokens_per_vehicle FROM nfc_token_limits WHERE account_type = 'persona'\")
 row = cur.fetchone()
@@ -142,8 +151,8 @@ echo ""
 # 7. Test token_url_encrypted column exists
 echo "7. Verify token_url_encrypted column exists..."
 COL_EXISTS=$(python3 -c "
-import psycopg2
-conn = psycopg2.connect('postgresql://postgres.xgdshunvmeceqnzmkcsg:94XE9TmTq7jHnBvi@aws-1-us-east-2.pooler.supabase.com:6543/postgres')
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
 cur = conn.cursor()
 cur.execute(\"SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='nfc_tokens' AND column_name='token_url_encrypted')\")
 print(cur.fetchone()[0])
@@ -161,10 +170,8 @@ echo ""
 # 8. Test encrypted URL storage
 echo "8. Test encrypt/decrypt URL service..."
 CRYPTO_TEST=$(python3 -c "
-import sys
-sys.path.insert(0, '/home/andres/Documents/CarLink/carlink/backend')
-import os
-os.environ['ENCRYPTION_KEY'] = '03e127c0cc61cf4af52bba0eb8f44b7fd73c0855e940d86f87970e0fafc55e4f'
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath('$0')), '..', 'backend'))
 from app.services.crypto import encrypt_url, decrypt_url
 url = 'https://carlink.com.co/nfc/abc123def456'
 encrypted = encrypt_url(url)
@@ -177,6 +184,30 @@ if echo "$CRYPTO_TEST" | grep -q "match=True"; then
 else
   echo "   ❌ Encrypt/decrypt failed"
 fi
+echo ""
+
+# 8b. Verify migration 019 (activation codes) is applied
+echo "8b. Verify nfc_token_whitelist has activation columns..."
+ACTIVATION_COLS=$(python3 -c "
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cur = conn.cursor()
+cur.execute(\"SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='nfc_token_whitelist' AND column_name='activation_code_hash')\")
+print(cur.fetchone()[0])
+cur.close()
+conn.close()
+")
+echo "   Column exists: $ACTIVATION_COLS"
+if [ "$ACTIVATION_COLS" = "True" ]; then
+  echo "   ✅ Migration 019 is applied"
+else
+  echo "   ❌ Migration 019 NOT applied — POST /nfc/activate will fail"
+fi
+echo ""
+echo "   NOTE: end-to-end provision -> activate testing requires an admin JWT"
+echo "   (POST /admin/nfc/whitelist/provision) and a user JWT (POST /nfc/activate)."
+echo "   There is no more self-service token creation to test — a token can"
+echo "   only be minted by claiming a provisioned keychain's activation code."
 echo ""
 
 # 9. Test frontend is reachable

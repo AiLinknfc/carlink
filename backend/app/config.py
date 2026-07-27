@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Server
     port: int = 8000
     environment: str = "development"
+    # Used to build the public NFC URL written to physical keychains at
+    # provisioning time (POST /admin/nfc/whitelist/provision).
+    frontend_url: str = "http://localhost:3000"
 
     # Admin
     admin_user_id: str = ""

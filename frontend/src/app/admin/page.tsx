@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [limits, setLimits] = useState<NfcTokenLimit[]>([])
   const [loading2, setLoading2] = useState(true)
   const [error, setError] = useState('')
+  const [provisioned, setProvisioned] = useState<{ tag_uid: string; activation_code: string; token_url: string } | null>(null)
 
   const c = {
     bg: isDark ? '#0a0b0e' : '#f5f3ec',
@@ -106,6 +107,19 @@ export default function AdminPage() {
     if (entries.length) {
       await adminApi.bulkWhitelist(entries)
       loadWhitelist()
+    }
+  }
+
+  async function handleProvision() {
+    const uid = prompt('UID del chip NFC a provisionar:')
+    if (!uid) return
+    const label = prompt('Etiqueta (opcional):') || ''
+    const result = await adminApi.provisionWhitelist(uid, label)
+    if (result) {
+      setProvisioned(result)
+      loadWhitelist()
+    } else {
+      setError('No se pudo provisionar el llavero (¿el UID ya existe?)')
     }
   }
 
@@ -230,16 +244,34 @@ export default function AdminPage() {
         {/* Whitelist */}
         {tab === 'whitelist' && (
           <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <button onClick={handleAddWhitelist} style={accentBtnStyle}>+ Agregar UID</button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <button onClick={handleProvision} style={accentBtnStyle}>+ Provisionar llavero</button>
+              <button onClick={handleAddWhitelist} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>+ Agregar UID (sin token)</button>
               <button onClick={handleBulkWhitelist} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Carga masiva</button>
             </div>
+
+            {provisioned && (
+              <div style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: c.card, border: `2px solid ${c.accent}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: c.accent }}>Llavero provisionado — guarda esto, no se vuelve a mostrar</div>
+                  <button onClick={() => setProvisioned(null)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer', fontSize: 16 }}>×</button>
+                </div>
+                <div style={{ fontSize: 12, color: c.muted, marginBottom: 4 }}>Tag UID: <code>{provisioned.tag_uid}</code></div>
+                <div style={{ fontSize: 12, color: c.muted, marginBottom: 4 }}>
+                  Código de activación (imprimir en el empaque): <b style={{ fontSize: 16, letterSpacing: '.1em', color: c.text }}>{provisioned.activation_code}</b>
+                </div>
+                <div style={{ fontSize: 12, color: c.muted }}>URL a grabar en el chip: <code style={{ fontSize: 11 }}>{provisioned.token_url}</code></div>
+              </div>
+            )}
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${c.border}` }}>
                     <th style={thStyle}>UID</th>
                     <th style={thStyle}>Etiqueta</th>
+                    <th style={thStyle}>Status</th>
+                    <th style={thStyle}>Reclamado por</th>
                     <th style={thStyle}>Fecha</th>
                     <th style={thStyle}>Acciones</th>
                   </tr>
@@ -249,9 +281,15 @@ export default function AdminPage() {
                     <tr key={w.id} style={{ borderBottom: `1px solid ${c.border}` }}>
                       <td style={tdStyle}><code style={{ fontFamily: 'monospace', fontSize: 12 }}>{w.tag_uid}</code></td>
                       <td style={tdStyle}>{w.label || '—'}</td>
+                      <td style={tdStyle}>
+                        <span style={{ color: w.status === 'claimed' ? '#2ecc71' : w.status === 'blocked' ? '#ff4d6a' : c.muted, fontWeight: 600 }}>{w.status}</span>
+                      </td>
+                      <td style={tdStyle}>{w.claimed_by_name || w.claimed_by_email || '—'}</td>
                       <td style={tdStyle}>{new Date(w.created_at).toLocaleDateString()}</td>
                       <td style={tdStyle}>
-                        <button onClick={async () => { await adminApi.removeFromWhitelist(w.id); loadWhitelist() }} style={dangerBtnStyle}>Eliminar</button>
+                        {w.status !== 'claimed' && (
+                          <button onClick={async () => { await adminApi.removeFromWhitelist(w.id); loadWhitelist() }} style={dangerBtnStyle}>Eliminar</button>
+                        )}
                       </td>
                     </tr>
                   ))}

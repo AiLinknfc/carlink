@@ -6,21 +6,27 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select, text
+from sqlalchemy import bindparam, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcTokenLimit, Profile, Vehicle, Workshop
-from app.schemas.schemas import NfcTokenCreate, NfcTokenInfoPublic, NfcTokenOut
+from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
-from app.services.crypto import encrypt_url, decrypt_url
+from app.services.crypto import decrypt_url
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
 _RATE_WINDOW = 60
 _RATE_MAX = 30
+
+# Activation is the only way to mint a live token — it's the surface an
+# attacker would brute-force to guess someone else's code, so it gets its
+# own, much stricter limit than the general NFC rate limit above.
+_ACTIVATE_RATE_WINDOW = 600
+_ACTIVATE_RATE_MAX = 5
 
 
 async def _check_rate(ip: str) -> bool:
@@ -34,27 +40,46 @@ async def _check_rate(ip: str) -> bool:
     return count <= _RATE_MAX
 
 
+async def _check_activate_rate(key: str) -> bool:
+    r = await get_redis()
+    if r is None:
+        return True
+    rkey = f"rate:nfc-activate:{key}"
+    count = await r.incr(rkey)
+    if count == 1:
+        await r.expire(rkey, _ACTIVATE_RATE_WINDOW)
+    return count <= _ACTIVATE_RATE_MAX
+
+
 # ── Concrete /tokens routes BEFORE parameterized /{token} ──
 
-@router.post("/tokens", status_code=status.HTTP_201_CREATED)
-async def create_nfc_token(
-    body: NfcTokenCreate,
+@router.post("/activate", status_code=status.HTTP_201_CREATED, response_model=NfcTokenOut)
+async def activate_nfc_token(
+    body: NfcActivateRequest,
+    request: Request,
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Register a new NFC token (client sends SHA-256 hash of raw token)."""
+    """Claim a physical keychain CarLink already provisioned, using the
+    activation code printed on its packaging. This is the only way a token
+    becomes active — nothing can be minted without a real physical item."""
     uid = uuid.UUID(user_id)
+    ip = request.client.host if request.client else "unknown"
+
+    if not await _check_activate_rate(str(uid)) or not await _check_activate_rate(f"ip:{ip}"):
+        raise HTTPException(status_code=429, detail="Demasiados intentos. Espera unos minutos e inténtalo de nuevo.")
+
+    code = body.activation_code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Código de activación requerido")
+    code_hash = hashlib.sha256(code.encode()).hexdigest()
 
     v_result = await db.execute(
         select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
     )
     vehicle = v_result.scalar_one_or_none()
     if not vehicle:
-        raise HTTPException(status_code=404, detail="No vehicles found. Register a vehicle first.")
-
-    existing = await db.execute(select(NfcToken).where(NfcToken.token_hash == body.token_hash))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Token already exists")
+        raise HTTPException(status_code=404, detail="Registra un vehículo antes de activar tu llavero.")
 
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
@@ -76,34 +101,46 @@ async def create_nfc_token(
     if active_count >= max_tokens:
         raise HTTPException(
             status_code=409,
-            detail=f"Límite de {max_tokens} llavero(s) por vehículo alcanzado. Revoca uno antes de crear otro.",
+            detail=f"Límite de {max_tokens} llavero(s) por vehículo alcanzado. Revoca uno antes de activar otro.",
         )
 
-    encrypted_url = None
-    if body.token_url:
-        encrypted_url = encrypt_url(body.token_url)
+    # Atomic claim: the UPDATE only matches rows still 'available', so a
+    # concurrent replay of the same code (e.g. leaked/shared) loses the row
+    # lock race and gets 0 rows back instead of double-activating.
+    claim_result = await db.execute(
+        text(
+            "UPDATE nfc_token_whitelist "
+            "SET status = 'claimed', claimed_by = :uid, claimed_vehicle_id = :vid, claimed_at = now() "
+            "WHERE activation_code_hash = :code_hash AND status = 'available' "
+            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted"
+        ),
+        {"uid": str(uid), "vid": str(vehicle.id), "code_hash": code_hash},
+    )
+    row = claim_result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Código inválido o ya utilizado.")
+
+    tag_uid, token_hash, token_prefix, token_url_encrypted = row
+    if not token_hash or not token_prefix:
+        raise HTTPException(status_code=500, detail="Este llavero no fue provisionado correctamente. Contacta a soporte.")
 
     nfc_token = NfcToken(
         user_id=uid,
         vehicle_id=vehicle.id,
-        token_hash=body.token_hash,
-        token_prefix=body.token_prefix,
+        token_hash=token_hash,
+        token_prefix=token_prefix,
+        tag_uid=tag_uid,
         label="Llavero NFC",
     )
     db.add(nfc_token)
     await db.flush()
 
-    url_stored = False
-    if encrypted_url:
-        try:
-            await db.execute(
-                text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
-                {"url": encrypted_url, "id": str(nfc_token.id)},
-            )
-            await db.flush()
-            url_stored = True
-        except Exception:
-            pass
+    if token_url_encrypted:
+        await db.execute(
+            text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
+            {"url": token_url_encrypted, "id": str(nfc_token.id)},
+        )
+        await db.flush()
 
     await db.refresh(nfc_token)
     return NfcTokenOut(
@@ -112,7 +149,7 @@ async def create_nfc_token(
         token_prefix=nfc_token.token_prefix,
         label=nfc_token.label,
         is_active=nfc_token.is_active,
-        has_url=url_stored,
+        has_url=bool(token_url_encrypted),
         last_accessed_at=nfc_token.last_accessed_at,
         access_count=nfc_token.access_count,
         created_at=nfc_token.created_at,
@@ -167,17 +204,17 @@ async def list_nfc_tokens(
     tokens = list(result.scalars().all())
 
     has_url_map: dict[str, bool] = {}
-    try:
-        ids = [str(t.id) for t in tokens]
-        if ids:
-            placeholders = ", ".join([f"'{i}'" for i in ids])
-            url_result = await db.execute(
-                text(f"SELECT id, token_url_encrypted IS NOT NULL AND token_url_encrypted != '' AS has_url FROM nfc_tokens WHERE id IN ({placeholders})")
-            )
-            for row in url_result:
-                has_url_map[str(row[0])] = bool(row[1])
-    except Exception:
-        pass
+    ids = [t.id for t in tokens]
+    if ids:
+        url_result = await db.execute(
+            text(
+                "SELECT id, token_url_encrypted IS NOT NULL AND token_url_encrypted != '' AS has_url "
+                "FROM nfc_tokens WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"ids": ids},
+        )
+        for row in url_result:
+            has_url_map[str(row[0])] = bool(row[1])
 
     out = []
     for t in tokens:

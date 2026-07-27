@@ -17,6 +17,7 @@ SUPABASE_JWT_SECRET=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ADMIN_USER_ID=<UUID del usuario admin en Supabase>
 ENCRYPTION_KEY=<64 chars hex, 32 bytes — openssl rand -hex 32>
+FRONTEND_URL=https://carlink.app
 REDIS_URL=redis://...
 SMTP_HOST=...
 SMTP_USER=...
@@ -26,7 +27,9 @@ PORT=8000
 CORS_ORIGINS=https://carlink.app,https://www.carlink.app
 ```
 
-**`ENCRYPTION_KEY` es crítica para el flujo NFC**: sin ella, `encrypt_url()` (`app/services/crypto.py`) degrada silenciosamente y el enlace del llavero nunca se guarda cifrado, por lo que el owner no puede recuperarlo si pierde el `localStorage` (falla el botón "Copiar enlace"). Verificar que esté seteada es parte del checklist de post-despliegue.
+**`ENCRYPTION_KEY` es obligatoria para el flujo NFC, no opcional**: desde la migración 019, un token solo se crea vía `/nfc/activate` (nunca en el navegador), así que el frontend nunca tiene el token crudo — la única forma de que "Copiar enlace" funcione es recuperar la URL cifrada del servidor. Sin `ENCRYPTION_KEY`, `encrypt_url()` (`app/services/crypto.py`) degrada silenciosamente y ningún llavero activado podrá mostrar su enlace. Verificar que esté seteada es parte del checklist de post-despliegue.
+
+**`FRONTEND_URL` la usa `POST /admin/nfc/whitelist/provision`** para construir la URL que se graba en cada chip físico (`{FRONTEND_URL}/nfc/{token}`). Si queda mal configurada, los llaveros ya despachados apuntan a la URL equivocada.
 
 ### Frontend (Vercel)
 ```
@@ -120,9 +123,12 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/016_nfc_token_url_encrypted.sql
 \i supabase/migrations/017_increase_persona_token_limit.sql
 \i supabase/migrations/018_revert_persona_token_limit_to_1.sql
+\i supabase/migrations/019_nfc_activation_codes.sql
 ```
 
 **Nota sobre 017/018**: la 017 subió el límite de llaveros activos de `persona` a 2 sin una razón de producto documentada. Se decidió revertir a 1 (un token = un llavero, sin excepción) — la 018 corrige esto. Correr ambas en orden dado que no se puede confirmar si la 017 ya se aplicó antes en producción; el resultado neto es 1 de cualquier forma.
+
+**Nota sobre 019**: cambia el modelo de creación de llaveros de raíz. Antes, cualquier usuario autenticado podía generar un token NFC por software (sin relación con un llavero físico real) — `POST /nfc/tokens` fue retirado. Ahora un token solo nace de un llavero físico que CarLink provisiona de antemano (`POST /admin/nfc/whitelist/provision`, que genera el token pre-grabado + un código de activación) y el usuario lo reclama con `POST /nfc/activate`. **Esta migración debe correr antes de desplegar el backend nuevo** — a diferencia de 016/017, aquí no hay código defensivo que tolere la ausencia de las columnas nuevas; si no se aplica primero, `/nfc/activate` y `/admin/nfc/whitelist/provision` fallan con error 500 de columna inexistente.
 
 **Regla:** cada vez que se agregue un archivo a `supabase/migrations/`, en el mismo PR se debe (1) correrlo contra la base real y (2) añadir su línea `\i` aquí. Este checklist es actualmente la única fuente de verdad de qué se aplicó — no hay tabla de control de versión de esquema (ver "Pendiente: separación de ambientes" abajo).
 

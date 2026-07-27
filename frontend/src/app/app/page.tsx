@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount } from '@/lib/constants'
 import { CarLinkMark } from '@/lib/icons_new'
@@ -62,6 +62,7 @@ export default function AppPage() {
   const [nfcLoading, setNfcLoading] = useState(false)
   const [tokensLoading, setTokensLoading] = useState(false)
   const [generatedUrl, setGeneratedUrl] = useState('')
+  const [activationCode, setActivationCode] = useState('')
   const [genCopied, setGenCopied] = useState(false)
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
@@ -69,9 +70,6 @@ export default function AppPage() {
   const [copyingTokenId, setCopyingTokenId] = useState<string | null>(null)
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null)
   const [urlRecoveryFailed, setUrlRecoveryFailed] = useState<Record<string, boolean>>({})
-  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
-  const [regenerateTargetId, setRegenerateTargetId] = useState<string | null>(null)
-  const [regenerating, setRegenerating] = useState(false)
   const [showQuickRegister, setShowQuickRegister] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
@@ -206,11 +204,6 @@ export default function AppPage() {
   const openPublicar = useCallback(async () => {
     if (nfcTokens.length > 0) {
       const latest = nfcTokens.find(t => t.is_active) || nfcTokens[0]
-      const raw = localStorage.getItem(`nfc_raw_${latest.id}`)
-      if (raw) {
-        window.open(`/nfc/${raw}`, '_blank')
-        return
-      }
       try {
         const data = await apiGet<{ url: string }>(`/nfc/tokens/${latest.id}/url`)
         if (data?.url) {
@@ -218,34 +211,38 @@ export default function AppPage() {
           return
         }
       } catch {}
-      // Raw token lost and no encrypted backup (token created before URL recovery was enabled).
-      // Don't dead-end here — surface the regenerate option instead of just an error toast.
+      // No encrypted URL on file for this token — surface the panel with the
+      // "no se pudo recuperar" state instead of just an error toast.
       setUrlRecoveryFailed(prev => ({ ...prev, [latest.id]: true }))
       setShowNfc(true)
-      flashApp('No se pudo recuperar el enlace de tu llavero actual. Regenéralo abajo para seguir publicando tu ficha.')
+      flashApp('No se pudo recuperar el enlace de tu llavero actual.')
       return
     }
-    flashApp('Genera un llavero NFC primero para poder publicar tu ficha.')
+    setShowNfc(true)
+    flashApp('Activa tu llavero NFC con el código impreso para poder publicar tu ficha.')
   }, [nfcTokens, flashApp])
 
-  const generateNfcToken = async () => {
-    if (!user) return
+  const activateNfcToken = async () => {
+    const code = activationCode.trim()
+    if (!user || !code) return
     setNfcLoading(true)
     setGeneratedUrl('')
-    const bytes = new Uint8Array(32)
-    crypto.getRandomValues(bytes)
-    const rawToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
-    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawToken))
-    const hashArr = new Uint8Array(hashBuf)
-    const tokenHash = Array.from(hashArr).map(b => b.toString(16).padStart(2, '0')).join('')
-    const tokenPrefix = rawToken.slice(0, 8)
-    const data = await apiPost('/nfc/tokens', { token_hash: tokenHash, token_prefix: tokenPrefix, token_url: `${window.location.origin}/nfc/${rawToken}` })
+    const { data, error } = await activateNfcCode(code)
     if (data) {
-      localStorage.setItem(`nfc_raw_${data.id}`, rawToken)
       setNfcTokens(prev => [data, ...prev])
-      setGeneratedUrl(`${window.location.origin}/nfc/${rawToken}`)
+      setActivationCode('')
+      if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used + 1 } : prev)
       const prev = parseInt(localStorage.getItem('carlink_keychain_count') || '225', 10)
       localStorage.setItem('carlink_keychain_count', String(prev + 1))
+      // Show the link right away so the user can confirm the keychain works —
+      // it's still recoverable later from "Copiar enlace", this is just a nicety.
+      try {
+        const urlData = await apiGet<{ url: string }>(`/nfc/tokens/${data.id}/url`)
+        if (urlData?.url) setGeneratedUrl(urlData.url)
+      } catch {}
+      flashApp('Llavero activado correctamente')
+    } else {
+      flashApp(error || 'No se pudo activar el llavero.')
     }
     setNfcLoading(false)
   }
@@ -259,7 +256,6 @@ export default function AppPage() {
     if (!revokeTargetId) return
     const ok = await apiDelete(`/nfc/tokens/${revokeTargetId}`)
     if (ok) {
-      localStorage.removeItem(`nfc_raw_${revokeTargetId}`)
       setNfcTokens(prev => prev.map(t => t.id === revokeTargetId ? { ...t, is_active: false, status: 'revoked' } : t))
       if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used - 1 } : prev)
     }
@@ -281,17 +277,6 @@ export default function AppPage() {
   }
 
   const copyTokenUrl = async (id: string) => {
-    const raw = localStorage.getItem(`nfc_raw_${id}`)
-    if (raw) {
-      const url = `${window.location.origin}/nfc/${raw}`
-      try {
-        await navigator.clipboard.writeText(url)
-        setCopiedTokenId(id)
-        setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[id]; return next })
-        setTimeout(() => setCopiedTokenId(null), 2000)
-      } catch {}
-      return
-    }
     setCopyingTokenId(id)
     try {
       const data = await apiGet<{ url: string }>(`/nfc/tokens/${id}/url`)
@@ -302,43 +287,13 @@ export default function AppPage() {
         setTimeout(() => setCopiedTokenId(null), 2000)
       } else {
         setUrlRecoveryFailed(prev => ({ ...prev, [id]: true }))
-        flashApp('No se pudo recuperar el enlace de este llavero. Puedes regenerarlo abajo.')
+        flashApp('No se pudo recuperar el enlace de este llavero.')
       }
     } catch {
       setUrlRecoveryFailed(prev => ({ ...prev, [id]: true }))
-      flashApp('No se pudo recuperar el enlace de este llavero. Puedes regenerarlo abajo.')
+      flashApp('No se pudo recuperar el enlace de este llavero.')
     }
     setCopyingTokenId(null)
-  }
-
-  const regenerateNfcToken = (id: string) => {
-    setRegenerateTargetId(id)
-    setShowRegenerateConfirm(true)
-  }
-
-  const confirmRegenerate = async () => {
-    if (!regenerateTargetId) return
-    const oldId = regenerateTargetId
-    setRegenerating(true)
-    const ok = await apiDelete(`/nfc/tokens/${oldId}`)
-    if (ok) {
-      localStorage.removeItem(`nfc_raw_${oldId}`)
-      setNfcTokens(prev => prev.map(t => t.id === oldId ? { ...t, is_active: false, status: 'revoked' } : t))
-      setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[oldId]; return next })
-      if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: Math.max(0, prev.used - 1) } : prev)
-      await generateNfcToken()
-      flashApp('Llavero regenerado. Copia el enlace nuevo y grábalo en un llavero físico nuevo.')
-    } else {
-      flashApp('No se pudo regenerar el llavero. Intenta de nuevo.')
-    }
-    setRegenerating(false)
-    setShowRegenerateConfirm(false)
-    setRegenerateTargetId(null)
-  }
-
-  const cancelRegenerate = () => {
-    setShowRegenerateConfirm(false)
-    setRegenerateTargetId(null)
   }
 
   const onAddService = useCallback(() => {
@@ -848,21 +803,28 @@ export default function AppPage() {
             </div>
 
             <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--section-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700 }}>
-                  Tus llaveros{tokenLimit ? ` (${tokenLimit.used}/${tokenLimit.max})` : ''}
-                </div>
-                <button onClick={generateNfcToken} disabled={nfcLoading || !!(tokenLimit && tokenLimit.used >= tokenLimit.max)}
-                  style={{ padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(245,197,24,0.35)', background: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: (nfcLoading || (tokenLimit && tokenLimit.used >= tokenLimit.max)) ? 'default' : 'pointer', transition: 'all .16s' }}>
-                  {nfcLoading ? 'Generando…' : '+ Nuevo llavero'}
-                </button>
+              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 10 }}>
+                Tus llaveros{tokenLimit ? ` (${tokenLimit.used}/${tokenLimit.max})` : ''}
               </div>
+
+              {!(tokenLimit && tokenLimit.used >= tokenLimit.max) && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <input value={activationCode} onChange={e => setActivationCode(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !nfcLoading) activateNfcToken() }}
+                    placeholder="Código de activación (viene con tu llavero físico)"
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, fontFamily: "'Inter',system-ui,sans-serif", letterSpacing: '.03em', outline: 'none' }} />
+                  <button onClick={activateNfcToken} disabled={nfcLoading || !activationCode.trim()}
+                    style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.35)', background: (nfcLoading || !activationCode.trim()) ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: (nfcLoading || !activationCode.trim()) ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: (nfcLoading || !activationCode.trim()) ? 'default' : 'pointer', whiteSpace: 'nowrap', transition: 'all .16s' }}>
+                    {nfcLoading ? 'Activando…' : 'Activar'}
+                  </button>
+                </div>
+              )}
 
               {tokensLoading ? (
                 <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '10px 0' }}>Cargando…</div>
               ) : nfcTokens.length === 0 && !generatedUrl ? (
                 <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '10px 0', lineHeight: 1.5 }}>
-                  Aún no has generado ningún llavero. Presiona <b style={{ color: 'var(--text-2)' }}>+ Nuevo llavero</b> para crear uno.
+                  Aún no has activado ningún llavero. Ingresa el código impreso en tu llavero físico y presiona <b style={{ color: 'var(--text-2)' }}>Activar</b>.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -888,10 +850,9 @@ export default function AppPage() {
                           </button>
                         )}
                         {t.is_active && urlRecoveryFailed[t.id] && (
-                          <button onClick={() => regenerateNfcToken(t.id)} title="El enlace de este llavero no se puede recuperar — genera uno nuevo"
-                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(255,159,10,0.4)', background: 'rgba(255,159,10,0.12)', color: '#ff9f0a', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                            Regenerar enlace
-                          </button>
+                          <span title="Este llavero no tiene enlace recuperable — revócalo y activa otro" style={{ fontSize: 11, color: '#ff9f0a', fontWeight: 600 }}>
+                            Enlace no disponible
+                          </span>
                         )}
                         {t.is_active ? (
                           <button onClick={() => revokeNfcToken(t.id)} title="Revocar"
@@ -912,15 +873,15 @@ export default function AppPage() {
 
               {tokenLimit && tokenLimit.used >= tokenLimit.max && !generatedUrl && (
                 <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.2)', fontSize: 11, color: '#d8c98a', lineHeight: 1.5 }}>
-                  Límite alcanzado. Revoca el llavero actual para crear uno nuevo.
+                  Límite alcanzado. Revoca el llavero actual para activar otro.
                 </div>
               )}
 
               {generatedUrl && (
                 <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'rgba(245,197,24,0.1)', border: '2px solid #F5C518' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 6 }}>¡Nuevo llavero generado!</div>
+                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 6 }}>¡Llavero activado!</div>
                   <div style={{ fontSize: 12, color: '#b6b2a6', marginBottom: 8, lineHeight: 1.4 }}>
-                    Este enlace es la <b>única vez que se muestra</b>. Copialo ahora para programar tu chip NFC:
+                    Este es el enlace de tu llavero — también puedes recuperarlo luego con "Copiar enlace":
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
                     <input readOnly value={generatedUrl} onClick={e => (e.target as HTMLInputElement).select()}
@@ -937,11 +898,11 @@ export default function AppPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.55 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>1</span>
-                <span>Genera el enlace único en esta pantalla y copialo.</span>
+                <span>Tu llavero físico ya viene programado de fábrica con un enlace único.</span>
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>2</span>
-                <span>El taller escribe el enlace en tu llavero NFC con un programador compatible.</span>
+                <span>Ingresa aquí el código de activación impreso para vincularlo a tu cuenta.</span>
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>3</span>
@@ -1169,7 +1130,7 @@ export default function AppPage() {
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>¿Revocar llavero?</div>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5, marginBottom: 18 }}>
-              El chip NFC físico dejará de funcionar. Si lo tienes programado, deberás generarlo y escribirlo de nuevo.
+              El chip NFC físico dejará de funcionar de inmediato. Para reemplazarlo necesitarás el código de activación de otro llavero físico.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={cancelRevoke}
@@ -1179,32 +1140,6 @@ export default function AppPage() {
               <button onClick={confirmRevoke}
                 style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: 'rgba(255,55,55,0.15)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Sí, revocar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Confirm regenerate modal — for tokens whose raw URL can't be recovered (localStorage lost + no encrypted backup) */}
-      {showRegenerateConfirm && (
-        <div onClick={regenerating ? undefined : cancelRegenerate} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,159,10,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>¿Regenerar llavero?</div>
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5, marginBottom: 18 }}>
-              El enlace de este llavero no se pudo recuperar (se generó antes de que la recuperación de enlaces estuviera activa). Vamos a revocarlo y crear uno nuevo — deberás grabar el enlace nuevo en un llavero NFC. Si el chip viejo ya estaba grabado, dejará de funcionar.
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={cancelRegenerate} disabled={regenerating}
-                style={{ padding: '8px 18px', borderRadius: 10, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', fontSize: 13, fontWeight: 600, cursor: regenerating ? 'default' : 'pointer' }}>
-                Cancelar
-              </button>
-              <button onClick={confirmRegenerate} disabled={regenerating}
-                style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: 'rgba(255,159,10,0.18)', color: '#ff9f0a', fontSize: 13, fontWeight: 700, cursor: regenerating ? 'default' : 'pointer' }}>
-                {regenerating ? 'Regenerando…' : 'Sí, regenerar'}
               </button>
             </div>
           </div>
