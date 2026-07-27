@@ -139,3 +139,16 @@ El estado actual (una sola base de datos para los tres entornos) es la causa ra�
 1. Crear un proyecto Supabase separado para desarrollo/staging (plan free sirve).
 2. `local` y `staging` apuntan al proyecto nuevo; solo `production` (Railway prod + Vercel prod) apunta al proyecto actual.
 3. Adoptar `supabase migration up` (o Alembic) en vez de `\i` manual, para que las migraciones aplicadas queden registradas en una tabla y el comando sea idempotente/rastreable por entorno.
+
+## Lecciones del despliegue de la reactivación NFC (2026-07-27)
+
+**Redeploys de Railway pueden tardar varios minutos y "Redeploy" en la fila equivocada revive un deployment viejo.** En esta sesión, un fix ya correcto tardó ~40 minutos en verse reflejado en producción porque:
+- El auto-deploy desde GitHub no es instantáneo — puede tardar varios minutos en iniciar el build.
+- Dar clic en "Redeploy" sobre una fila vieja de la lista de Deployments **reconstruye ese commit viejo**, no el más reciente — y visualmente es indistinguible de "el fix no llegó".
+- Una de las filas correctas llegó a existir en la lista pero fue removida antes de poder promoverla.
+
+**Cómo verificar sin ambigüedad que un deploy nuevo está realmente en producción**: no repruebes el bug directamente primero — agrega temporalmente un marcador trivial y verificable (por ejemplo, cambiar el `version` de `GET /api/health`) y haz polling de ese endpoint hasta ver el valor nuevo. Solo después de confirmar el marcador, vuelve a probar el bug real. Esto evita confundir "el deploy no ha terminado" con "el fix no funciona".
+
+**Variables `NEXT_PUBLIC_*` en Vercel se inyectan en tiempo de build, no en runtime.** Agregar o cambiar una y darle "Redeploy" sin desmarcar "Use existing Build Cache" puede dejar el valor viejo (o ninguno) compilado en el bundle del navegador. Verificar esto es posible sin acceso al dashboard: el HTML de cualquier página trae las rutas de sus chunks JS (`/_next/static/chunks/app/.../page-<hash>.js`); si el hash del chunk no cambió tras el redeploy, no hubo rebuild real.
+
+**El CLI de Railway (`railway login`) abre un callback OAuth en `127.0.0.1` de la máquina donde corre** — debe ejecutarlo el usuario en su propia terminal (o vía el prefijo `!` en Claude Code), nunca desde el entorno sandboxeado de un agente, que no tiene navegador real para completar el flujo.

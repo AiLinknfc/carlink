@@ -1,134 +1,72 @@
-# CarLink — Contexto de Desarrollo (12 Jul 2026)
+# CarLink — Contexto de Desarrollo
 
-## Estado Actual
-- **Frontend**: Next.js 15 + React 19 + TypeScript en `localhost:3000`
-- **Backend**: FastAPI + SQLAlchemy async + asyncpg en `localhost:8000`
-- **DB**: Supabase Cloud PostgreSQL (ref: `xgdshunvmeceqnzmkcsg`)
-- **DB password**: `JUMeS2lWw5TjxuCU`
-- **Tipo de cuenta**: `"persona"` (default) y `"taller"` (set via `POST /workshops`)
+_Última actualización: 2026-07-27. Este archivo reemplaza y unifica el antiguo `CONTEXTO_HOY.md`._
 
-## Tunnel Local (para testing desde celular)
-- Frontend tunnel: `https://r47l0w5x-3000.use.devtunnels.ms`
-- `NEXT_PUBLIC_SITE_URL` actualizado en `.env` y `.env.local` con la URL del tunnel
-- Supabase → Authentication → URL Configuration → Redirect URL agregado: `https://r47l0w5x-3000.use.devtunnels.ms/auth/callback`
-- **NOTA**: Si el tunnel cambia de URL (nueva sesión VS Code), hay que actualizar el redirect URL en Supabase y `NEXT_PUBLIC_SITE_URL`
+## Estado actual
 
-### Si el tunnel cambia de URL (paso a paso)
-1. Copiar la nueva URL del tunnel que VS Code te asigne
-2. Actualizar `NEXT_PUBLIC_SITE_URL` en estos archivos:
-   - `frontend/.env` → línea `NEXT_PUBLIC_SITE_URL=...`
-   - `frontend/.env.local` → línea `NEXT_PUBLIC_SITE_URL=...`
-3. Ir a **https://supabase.com/dashboard** → proyecto `xgdshunvmeceqnzmkcsg`
-4. **Authentication** → **URL Configuration** → **Redirect URLs**
-5. Eliminar la URL del tunnel anterior
-6. Agregar la nueva URL: `https://NUEVA-URL/auth/callback`
-7. Guardar
-8. Reiniciar el frontend: `cd frontend && npx next dev --port 3000`
-9. Verificar: abrir `https://NUEVA-URL/app` en el celular
+- **Frontend**: Next.js 15 (App Router) + React 19 + TypeScript — producción en Vercel (`carlink.com.co`)
+- **Backend**: FastAPI + SQLAlchemy async + asyncpg — producción en Railway (`api.carlink.com.co`)
+- **DB**: Supabase Cloud PostgreSQL (ref `xgdshunvmeceqnzmkcsg`) — **local, staging y producción comparten la misma instancia** hasta que se separen ambientes (ver `docs/DEPLOY.md`)
+- **Tipos de cuenta**: `persona` (default), `taller` (vía `POST /workshops`), `empresa`
 
-## Arquitectura Clave
-- Tema: `document.documentElement.dataset.theme = theme` en `page.tsx`; CSS variables en `globals.css`
-- `tDark = theme !== 'light'` para inline style switching
-- NFC token flow: frontend genera SHA-256 → `POST /nfc/tokens` (almacena hash+prefix) → raw token se guarda en `localStorage` con key `nfc_raw_{id}`
-- **Raw token NUNCA se almacena en DB** — solo el hash de 64 chars. El prefix (8 chars) es solo para display
-- NFC rewrite: `/api/:path*` → `http://localhost:8000/api/:path*`
-- Backend `GET /nfc/{token}`: valida len==64, hashea, busca en DB
-- Token activo de prueba: raw `4d0013f0d32f27888b802e3fccb4d477264dbf3ce2c652800699f7b2b6556853` → prefix `4d0013f0`
+## Arquitectura del llavero NFC (rediseñada 2026-07-27)
 
-## Migraciones Aplicadas
-| # | Archivo | Descripción |
-|---|---------|-------------|
-| 007 | `007_vehicle_sale_fields.sql` | `sell_enabled`, `sell_price`, `sell_city`, `sell_zip`, `sell_phone`, `sell_description` en vehicles |
-| 008 | `008_found_requests.sql` | Tabla `found_requests` + `whatsapp_enabled`/`whatsapp_number` en profiles |
-| 009 | `009_vehicle_condition.sql` | `vehicle_condition` en vehicles, `rating` en workshops |
-| 010 | `010_found_requests_phone.sql` | `finder_phone` en found_requests |
+Antes, cualquier usuario autenticado podía autogenerar un token NFC por software (`POST /nfc/tokens`, retirado) sin relación con ningún llavero físico real. El modelo actual:
 
-## Funcionalidades Implementadas
+1. **Admin provisiona** un llavero físico: `POST /admin/nfc/whitelist/provision` genera el token crudo (para grabar en el chip) + un código de activación separado (para imprimir en el empaque). Ambos se devuelven una sola vez; solo se guardan sus hashes.
+2. **Usuario activa** su llavero con el código impreso: `POST /nfc/activate` — reclamo atómico, rate-limited (5 intentos/10 min por usuario + IP).
+3. **Ficha pública**: `GET /nfc/{token}` — valida longitud 64, hashea, busca en DB, nunca expone datos del dueño.
 
-### NFC Public Page (`/nfc/[token]`)
-- Header CarLink + badge Verificada
-- Placa en font Anton con espaciado reducido (`letterSpacing: .02em`)
-- Rating del taller (estrellas + "X/5")
-- Sección venta (condicional a `sell_enabled`): vehículo, año, color, tipo, precio, ciudad, contacto, descripción, fecha publicación
-- Ficha técnica: lubricante, kilometraje, próximo servicio (barra de progreso), servicios (sellos), taller, último servicio
-- Footer: "Cualquiera con este enlace podrá ver esta versión resumida de tu ficha — sin datos personales sensibles."
-- **Botón Volver**: solo si autenticado, posición absoluta arriba del card, fondo negro, texto gris sutil
-- **Botón fondo dark/light**: alterna colores de todo el card con variables dinámicas (`cPrimary`, `cSecondary`, `cMuted`, `cPlate`)
-- **Botón descargar PNG**: usa `html-to-image` a 2x resolución, descarga como `CarLink-{PLACA}.png`
-- **Sección llavero perdido**: flujo estratégico (auth primero → teléfono si no autentica)
-- **WhatsApp directo**: si owner tiene `whatsapp_enabled=true`, botón verde directo a wa.me
-- **Tokens cortos**: si len != 64, muestra "Enlace incompleto" en vez de error genérico
-- **Contacto propietario**: backend retorna `owner_whatsapp` y `owner_name` desde perfil
+Migración `019_nfc_activation_codes.sql` agrega las columnas de provisión a `nfc_token_whitelist` (`activation_code_hash`, `token_hash`, `token_prefix`, `token_url_encrypted`, `status`, `claimed_by`, `claimed_vehicle_id`, `claimed_at`).
 
-### NFC Public Page — Colores Dinámicos
-```typescript
-const isDark = cardBg === 'dark'
-const cPrimary = isDark ? '#f5f3ec' : '#17171a'
-const cSecondary = isDark ? '#c9c6ba' : '#555'
-const cMuted = isDark ? '#a8a496' : '#777'
-const cFaint = isDark ? '#7c786e' : '#999'
-const cPlate = isDark ? '#f5f3ec' : '#17171a'
-```
+**Raw token NUNCA se almacena en DB** — solo el hash SHA-256 de 64 chars. El prefix (8 chars) es solo para display.
 
-### Backend — NFC Endpoint (`routers/nfc.py`)
-Retorna: plate, brand, model, year, color, type, vehicle_id, current_mileage, next_service_mileage, lubricant_brand, lubricant_type, total_services, latest_service_date, workshop_name, workshop_rating, sell_enabled, sell_price, sell_city, sell_zip, sell_phone, sell_description, vehicle_condition, published_at, owner_whatsapp, owner_name
+**Confirmado funcionando en producción de punta a punta** (provisión → activación → ficha pública) al cierre de esta sesión.
 
-### Lost Key System
-- **Modelo**: `FoundRequest` con `finder_phone`, `finder_name`, `message`, `contact_method`
-- **Endpoint autenticado**: `POST /found-requests` (requiere JWT)
-- **Endpoint público**: `POST /found-requests/public` (sin auth, requiere nombre + teléfono)
-- **Email service**: `services/email.py` — envía HTML al propietario cuando alguien reporta su llavero (configurable via SMTP_HOST, SMTP_USER, SMTP_PASS)
-- **Panel notificaciones**: bell icon con badge rojo, lista de reportes con nombre, fecha, mensaje, botón llamada (tel), botón WhatsApp, info vehículo
+### Pendiente sobre el llavero NFC
+- El carrito "Solicitar llavero NFC" sigue siendo una maqueta de UI sin backend real de pedidos/pago (decisión explícita: fuera de alcance por ahora).
+- `nfc_token_limits` solo tiene semillas para `persona` y `taller` — falta agregar `empresa` para que el límite de negocio se aplique de verdad y no caiga al default de código (1).
+- El rol "admin" es un solo UUID hardcodeado (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`), no un rol basado en `account_type`. No escala a múltiples administradores.
 
-### Profile Panel
-- Toggle WhatsApp (green) + input número
-- Toggle "Vender vehículo" + campos: precio, ciudad, zip, teléfono, descripción
-- Guarda via `apiPut('/auth/me')` + `apiPut('/vehicles/{id}')`
-- Botón "Ver ficha pública" → abre `/nfc/{rawToken}` en nueva pestaña (usa localStorage)
+## Servidores locales
 
-### FichaTab
-- Botón "Ver ficha pública" / "Publicar ficha pública" — abre en nueva pestaña via `window.open()`
-- Si no hay raw token en localStorage, muestra toast "Genera un llavero NFC primero"
-- Al crear token: `localStorage.setItem('nfc_raw_{id}', rawToken)`
-- Al revocar token: `localStorage.removeItem('nfc_raw_{id}')`
+- **Frontend**: `localhost:3000` (`npm run dev`)
+- **Backend**: `localhost:8000` (`.venv/bin/uvicorn app.main:app --reload`)
+- **Proxy**: `next.config.ts` reescribe `/api/:path*` → `${NEXT_PUBLIC_API_URL}/api/:path*` (default `http://localhost:8000`)
 
-## Archivos Clave
+## Responsive (Frontend)
+
+- `globals.css`: media queries mobile-first (≤960, ≤860, ≤640, ≤380px)
+- Sidebar: overlay en móvil con botón hamburger, `position: fixed`
+- Layout principal: `margin-left: 0` en móvil, sidebar-wrap responsive
+- Tablero vehicular: grid 3→1 col, gauges reducidos (140px)
+- Panels (profile, NFC, modales): full-width en móvil
+- Touch: hover effects siempre visibles
+
+## Vehicle Transfers
+
+- Migración `011_vehicle_transfers.sql` — tabla `vehicle_transfers`, campos en `vehicles`, RPCs `complete_vehicle_transfer` / `cancel_vehicle_transfer`
+- API: POST/GET transfer, validate, accept, cancel
+- Frontend: `TransferVehicleModal` (vendedor), `/transfer/accept` (comprador)
+- Seguridad: solo owner inicia, email verificado, expiración 7d, cancelación vendedor, RLS
+
+## Archivos clave
 
 ### Frontend
-- `src/app/app/page.tsx` — Main app (~1363 lines): FichaTab, HistorialTab, PartesTab, AppPage, Profile/NFC/Cart/Found panels
-- `src/app/nfc/[token]/page.tsx` — NFC public page (V2 styles, dynamic bg, download, lost key)
-- `src/store/auth.tsx` — Auth context (Profile interface con whatsapp_enabled, whatsapp_number)
-- `src/lib/api.ts` — API wrappers (apiGet, apiPost, apiPut, apiPatch, apiDelete)
-- `src/lib/supabase.ts` — `apiUrl()` returns `/api${path}`
-- `next.config.ts` — Rewrites `/api/:path*` → `http://localhost:8000/api/:path*`
+- `src/app/app/page.tsx` — panel principal del usuario (Ficha, Historial, Partes, NFC/activación, Cart, Found)
+- `src/app/admin/page.tsx` — panel admin NFC (tokens, whitelist/provisión, alertas, límites)
+- `src/app/nfc/[token]/page.tsx` — ficha pública NFC
+- `src/lib/api.ts` — wrappers de API (apiGet/Post/Put/Patch/Delete, `activateNfcCode`)
+- `next.config.ts` — rewrite `/api/:path*` → backend
 
 ### Backend
-- `app/main.py` — FastAPI app, CORS, all routers
-- `app/routers/nfc.py` — NFC routes (public + tokens CRUD)
-- `app/routers/found_requests.py` — Found request CRUD (POST, POST /public, GET, PATCH /read)
-- `app/routers/auth.py` — GET /me, PUT /me (WhatsApp fields)
-- `app/models/models.py` — Profile, Vehicle, Workshop, FoundRequest, NfcToken, MaintenanceRecord
-- `app/schemas/schemas.py` — NfcTokenInfoPublic, VehicleOut/Update, ProfileOut/Update, FoundRequestCreate/Out
-- `app/services/email.py` — Email HTML notifications
-- `app/dependencies.py` — get_current_user (JWT verification)
+- `app/main.py` — FastAPI app, CORS, routers, `/api/health`
+- `app/routers/nfc.py` — activación, listado/revocación de tokens, ficha pública
+- `app/routers/admin.py` — provisión de llaveros, whitelist, límites, alertas
+- `app/models/models.py` — ORM (Profile, Vehicle, NfcToken, NfcTokenWhitelist, NfcAccessLog, etc.)
+- `app/services/crypto.py` — cifrado AES-256-GCM de URLs de llaveros (requiere `ENCRYPTION_KEY`)
 
-## Cosas Pendientes / A Revisar Para Despliegue
+## Notas de seguridad
 
-### Crítico
-1. **URLs de tunnel hardcodeadas**: `NEXT_PUBLIC_SITE_URL` en `.env` y `.env.local` apuntan al tunnel. Cambiar a la URL de producción antes de desplegar
-2. **Supabase Redirect URL**: El tunnel URL está en la lista de redirect URLs. Agregar la URL de producción y remover el tunnel
-3. **SMTP no configurado**: `services/email.py` tiene `SMTP_USER=""` y `SMTP_PASS=""` — el email no se envía. Configurar variables de entorno SMTP en producción
-4. **`vehicle_condition` eliminado del perfil**: El campo sigue en la DB y en el modelo, pero se removió el selector del UI. Si se quiere usar, hay que re-agregarlo al perfil
-
-### Seguridad
-5. **CORS**: Verificar que `allow_origins` en `main.py` incluya solo dominios de producción
-6. **Rate limiting**: El endpoint público NFC usa rate limiting in-memory. En producción usar Redis via `cache.py`
-
-### UI/UX
-7. **Lost key sin auth**: El formulario público funciona sin autenticación — verificar que el backend maneja correctamente los casos sin token
-8. **Tokens en localStorage**: Los raw tokens se guardan en `localStorage`. Si el usuario limpia el storage, pierde los links. Considerar alternativa más persistente
-
-### Despliegue
-9. **Migraciones**: Ejecutar las migraciones 007-010 en la DB de producción
-10. **Variables de entorno**: Verificar que todas las env vars estén configuradas en el entorno de despliegue
-11. **Puerto backend**: El frontend asume backend en `localhost:8000`. En producción configurar la URL correcta del backend
+- **Nunca hardcodear secretos** (contraseñas de DB, API keys, `ENCRYPTION_KEY`) en archivos versionados — ni en `.env.example`, ni en scripts de `tests/`, ni en archivos `.md`. Ver `docs/DEPLOY.md` para el incidente de credenciales filtradas (2026-07-27) y cómo se resolvió.
+- Las variables reales viven en `backend/.env` (gitignored) para desarrollo local, y en los dashboards de Railway/Vercel para producción — nunca en el repo.

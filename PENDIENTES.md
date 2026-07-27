@@ -1,36 +1,21 @@
 # Pendientes de Implementación
 
-## Rate Limiting con Redis (Producción)
+_Última actualización: 2026-07-27._
 
-**Prioridad**: Alta antes de desplegar a producción
+## ~~Rate Limiting con Redis~~ — Hecho
 
-**Estado actual**: El endpoint público NFC usa rate limiting in-memory. En producción se debe usar Redis.
+Ya implementado en `backend/app/routers/nfc.py` (`_check_rate`, `_check_activate_rate`) usando `services/cache.py`, con fallback transparente si Redis no está disponible.
 
-### Archivos a modificar:
-- `backend/app/routers/nfc.py` — Reemplazar rate limiting in-memory por Redis
-- `backend/app/services/cache.py` — Ya tiene soporte Redis, usar funciones existentes
+## Llavero NFC — pendientes del rediseño (2026-07-27)
 
-### Implementación sugerida:
-```python
-# En nfc.py, usar cache.py para rate limiting
-from app.services.cache import get_redis
+**Prioridad alta**
+1. **Límites de `empresa` en `nfc_token_limits`**: la tabla solo tiene semillas para `persona` y `taller` (migración 014). Las cuentas `empresa` caen al default de código (1 llavero), no a una condición de negocio real. Agregar migración con la fila `empresa`.
+2. **Carrito "Solicitar llavero NFC"**: sigue siendo una maqueta de UI — al pagar solo cierra el modal y muestra un toast, sin crear ninguna orden real. Decidir si se conecta a un backend de pedidos antes de vender llaveros de verdad.
 
-async def check_rate_limit(ip: str, limit: int = 30, window: int = 60) -> bool:
-    r = await get_redis()
-    if r is None:
-        return True  # fallback sin rate limiting
-    key = f"rate:nfc:{ip}"
-    count = await r.incr(key)
-    if count == 1:
-        await r.expire(key, window)
-    return count <= limit
-```
+**Prioridad media**
+3. **Rol admin no escalable**: hoy es un solo UUID hardcodeado (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`), no un rol basado en `account_type`. Migrar a un modelo de roles si se necesita más de un administrador.
+4. **Separación de ambientes**: local/staging/producción comparten la misma base de Supabase. Ver sección "Pendiente: separación de ambientes" en `docs/DEPLOY.md`.
 
-### Endpoints a proteger:
-- `GET /api/nfc/{token}` — Endpoint público, más vulnerable
-- `POST /api/found-requests/public` — Formulario público
+## Seguridad
 
-### Notas:
-- Redis ya está configurado en `docker-compose.yml` y `cache.py`
-- El fallback in-memory debe mantenerse para desarrollo local sin Redis
-- En Upstash, verificar que el plan soporte suficientes comandos/sec
+5. **Rotación de credenciales tras el incidente de 2026-07-27**: confirmar que no queden variables de entorno con la contraseña/clave viejas en ningún ambiente (local, Railway, backups). Ver `docs/DEPLOY.md`.

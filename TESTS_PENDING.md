@@ -4,7 +4,14 @@
 
 ### Unit Tests
 - [ ] `tests/test_auth.py` — Verificar JWT validation con Supabase tokens
-- [ ] `tests/test_nfc.py` — Verificar generación de tokens, hash SHA-256, validación
+- [ ] `tests/test_nfc.py` — Verificar hash SHA-256, validación de longitud de token
+- [ ] `tests/test_nfc_activation.py` — Flujo de provisión + activación (2026-07-27):
+  - [ ] `POST /admin/nfc/whitelist/provision` requiere admin, rechaza `tag_uid` duplicado
+  - [ ] `POST /nfc/activate` con código válido crea el token y marca la whitelist como `claimed`
+  - [ ] `POST /nfc/activate` con código ya usado o inválido devuelve 404 genérico
+  - [ ] Reclamo concurrente del mismo código: solo uno debe ganar (atomicidad del `UPDATE ... WHERE status='available'`)
+  - [ ] Rate limit de `/nfc/activate` (5 intentos/10 min) bloquea el sexto intento
+  - [ ] Respeta `nfc_token_limits` por `account_type` al activar
 - [ ] `tests/test_vehicles.py` — CRUD de vehículos con auth
 - [ ] `tests/test_maintenance.py` — CRUD de registros de mantenimiento
 - [ ] `tests/test_found_requests.py` — Endpoints públicos y autenticados
