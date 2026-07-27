@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Date, DateTime, DECIMAL, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import INET, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -269,7 +269,9 @@ class NfcAccessLog(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     token_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("nfc_tokens.id", ondelete="CASCADE"))
-    ip_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Column is INET in the DB (migration 014) — must match here or asyncpg
+    # rejects the insert with a DatatypeMismatchError, breaking every real scan.
+    ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     country: Mapped[str | None] = mapped_column(Text, nullable=True)
     city: Mapped[str | None] = mapped_column(Text, nullable=True)
