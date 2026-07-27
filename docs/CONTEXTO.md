@@ -1,93 +1,72 @@
 # CarLink — Contexto de Desarrollo
 
-> Última actualización: 2026-07-21
+_Última actualización: 2026-07-27. Este archivo reemplaza y unifica el antiguo `CONTEXTO_HOY.md`._
 
-## Estado Actual
+## Estado actual
 
-- **Frontend**: Next.js 15 + React 19 + TypeScript en `localhost:3000`
-- **Backend**: FastAPI + SQLAlchemy async + asyncpg en `localhost:8000`
-- **DB**: Supabase Cloud PostgreSQL (ref: `xgdshunvmeceqnzmkcsg`)
-- **Tipo de cuenta**: `"persona"` (default) y `"taller"` (set via `POST /workshops`)
+- **Frontend**: Next.js 15 (App Router) + React 19 + TypeScript — producción en Vercel (`carlink.com.co`)
+- **Backend**: FastAPI + SQLAlchemy async + asyncpg — producción en Railway (`api.carlink.com.co`)
+- **DB**: Supabase Cloud PostgreSQL (ref `xgdshunvmeceqnzmkcsg`) — **local, staging y producción comparten la misma instancia** hasta que se separen ambientes (ver `docs/DEPLOY.md`)
+- **Tipos de cuenta**: `persona` (default), `taller` (vía `POST /workshops`), `empresa`
 
-## Servidores
+## Arquitectura del llavero NFC (rediseñada 2026-07-27)
 
-- Frontend: `localhost:3000` (Next.js)
-- Backend: `localhost:8000` (FastAPI, `.venv/bin/uvicorn app.main:app --reload`)
-- Proxy: `next.config.ts` reescribe `/api/*` → `localhost:8000/api/*`
+Antes, cualquier usuario autenticado podía autogenerar un token NFC por software (`POST /nfc/tokens`, retirado) sin relación con ningún llavero físico real. El modelo actual:
 
-## Tunnel Local (para testing desde celular)
+1. **Admin provisiona** un llavero físico: `POST /admin/nfc/whitelist/provision` genera el token crudo (para grabar en el chip) + un código de activación separado (para imprimir en el empaque). Ambos se devuelven una sola vez; solo se guardan sus hashes.
+2. **Usuario activa** su llavero con el código impreso: `POST /nfc/activate` — reclamo atómico, rate-limited (5 intentos/10 min por usuario + IP).
+3. **Ficha pública**: `GET /nfc/{token}` — valida longitud 64, hashea, busca en DB, nunca expone datos del dueño.
 
-- Frontend tunnel: `https://r47l0w5x-3000.use.devtunnels.ms`
-- `NEXT_PUBLIC_SITE_URL` actualizado en `.env` y `.env.local` con la URL del tunnel
-- Supabase → Authentication → URL Configuration → Redirect URL agregado
-- **NOTA**: Si el tunnel cambia de URL, actualizar redirect URL en Supabase y `NEXT_PUBLIC_SITE_URL`
+Migración `019_nfc_activation_codes.sql` agrega las columnas de provisión a `nfc_token_whitelist` (`activation_code_hash`, `token_hash`, `token_prefix`, `token_url_encrypted`, `status`, `claimed_by`, `claimed_vehicle_id`, `claimed_at`).
 
-### Si el tunnel cambia de URL (paso a paso)
-1. Copiar la nueva URL del tunnel
-2. Actualizar `NEXT_PUBLIC_SITE_URL` en `frontend/.env` y `frontend/.env.local`
-3. Ir a Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
-4. Eliminar la URL anterior, agregar la nueva: `https://NUEVA-URL/auth/callback`
-5. Guardar, reiniciar frontend: `cd frontend && npx next dev --port 3000`
+**Raw token NUNCA se almacena en DB** — solo el hash SHA-256 de 64 chars. El prefix (8 chars) es solo para display.
 
-## Variables clave (.env.local)
+**Confirmado funcionando en producción de punta a punta** (provisión → activación → ficha pública) al cierre de esta sesión.
 
-```
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
+### Pendiente sobre el llavero NFC
+- El carrito "Solicitar llavero NFC" sigue siendo una maqueta de UI sin backend real de pedidos/pago (decisión explícita: fuera de alcance por ahora).
+- `nfc_token_limits` solo tiene semillas para `persona` y `taller` — falta agregar `empresa` para que el límite de negocio se aplique de verdad y no caiga al default de código (1).
+- El rol "admin" es un solo UUID hardcodeado (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`), no un rol basado en `account_type`. No escala a múltiples administradores.
 
-## Configuración OAuth (Supabase + Google)
+## Servidores locales
 
-- Site URL: `http://localhost:3000`
-- Redirect URLs: `http://localhost:3000/auth/callback`
-- Google Cloud: Authorized redirect URI = `http://localhost:3000/auth/callback`
-
-## Arquitectura Clave
-
-- Tema: `document.documentElement.dataset.theme = theme` en `page.tsx`; CSS variables en `globals.css`
-- `tDark = theme !== 'light'` para inline style switching
-- NFC token flow: frontend genera SHA-256 → `POST /nfc/tokens` (almacena hash+prefix) → raw token se guarda en `localStorage` con key `nfc_raw_{id}`
-- **Raw token NUNCA se almacena en DB** — solo el hash de 64 chars. El prefix (8 chars) es solo para display
-- NFC rewrite: `/api/:path*` → `http://localhost:8000/api/:path*`
-- Backend `GET /nfc/{token}`: valida len==64, hashea, busca en DB
+- **Frontend**: `localhost:3000` (`npm run dev`)
+- **Backend**: `localhost:8000` (`.venv/bin/uvicorn app.main:app --reload`)
+- **Proxy**: `next.config.ts` reescribe `/api/:path*` → `${NEXT_PUBLIC_API_URL}/api/:path*` (default `http://localhost:8000`)
 
 ## Responsive (Frontend)
 
-- **globals.css**: Media queries mobile-first (≤960, ≤860, ≤640, ≤380px)
-- **Sidebar**: Overlay en móvil con botón hamburger, `position: fixed`
-- **Tablero vehicular**: grid 3→1 col, gauges reducidos (140px)
-- **Fichagrid**: 2→1 col, flip-card adaptable
-- **Service chips**: 3→2→1 col
-- **Topbar**: botones colapsados, solo iconos en móvil
-- **Panels**: full-width en móvil (`modal-panel`, `profile-panel`, `nfc-panel`)
-- **Grids**: 1 col en móvil (partes, docs, certificados, diagnóstico)
-- **Touch**: hover effects siempre visibles
+- `globals.css`: media queries mobile-first (≤960, ≤860, ≤640, ≤380px)
+- Sidebar: overlay en móvil con botón hamburger, `position: fixed`
+- Layout principal: `margin-left: 0` en móvil, sidebar-wrap responsive
+- Tablero vehicular: grid 3→1 col, gauges reducidos (140px)
+- Panels (profile, NFC, modales): full-width en móvil
+- Touch: hover effects siempre visibles
 
 ## Vehicle Transfers
 
-- **Migración**: `011_vehicle_transfers.sql` — tabla `vehicle_transfers`, campos en `vehicles`, RPCs
-- **API**: POST/GET transfer, validate, accept, cancel
-- **Frontend**: `TransferVehicleModal` (vendedor), `/transfer/accept` (comprador con Suspense)
-- **Seguridad**: Solo owner inicia, email verificado, expiración 7d, cancelación vendedor, RLS
+- Migración `011_vehicle_transfers.sql` — tabla `vehicle_transfers`, campos en `vehicles`, RPCs `complete_vehicle_transfer` / `cancel_vehicle_transfer`
+- API: POST/GET transfer, validate, accept, cancel
+- Frontend: `TransferVehicleModal` (vendedor), `/transfer/accept` (comprador)
+- Seguridad: solo owner inicia, email verificado, expiración 7d, cancelación vendedor, RLS
 
-## Archivos Clave
+## Archivos clave
 
 ### Frontend
-- `src/app/app/page.tsx` — Main app: FichaTab, HistorialTab, PartesTab, Profile/NFC/Cart/Found panels
-- `src/app/nfc/[token]/page.tsx` — NFC public page
-- `src/store/auth.tsx` — Auth context
-- `src/lib/api.ts` — API wrappers (apiGet, apiPost, apiPut, apiPatch, apiDelete)
-- `src/lib/types.ts` — Shared TypeScript types
-- `next.config.ts` — Rewrites `/api/:path*` → `http://localhost:8000/api/:path*`
+- `src/app/app/page.tsx` — panel principal del usuario (Ficha, Historial, Partes, NFC/activación, Cart, Found)
+- `src/app/admin/page.tsx` — panel admin NFC (tokens, whitelist/provisión, alertas, límites)
+- `src/app/nfc/[token]/page.tsx` — ficha pública NFC
+- `src/lib/api.ts` — wrappers de API (apiGet/Post/Put/Patch/Delete, `activateNfcCode`)
+- `next.config.ts` — rewrite `/api/:path*` → backend
 
 ### Backend
-- `app/main.py` — FastAPI app, CORS, all routers
-- `app/routers/nfc.py` — NFC routes (public + tokens CRUD)
-- `app/routers/found_requests.py` — Found request CRUD
-- `app/routers/auth.py` — GET /me, PUT /me
-- `app/models/models.py` — Profile, Vehicle, Workshop, FoundRequest, NfcToken, MaintenanceRecord
-- `app/schemas/schemas.py` — Pydantic schemas
-- `app/dependencies.py` — get_current_user, verify_vehicle
-- `app/utils.py` — Shared utilities (validate_upload_file)
+- `app/main.py` — FastAPI app, CORS, routers, `/api/health`
+- `app/routers/nfc.py` — activación, listado/revocación de tokens, ficha pública
+- `app/routers/admin.py` — provisión de llaveros, whitelist, límites, alertas
+- `app/models/models.py` — ORM (Profile, Vehicle, NfcToken, NfcTokenWhitelist, NfcAccessLog, etc.)
+- `app/services/crypto.py` — cifrado AES-256-GCM de URLs de llaveros (requiere `ENCRYPTION_KEY`)
+
+## Notas de seguridad
+
+- **Nunca hardcodear secretos** (contraseñas de DB, API keys, `ENCRYPTION_KEY`) en archivos versionados — ni en `.env.example`, ni en scripts de `tests/`, ni en archivos `.md`. Ver `docs/DEPLOY.md` para el incidente de credenciales filtradas (2026-07-27) y cómo se resolvió.
+- Las variables reales viven en `backend/.env` (gitignored) para desarrollo local, y en los dashboards de Railway/Vercel para producción — nunca en el repo.
