@@ -42,3 +42,42 @@ export const CITIES = DEPARTMENTS.flatMap(d => d.cities).sort((a, b) => a.locale
 export function isBusinessAccount(accountType?: string | null): boolean {
   return accountType === 'taller' || accountType === 'empresa' || accountType === 'business'
 }
+
+/* ── Subscription helpers ── */
+
+import type { SubscriptionStatus } from './types'
+
+const TRIAL_DAYS = 7
+
+/** For workshops without explicit subscription_status, compute a trial from created_at. */
+export function effectiveSubscription(
+  status?: SubscriptionStatus | null,
+  trialEndsAt?: string | null,
+  createdAt?: string,
+): SubscriptionStatus {
+  if (status === 'active') return 'active'
+  if (status === 'trial' && trialEndsAt) {
+    return new Date(trialEndsAt).getTime() > Date.now() ? 'trial' : 'expired'
+  }
+  if (createdAt) {
+    const trialEnd = new Date(createdAt).getTime() + TRIAL_DAYS * 86400000
+    return trialEnd > Date.now() ? 'trial' : 'expired'
+  }
+  return status || 'none'
+}
+
+export function isTrialActive(status?: SubscriptionStatus | null, trialEndsAt?: string | null, createdAt?: string): boolean {
+  return effectiveSubscription(status, trialEndsAt, createdAt) === 'trial'
+}
+
+export function isSubscriptionValid(status?: SubscriptionStatus | null, trialEndsAt?: string | null, createdAt?: string): boolean {
+  const s = effectiveSubscription(status, trialEndsAt, createdAt)
+  return s === 'active' || s === 'trial'
+}
+
+export function getTrialDaysRemaining(trialEndsAt?: string | null, createdAt?: string): number {
+  const endStr = trialEndsAt || (createdAt ? new Date(new Date(createdAt).getTime() + TRIAL_DAYS * 86400000).toISOString() : null)
+  if (!endStr) return 0
+  const diff = new Date(endStr).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / 86400000))
+}

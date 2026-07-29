@@ -258,7 +258,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '24px 16px',
-    fontFamily: "'Inter',system-ui,sans-serif",
+    fontFamily: 'var(--font-ui)',
   },
   fullScreen: {
     textAlign: 'center',
@@ -291,7 +291,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   vehicleInfo: { textAlign: 'center' },
   vehicleTitle: { fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, marginBottom: 4 },
-  vehiclePlate: { fontFamily: "'Anton',sans-serif", fontSize: 16, color: '#F5C518', fontWeight: 700, marginBottom: 4 },
+  vehiclePlate: { fontFamily: 'var(--font-display)', fontSize: 16, color: '#F5C518', fontWeight: 700, marginBottom: 4 },
   vehicleDetails: { display: 'flex', gap: 12, justifyContent: 'center', fontSize: 12, color: '#8f8a7a', marginBottom: 8, flexWrap: 'wrap' },
   fromInfo: { fontSize: 12, color: '#8f8a7a' },
   title: { fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: '0 0 12px', textAlign: 'center' },

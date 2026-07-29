@@ -46,11 +46,12 @@ class Settings(BaseSettings):
 
     # Admin
     admin_user_id: str = ""
+    admin_email: str = ""
 
     # Encryption (AES-256-GCM, 64-char hex = 32 bytes)
     encryption_key: str = ""
 
-    model_config = {"env_file": ".env", "case_sensitive": False}
+    model_config = {"env_file": ".env", "case_sensitive": False, "extra": "ignore"}
 
     @property
     def cors_origin_list(self) -> list[str]:

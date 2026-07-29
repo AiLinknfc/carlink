@@ -296,7 +296,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 24,
     boxShadow: '0 40px 90px rgba(0,0,0,.6)',
     color: '#f5f3ec',
-    fontFamily: "'Inter',system-ui,sans-serif",
+    fontFamily: 'var(--font-ui)',
     overflow: 'hidden',
   },
   header: {
@@ -368,6 +368,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12, padding: '16px 20px', textAlign: 'center', marginBottom: 16 
   },
   infoLabel: { fontSize: 12, color: '#8f8a7a', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.1em' },
-  infoValue: { fontFamily: "'Anton',sans-serif", fontSize: 20, color: '#F5C518', margin: 0 },
+  infoValue: { fontFamily: 'var(--font-display)', fontSize: 20, color: '#F5C518', margin: 0 },
   note: { color: '#8f8a7a', fontSize: 12, textAlign: 'center', lineHeight: 1.5, marginTop: 16 },
 }

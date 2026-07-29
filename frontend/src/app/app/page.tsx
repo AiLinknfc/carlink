@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
-import { isBusinessAccount } from '@/lib/constants'
+import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import { CarLinkMark } from '@/lib/icons_new'
 import { useMaintenance } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
@@ -379,6 +379,10 @@ export default function AppPage() {
   const profileBtnColor = theme === 'light' ? '#17171a' : '#f5f3ec'
   const tDark = theme !== 'light'
 
+  const subValid = isBusiness
+    ? isSubscriptionValid(profile?.subscription_status, profile?.trial_ends_at, profile?.created_at)
+    : true
+
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: pageBg, color: rootTextColor, display: 'flex' }}>
       <BgParticles theme={theme} />
@@ -403,6 +407,9 @@ export default function AppPage() {
         accountType={profile?.account_type || undefined}
         theme={theme}
         isAdmin={isAdmin}
+        subscriptionStatus={profile?.subscription_status}
+        trialEndsAt={profile?.trial_ends_at}
+        profileCreatedAt={profile?.created_at}
       />
 
       <div className="sidebar-wrap" style={{
@@ -449,7 +456,7 @@ export default function AppPage() {
             </button>
           )}
 
-          {isBusiness && (
+          {isBusiness && subValid && (
           <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS"
             style={topBtn()}
             onMouseEnter={topBtnHover}
@@ -503,8 +510,8 @@ export default function AppPage() {
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
-           activeTab === 'taller' ? <TallerTab vehicleId={vehicle?.id} /> :
-           activeTab === 'config' ? <WorkshopConfigTab theme={theme} /> :
+           activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
+           activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} />}
         </div>
 
@@ -812,7 +819,7 @@ export default function AppPage() {
                   <input value={activationCode} onChange={e => setActivationCode(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !nfcLoading) activateNfcToken() }}
                     placeholder="Código de activación (viene con tu llavero físico)"
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, fontFamily: "'Inter',system-ui,sans-serif", letterSpacing: '.03em', outline: 'none' }} />
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, fontFamily: 'var(--font-ui)', letterSpacing: '.03em', outline: 'none' }} />
                   <button onClick={activateNfcToken} disabled={nfcLoading || !activationCode.trim()}
                     style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.35)', background: (nfcLoading || !activationCode.trim()) ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: (nfcLoading || !activationCode.trim()) ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: (nfcLoading || !activationCode.trim()) ? 'default' : 'pointer', whiteSpace: 'nowrap', transition: 'all .16s' }}>
                     {nfcLoading ? 'Activando…' : 'Activar'}
@@ -831,7 +838,7 @@ export default function AppPage() {
                   {nfcTokens.map(t => (
                     <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 10, background: t.is_active ? 'rgba(46,204,113,0.05)' : 'rgba(255,55,55,0.05)', border: t.is_active ? '1px solid rgba(46,204,113,0.2)' : '1px solid rgba(255,55,55,0.15)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontFamily: "'Inter',system-ui,sans-serif", fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '.04em', color: t.is_active ? '#2ecc71' : '#ff4d6a' }}>{t.token_prefix}…</span>
+                        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '.04em', color: t.is_active ? '#2ecc71' : '#ff4d6a' }}>{t.token_prefix}…</span>
                         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                           {t.is_active ? `${t.access_count} accesos` : 'Revocado'}
                           {t.last_accessed_at && ` · última vez ${new Date(t.last_accessed_at).toLocaleDateString()}`}
@@ -885,7 +892,7 @@ export default function AppPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
                     <input readOnly value={generatedUrl} onClick={e => (e.target as HTMLInputElement).select()}
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'var(--inset-dark)', color: '#F5C518', fontSize: 12, fontFamily: "'Inter',system-ui,sans-serif", fontWeight: 600, letterSpacing: '.03em', outline: 'none', cursor: 'text' }} />
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'var(--inset-dark)', color: '#F5C518', fontSize: 12, fontFamily: 'var(--font-ui)', fontWeight: 600, letterSpacing: '.03em', outline: 'none', cursor: 'text' }} />
                     <button onClick={() => { navigator.clipboard.writeText(generatedUrl).then(() => { setGenCopied(true); setTimeout(() => setGenCopied(false), 2000) }).catch(() => {}) }}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, border: 'none', background: genCopied ? '#2ecc71' : '#F5C518', color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .2s' }}>
                       {genCopied && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}{genCopied ? 'Copiado' : 'Copiar enlace'}
@@ -934,7 +941,7 @@ export default function AppPage() {
         <div onClick={() => setShowCart(false)} style={{ position: 'fixed', inset: 0, zIndex: 74, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Solicitar llavero NFC</div>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Tienda CarLink</div>
               <button onClick={() => setShowCart(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -946,38 +953,29 @@ export default function AppPage() {
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>Llavero NFC CarLink</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Aro metálico + chip programado con tu ficha. Envío a domicilio 3–5 días.</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Personaliza tu llavero con colores, grabado y tipo de placa. Pago seguro, sin registro.</div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13, color: 'var(--text-3)', marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Llavero NFC (1 und.)</span><span style={{ color: tDark ? '#f5f3ec' : '#17171a', fontWeight: 600 }}>$59.900</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Programación + envío</span><span style={{ color: '#5be89a', fontWeight: 600 }}>Gratis</span></div>
-              <div style={{ height: 1, background: 'var(--section-border)', margin: '2px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}><span style={{ color: tDark ? '#fff' : '#17171a', fontWeight: 700 }}>Total</span><span style={{ color: '#F5C518', fontWeight: 800, fontFamily: "'Anton',sans-serif", fontSize: 20 }}>$59.900</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+              {[
+                { icon: '🎨', title: 'Personaliza', desc: '7 colores disponibles' },
+                { icon: '📝', title: 'Grabado', desc: 'Texto personalizado' },
+                { icon: '💳', title: 'Múltiples pagos', desc: 'Tarjeta, Nequi, PSE' },
+                { icon: '🚚', title: 'Envío gratis', desc: 'A todo Colombia' },
+              ].map(f => (
+                <div key={f.title} style={{ padding: 12, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--section-border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{f.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{f.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{f.desc}</div>
+                </div>
+              ))}
             </div>
 
-            <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 9 }}>Método de pago</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-              {[{ id: 'card', name: 'Tarjeta de crédito / débito' }, { id: 'pse', name: 'PSE — débito bancario' }, { id: 'nequi', name: 'Nequi' }].map(pm => {
-                const active = payMethod === pm.id
-                return (
-                  <button key={pm.id} onClick={() => setPayMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', fontSize: 14, fontWeight: 600, background: active ? 'rgba(245,197,24,0.14)' : 'var(--input-bg)', border: `1.5px solid ${active ? '#F5C518' : 'var(--input-border)'}`, color: active ? (tDark ? '#fff' : '#17171a') : 'var(--text-3)' }}>
-                    <span style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${active ? '#F5C518' : '#6f6a5f'}`, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? '#F5C518' : 'transparent' }} /></span>
-                    {pm.name}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 13px', borderRadius: 11, background: 'var(--surface-2)', border: '1px solid var(--section-border)', marginBottom: 16 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ marginTop: 1, flex: '0 0 auto' }}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Enviar a <b style={{ color: tDark ? '#f5f3ec' : '#17171a' }}>{ownerName}</b> · Placa {vehicle?.plate || '—'} · {vehicle?.city || '—'}</div>
-            </div>
-
-            <button onClick={() => { setShowCart(false); flashApp('Pago aprobado — preparando tu envío') }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>Pagar $59.900
-            </button>
+            <a href="/shop" onClick={() => setShowCart(false)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', textDecoration: 'none' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+              Ir a la tienda
+            </a>
           </div>
         </div>
       )}
@@ -988,7 +986,7 @@ export default function AppPage() {
           <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, textTransform: 'uppercase', color: '#ff6b6b' }}>Llaveros encontrados</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, textTransform: 'uppercase', color: '#ff6b6b' }}>Llaveros encontrados</div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Personas que encontraron tu llavero NFC</div>
               </div>
               <button onClick={() => setShowFoundPanel(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1048,7 +1046,7 @@ export default function AppPage() {
         </div>
       )}
 
-      {isBusiness && <PqrsInbox isOpen={showPqrs} onClose={() => setShowPqrs(false)} theme={theme} />}
+      {isBusiness && subValid && <PqrsInbox isOpen={showPqrs} onClose={() => setShowPqrs(false)} theme={theme} />}
 
       {/* NOTIFICATIONS PANEL */}
       {showNotifications && (
@@ -1145,6 +1143,21 @@ export default function AppPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function SubscriptionExpiredCard({ theme }: { theme: 'light' | 'dark' }) {
+  const isDark = theme === 'dark'
+  const GOLD = '#F5C518'
+  return (
+    <div style={{ maxWidth: 440, margin: '60px auto', textAlign: 'center', padding: 32, borderRadius: 20, background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)'}` }}>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,77,106,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, textTransform: 'uppercase', letterSpacing: '.02em', color: isDark ? '#f5f3ec' : '#17171a', marginBottom: 8 }}>Suscripción vencida</div>
+      <p style={{ fontSize: 13, color: isDark ? '#8f8a7a' : '#6f6a5f', lineHeight: 1.5, margin: '0 0 20px' }}>Tu período de prueba ha terminado. Renueva tu plan para seguir usando las funciones del taller.</p>
+      <button style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)' }}>Suscribirme ahora</button>
     </div>
   )
 }

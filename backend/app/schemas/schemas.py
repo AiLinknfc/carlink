@@ -601,3 +601,30 @@ class NfcStatsOut(BaseModel):
     total_alerts: int
     unresolved_alerts: int
     whitelist_count: int
+
+
+# =========== Job Applications ===========
+
+class JobApplicationCreate(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    area: str
+    message: str | None = None
+    cv_url: str | None = None
+    offer_title: str | None = None
+
+
+class JobApplicationOut(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    phone: str
+    area: str
+    message: str | None = None
+    cv_url: str | None = None
+    offer_title: str | None = None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

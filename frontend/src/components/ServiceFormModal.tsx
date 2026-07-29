@@ -780,7 +780,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                           background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
                           color: '#f5f3ec', fontSize: 13, cursor: 'pointer', textAlign: 'left',
                         }}>
-                        <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 11, color: '#F5C518', fontWeight: 700, flex: '0 0 auto' }}>{ws.code}</span>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, color: '#F5C518', fontWeight: 700, flex: '0 0 auto' }}>{ws.code}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>
                             {ws.name}

@@ -309,3 +309,18 @@ class NfcTokenWhitelist(Base):
     claimed_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class JobApplication(Base):
+    __tablename__ = "job_applications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    full_name: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    phone: Mapped[str] = mapped_column(Text)
+    area: Mapped[str] = mapped_column(Text)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cv_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    offer_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="new")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

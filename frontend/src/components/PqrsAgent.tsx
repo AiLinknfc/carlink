@@ -63,7 +63,7 @@ export default function PqrsAgent({ isOpen, onClose, theme, plate, city, default
     if (!isOpen) return
     setStep('kind'); setKind(null); setCategory(null); setCarModel(''); setMessage(''); setEmail(''); setDraft(''); setSaved(null)
     setMsgs([
-      { role: 'bot', text: '¡Hola! Soy CarLia, tu asistente CarLink 🤝 Aprendo de tu experiencia para que el equipo mejore la app más rápido.' },
+      { role: 'bot', text: '¡Hola! Soy CarLink, tu asistente, Aprendo de tu experiencia para que el equipo mejore la app más rápido.' },
       { role: 'bot', text: '¿Qué quieres compartir hoy?' },
     ])
   }, [isOpen])
@@ -160,7 +160,7 @@ export default function PqrsAgent({ isOpen, onClose, theme, plate, city, default
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.1 }}>CarLia · Asistente PQRS</div>
+                <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.1 }}>CarLink · Asistente PQRS</div>
                 <div style={{ fontSize: 11, color: textMuted }}>Peticiones · Quejas · Reclamos · Sugerencias</div>
               </div>
               <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: 10, background: botBubble, border: `1px solid ${subtle}`, color: textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>

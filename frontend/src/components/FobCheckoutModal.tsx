@@ -118,7 +118,7 @@ export default function FobCheckoutModal({ isOpen, onClose, theme, initialProduc
                               <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>{p.name}{p.premium && <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 800, color: '#111', background: GOLD, padding: '2px 6px', borderRadius: 6 }}>TOP</span>}</span>
                               <span style={{ display: 'block', fontSize: 11.5, color: textMuted, marginTop: 2 }}>{p.desc}</span>
                             </span>
-                            <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 16, color: on ? GOLD : textPrimary, flex: '0 0 auto' }}>{COP(p.price)}</span>
+                            <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: on ? GOLD : textPrimary, flex: '0 0 auto' }}>{COP(p.price)}</span>
                           </button>
                         )
                       })}
@@ -136,7 +136,7 @@ export default function FobCheckoutModal({ isOpen, onClose, theme, initialProduc
                     <div style={{ marginTop: 6, padding: 14, borderRadius: 13, background: cardBg, border: `1px solid ${subtle}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: textMuted }}><span>Subtotal</span><span>{COP(total)}</span></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: textMuted, margin: '6px 0' }}><span>Envío</span><span>Gratis</span></div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 8, borderTop: `1px solid ${subtle}` }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, color: GOLD }}>{COP(total)}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 8, borderTop: `1px solid ${subtle}` }}><span style={{ fontWeight: 700 }}>Total</span><span style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: GOLD }}>{COP(total)}</span></div>
                     </div>
                   </div>
 

@@ -15,23 +15,31 @@ const GoogleSVG = ({ width = 20, height = 20, style }: { width?: number; height?
   </svg>
 )
 
+const AppleSVG = ({ width = 20, height = 20, style }: { width?: number; height?: number; style?: React.CSSProperties }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="currentColor" style={style} aria-hidden="true">
+    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+  </svg>
+)
+
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
   plateText: string
   onOpenPolicy: (tab: 'warranty' | 'privacy' | 'support') => void
   theme: 'light' | 'dark'
+  initialMode?: 'signin' | 'signup'
+  initialAccountType?: 'user' | 'business'
 }
 
 type Mode = 'signin' | 'signup'
 type Step = 'form' | 'loading' | 'confirm'
 type AccountType = 'user' | 'business'
 
-export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, theme }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, theme, initialMode = 'signin', initialAccountType = 'user' }: LoginModalProps) {
   const router = useRouter()
   const { signIn, signInWithEmail, signUpWithEmail } = useAuth()
 
-  const [mode, setMode] = useState<Mode>('signin')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [accountType, setAccountType] = useState<AccountType>('user')
   const [step, setStep] = useState<Step>('form')
   const [email, setEmail] = useState('')
@@ -49,8 +57,11 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError(null)
       setIsSubmitting(false)
       setShowTermsError(false)
+    } else {
+      setMode(initialMode)
+      setAccountType(initialAccountType)
     }
-  }, [isOpen])
+  }, [isOpen, initialMode, initialAccountType])
 
   const isDark = theme === 'dark'
   const panelBg = isDark ? 'rgba(20,20,20,0.94)' : 'rgba(247,246,242,0.96)'
@@ -158,7 +169,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                 border: `1px solid ${borderColor}`, borderRadius: 14,
                 boxShadow: '0 40px 90px rgba(0,0,0,.55)',
                 padding: 'clamp(20px, 5vw, 28px)', color: textPrimary,
-                fontFamily: "'Inter',system-ui,sans-serif",
+                fontFamily: 'var(--font-ui)',
               }}
               role="dialog"
               aria-modal="true"
@@ -202,23 +213,15 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                   >
                     {/* Header */}
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{
-                        margin: '0 auto 14px', width: 48, height: 48, borderRadius: 14,
-                        background: 'rgba(245,197,24,0.12)', border: `1px solid ${goldBorder}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-                      }}>
-                        <ShieldCheck width={24} height={24} style={{ color: gold }} />
-                      </div>
                       <h2 id="login-title" style={{
                         fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800,
                         marginBottom: 6, color: textPrimary,
                       }}>
-                        Acceso de Conductor
+                        {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
                       </h2>
-                      <p style={{ fontSize: 13, color: textMuted, maxWidth: '26ch', margin: '0 auto', lineHeight: 1.5 }}>
-                        {mode === 'signin' ? 'Ingresa para vincular y certificar la placa' : 'Crea tu cuenta para gestionar la placa'}{' '}
-                        <span style={{ color: gold, fontFamily: "'Anton',sans-serif", fontWeight: 400 }}>{plateText || '—'}</span>.
+                      <p style={{ fontSize: 13, color: textMuted, maxWidth: '28ch', margin: '0 auto', lineHeight: 1.5 }}>
+                        {mode === 'signin' ? 'Ingresa para gestionar tu placa' : 'Regístrate para vincular y certificar'}{' '}
+                        <span style={{ color: gold, fontFamily: 'var(--font-display)', fontWeight: 400 }}>{plateText || '—'}</span>.
                       </p>
                     </div>
 
@@ -232,7 +235,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           padding: '10px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
                           background: accountType === 'user' ? gold : 'transparent',
                           color: accountType === 'user' ? '#111' : textSecondary,
-                          fontFamily: "'Inter',system-ui,sans-serif", fontSize: 12.5, fontWeight: 700,
+                          fontFamily: 'var(--font-ui)', fontSize: 12.5, fontWeight: 700,
                           whiteSpace: 'nowrap', transition: 'all .18s',
                         }}
                       >
@@ -247,7 +250,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           padding: '10px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
                           background: accountType === 'business' ? gold : 'transparent',
                           color: accountType === 'business' ? '#111' : textSecondary,
-                          fontFamily: "'Inter',system-ui,sans-serif", fontSize: 12.5, fontWeight: 700,
+                          fontFamily: 'var(--font-ui)', fontSize: 12.5, fontWeight: 700,
                           whiteSpace: 'nowrap', transition: 'all .18s',
                         }}
                       >
@@ -293,7 +296,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                             value={password}
                             onChange={(e) => { setPassword(e.target.value); setError(null) }}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleEmailAuth() }}
-                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Mínimo 6 caracteres'}
+                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Crea una contraseña (6+ chars)'}
                             style={{ ...inputStyle(inputBg, inputBorder, textPrimary), paddingRight: 42 }}
                             onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
                             onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
@@ -350,7 +353,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       style={{
                         width: '100%', padding: '13px 18px', borderRadius: 12, border: 'none',
                         background: `linear-gradient(135deg, ${gold}, #e0b100)`, color: '#111',
-                        fontWeight: 800, fontSize: 14, fontFamily: "'Inter',system-ui,sans-serif",
+                        fontWeight: 800, fontSize: 14, fontFamily: 'var(--font-ui)',
                         cursor: isSubmitting ? 'not-allowed' : 'pointer',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                         boxShadow: '0 0 22px rgba(245,197,24,0.35)', transition: 'all .18s',
@@ -375,7 +378,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       style={{
                         width: '100%', padding: '12px 18px', borderRadius: 12,
                         border: `1px solid ${inputBorder}`, background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
-                        color: textPrimary, fontWeight: 700, fontSize: 14, fontFamily: "'Inter',system-ui,sans-serif",
+                        color: textPrimary, fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-ui)',
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                         transition: 'all .18s',
                       }}
@@ -384,6 +387,23 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     >
                       <GoogleSVG width={18} height={18} />
                       <span>Google</span>
+                    </button>
+
+                    {/* Apple button */}
+                    <button
+                      onClick={handleGoogle}
+                      style={{
+                        width: '100%', padding: '12px 18px', borderRadius: 12,
+                        border: `1px solid ${inputBorder}`, background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
+                        color: textPrimary, fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-ui)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                        transition: 'all .18s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = goldBorder; e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.07)' : '#faf9f5' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = inputBorder; e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : '#ffffff' }}
+                    >
+                      <AppleSVG width={18} height={18} />
+                      <span>Apple</span>
                     </button>
 
                     {/* Mode toggle */}
@@ -398,8 +418,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     </p>
                     </>
                     ) : (
-                    // Taller / Empresa — sin acción por ahora
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '18px 8px 6px', textAlign: 'center' }}>
+                    // Taller / Empresa — redirigir a registro
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '18px 8px 6px', textAlign: 'center' }}>
                       <div style={{
                         width: 52, height: 52, borderRadius: 14,
                         background: 'rgba(245,197,24,0.10)', border: `1px solid ${goldBorder}`,
@@ -407,12 +427,27 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       }}>
                         <WrenchIcon width={24} height={24} />
                       </div>
-                      <span style={{ fontFamily: "'Inter',system-ui,sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: gold, background: 'rgba(245,197,24,0.14)', border: `1px solid ${goldBorder}`, borderRadius: 999, padding: '3px 10px' }}>
-                        Próximamente
+                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: gold, background: 'rgba(245,197,24,0.14)', border: `1px solid ${goldBorder}`, borderRadius: 999, padding: '3px 10px' }}>
+                        Registro para talleres
                       </span>
                       <p style={{ fontSize: 13, color: textSecondary, maxWidth: '30ch', lineHeight: 1.5, margin: 0 }}>
-                        El acceso para <span style={{ color: textPrimary, fontWeight: 700 }}>talleres y empresas</span> estará disponible muy pronto.
+                        Registra tu <span style={{ color: textPrimary, fontWeight: 700 }}>taller o empresa</span> y accede a clientes, fichas y facturación.
                       </p>
+                      <button
+                        onClick={() => { onClose(); window.location.href = '/register?mode=empresa' }}
+                        style={{
+                          width: '100%', padding: '13px 18px', borderRadius: 12, border: 'none',
+                          background: `linear-gradient(135deg, ${gold}, #e0b100)`, color: '#111',
+                          fontWeight: 800, fontSize: 14, fontFamily: 'var(--font-ui)',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          boxShadow: '0 0 22px rgba(245,197,24,0.35)', transition: 'all .18s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgba(245,197,24,0.5)' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 22px rgba(245,197,24,0.35)' }}
+                      >
+                        Registrar mi taller
+                        <ArrowRightIcon width={18} height={18} />
+                      </button>
                     </div>
                     )}
 
@@ -448,7 +483,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     </div>
                     <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                     <div style={{ textAlign: 'center' }}>
-                      <h3 style={{ fontFamily: "'Anton',sans-serif", fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: gold, marginBottom: 6 }}>
+                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: gold, marginBottom: 6 }}>
                         Verificando identidad
                       </h3>
                       <p style={{ fontSize: 12.5, color: textMuted, maxWidth: 220, margin: '0 auto', lineHeight: 1.5 }}>
@@ -469,7 +504,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: `1px solid ${goldBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <MailIcon width={26} height={26} style={{ color: gold }} />
                     </div>
-                    <h3 style={{ fontFamily: "'Anton',sans-serif", fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: textPrimary }}>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: textPrimary }}>
                       Revisa tu correo
                     </h3>
                     <p style={{ fontSize: 13, color: textSecondary, maxWidth: '30ch', margin: 0, lineHeight: 1.5 }}>
@@ -503,7 +538,7 @@ const inputIconStyle: React.CSSProperties = {
 const inputStyle = (bg: string, border: string, text: string): React.CSSProperties => ({
   width: '100%', padding: '12px 12px 12px 40px',
   background: bg, border: `1px solid ${border}`, borderRadius: 10,
-  fontSize: 13, color: text, fontFamily: "'Inter',system-ui,sans-serif",
+  fontSize: 13, color: text, fontFamily: 'var(--font-ui)',
   outline: 'none', transition: 'border-color .18s',
 })
 

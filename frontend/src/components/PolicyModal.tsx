@@ -143,7 +143,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(180, 180, 180)
-      doc.text('CarLink S.A.S. · Bogotá D.C., Colombia · soporte@ailink.com.co · +57 316 497 6104', margin, fh - 10)
+      doc.text('CarLink S.A.S. · Bogotá D.C., Colombia · business@carlink.com.co · +57 316 497 6104', margin, fh - 10)
       doc.text('Documento generado automáticamente. Válido sin firma.', margin, fh - 5)
       doc.setTextColor(...gold)
       doc.text('carlink.com.co', w - margin, fh - 10, { align: 'right' })
@@ -159,7 +159,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       bulletItem('A. DATOS RECOLECTADOS:', `Placa (${plateText}), ciudad de expedicion (${city}), marca/modelo/ano, kilometraje, historial de servicios, piezas, fotos de evidencia, recibos escaneados y correo de tu cuenta Google.`)
       bulletItem('B. FINALIDAD:', 'Proveer la ficha tecnica verificable del vehiculo; permitir el escaneo NFC/QR por talleres autorizados; asegurar trazabilidad y control de garantias; prevenir fraude de kilometraje.')
       bulletItem('C. SEGURIDAD:', 'Transmision con TLS 1.3 y cifrado AES-256. El chip NFC usa un identificador UID unico e inmutable con firma criptografica. Ningun dato personal viaja en texto plano en la etiqueta.')
-      bulletItem('D. TUS DERECHOS (Habeas Data):', 'Conocer, actualizar, rectificar y suprimir tus datos, y revocar el consentimiento escribiendo a soporte@ailink.com.co con el asunto "HABEAS DATA - ${plateText}".')
+      bulletItem('D. TUS DERECHOS (Habeas Data):', 'Conocer, actualizar, rectificar y suprimir tus datos, y revocar el consentimiento escribiendo a business@carlink.com.co con el asunto "HABEAS DATA - ${plateText}".')
 
     } else if (active === 'warranty') {
       sectionTitle('TERMINOS DE GARANTIA · CARLINK Y RED DE TALLERES')
@@ -175,7 +175,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       bulletItem('PLACA ACTIVA:', plateText)
       bulletItem('CIUDAD DE REGISTRO:', city)
       bulletItem('ESTADO NFC:', 'Activo y certificado')
-      bulletItem('CANAL DE SOPORTE:', 'soporte@ailink.com.co')
+      bulletItem('CANAL DE SOPORTE:', 'business@carlink.com.co')
       bulletItem('WHATSAPP:', '+57 316 497 6104')
       bodyText('Nuestro equipo tecnico responde en menos de 2 horas habiles. Para incidencias criticas con el chip NFC, contacta directamente por WhatsApp.')
     }
@@ -202,7 +202,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
     { title: '2. Datos personales recolectados', text: <>Placa (<b style={{ color: textPrimary }}>{plateText}</b>), ciudad de expedición (<b style={{ color: textPrimary }}>{city}</b>), marca, modelo y año, kilometraje, historial de servicios, piezas reemplazadas, fotos de evidencia, recibos escaneados y el correo de tu cuenta de Google.</> },
     { title: '3. Finalidad del tratamiento', text: <>Proveer la ficha técnica verificable del vehículo, permitir el escaneo del llavero NFC o el QR por talleres autorizados, asegurar la trazabilidad y el control de garantías, y prevenir el fraude de kilometraje en compraventas.</> },
     { title: '4. Seguridad y cifrado', text: <>Toda transmisión viaja por túneles TLS 1.3 con cifrado AES-256. El llavero NFC usa un identificador UID único e inmutable con firma criptográfica; ningún dato personal se guarda en texto plano en la etiqueta física.</> },
-    { title: '5. Tus derechos (Habeas Data)', text: <>Puedes conocer, actualizar, rectificar y suprimir tus datos, o revocar el consentimiento en cualquier momento escribiendo a <b style={{ color: GOLD }}>soporte@ailink.com.co</b> con el asunto «HABEAS DATA - {plateText}».</> },
+    { title: '5. Tus derechos (Habeas Data)', text: <>Puedes conocer, actualizar, rectificar y suprimir tus datos, o revocar el consentimiento en cualquier momento escribiendo a <b style={{ color: GOLD }}>business@carlink.com.co</b> con el asunto «HABEAS DATA - {plateText}».</> },
   ]
 
   const WARRANTY = [
@@ -324,7 +324,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 700 }}>{Ic.phone(GOLD)}<span>Soporte por WhatsApp</span></div>
                           <p style={{ fontSize: 12, lineHeight: 1.55, color: textMuted, margin: 0 }}>¿Eres taller de la red y tienes problemas escribiendo los llaveros? Escríbenos por el canal directo.</p>
                           <a href="https://wa.me/573164976104" target="_blank" rel="noreferrer" style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color: GREEN, background: isDark ? '#000' : 'rgba(0,0,0,0.04)', border: `1px solid ${subtle}`, borderRadius: 9, padding: '9px', textDecoration: 'none' }}>+57 316 497 6104</a>
-                          <a href="mailto:soporte@ailink.com.co" style={{ textAlign: 'center', fontSize: 12.5, color: GOLD, textDecoration: 'none' }}>soporte@ailink.com.co</a>
+                          <a href="mailto:business@carlink.com.co" style={{ textAlign: 'center', fontSize: 12.5, color: GOLD, textDecoration: 'none' }}>business@carlink.com.co</a>
                         </div>
                         <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <span style={{ ...label, color: GOLD, letterSpacing: '.14em' }}>Autodiagnóstico</span>

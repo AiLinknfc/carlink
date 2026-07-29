@@ -167,6 +167,27 @@ export const authApi = {
   googleLogin: () => request<{ url: string }>('GET', '/auth/google'),
 }
 
+export interface JobApplication {
+  id: string
+  full_name: string
+  email: string
+  phone: string
+  area: string
+  message: string | null
+  cv_url: string | null
+  offer_title: string | null
+  status: string
+  created_at: string
+}
+
+export const jobApplicationApi = {
+  create: (data: { full_name: string; email: string; phone: string; area: string; message?: string; cv_url?: string; offer_title?: string }) =>
+    request<JobApplication>('POST', '/job-applications', data),
+  list: () => request<JobApplication[]>('GET', '/job-applications'),
+  updateStatus: (id: string, status: string) =>
+    request<JobApplication>('PATCH', `/job-applications/${id}`, { status }),
+}
+
 export const adminApi = {
   stats: () => request<NfcStats>('GET', '/admin/nfc/stats'),
   listTokens: (status?: string) => request<NfcTokenAdmin[]>('GET', `/admin/nfc/tokens${status ? `?status=${status}` : ''}`),

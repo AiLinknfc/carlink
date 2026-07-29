@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CarLinkMark } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
+import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
 
 interface Props {
   activeTab: string
@@ -15,6 +16,9 @@ interface Props {
   accountType?: string
   theme?: 'light' | 'dark'
   isAdmin?: boolean
+  subscriptionStatus?: string | null
+  trialEndsAt?: string | null
+  profileCreatedAt?: string
 }
 
 const ALL_NAV_ITEMS = [
@@ -34,7 +38,7 @@ const TALLER_NAV_ITEMS = [
   { id: 'config', label: 'Promoción', icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -136,7 +140,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         </span>
         <div
           style={{
-            fontFamily: "'Anton',sans-serif", fontSize: 27, letterSpacing: '.01em', lineHeight: 1,
+            fontFamily: 'var(--font-display)', fontSize: 27, letterSpacing: '.01em', lineHeight: 1,
             whiteSpace: 'nowrap', opacity: expanded ? 1 : 0, transition: 'opacity .15s',
             color: textPrimary,
           }}
@@ -162,7 +166,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       {expanded && !vehicleLoading && vehicle && (
         <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${dividerColor}`, whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: textSecondary, fontWeight: 700 }}>Vehículo</div>
-          <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
           <div style={{ fontSize: 12, color: textMuted }}>{vehicle.anio} · {vehicle.tipo} · {vehicle.color}</div>
           {plateText && (
             <div style={{ width: 134, height: 66, margin: '4px 0 0', position: 'relative', overflow: 'visible', pointerEvents: 'none' }}>
@@ -245,6 +249,30 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
           )
         })}
       </nav>
+
+      {/* Subscription banner for taller accounts */}
+      {expanded && isBusinessAccount(accountType) && (() => {
+        const sub = isSubscriptionValid(subscriptionStatus as any, trialEndsAt, profileCreatedAt)
+        const trial = isTrialActive(subscriptionStatus as any, trialEndsAt, profileCreatedAt)
+        const days = getTrialDaysRemaining(trialEndsAt, profileCreatedAt)
+        if (sub && trial) {
+          return (
+            <div style={{ margin: '0 12px 8px', padding: '10px 14px', borderRadius: 10, background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#2ecc71' }}>Prueba gratuita · {days} {days === 1 ? 'día' : 'días'} restante{days !== 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Acceso completo a todas las funciones del taller.</div>
+            </div>
+          )
+        }
+        if (!sub) {
+          return (
+            <div style={{ margin: '0 12px 8px', padding: '10px 14px', borderRadius: 10, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#ff4d6a' }}>Suscripción vencida</div>
+              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Renueva para seguir usando el taller.</div>
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {vehicle?.owner && (
         <div style={{ padding: '14px 16px', borderTop: `1px solid ${dividerColor}`, display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>

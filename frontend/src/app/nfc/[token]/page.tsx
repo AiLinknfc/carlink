@@ -157,7 +157,7 @@ export default function NfcPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: 24,
-      fontFamily: "'Inter',system-ui,sans-serif",
+      fontFamily: 'var(--font-ui)',
     }}>
       {loading && (
         <div style={{ textAlign: 'center', padding: '40px 32px' }}>
@@ -228,7 +228,7 @@ export default function NfcPage() {
                     <path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1"/>
                   </svg>
                 </span>
-                <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, color: '#f5f3ec' }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: '#f5f3ec' }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
               </div>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', color: '#F5C518', fontSize: 11, fontWeight: 700 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F5C518', boxShadow: '0 0 6px #F5C518' }} />
@@ -238,7 +238,7 @@ export default function NfcPage() {
 
             {/* Placa */}
             <div style={{ margin: '6px 0 2px', fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Placa</div>
-            <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 42, color: '#F5C518', letterSpacing: '.02em' }}>{plateText}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: '#F5C518', letterSpacing: '.02em' }}>{plateText}</div>
 
             {/* Info bar: stars */}
             {data.workshop_rating > 0 && (
@@ -262,7 +262,7 @@ export default function NfcPage() {
                 <div style={{ marginTop: 20, padding: '16px 18px', borderRadius: 16, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <span style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Precio de venta</span>
-                    <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, color: '#F5C518' }}>{data.sell_price || 'Consultar'}</span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#F5C518' }}>{data.sell_price || 'Consultar'}</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {data.sell_city && <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Ciudad</div><div style={{ fontSize: 14, fontWeight: 600, color: '#f5f3ec', marginTop: 2 }}>{data.sell_city}{data.sell_zip ? ` · ${data.sell_zip}` : ''}</div></div>}
@@ -291,8 +291,8 @@ export default function NfcPage() {
                   {currentKm != null && (
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a8a496', fontWeight: 700 }}>Kilometraje actual</div>
-                      <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 40, letterSpacing: '.01em', lineHeight: 1, color: '#f5f3ec', marginTop: 4 }}>
-                        {currentKm.toLocaleString()}<span style={{ fontSize: 16, color: '#a8a496', fontFamily: "'Inter'", fontWeight: 600 }}> km</span>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, letterSpacing: '.01em', lineHeight: 1, color: '#f5f3ec', marginTop: 4 }}>
+                        {currentKm.toLocaleString()}<span style={{ fontSize: 16, color: '#a8a496', fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span>
                       </div>
                     </div>
                   )}

@@ -122,7 +122,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
                   }}><ServiceIcon type={r.service_type} size={18} /></span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: theme.accent, fontWeight: 800 }}>CarLink Service Record</div>
-                    <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
@@ -187,7 +187,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
                     </div>
                   )}
                 </div>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 13, color: theme.accent, letterSpacing: '.03em', opacity: .85, flex: '0 0 auto' }}>CarLink</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, color: theme.accent, letterSpacing: '.03em', opacity: .85, flex: '0 0 auto' }}>CarLink</div>
               </div>
             </div>
           </div>

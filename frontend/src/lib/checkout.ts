@@ -14,9 +14,7 @@ export interface FobProduct {
 }
 
 export const FOB_PRODUCTS: FobProduct[] = [
-  { id: 'std', name: 'Llavero Estándar', desc: 'Aro metálico, grabado con tu placa.', price: 49900 },
-  { id: 'prem', name: 'Llavero Premium', desc: 'Acero cepillado + envío express.', price: 79900, premium: true },
-  { id: 'custom', name: 'Llavero Personalizado', desc: 'Tu logo o diseño propio.', price: 99900 },
+  { id: 'std', name: 'Llavero NFC CarLink', desc: 'Impreso en PLA con chip NFC programado con tu placa.', price: 49900 },
 ]
 
 export interface FobOrder {

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talleres CarLink — Mapa de Colombia</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#0a0a0a;}
+  #map{width:100%;height:100%;}
+  .taller-pin{background:#F5C518;border:2px solid #0a0a0a;border-radius:50%;box-shadow:0 0 6px rgba(245,197,24,.8);}
+  .hub-pin{background:#0a0a0a;border:2px solid #F5C518;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#F5C518;box-shadow:0 0 10px rgba(245,197,24,.5);}
+  .leaflet-popup-content-wrapper{background:#141414;color:#f5f3ec;border-radius:10px;}
+  .leaflet-popup-tip{background:#141414;}
+  .leaflet-popup-content{font-family:Inter,sans-serif;font-size:12.5px;margin:9px 12px;}
+  .leaflet-popup-content b{color:#F5C518;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  var map = L.map('map', {zoomControl:true}).setView([4.7, -74.1], 6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  var cities = [
+    {name:'Bogotá D.C.',      dept:'Cundinamarca',       lat:4.7110, lng:-74.0721, count:4},
+    {name:'Medellín',          dept:'Antioquia',          lat:6.2442, lng:-75.5812, count:3},
+    {name:'Cali',              dept:'Valle del Cauca',    lat:3.4516, lng:-76.5320, count:2},
+    {name:'Barranquilla',      dept:'Atlántico',          lat:10.9639,lng:-74.7964, count:2},
+    {name:'Cartagena',         dept:'Bolívar',            lat:10.3910,lng:-75.4794, count:1},
+    {name:'Bucaramanga',       dept:'Santander',          lat:7.1193, lng:-73.1227, count:2},
+    {name:'Pereira',           dept:'Risaralda',          lat:4.8087, lng:-75.6906, count:1},
+    {name:'Manizales',         dept:'Caldas',             lat:5.0689, lng:-75.5174, count:1},
+    {name:'Cúcuta',            dept:'Norte de Santander', lat:7.8891, lng:-72.4967, count:1},
+    {name:'Santa Marta',       dept:'Magdalena',          lat:11.2408,lng:-74.1990, count:1},
+    {name:'Ibagué',            dept:'Tolima',             lat:4.4389, lng:-75.2322, count:1},
+    {name:'Villavicencio',     dept:'Meta',               lat:4.1420, lng:-73.6266, count:1},
+    {name:'Tunja',             dept:'Boyacá',             lat:5.5353, lng:-73.3678, count:1},
+    {name:'Duitama',           dept:'Boyacá',             lat:5.8237, lng:-73.0338, count:1}
+  ];
+
+  var hubLayer = L.layerGroup().addTo(map);
+  var detailLayer = L.layerGroup();
+  var tallerNames = ['Tecnicentro','Lubricentro','Automundo','MotorPro','Servicio Rápido','Frenos y Más','CDA Norte','Llantas del Sur','Taller Express','Mecánica Total'];
+
+  cities.forEach(function(c){
+    var hubIcon = L.divIcon({className:'hub-pin', html: c.count, iconSize:[30,30]});
+    L.marker([c.lat, c.lng], {icon:hubIcon}).addTo(hubLayer)
+      .bindPopup('<b>'+c.name+'</b><br>'+c.dept+' · '+c.count+' talleres afiliados');
+
+    for (var i=0; i<c.count; i++){
+      var jLat = c.lat + (Math.random()-0.5)*0.12;
+      var jLng = c.lng + (Math.random()-0.5)*0.12;
+      var pinIcon = L.divIcon({className:'taller-pin', iconSize:[12,12]});
+      var tname = tallerNames[i % tallerNames.length] + ' ' + c.name.split(' ')[0];
+      L.marker([jLat, jLng], {icon:pinIcon}).addTo(detailLayer)
+        .bindPopup('<b>'+tname+'</b><br>'+c.name+', '+c.dept);
+    }
+  });
+
+  map.on('zoomend', function(){
+    if (map.getZoom() >= 9){
+      if(!map.hasLayer(detailLayer)) map.addLayer(detailLayer);
+    } else {
+      if(map.hasLayer(detailLayer)) map.removeLayer(detailLayer);
+    }
+  });
+
+  window.addEventListener('message', function(ev){
+    var d = ev.data || {};
+    if (d.type === 'flyToBounds' && d.bounds){
+      map.flyToBounds(d.bounds, {padding:[24,24], duration:1.1});
+    } else if (d.type === 'flyToCity'){
+      var c = cities.find(function(x){ return x.name === d.city; });
+      if (c) map.flyTo([c.lat, c.lng], 10, {duration:1.1});
+    }
+  });
+</script>
+</body>
+</html>

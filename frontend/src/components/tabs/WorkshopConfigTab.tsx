@@ -100,7 +100,7 @@ export default function WorkshopConfigTab({ theme }: WorkshopConfigTabProps) {
               onChange={e => setStampsRequired(parseInt(e.target.value))}
               style={{ flex: 1, accentColor: '#F5C518' }}
             />
-            <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 28, color: '#F5C518', minWidth: 40, textAlign: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#F5C518', minWidth: 40, textAlign: 'center' }}>
               {stampsRequired}
             </span>
           </div>

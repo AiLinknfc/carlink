@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { adminApi } from '@/lib/api'
+import { adminApi, jobApplicationApi, type JobApplication } from '@/lib/api'
 import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats } from '@/lib/types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,9 +24,12 @@ export default function AdminPage() {
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
   const [whitelist, setWhitelist] = useState<NfcWhitelistEntry[]>([])
   const [limits, setLimits] = useState<NfcTokenLimit[]>([])
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>([])
+  const [showJobsDropdown, setShowJobsDropdown] = useState(false)
   const [loading2, setLoading2] = useState(true)
   const [error, setError] = useState('')
   const [provisioned, setProvisioned] = useState<{ tag_uid: string; activation_code: string; token_url: string } | null>(null)
+  const jobsRef = useRef<HTMLDivElement>(null)
 
   const c = {
     bg: isDark ? '#0a0b0e' : '#f5f3ec',
@@ -50,6 +53,22 @@ export default function AdminPage() {
     else if (tab === 'whitelist') loadWhitelist()
     else if (tab === 'limits') loadLimits()
   }, [tab])
+
+  useEffect(() => {
+    if (!loading && user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID) {
+      loadJobApplications()
+    }
+  }, [user, loading])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (jobsRef.current && !jobsRef.current.contains(e.target as Node)) {
+        setShowJobsDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   async function loadStats() {
     setLoading2(true)
@@ -80,6 +99,16 @@ export default function AdminPage() {
     const l = await adminApi.listLimits()
     if (l) setLimits(l)
     setLoading2(false)
+  }
+
+  async function loadJobApplications() {
+    const list = await jobApplicationApi.list()
+    if (list) setJobApplications(list)
+  }
+
+  async function markAsReviewed(id: string) {
+    await jobApplicationApi.updateStatus(id, 'reviewed')
+    loadJobApplications()
   }
 
   async function handleResolveAlert(id: string) {
@@ -139,9 +168,49 @@ export default function AdminPage() {
   ] as const
 
   return (
-    <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'var(--font-ui)' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20, color: c.accent }}>Admin NFC</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: c.accent }}>Admin NFC</h1>
+
+          {/* Bell notification */}
+          <div ref={jobsRef} style={{ position: 'relative' }}>
+            <button onClick={() => setShowJobsDropdown(prev => !prev)} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .15s' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              {jobApplications.filter(j => j.status === 'new').length > 0 && (
+                <span style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: '#ff4d6a', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                  {jobApplications.filter(j => j.status === 'new').length}
+                </span>
+              )}
+            </button>
+
+            {showJobsDropdown && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, width: 340, maxHeight: 400, overflowY: 'auto', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.24)', zIndex: 50, marginTop: 8 }}>
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, fontSize: 13, fontWeight: 700, color: c.accent }}>Postulaciones</div>
+                {jobApplications.length === 0 && (
+                  <div style={{ padding: 20, textAlign: 'center', color: c.muted, fontSize: 13 }}>No hay postulaciones aún</div>
+                )}
+                {jobApplications.map(j => (
+                  <div key={j.id} style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, background: j.status === 'new' ? 'rgba(245,197,24,0.04)' : 'transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{j.full_name}</div>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: j.status === 'new' ? 'rgba(245,197,24,0.14)' : 'rgba(0,0,0,0.05)', color: j.status === 'new' ? '#F5C518' : c.muted }}>
+                        {j.status === 'new' ? 'Nueva' : 'Revisada'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: c.muted }}>{j.email} · {j.area}</div>
+                    {j.offer_title && <div style={{ fontSize: 11, color: c.accent, marginTop: 2 }}>{j.offer_title}</div>}
+                    {j.status === 'new' && (
+                      <button onClick={() => markAsReviewed(j.id)} style={{ marginTop: 6, fontSize: 11, padding: '4px 10px', borderRadius: 6, border: `1px solid ${c.border}`, background: 'transparent', color: c.muted, cursor: 'pointer' }}>Marcar revisada</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: `1px solid ${c.border}`, paddingBottom: 8, flexWrap: 'wrap' }}>

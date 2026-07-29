@@ -110,6 +110,8 @@ export interface Diagnostic {
 
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 
+export type SubscriptionStatus = 'none' | 'trial' | 'active' | 'expired';
+
 export interface Profile {
   id: string;
   email: string | null;
@@ -123,6 +125,9 @@ export interface Profile {
   verified_at: string | null;
   whatsapp_enabled: boolean | null;
   whatsapp_number: string | null;
+  subscription_status?: SubscriptionStatus | null;
+  subscription_plan?: string | null;
+  trial_ends_at?: string | null;
   created_at: string;
 }
 

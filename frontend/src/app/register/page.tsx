@@ -424,7 +424,7 @@ export default function RegisterPage() {
           <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: tk.accent }}>
             Un último paso, {profile?.full_name?.split(' ')[0] || 'usuario'}
           </div>
-          <h1 style={{ fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,4vw,46px)', letterSpacing: '.01em', margin: '8px 0 6px', textTransform: 'uppercase', color: tk.titleColor }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4vw,46px)', letterSpacing: '.01em', margin: '8px 0 6px', textTransform: 'uppercase', color: tk.titleColor }}>
             {mode === 'persona' ? 'Registra tu vehículo' : 'Registra tu taller'}
           </h1>
           <p style={{ color: tk.subtitleColor, margin: 0, fontSize: 15 }}>
@@ -460,7 +460,7 @@ export default function RegisterPage() {
               <div className="regBrandGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
                 {brandTiles.map(b => (
                   <button key={b.name} onClick={b.onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '12px 6px', borderRadius: 13, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
-                    <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 18, color: b.mark }}>{b.initial}</span>
+                    <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 18, color: b.mark }}>{b.initial}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: b.fg }}>{b.name}</span>
                   </button>
                 ))}
@@ -541,10 +541,10 @@ export default function RegisterPage() {
                       titilando para señalar dónde escribir. */}
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <input value={regPlateLetters} onChange={e => setRegPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC" autoFocus
-                      style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
-                    <span style={{ color: tk.accent, fontFamily: "'Anton',sans-serif", fontSize: 20 }}>-</span>
+                      style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
+                    <span style={{ color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 20 }}>-</span>
                     <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
-                      style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
+                      style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
                   </div>
                 </div>
                 <div>
@@ -613,10 +613,10 @@ export default function RegisterPage() {
                         <label style={{ fontSize: 10, color: tk.sectionTitle, fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
                           <input value={wsPlateLetters} onChange={e => setWsPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
-                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
-                          <span style={{ padding: '0 8px', color: tk.accent, fontFamily: "'Anton',sans-serif", fontSize: 18 }}> - </span>
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                          <span style={{ padding: '0 8px', color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18 }}> - </span>
                           <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
-                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: "'Anton',sans-serif", fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
                         </div>
                       </div>
                       <div>
@@ -646,7 +646,7 @@ export default function RegisterPage() {
                       <div className="regBrandGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 7 }}>
                         {brandTiles.map(b => (
                           <button key={b.name} onClick={() => setWsBrand(b.name)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 4px', borderRadius: 10, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
-                            <span style={{ width: 30, height: 30, borderRadius: 8, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Anton',sans-serif", fontSize: 14, color: b.mark }}>{b.initial}</span>
+                            <span style={{ width: 30, height: 30, borderRadius: 8, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 14, color: b.mark }}>{b.initial}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: b.fg }}>{b.name}</span>
                           </button>
                         ))}

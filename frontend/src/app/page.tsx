@@ -1,17 +1,19 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { CITIES } from '@/lib/constants'
 import LoginModal from '@/components/LoginModal'
 import PolicyModal, { PolicyTab } from '@/components/PolicyModal'
 import PqrsAgent from '@/components/PqrsAgent'
-import FobCheckoutModal from '@/components/FobCheckoutModal'
+import CartModal from '@/components/CartModal'
 import LandingSections from '@/components/LandingSections'
 import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
 import { CarLinkMark } from '@/lib/icons_new'
+import Link from 'next/link'
 
 const PLATE_TYPES = [
   { id: 'particular', name: 'Particular', tag: '' },
@@ -43,11 +45,9 @@ const PLATE_CONFIG: Record<string, { letterLen: number; numLen: number; moto?: b
   clasico:     { letterLen: 3, numLen: 3 },
 }
 
-// Valores por defecto genéricos (plantilla) por tipo, válidos según su formato de caracteres.
-// Se ven como un ejemplo para que el usuario los reemplace con su placa real.
 const PLATE_DEFAULTS: Record<string, { letters: string; numbers: string }> = {
-  particular:  { letters: 'ABC', numbers: '123' },  // 3 letras + 3 números
-  moto:        { letters: 'ABC', numbers: '12D' },  // 3 letras + 2 números + 1 letra
+  particular:  { letters: 'ABC', numbers: '123' },
+  moto:        { letters: 'ABC', numbers: '12D' },
   publico:     { letters: 'ABC', numbers: '123' },
   diplomatica: { letters: 'AB',  numbers: '1234' },
   carga:       { letters: 'ABC', numbers: '123' },
@@ -56,18 +56,19 @@ const PLATE_DEFAULTS: Record<string, { letters: string; numbers: string }> = {
 }
 
 export default function LandingPage() {
+  const router = useRouter()
   const { signIn } = useAuth()
   const [plates, setPlates] = useState<Record<string, { letters: string; numbers: string }>>(() => ({ ...PLATE_DEFAULTS }))
-  // Debe coincidir con un valor de CITIES para que el selector y el prefill del registro funcionen.
   const [city, setCity] = useState('Bogotá')
   const [type, setType] = useState('particular')
   const [cityOpen, setCityOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [loginModalMode, setLoginModalMode] = useState<'signin' | 'signup'>('signin')
+  const [loginModalAccountType, setLoginModalAccountType] = useState<'user' | 'business'>('user')
   const [policyOpen, setPolicyOpen] = useState(false)
   const [policyTab, setPolicyTab] = useState<PolicyTab>('privacy')
   const [pqrsOpen, setPqrsOpen] = useState(false)
-  const [fobOpen, setFobOpen] = useState(false)
-  const [fobProduct, setFobProduct] = useState<string | undefined>(undefined)
+  const [cartOpen, setCartOpen] = useState(false)
   const { theme, isDark: dark, toggleTheme } = useTheme()
   const cityRef = useRef<HTMLDivElement>(null)
 
@@ -109,7 +110,6 @@ export default function LandingPage() {
   const pc = PLATE_CONFIG[type]
   const plateLetters = plates[type].letters
   const plateNumbers = plates[type].numbers
-  // Cada tipo respeta su propio formato de caracteres (los handlers limitan la entrada).
   const plateText = `${plateLetters}-${plateNumbers}`
 
   const types = useMemo(() => PLATE_TYPES.map(t => {
@@ -134,7 +134,6 @@ export default function LandingPage() {
   const handleNumbers = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (pc.moto) {
-      // Moto: 2 dígitos + 1 letra final (ej. 45F)
       const digits = raw.replace(/[^0-9]/g, '').slice(0, 2)
       const letter = raw.replace(/[^A-Z]/g, '').slice(0, 1)
       setCurrentPlate({ numbers: digits + letter })
@@ -143,18 +142,20 @@ export default function LandingPage() {
     }
   }
 
-  const openLoginModal = () => {
+  const openLoginModal = (accountType: 'user' | 'business' = 'user') => {
     sessionStorage.setItem('carlink_plate', plateText)
     sessionStorage.setItem('carlink_city', city)
+    setLoginModalMode('signin')
+    setLoginModalAccountType(accountType)
     setLoginModalOpen(true)
   }
 
-  const closeLoginModal = () => {
-    setLoginModalOpen(false)
-  }
-
-  const handleSignIn = () => {
-    signIn()
+  const openSignupModal = () => {
+    sessionStorage.setItem('carlink_plate', plateText)
+    sessionStorage.setItem('carlink_city', city)
+    setLoginModalMode('signup')
+    setLoginModalAccountType('user')
+    setLoginModalOpen(true)
   }
 
   const openPolicy = (tab: PolicyTab) => {
@@ -167,39 +168,72 @@ export default function LandingPage() {
       <BgParticles theme={theme} />
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: tk.vignette }} />
 
-      {/* ===== HEADER (logo + contraste claro/oscuro) ===== */}
+      {/* ===== HEADER ===== */}
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px clamp(20px,5vw,64px)',
+        padding: '8px clamp(16px,4vw,40px)',
         background: tk.headerBg, backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
         borderBottom: `1px solid ${tk.thinBorder}`,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, fontFamily: "'Anton',sans-serif", fontSize: 22, letterSpacing: '.01em' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: '#F5C518', color: '#111' }}>
-            <CarLinkMark size={18} />
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: '#F5C518', color: '#111' }}>
+            <CarLinkMark size={14} />
           </span>
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
         </div>
-        <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" style={{
-          position: 'relative', width: 66, height: 34, borderRadius: 999,
-          border: `1px solid ${tk.switchBorder}`, background: tk.switchTrack,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 4px',
-          transition: 'all .25s', boxShadow: tk.switchGlow,
-        }}>
-          <span style={{ position: 'absolute', left: 9, fontSize: 11, opacity: dark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
-          <span style={{ position: 'absolute', right: 8, color: '#111', opacity: dark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2a1 1 0 0 0-1 1v3.06A8 8 0 0 0 4 13a1 1 0 0 0 1 1h1l1 6h10l1-6h1a1 1 0 0 0 1-1 8 8 0 0 0-4-6.94V3a1 1 0 0 0-1-1z" /></svg>
-          </span>
-          <span style={{ position: 'relative', zIndex: 1, width: 26, height: 26, borderRadius: '50%', background: tk.knobBg, boxShadow: `0 2px 6px rgba(0,0,0,.35), ${tk.knobGlow}`, transform: `translateX(${dark ? 32 : 0}px)`, transition: 'transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s' }} />
-        </button>
+
+        {/* Right actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* Cart icon */}
+          <button onClick={() => setCartOpen(true)} title="Carrito" style={{
+            width: 34, height: 34, borderRadius: 9, border: `1px solid ${tk.switchBorder}`,
+            background: 'transparent', color: tk.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s', flexShrink: 0,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.color = '#F5C518' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = tk.switchBorder; e.currentTarget.style.color = tk.muted }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+          </button>
+          <button onClick={openSignupModal} className="header-auth-btn header-register" title="Crear cuenta" style={{
+            padding: '6px 12px', borderRadius: 9, border: `1px solid ${tk.switchBorder}`,
+            background: 'transparent', color: tk.muted, fontWeight: 600, fontSize: 12,
+            cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.color = '#F5C518' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = tk.switchBorder; e.currentTarget.style.color = tk.muted }}>
+            Registrar
+          </button>
+          <button onClick={() => openLoginModal()} className="header-auth-btn" title="Iniciar sesión" style={{
+            padding: '6px 12px', borderRadius: 9, border: 'none',
+            background: '#F5C518', color: '#111', fontWeight: 700, fontSize: 12,
+            cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#FFD84D' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#F5C518' }}>
+            Iniciar sesión
+          </button>
+          <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" className="header-theme-btn" style={{
+            position: 'relative', width: 56, height: 28, borderRadius: 999,
+            border: `1px solid ${tk.switchBorder}`, background: tk.switchTrack,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 3px',
+            transition: 'all .25s', boxShadow: tk.switchGlow,
+          }}>
+            <span style={{ position: 'absolute', left: 7, fontSize: 10, opacity: dark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
+            <span style={{ position: 'absolute', right: 6, color: '#111', opacity: dark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2a1 1 0 0 0-1 1v3.06A8 8 0 0 0 4 13a1 1 0 0 0 1 1h1l1 6h10l1-6h1a1 1 0 0 0 1-1 8 8 0 0 0-4-6.94V3a1 1 0 0 0-1-1z" /></svg>
+            </span>
+            <span style={{ position: 'relative', zIndex: 1, width: 22, height: 22, borderRadius: '50%', background: tk.knobBg, boxShadow: `0 2px 6px rgba(0,0,0,.35), ${tk.knobGlow}`, transform: `translateX(${dark ? 28 : 0}px)`, transition: 'transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s' }} />
+          </button>
+        </div>
       </header>
 
+      {/* ===== HERO (original single-column layout) ===== */}
       <section data-r="entrada" style={{
         position: 'relative', zIndex: 10,
         width: '100vw', height: '100vh',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '78px clamp(20px,5vw,64px) 26px', overflowY: 'auto',
+        padding: '68px clamp(20px,5vw,64px) 26px', overflowY: 'auto',
       }}>
         <div style={{ textAlign: 'center', zIndex: 16, flex: '0 0 auto' }}>
           <div style={{ fontSize: 12, letterSpacing: '.28em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518', animation: 'fadeUp .7s both' }}>
@@ -207,7 +241,7 @@ export default function LandingPage() {
           </div>
 
           <h1 style={{
-            fontFamily: "'Anton',sans-serif", fontSize: 'clamp(30px,4.6vw,58px)',
+            fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)',
             lineHeight: 0.98, letterSpacing: 0, margin: '12px auto 0', maxWidth: '19ch',
             textTransform: 'uppercase', animation: 'fadeUp .7s .04s both',
           }}>
@@ -253,11 +287,11 @@ export default function LandingPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
                 <input value={plateLetters} onChange={handleLetters}
                   maxLength={pc.letterLen} placeholder="ABC"
-                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'right' }} />
-                <span style={{ color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, lineHeight: 1, opacity: 0.5, padding: '0 6px' }}>-</span>
+                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'right' }} />
+                <span style={{ color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, lineHeight: 1, opacity: 0.5, padding: '0 6px' }}>-</span>
                 <input value={plateNumbers} onChange={handleNumbers}
                   maxLength={pc.moto ? 3 : pc.numLen} placeholder={pc.moto ? '12D' : '123'}
-                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'left' }} />
+                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'left' }} />
               </div>
               </div>
 
@@ -301,11 +335,11 @@ export default function LandingPage() {
                 )}
               </div>
 
-              <button onClick={openLoginModal}
+              <button onClick={() => openLoginModal()}
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 26px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 40px rgba(245,197,24,0.75)'; e.currentTarget.style.background = '#FFD84D' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 0 24px rgba(245,197,24,0.4)'; e.currentTarget.style.background = '#F5C518' }}>
-                Continuar
+                Acceder
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               </button>
             </div>
@@ -333,7 +367,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <LandingSections theme={theme} onStart={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} onBuyFob={(id) => { setFobProduct(id); setFobOpen(true) }} />
+      <LandingSections theme={theme} onStart={openLoginModal} onOpenEmpresa={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} onBuyFob={() => setCartOpen(true)} />
 
       <LoginModal
         isOpen={loginModalOpen}
@@ -341,6 +375,17 @@ export default function LandingPage() {
         plateText={plateText}
         onOpenPolicy={openPolicy}
         theme={theme}
+        initialMode={loginModalMode}
+        initialAccountType={loginModalAccountType}
+      />
+
+      <CartModal
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        theme={theme}
+        plateText={plateText}
+        plateType={type}
+        city={city}
       />
 
       <PolicyModal
@@ -358,14 +403,6 @@ export default function LandingPage() {
         theme={theme}
         plate={plateText}
         city={city}
-      />
-
-      <FobCheckoutModal
-        isOpen={fobOpen}
-        onClose={() => setFobOpen(false)}
-        theme={theme}
-        initialProductId={fobProduct}
-        plate={plateText}
       />
     </div>
   )

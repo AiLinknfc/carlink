@@ -465,7 +465,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             <div style={{ position: 'relative', width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(from 135deg, ${oilColorDyn} 0deg ${oilDegDyn}deg, ${gaugeTrack} ${oilDegDyn}deg 270deg, transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 14px rgba(245,197,24,0.25))' }}>
               <div style={{ position: 'absolute', inset: 12, borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="19" height="19" viewBox="0 0 24 24" fill={oilColorDyn} style={{ marginBottom: 2 }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 28, lineHeight: 1, color: oilColorDyn }}>{oilPctDyn}%</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1, color: oilColorDyn }}>{oilPctDyn}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 2 }}>Vida aceite</div>
               </div>
             </div>
@@ -516,7 +516,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
               {/* Center readout */}
               <div style={{ position: 'absolute', left: '50%', top: '66%', transform: 'translate(-50%,0)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, padding: '5px 16px', borderRadius: 10, background: tDark ? '#08090c' : '#f0ede4', border: `1px solid ${odoBorder}`, boxShadow: odoGlowShadow, animation: odoAnim, transition: 'border-color .4s' }}>
-                <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, letterSpacing: '.02em', color: needleColorLive, textShadow: odoTextShadow, transition: 'color .3s,text-shadow .4s' }}>{odoCenterValue}</span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.02em', color: needleColorLive, textShadow: odoTextShadow, transition: 'color .3s,text-shadow .4s' }}>{odoCenterValue}</span>
                 <span style={{ fontSize: 8, color: odometerLabel, fontWeight: 700, letterSpacing: '.07em' }}>{odoCenterUnit}</span>
               </div>
             </div>
@@ -524,15 +524,15 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             {/* Stats row below dial */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
               <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: `1px solid ${statCardBorder}` }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, lineHeight: 1, color: statCardText }}>{totalServ}</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, lineHeight: 1, color: statCardText }}>{totalServ}</div>
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>servicios</div>
               </div>
               <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: `1px solid ${statCardBorder}` }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 19, lineHeight: 1, color: statCardText }}>{replacedPartsCount}</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, lineHeight: 1, color: statCardText }}>{replacedPartsCount}</div>
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>partes reemplazadas</div>
               </div>
               <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: '1px solid rgba(245,197,24,0.22)' }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 17, lineHeight: 1, color: '#F5C518' }}>{investFmt}</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, lineHeight: 1, color: '#F5C518' }}>{investFmt}</div>
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>en gastos</div>
               </div>
             </div>
@@ -543,7 +543,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             <div style={{ position: 'relative', width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(from 135deg, ${healthColorDyn} 0deg ${healthDegDyn}deg, ${gaugeTrack} ${healthDegDyn}deg 270deg, transparent 270deg 360deg)` }}>
               <div style={{ position: 'absolute', inset: 13, borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={healthColorDyn} strokeWidth="1.8" style={{ marginBottom: 2 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 30, lineHeight: 1, color: healthColorDyn }}>{healthPctDyn}%</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, lineHeight: 1, color: healthColorDyn }}>{healthPctDyn}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 3 }}>Salud vehículo</div>
               </div>
             </div>
@@ -593,7 +593,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           <div style={{ display: 'flex', gap: 8 }}>
             {(['d', 'h', 'm', 's'] as const).map(k => (
               <div key={k} style={{ textAlign: 'center', background: countdownBg, border: `1px solid ${oilTracked ? 'rgba(245,197,24,0.25)' : 'rgba(154,150,138,0.25)'}`, borderRadius: 11, padding: '8px 12px', minWidth: 54 }}>
-                <div style={{ fontFamily: "'Anton',sans-serif", fontSize: 26, color: oilTracked ? '#F5C518' : NO_DATA_COLOR, lineHeight: 1 }}>{oilTracked ? (cd as any)[k] : 0}</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: oilTracked ? '#F5C518' : NO_DATA_COLOR, lineHeight: 1 }}>{oilTracked ? (cd as any)[k] : 0}</div>
                 <div style={{ fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase', color: odometerLabel }}>{k === 'd' ? 'días' : k === 'h' ? 'hrs' : k === 'm' ? 'min' : 'seg'}</div>
               </div>
             ))}
@@ -795,13 +795,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 <div style={{ marginTop: 12, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: cMuted, fontWeight: 700, marginBottom: 2 }}>Kilometraje aceite</div>
-                    <div className="ficha-mileage" style={{ fontFamily: "'Anton',sans-serif", fontSize: 43, letterSpacing: '.01em', lineHeight: 1, color: cInk }}>
-                      {oilChangeKm != null ? oilChangeKm.toLocaleString() : '—'}<span style={{ fontSize: 14, color: cMuted, fontFamily: "'Inter'", fontWeight: 600 }}> km</span>
+                    <div className="ficha-mileage" style={{ fontFamily: 'var(--font-display)', fontSize: 43, letterSpacing: '.01em', lineHeight: 1, color: cInk }}>
+                      {oilChangeKm != null ? oilChangeKm.toLocaleString() : '—'}<span style={{ fontSize: 14, color: cMuted, fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span>
                     </div>
                   </div>
                   <div style={{ flex: '0 0 auto', textAlign: 'right' }}>
                     <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: cMuted, fontWeight: 700, marginBottom: 2 }}>Próximo servicio de aceite</div>
-                    <div className="ficha-mileage" style={{ fontFamily: "'Anton',sans-serif", fontSize: 43, lineHeight: 1, color: cInk, textAlign: 'right' }}>{nextServiceKm != null ? nextServiceKm.toLocaleString() : '—'}<span style={{ fontSize: 14, color: cMuted, fontFamily: "'Inter'", fontWeight: 600 }}> km</span></div>
+                    <div className="ficha-mileage" style={{ fontFamily: 'var(--font-display)', fontSize: 43, lineHeight: 1, color: cInk, textAlign: 'right' }}>{nextServiceKm != null ? nextServiceKm.toLocaleString() : '—'}<span style={{ fontSize: 14, color: cMuted, fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span></div>
                   </div>
                 </div>
 
@@ -872,7 +872,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 </div>
 
                 <div style={{ marginTop: 'auto', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: cMuted, justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Anton',sans-serif", fontSize: 12, color: '#c99a00', letterSpacing: '.02em' }}>CarLink</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, color: '#c99a00', letterSpacing: '.02em' }}>CarLink</span>
                   <span>· ficha verificada · {plateText}</span>
                 </div>
               </div>
