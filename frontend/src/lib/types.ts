@@ -314,6 +314,7 @@ export interface NfcTokenAdmin {
   user_name: string;
   vehicle_plate: string;
   vehicle_brand: string;
+  qr_url: string | null;
 }
 
 export interface NfcTokenLimit {
@@ -357,6 +358,7 @@ export interface NfcWhitelistEntry {
   created_at: string;
   claimed_by_email: string;
   claimed_by_name: string;
+  qr_url: string | null;
 }
 
 export interface NfcWhitelistProvisionResult {
@@ -364,6 +366,37 @@ export interface NfcWhitelistProvisionResult {
   tag_uid: string;
   activation_code: string;
   token_url: string;
+  qr_url: string;
+}
+
+// ── NFC Tag Inventory ──
+// Raw metadata scanned off a physical keychain with an NFC reader app —
+// fields mirror the reader's own export columns so pasted data (e.g. NFC
+// Tools export) needs no reshaping. Kept as free text since real scans are
+// inconsistent (mixed date formats, blank/repurposed columns).
+export interface NfcTagInventoryCreate {
+  tag_type?: string;
+  technologies?: string;
+  serial_number?: string | null;
+  atqa?: string;
+  sak?: string;
+  signature?: string;
+  password_protected?: string;
+  memory_info?: string;
+  data_format?: string;
+  size_info?: string;
+  writable?: string;
+  read_only?: string;
+  tag_content?: string;
+  tag_password?: string;
+  tag_created_date?: string;
+  description?: string;
+  linked_whitelist_id?: string | null;
+}
+
+export interface NfcTagInventoryEntry extends NfcTagInventoryCreate {
+  id: string;
+  created_at: string;
 }
 
 export interface NfcStats {

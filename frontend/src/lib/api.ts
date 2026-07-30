@@ -13,6 +13,7 @@ import type {
   Profile, ProfileUpdate,
   UploadOut,
   NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
+  NfcTagInventoryEntry, NfcTagInventoryCreate,
 } from './types'
 
 async function request<T = unknown>(
@@ -203,4 +204,8 @@ export const adminApi = {
   removeFromWhitelist: (id: string) => request('DELETE', `/admin/nfc/whitelist/${id}`),
   listLimits: () => request<NfcTokenLimit[]>('GET', '/admin/nfc/limits'),
   updateLimit: (accountType: string, data: Partial<NfcTokenLimit>) => request<NfcTokenLimit>('PATCH', `/admin/nfc/limits/${accountType}`, data),
+  listInventory: () => request<NfcTagInventoryEntry[]>('GET', '/admin/nfc/inventory'),
+  createInventory: (data: NfcTagInventoryCreate) => request<NfcTagInventoryEntry>('POST', '/admin/nfc/inventory', data),
+  bulkCreateInventory: (entries: NfcTagInventoryCreate[]) => request<NfcTagInventoryEntry[]>('POST', '/admin/nfc/inventory/bulk', { entries }),
+  deleteInventory: (id: string) => request('DELETE', `/admin/nfc/inventory/${id}`),
 }

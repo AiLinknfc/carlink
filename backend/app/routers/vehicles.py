@@ -6,15 +6,16 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import Vehicle
+from app.models.models import NfcToken, Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
 from app.services.auth import ensure_profile
 from app.services.cache import cache_delete, cache_get, cache_invalidate_vehicle, cache_set
+from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, generate_nfc_token
 
 logger = logging.getLogger("carlink")
 
@@ -67,7 +68,7 @@ async def create_vehicle(
     uid = uuid.UUID(user_id)
     logger.info(f"Creating vehicle for user {user_id}: plate={body.plate}, brand={body.brand}, model={body.model}")
     try:
-        await ensure_profile(user_id, db)
+        profile = await ensure_profile(user_id, db)
         logger.info(f"Profile ensured for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to ensure profile for user {user_id}: {e}", exc_info=True)
@@ -102,6 +103,35 @@ async def create_vehicle(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Vehicle creation failed: {e}")
     await cache_delete(f"vehicles:list:{user_id}")
     logger.info(f"Vehicle created successfully: {vehicle.id}")
+
+    # Taller/empresa accounts get a free 7-day public-ficha trial, minted
+    # automatically — no physical keychain involved. Persona never gets this;
+    # it always requires claiming a real keychain (see app/routers/nfc.py
+    # _has_ficha_access). Best-effort: a failure here must not block vehicle
+    # registration.
+    if profile.account_type in TRIAL_ACCOUNT_TYPES:
+        try:
+            generated = generate_nfc_token()
+            trial_token = NfcToken(
+                user_id=uid,
+                vehicle_id=vehicle.id,
+                token_hash=generated.token_hash,
+                token_prefix=generated.token_prefix,
+                qr_slug=generated.qr_slug,
+                token_type="trial",
+                label="Ficha de prueba (7 días)",
+            )
+            db.add(trial_token)
+            await db.flush()
+            if generated.token_url_encrypted:
+                await db.execute(
+                    text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
+                    {"url": generated.token_url_encrypted, "id": str(trial_token.id)},
+                )
+                await db.flush()
+        except Exception as e:
+            logger.error(f"Failed to mint trial NFC token for vehicle {vehicle.id}: {e}", exc_info=True)
+
     return vehicle
 
 

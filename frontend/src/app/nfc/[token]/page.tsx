@@ -70,6 +70,9 @@ export default function NfcPage() {
           const body = await r.json().catch(() => ({}))
           throw new Error('deactivated:' + (body.detail || ''))
         }
+        if (r.status === 403) {
+          throw new Error('paused')
+        }
         if (!r.ok) {
           const body = await r.json().catch(() => ({}))
           throw new Error('not_found:' + (body.detail || ''))
@@ -81,6 +84,7 @@ export default function NfcPage() {
         const msg = e.message || ''
         if (msg === 'rate_limited') setError('rate_limited')
         else if (msg.startsWith('deactivated:')) setError('deactivated')
+        else if (msg === 'paused') setError('paused')
         else if (msg.startsWith('not_found:')) setError('not_found')
         else setError('not_found')
         setLoading(false)
@@ -188,6 +192,16 @@ export default function NfcPage() {
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#F5C518' }}>Ficha desactivada</div>
           <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>El propietario ha desactivado temporalmente la ficha pública. Intenta de nuevo más tarde.</div>
+        </div>
+      )}
+
+      {error === 'paused' && (
+        <div style={{ textAlign: 'center', padding: '40px 32px', borderRadius: 20, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)', maxWidth: 380 }}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#F5C518' }}>Esta ficha está en pausa</div>
+          <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>
+            Terminó el período de prueba gratuita. El propietario puede reactivar esta ficha para siempre comprando su llavero CarLink.
+          </div>
         </div>
       )}
 

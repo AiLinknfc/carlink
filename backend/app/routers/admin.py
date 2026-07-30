@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import secrets
 import uuid
 from typing import Annotated
 from uuid import UUID
@@ -16,6 +15,7 @@ from app.dependencies import get_current_admin
 from app.models.models import (
     NfcAccessLog,
     NfcAlert,
+    NfcTagInventory,
     NfcToken,
     NfcTokenLimit,
     NfcTokenWhitelist,
@@ -27,6 +27,9 @@ from app.schemas.schemas import (
     NfcAlertOut,
     NfcAlertResolve,
     NfcStatsOut,
+    NfcTagInventoryBulkCreate,
+    NfcTagInventoryCreate,
+    NfcTagInventoryOut,
     NfcTokenAdminOut,
     NfcTokenLimitOut,
     NfcTokenLimitUpdate,
@@ -37,16 +40,9 @@ from app.schemas.schemas import (
     NfcWhitelistProvisionCreate,
     NfcWhitelistProvisionOut,
 )
-from app.services.crypto import encrypt_url
+from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
 router = APIRouter(prefix="/admin/nfc", tags=["admin-nfc"])
-
-# No 0/O/1/I/L — avoids confusion when a human reads the code off a printed label.
-_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-
-
-def _generate_activation_code(length: int = 10) -> str:
-    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))
 
 
 # ── Dashboard Stats ──
@@ -101,6 +97,7 @@ async def list_all_tokens(
     result = await db.execute(stmt)
     tokens = list(result.scalars().all())
 
+    frontend_url = get_settings().frontend_url
     out = []
     for t in tokens:
         user_result = await db.execute(select(Profile).where(Profile.id == t.user_id))
@@ -117,6 +114,7 @@ async def list_all_tokens(
             user_name=user.full_name if user else "",
             vehicle_plate=vehicle.plate if vehicle else "",
             vehicle_brand=vehicle.brand if vehicle else "",
+            qr_url=f"{frontend_url}/nfc/q/{t.qr_slug}" if t.qr_slug else None,
         ))
     return out
 
@@ -153,6 +151,7 @@ async def update_token(
         user_name=user.full_name if user else "",
         vehicle_plate=vehicle.plate if vehicle else "",
         vehicle_brand=vehicle.brand if vehicle else "",
+        qr_url=f"{get_settings().frontend_url}/nfc/q/{token.qr_slug}" if token.qr_slug else None,
     )
 
 
@@ -237,6 +236,7 @@ async def list_whitelist(
     )
     entries = list(result.scalars().all())
 
+    frontend_url = get_settings().frontend_url
     out = []
     for e in entries:
         claimer = None
@@ -249,6 +249,7 @@ async def list_whitelist(
             created_at=e.created_at,
             claimed_by_email=claimer.email if claimer else "",
             claimed_by_name=claimer.full_name if claimer else "",
+            qr_url=f"{frontend_url}/nfc/q/{e.qr_slug}" if e.qr_slug else None,
         ))
     return out
 
@@ -294,13 +295,9 @@ async def provision_whitelist_entry(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Este tag UID ya está registrado")
 
-    raw_token = secrets.token_hex(32)
-    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-    token_prefix = raw_token[:8]
-    token_url = f"{get_settings().frontend_url}/nfc/{raw_token}"
-    encrypted_url = encrypt_url(token_url)
+    generated = generate_nfc_token()
 
-    activation_code = _generate_activation_code()
+    activation_code = generate_human_code()
     activation_code_hash = hashlib.sha256(activation_code.encode()).hexdigest()
 
     entry = NfcTokenWhitelist(
@@ -308,9 +305,10 @@ async def provision_whitelist_entry(
         label=body.label,
         added_by=uuid.UUID(admin),
         activation_code_hash=activation_code_hash,
-        token_hash=token_hash,
-        token_prefix=token_prefix,
-        token_url_encrypted=encrypted_url,
+        token_hash=generated.token_hash,
+        token_prefix=generated.token_prefix,
+        token_url_encrypted=generated.token_url_encrypted,
+        qr_slug=generated.qr_slug,
         status="available",
     )
     db.add(entry)
@@ -321,7 +319,8 @@ async def provision_whitelist_entry(
         id=entry.id,
         tag_uid=entry.tag_uid,
         activation_code=activation_code,
-        token_url=token_url,
+        token_url=generated.token_url,
+        qr_url=generated.qr_url,
     )
 
 
@@ -392,3 +391,62 @@ async def update_limit(
     await db.flush()
     await db.refresh(limit)
     return limit
+
+
+# ── NFC Tag Inventory (raw scan metadata, separate from whitelist/activation) ──
+
+@router.get("/inventory", response_model=list[NfcTagInventoryOut])
+async def list_tag_inventory(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    result = await db.execute(
+        select(NfcTagInventory).order_by(NfcTagInventory.created_at.desc()).offset(offset).limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+@router.post("/inventory", response_model=NfcTagInventoryOut, status_code=status.HTTP_201_CREATED)
+async def create_tag_inventory(
+    body: NfcTagInventoryCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    entry = NfcTagInventory(**body.model_dump(), added_by=uuid.UUID(admin))
+    db.add(entry)
+    await db.flush()
+    await db.refresh(entry)
+    return entry
+
+
+@router.post("/inventory/bulk", response_model=list[NfcTagInventoryOut], status_code=status.HTTP_201_CREATED)
+async def bulk_create_tag_inventory(
+    body: NfcTagInventoryBulkCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    created = []
+    for item in body.entries:
+        entry = NfcTagInventory(**item.model_dump(), added_by=uuid.UUID(admin))
+        db.add(entry)
+        created.append(entry)
+    await db.flush()
+    for entry in created:
+        await db.refresh(entry)
+    return created
+
+
+@router.delete("/inventory/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tag_inventory(
+    entry_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(NfcTagInventory).where(NfcTagInventory.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Inventory entry not found")
+    await db.delete(entry)
+    await db.flush()

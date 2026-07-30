@@ -497,6 +497,9 @@ class NfcTokenAdminOut(BaseModel):
     user_name: str = ""
     vehicle_plate: str = ""
     vehicle_brand: str = ""
+    # Short redirect URL for the printable keychain QR — not a secret, can
+    # always be re-shown (unlike the one-time activation code/raw token).
+    qr_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -566,6 +569,9 @@ class NfcWhitelistOut(BaseModel):
     # Joined
     claimed_by_email: str = ""
     claimed_by_name: str = ""
+    # Short redirect URL for the printable keychain QR — not a secret, can
+    # always be re-shown (unlike the one-time activation code/raw token).
+    qr_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -587,11 +593,14 @@ class NfcWhitelistProvisionCreate(BaseModel):
 class NfcWhitelistProvisionOut(BaseModel):
     """Returned ONCE at provisioning time: the raw activation code and raw
     token URL to print on the physical keychain / packaging. Neither is
-    ever stored in plaintext, so this response cannot be reconstructed later."""
+    ever stored in plaintext, so this response cannot be reconstructed later.
+    qr_url is NOT one-time-only — it's a short, re-showable redirect link
+    meant to be printed as a QR alongside the NFC chip."""
     id: UUID
     tag_uid: str
     activation_code: str
     token_url: str
+    qr_url: str
 
 
 class NfcStatsOut(BaseModel):
@@ -625,6 +634,59 @@ class JobApplicationOut(BaseModel):
     cv_url: str | None = None
     offer_title: str | None = None
     status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== NFC Tag Inventory ===========
+# Raw metadata scanned off a physical keychain (manual today, meant to be
+# automated later). Fields are free text on purpose — real scans are
+# inconsistent (mixed date formats, blank columns).
+
+class NfcTagInventoryCreate(BaseModel):
+    tag_type: str = ""
+    technologies: str = ""
+    serial_number: str | None = None
+    atqa: str = ""
+    sak: str = ""
+    signature: str = ""
+    password_protected: str = ""
+    memory_info: str = ""
+    data_format: str = ""
+    size_info: str = ""
+    writable: str = ""
+    read_only: str = ""
+    tag_content: str = ""
+    tag_password: str = ""
+    tag_created_date: str = ""
+    description: str = ""
+    linked_whitelist_id: UUID | None = None
+
+
+class NfcTagInventoryBulkCreate(BaseModel):
+    entries: list[NfcTagInventoryCreate]
+
+
+class NfcTagInventoryOut(BaseModel):
+    id: UUID
+    tag_type: str
+    technologies: str
+    serial_number: str | None = None
+    atqa: str
+    sak: str
+    signature: str
+    password_protected: str
+    memory_info: str
+    data_format: str
+    size_info: str
+    writable: str
+    read_only: str
+    tag_content: str
+    tag_password: str
+    tag_created_date: str
+    description: str
+    linked_whitelist_id: UUID | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -8,6 +8,11 @@ type Theme = 'light' | 'dark'
 
 const GOLD = '#F5C518'
 
+// Math.cos/sin can differ by 1 ULP between the server (Node) and client
+// (browser) JS engines — rounding SSR-rendered trig output keeps hydration
+// deterministic.
+const round3 = (n: number) => Math.round(n * 1000) / 1000
+
 /* ── Theme tokens (resolved from the design's light/dark palette) ── */
 function tokens(theme: Theme) {
   const dark = theme !== 'light'
@@ -368,15 +373,19 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                         const isMajor = i % 5 === 0
                         const r1 = isMajor ? 85 : 91
                         const r2 = 97
+                        // Math.cos/sin aren't guaranteed bit-identical across JS
+                        // engines (server Node vs client browser V8 build) — a
+                        // 1-ULP difference here fails hydration. Rounding to a
+                        // fixed precision makes server and client agree exactly.
                         return (
-                          <line key={i} x1={110 + r1 * Math.cos(angle)} y1={110 + r1 * Math.sin(angle)} x2={110 + r2 * Math.cos(angle)} y2={110 + r2 * Math.sin(angle)} stroke={isMajor ? active.color : k.muted} strokeWidth={isMajor ? 2 : 0.7} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+                          <line key={i} x1={round3(110 + r1 * Math.cos(angle))} y1={round3(110 + r1 * Math.sin(angle))} x2={round3(110 + r2 * Math.cos(angle))} y2={round3(110 + r2 * Math.sin(angle))} stroke={isMajor ? active.color : k.muted} strokeWidth={isMajor ? 2 : 0.7} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
                         )
                       })}
                       {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
                         const v = Math.round(active.max * frac)
                         const angle = (frac * 270 - 135) * (Math.PI / 180)
                         const r = 73
-                        return <text key={frac} x={110 + r * Math.cos(angle)} y={110 + r * Math.sin(angle)} textAnchor="middle" dominantBaseline="central" fill={k.muted} fontSize="8" fontWeight="500">{v}</text>
+                        return <text key={frac} x={round3(110 + r * Math.cos(angle))} y={round3(110 + r * Math.sin(angle))} textAnchor="middle" dominantBaseline="central" fill={k.muted} fontSize="8" fontWeight="500">{v}</text>
                       })}
                       {/* Needle — pivots from center (110,110), extends outward radially */}
                       <g style={{ transformOrigin: '110px 110px', transform: `rotate(${needleAngle}deg)`, transition: 'transform 0.6s cubic-bezier(.4,0,.2,1)' }}>

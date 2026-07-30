@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import bindparam, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcTokenLimit, Profile, Vehicle, Workshop
@@ -16,6 +19,7 @@ from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcToken
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
+from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, TRIAL_DAYS, generate_human_code
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
@@ -49,6 +53,46 @@ async def _check_activate_rate(key: str) -> bool:
     if count == 1:
         await r.expire(rkey, _ACTIVATE_RATE_WINDOW)
     return count <= _ACTIVATE_RATE_MAX
+
+
+async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: AsyncSession) -> tuple[bool, str | None]:
+    """Whether the vehicle's public ficha (NFC or QR) may be shown right now.
+
+    Returns (has_access, denial_reason). denial_reason is only set to
+    'trial_expired' when a trial existed and lapsed — as opposed to the
+    account simply never having had one — so the frontend can tell those
+    two states apart and show the right message."""
+    personal_result = await db.execute(
+        select(NfcToken).where(
+            NfcToken.vehicle_id == vehicle_id,
+            NfcToken.token_type == "personal",
+            NfcToken.is_active == True,
+            NfcToken.status == "active",
+        )
+    )
+    if personal_result.scalar_one_or_none():
+        # A claimed physical keychain grants lifetime access, regardless of
+        # subscription state.
+        return True, None
+
+    account_type = owner.account_type if owner else "persona"
+    if account_type not in TRIAL_ACCOUNT_TYPES:
+        return False, None
+
+    trial_result = await db.execute(
+        select(NfcToken)
+        .where(NfcToken.vehicle_id == vehicle_id, NfcToken.token_type == "trial")
+        .order_by(NfcToken.created_at.asc())
+        .limit(1)
+    )
+    trial = trial_result.scalar_one_or_none()
+    if not trial:
+        return False, None
+
+    expires_at = trial.created_at + timedelta(days=TRIAL_DAYS)
+    if datetime.now(timezone.utc) <= expires_at:
+        return True, None
+    return False, "trial_expired"
 
 
 # ── Concrete /tokens routes BEFORE parameterized /{token} ──
@@ -112,7 +156,7 @@ async def activate_nfc_token(
             "UPDATE nfc_token_whitelist "
             "SET status = 'claimed', claimed_by = :uid, claimed_vehicle_id = :vid, claimed_at = now() "
             "WHERE activation_code_hash = :code_hash AND status = 'available' "
-            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted"
+            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug"
         ),
         {"uid": str(uid), "vid": str(vehicle.id), "code_hash": code_hash},
     )
@@ -120,7 +164,7 @@ async def activate_nfc_token(
     if not row:
         raise HTTPException(status_code=404, detail="Código inválido o ya utilizado.")
 
-    tag_uid, token_hash, token_prefix, token_url_encrypted = row
+    tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug = row
     if not token_hash or not token_prefix:
         raise HTTPException(status_code=500, detail="Este llavero no fue provisionado correctamente. Contacta a soporte.")
 
@@ -129,6 +173,7 @@ async def activate_nfc_token(
         vehicle_id=vehicle.id,
         token_hash=token_hash,
         token_prefix=token_prefix,
+        qr_slug=qr_slug,
         tag_uid=tag_uid,
         label="Llavero NFC",
     )
@@ -238,7 +283,8 @@ async def get_token_url(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Return the decrypted NFC URL for the owner. Used when localStorage is lost."""
+    """Return the decrypted NFC URL for the owner, plus the short QR redirect
+    URL. Used when localStorage is lost and when rendering the printable QR."""
     result = await db.execute(
         select(NfcToken).where(NfcToken.id == token_id, NfcToken.user_id == uuid.UUID(user_id))
     )
@@ -248,20 +294,38 @@ async def get_token_url(
 
     try:
         url_result = await db.execute(
-            text("SELECT token_url_encrypted FROM nfc_tokens WHERE id = :id"),
+            text("SELECT token_url_encrypted, qr_slug FROM nfc_tokens WHERE id = :id"),
             {"id": str(token_id)},
         )
         row = url_result.first()
-        encrypted = row[0] if row else None
+        encrypted, qr_slug = (row[0], row[1]) if row else (None, None)
     except Exception:
-        encrypted = None
+        encrypted, qr_slug = None, None
 
     if not encrypted:
         raise HTTPException(status_code=404, detail="URL not available for this token. It was created before URL recovery was enabled.")
     url = decrypt_url(encrypted)
     if not url:
         raise HTTPException(status_code=500, detail="Failed to decrypt URL")
-    return {"url": url}
+
+    # Tokens activated before the qr_slug column existed have none — backfill
+    # one lazily instead of leaving an already-active keychain without a QR.
+    if not qr_slug:
+        for _ in range(3):
+            candidate = generate_human_code(8)
+            try:
+                await db.execute(
+                    text("UPDATE nfc_tokens SET qr_slug = :slug WHERE id = :id"),
+                    {"slug": candidate, "id": str(token_id)},
+                )
+                await db.flush()
+                qr_slug = candidate
+                break
+            except Exception:
+                await db.rollback()
+
+    qr_url = f"{get_settings().frontend_url}/nfc/q/{qr_slug}" if qr_slug else None
+    return {"url": url, "qr_url": qr_url}
 
 
 @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -361,6 +425,16 @@ async def my_ficha_preview(
     if not vehicle:
         raise HTTPException(status_code=404, detail="No vehicles found")
 
+    owner_result = await db.execute(select(Profile).where(Profile.id == uid))
+    owner = owner_result.scalar_one_or_none()
+
+    has_access, denial_reason = await _has_ficha_access(vehicle.id, owner, db)
+    if not has_access:
+        raise HTTPException(
+            status_code=403,
+            detail={"reason": denial_reason or "no_keychain", "message": "Activa tu llavero para publicar tu ficha pública."},
+        )
+
     m_result = await db.execute(
         select(MaintenanceRecord)
         .where(MaintenanceRecord.vehicle_id == vehicle.id)
@@ -381,8 +455,6 @@ async def my_ficha_preview(
         if workshop:
             workshop_rating = workshop.rating or 0.0
 
-    owner_result = await db.execute(select(Profile).where(Profile.id == uid))
-    owner = owner_result.scalar_one_or_none()
     owner_whatsapp = ""
     owner_name = ""
     if owner:
@@ -417,6 +489,40 @@ async def my_ficha_preview(
         owner_whatsapp=owner_whatsapp,
         owner_name=owner_name,
     )
+
+
+@router.get("/q/{slug}")
+async def access_via_qr(
+    slug: str,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Public endpoint for the printable keychain QR. The QR encodes this
+    short slug instead of the long NFC token so it can be printed small with
+    a simple, damage-tolerant pattern. Resolves to the exact same ficha as
+    the NFC chip by redirecting to /nfc/{token} — all access control
+    (trial expiry, revocation, rate limiting) happens there, not here.
+    """
+    ip = request.client.host if request.client else "unknown"
+    if not await _check_rate(ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+
+    result = await db.execute(select(NfcToken).where(NfcToken.qr_slug == slug))
+    nfc_token = result.scalar_one_or_none()
+    if not nfc_token:
+        raise HTTPException(status_code=404, detail="Código QR no válido")
+
+    url_result = await db.execute(
+        text("SELECT token_url_encrypted FROM nfc_tokens WHERE id = :id"),
+        {"id": str(nfc_token.id)},
+    )
+    row = url_result.first()
+    encrypted = row[0] if row else None
+    url = decrypt_url(encrypted) if encrypted else None
+    if not url:
+        raise HTTPException(status_code=404, detail="Código QR no válido")
+
+    return RedirectResponse(url=url, status_code=302)
 
 
 # ── Public parameterized route (MUST be last to avoid catching /tokens) ──
@@ -473,6 +579,19 @@ async def access_via_nfc(
     if not vehicle.nfc_active:
         raise HTTPException(status_code=410, detail="La ficha pública está desactivada por el propietario")
 
+    owner_result = await db.execute(select(Profile).where(Profile.id == vehicle.owner_id))
+    owner = owner_result.scalar_one_or_none()
+
+    has_access, denial_reason = await _has_ficha_access(vehicle.id, owner, db)
+    if not has_access:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "reason": denial_reason or "no_keychain",
+                "message": "Esta ficha está en pausa. El propietario puede reactivarla comprando su llavero.",
+            },
+        )
+
     # Fetch latest maintenance record for ficha técnica
     m_result = await db.execute(
         select(MaintenanceRecord)
@@ -496,11 +615,9 @@ async def access_via_nfc(
         if workshop:
             workshop_rating = workshop.rating or 0.0
 
-    # Fetch owner WhatsApp info
+    # Owner WhatsApp info (owner already fetched above for the access check)
     owner_whatsapp = ""
     owner_name = ""
-    owner_result = await db.execute(select(Profile).where(Profile.id == vehicle.owner_id))
-    owner = owner_result.scalar_one_or_none()
     if owner:
         owner_name = owner.full_name or ""
         if owner.whatsapp_enabled:

@@ -185,6 +185,7 @@ class NfcToken(Base):
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
     token_prefix: Mapped[str] = mapped_column(Text)
+    qr_slug: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
     label: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     tag_uid: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -304,11 +305,42 @@ class NfcTokenWhitelist(Base):
     token_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_prefix: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_url_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    qr_slug: Mapped[str | None] = mapped_column(Text, unique=True, nullable=True)
     status: Mapped[str] = mapped_column(Text, default="available")
     claimed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     claimed_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NfcTagInventory(Base):
+    """Raw metadata scanned off a physical NFC keychain (today captured
+    manually with a reader app) — inventory/traceability, separate from the
+    activation flow in NfcTokenWhitelist. Kept as free text since real scans
+    are inconsistent (mixed date formats, blank fields)."""
+    __tablename__ = "nfc_tag_inventory"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tag_type: Mapped[str] = mapped_column(Text, default="")
+    technologies: Mapped[str] = mapped_column(Text, default="")
+    serial_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    atqa: Mapped[str] = mapped_column(Text, default="")
+    sak: Mapped[str] = mapped_column(Text, default="")
+    signature: Mapped[str] = mapped_column(Text, default="")
+    password_protected: Mapped[str] = mapped_column(Text, default="")
+    memory_info: Mapped[str] = mapped_column(Text, default="")
+    data_format: Mapped[str] = mapped_column(Text, default="")
+    size_info: Mapped[str] = mapped_column(Text, default="")
+    writable: Mapped[str] = mapped_column(Text, default="")
+    read_only: Mapped[str] = mapped_column(Text, default="")
+    tag_content: Mapped[str] = mapped_column(Text, default="")
+    tag_password: Mapped[str] = mapped_column(Text, default="")
+    tag_created_date: Mapped[str] = mapped_column(Text, default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    linked_whitelist_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("nfc_token_whitelist.id", ondelete="SET NULL"), nullable=True)
+    added_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class JobApplication(Base):

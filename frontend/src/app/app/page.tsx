@@ -24,6 +24,7 @@ import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
 import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
+import QrCodePanel from '@/components/QrCodePanel'
 
 export default function AppPage() {
   const router = useRouter()
@@ -62,6 +63,8 @@ export default function AppPage() {
   const [nfcLoading, setNfcLoading] = useState(false)
   const [tokensLoading, setTokensLoading] = useState(false)
   const [generatedUrl, setGeneratedUrl] = useState('')
+  const [generatedQrUrl, setGeneratedQrUrl] = useState('')
+  const [qrPanelUrl, setQrPanelUrl] = useState<string | null>(null)
   const [activationCode, setActivationCode] = useState('')
   const [genCopied, setGenCopied] = useState(false)
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
@@ -227,6 +230,7 @@ export default function AppPage() {
     if (!user || !code) return
     setNfcLoading(true)
     setGeneratedUrl('')
+    setGeneratedQrUrl('')
     const { data, error } = await activateNfcCode(code)
     if (data) {
       setNfcTokens(prev => [data, ...prev])
@@ -237,8 +241,9 @@ export default function AppPage() {
       // Show the link right away so the user can confirm the keychain works —
       // it's still recoverable later from "Copiar enlace", this is just a nicety.
       try {
-        const urlData = await apiGet<{ url: string }>(`/nfc/tokens/${data.id}/url`)
+        const urlData = await apiGet<{ url: string; qr_url?: string }>(`/nfc/tokens/${data.id}/url`)
         if (urlData?.url) setGeneratedUrl(urlData.url)
+        if (urlData?.qr_url) setGeneratedQrUrl(urlData.qr_url)
       } catch {}
       flashApp('Llavero activado correctamente')
     } else {
@@ -294,6 +299,13 @@ export default function AppPage() {
       flashApp('No se pudo recuperar el enlace de este llavero.')
     }
     setCopyingTokenId(null)
+  }
+
+  const viewTokenQr = async (id: string) => {
+    try {
+      const data = await apiGet<{ url: string; qr_url?: string }>(`/nfc/tokens/${id}/url`)
+      if (data?.qr_url) setQrPanelUrl(data.qr_url)
+    } catch {}
   }
 
   const onAddService = useCallback(() => {
@@ -856,6 +868,12 @@ export default function AppPage() {
                             {copiedTokenId === t.id ? '✓ Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
                           </button>
                         )}
+                        {t.is_active && (
+                          <button onClick={() => viewTokenQr(t.id)} title="Ver código QR"
+                            style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: 'transparent', color: '#F5C518', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            QR
+                          </button>
+                        )}
                         {t.is_active && urlRecoveryFailed[t.id] && (
                           <span title="Este llavero no tiene enlace recuperable — revócalo y activa otro" style={{ fontSize: 11, color: '#ff9f0a', fontWeight: 600 }}>
                             Enlace no disponible
@@ -898,6 +916,12 @@ export default function AppPage() {
                       {genCopied && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}{genCopied ? 'Copiado' : 'Copiar enlace'}
                     </button>
                   </div>
+                  {generatedQrUrl && (
+                    <button onClick={() => setQrPanelUrl(generatedQrUrl)}
+                      style={{ marginTop: 8, width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10, borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'transparent', color: '#F5C518', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                      Ver código QR para imprimir
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -926,6 +950,8 @@ export default function AppPage() {
           </div>
         </div>
       )}
+
+      <QrCodePanel isOpen={!!qrPanelUrl} onClose={() => setQrPanelUrl(null)} theme={theme} qrUrl={qrPanelUrl} plateText={vehicle?.plate} />
 
       {showQuickRegister && vehicle?.id && (
         <QuickRegisterModal
