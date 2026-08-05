@@ -3,7 +3,6 @@ from __future__ import annotations
 import secrets
 import string
 import uuid
-from datetime import date
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -154,7 +153,6 @@ async def get_my_workshop_dashboard(
     todo el dataset al frontend para contar ahí (lo que hacía tallerpro)."""
     workshop = await verify_workshop(user_id, db)
     wid = workshop.id
-    today = date.today()
 
     active_orders = await db.scalar(
         select(func.count()).select_from(WorkOrder).where(
@@ -162,10 +160,14 @@ async def get_my_workshop_dashboard(
             WorkOrder.status.in_(["Pendiente", "En Proceso", "Diagnosticado", "Listo para Entrega"]),
         )
     )
+    # func.current_date() (Postgres, UTC) — no date.today() (hora local del
+    # proceso de Python). El servidor y la base pueden correr en timezones
+    # distintos: con date.today() esto contaba mal "citas de hoy" cerca de la
+    # medianoche UTC (bug real encontrado corriendo la app, no con tests).
     today_appts = await db.scalar(
         select(func.count()).select_from(Appointment).where(
             Appointment.workshop_id == wid,
-            Appointment.appointment_date == today,
+            Appointment.appointment_date == func.current_date(),
             Appointment.status != "Cancelada",
         )
     )

@@ -9,6 +9,15 @@ import { useMyWorkshop, useWorkshopDashboard } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
+import ClientesModule from '@/components/negocio/ClientesModule'
+import OrdenesModule from '@/components/negocio/OrdenesModule'
+import InventarioModule from '@/components/negocio/InventarioModule'
+import CitasModule from '@/components/negocio/CitasModule'
+import NotificacionesModule from '@/components/negocio/NotificacionesModule'
+import RentabilidadModule from '@/components/negocio/RentabilidadModule'
+import DocumentosModule from '@/components/negocio/DocumentosModule'
+import DiagnosticoIAModule from '@/components/negocio/DiagnosticoIAModule'
+import PerfilModule from '@/components/negocio/PerfilModule'
 
 /* Panel de negocio del taller/empresa — migración de tallerpro/ hacia
    CarLink (docs/PLAN_MIGRACION_TALLERPRO.md). Vive fuera de /app (que es
@@ -142,6 +151,24 @@ export default function NegocioPage() {
           <SubscriptionExpiredCard theme={theme} />
         ) : activeTab === 'resumen' ? (
           <ResumenModule cardBg={cardBg} border={border} textMuted={textMuted} rootTextColor={rootTextColor} />
+        ) : activeTab === 'clientes' ? (
+          <ClientesModule theme={theme} />
+        ) : activeTab === 'ordenes' ? (
+          <OrdenesModule theme={theme} workshop={workshop!} />
+        ) : activeTab === 'inventario' ? (
+          <InventarioModule theme={theme} />
+        ) : activeTab === 'citas' ? (
+          <CitasModule theme={theme} onConverted={() => setActiveTab('ordenes')} />
+        ) : activeTab === 'notificaciones' ? (
+          <NotificacionesModule theme={theme} />
+        ) : activeTab === 'rentabilidad' ? (
+          <RentabilidadModule theme={theme} />
+        ) : activeTab === 'documentos' ? (
+          <DocumentosModule theme={theme} workshop={workshop!} />
+        ) : activeTab === 'ia' ? (
+          <DiagnosticoIAModule theme={theme} />
+        ) : activeTab === 'perfil' ? (
+          <PerfilModule theme={theme} workshop={workshop!} />
         ) : (
           <PlaceholderModule id={activeTab} cardBg={cardBg} border={border} textMuted={textMuted} />
         )}

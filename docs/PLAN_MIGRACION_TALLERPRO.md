@@ -200,24 +200,84 @@ en la cita convertida y `doc_number = DOC-2026-001`) y sin dejar datos de prueba
 - [x] Verificado: `npx tsc --noEmit` limpio (0 errores) y `npx vitest run` sin nuevas fallas — el
       único test que falla (`plate.test.ts › parses unformatted plate`) ya fallaba antes, no
       relacionado con esta migración.
+- [x] **Verificado en navegador real (2026-08-04)** — backend (uvicorn) + frontend (`next dev`)
+      levantados en local, cuenta desechable de Supabase Auth creada y logueada a través del
+      formulario real de login (no inyección de sesión), datos sembrados vía la API real. Chromium
+      manejado con Playwright (sin `chromium-cli` disponible en este entorno; se usó el paquete
+      cacheado por `npx` + el binario de Chromium ya descargado).
+  - Confirmado sin regresión: las tabs Ficha/Taller/Diagnóstico/Control de partes/Promoción de
+    `/app` siguen funcionando para una cuenta taller.
+  - Confirmado en vivo el fix del bug de `WorkshopConfigTab.tsx` (Fase 2): guardar la promoción
+    ahora sí persiste y muestra el banner de confirmación (antes 422 silencioso).
+  - **Bug real encontrado y corregido**: `/app/negocio` rebotaba a cualquier cuenta taller/empresa
+    de vuelta a `/app` por una condición de carrera — `profile` (de donde sale `account_type`)
+    llega en un fetch aparte que termina después de que `authLoading` ya bajó a `false`, así que el
+    guard leía `profile` todavía en `null` y redirigía. Corregido: solo redirige por falta de sesión;
+    si el perfil no ha cargado o no es cuenta de negocio, se muestra un estado inline en vez de
+    redirigir. Commit aparte (`b2865c1`).
+  - Con el fix, flujo completo verificado: login → Sidebar muestra "Mi negocio" → `/app/negocio` →
+    Resumen con números reales de la DB sembrada (1 orden activa, 1 cita hoy, 1 alerta de stock
+    bajo, 1 cliente, $145.775 ingresos / $92.500 ganancia / 63.5% margen — matemática con IVA 19%
+    verificada a mano) → los 9 módulos "Próximamente" renderizan sin errores de consola.
+  - Datos de prueba (perfil, taller, cliente, vehículo, orden, cita, usuario de Supabase Auth)
+    creados y **eliminados por completo** al terminar — verificado con consultas directas a la DB
+    real, cero residuos.
+  - **2 hallazgos preexistentes, no relacionados con esta migración, sin corregir (fuera de
+    alcance)**: (1) varios 404 de recursos estáticos en la landing (`/`); (2)
+    `GET /workshops/search?q=` responde 422 por un `Query("", min_length=1)` contradictorio en
+    `workshops.py` — afecta el selector de taller de `FichaTab.tsx` en cada carga (fallo silencioso,
+    `apiGet` lo traga). Reportado al usuario, pendiente de decisión sobre si corregirlo.
 
-### Fase 4 — Frontend: módulos funcionales (uno por uno, cada uno cerrable y probable por separado)
-- [ ] 4.1 Clientes & Vehículos del taller (roster propio, búsqueda, alta rápida)
-- [ ] 4.2 Órdenes de trabajo (listado, detalle, mano de obra + repuestos, cambio de estado, cálculo
-      de totales con IVA real del taller, evidencia fotográfica)
-- [ ] 4.3 Inventario propio del taller (stock, alertas de mínimo, historial de reabastecimiento)
-- [ ] 4.4 Citas (agenda, conversión 1-click a orden de trabajo — igual que TallerPro pero contra DB)
-- [ ] 4.5 Notificaciones (log real, envío real por email, WhatsApp/SMS marcados como simulado)
-- [ ] 4.6 Rentabilidad (reportes calculados con SQL sobre `work_orders`, no snapshots estáticos)
-- [ ] 4.7 Documentos emitidos (facturas/garantías/certificados numerados, ligados a orden de trabajo)
-- [ ] 4.8 Diagnóstico IA (reemplaza el modal de Gemini por el endpoint DeepSeek del backend)
-- [x] 4.9 Resumen/Dashboard — hecho como parte de la Fase 3 (ver arriba), agrega los contadores del
-      endpoint de Fase 2 y ya corre contra datos reales.
-- [ ] 4.10 Perfil del taller (mecánicos, catálogo de servicios, redes sociales, tarifa de IVA) —
-      esto **reemplaza y amplía** `WorkshopConfigTab.tsx`, sin quitarle la parte de "sellos de
-      fidelidad" que ya funciona.
-- [ ] 4.11 Ficha pública del taller (`/(public)/taller/[code]`, equivalente a `PublicWorkshopCard`)
-      — usa el `GET /workshops/{code}` ya enriquecido en Fase 2; reseñas, mecánicos, catálogo.
+### Fase 4 — Frontend: módulos funcionales — **COMPLETA** (2026-08-04)
+- [x] 4.1 Clientes & Vehículos del taller — `ClientesModule.tsx` (roster propio, búsqueda, maestro-detalle cliente→vehículos, alta rápida).
+- [x] 4.2 Órdenes de trabajo — `OrdenesModule.tsx` (listado con filtro por estado, formulario con mano
+      de obra + repuestos dinámicos, selección desde inventario, evidencia fotográfica, total
+      estimado en vivo con el IVA real del taller).
+- [x] 4.3 Inventario propio del taller — `InventarioModule.tsx` (stock, ajuste rápido +/-, alerta de mínimo, filtro "solo stock bajo").
+- [x] 4.4 Citas — `CitasModule.tsx` (agenda, conversión 1-click a orden de trabajo contra la DB real).
+- [x] 4.5 Notificaciones — `NotificacionesModule.tsx` (log real, envío real por email, WhatsApp/SMS marcados `simulado`).
+- [x] 4.6 Rentabilidad — `RentabilidadModule.tsx` (agregado client-side sobre `work_orders` reales —
+      no una tabla de snapshots; por mes y por categoría de servicio).
+- [x] 4.7 Documentos emitidos — `DocumentosModule.tsx` (numerados automáticamente, opcionalmente ligados a una orden de trabajo).
+- [x] 4.8 Diagnóstico IA — `DiagnosticoIAModule.tsx`, contra el endpoint DeepSeek del backend (nunca
+      Gemini) — **probado con una respuesta real de la IA** en la verificación en navegador.
+- [x] 4.9 Resumen/Dashboard — hecho en la Fase 3, agrega los contadores del endpoint de Fase 2.
+- [x] 4.10 Perfil del taller — `PerfilModule.tsx` (datos del taller, mecánicos, catálogo de
+      servicios, tarifa de IVA, redes sociales, **y reseñas** — registro manual + respuesta del
+      taller, capacidad que ya existía en el backend `workshop_reviews.py` pero no tenía UI).
+      `WorkshopConfigTab.tsx` (sellos de fidelidad) **no se tocó**, sigue siendo el acceso rápido
+      existente dentro de `/app`.
+- [x] 4.11 Ficha pública del taller — `frontend/src/app/(public)/taller/[code]/page.tsx`, contra el
+      `GET /workshops/{code}` ya enriquecido en Fase 2 (mecánicos, catálogo, reseñas, redes sociales).
+
+**Verificado en navegador real (2026-08-04)** — flujo completo con una cuenta desechable: crear
+cliente → agregar su vehículo → crear repuesto de inventario → agregar mecánico + servicio al
+catálogo + registrar una reseña (Perfil) → crear una orden de trabajo real con mano de obra y un
+repuesto del inventario → crear una cita y convertirla 1-click en otra orden → enviar una
+notificación → ver Rentabilidad agregada → emitir un documento → **generar un diagnóstico real con
+la IA** (DeepSeek respondió con un diagnóstico completo y coherente) → Resumen con los números
+finales → ficha pública en `/taller/{code}` mostrando todo lo cargado. Cero errores de red o de
+consola atribuibles al código nuevo (los únicos 404 son de assets estáticos de la landing,
+preexistentes).
+
+**3 bugs reales encontrados y corregidos por la prueba en navegador** (ninguno visible con
+`tsc`/`vitest` solos):
+1. `RentabilidadModule.tsx` no esperaba a que cargaran los datos antes de calcular los totales —
+   la primera renderización (antes de que `useWorkOrders()` resolviera) mostraba "$0" en todo.
+   Corregido con un guard de `loading` explícito, igual que `ResumenModule`.
+2. `GET /workshops/me/dashboard` contaba "citas de hoy" con `date.today()` (hora **local** del
+   proceso de Python) contra `appointment_date` (guardado en UTC) — en este entorno el servidor
+   corría casi un día detrás de la fecha real en UTC, así que las citas de hoy siempre daban 0
+   cerca de la medianoche UTC. Corregido usando `func.current_date()` de Postgres (UTC,
+   consistente con cómo se guarda todo lo demás) en vez de la fecha local de Python.
+3. Cosmético: `workshop.tax_rate_percent` llega del backend como string Decimal (`"19.00"`) y se
+   mostraba tal cual en vez de como `19` en el resumen de IVA de la orden y en el input de Perfil.
+   Envuelto en `Number(...)` donde se muestra como texto (el cálculo ya usaba `Number()` y era
+   correcto).
+
+Todos los datos de prueba (perfiles, talleres, clientes, vehículos, órdenes, citas, inventario,
+notificaciones, documentos, reseñas, usuarios de Supabase Auth) fueron creados y **eliminados por
+completo** al terminar — verificado con consultas directas a la DB real, cero residuos.
 
 ### Fase 5 — Integración con lo existente (sin romper nada)
 - [ ] `WorkshopConfigTab.tsx`: decidir si se deja como acceso rápido a "sellos" y se linkea al
