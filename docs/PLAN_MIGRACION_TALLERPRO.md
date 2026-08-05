@@ -357,19 +357,35 @@ completo** al terminar — verificado con consultas directas a la DB real, cero 
       `/api/gemini/*`) → nunca se copiaron; `DiagnosticoIAModule.tsx` (Fase 4) siempre llamó al
       endpoint propio con DeepSeek desde el principio.
 
-### Fase 7 — QA y verificación contra sistemas reales
+### Fase 7 — QA y verificación contra sistemas reales — **COMPLETA** (2026-08-04)
 _(siguiendo la práctica ya establecida en el proyecto: verificar contra la DB/API real, no solo
 revisión de código)_
-- [ ] Probar cada módulo contra la base real con una cuenta `taller`/`empresa` de prueba
-      (`@carlink.test`, eliminada al terminar — mismo criterio que la sesión de QR/trial).
-- [ ] Verificar RLS: una cuenta taller no puede ver/editar clientes, órdenes o inventario de otro
-      taller.
-- [ ] Verificar que crear una orden de trabajo con repuestos descuenta stock de forma atómica
-      (probar condición de carrera simple: dos órdenes casi simultáneas sobre el mismo repuesto).
-- [ ] Verificar responsive (el proyecto tiene breakpoints propios: ≤960, ≤860, ≤640, ≤380) en los
-      módulos nuevos.
-- [ ] Verificar que nada de lo existente (Ficha, Taller, Diagnóstico, Partes, Config, llavero NFC)
-      cambió de comportamiento.
+- [x] Cada módulo ya se había probado contra la base real con cuentas `taller`/`empresa` de prueba
+      a lo largo de las Fases 2/4/5/6 (`@carlink.test`, eliminadas al terminar cada sesión).
+- [x] **RLS/aislamiento entre talleres** — script dedicado (2 talleres `A`/`B` desechables): taller
+      `B` no ve en sus listados clientes, vehículos, inventario, órdenes ni citas de `A`; tampoco
+      puede leer por id ni editar (`PUT`) un recurso de `A` directamente (`404`, no leak). 9/9
+      checks OK.
+- [x] **Condición de carrera / descuento atómico de stock** — repuesto con stock=10, dos órdenes de
+      trabajo creadas con `asyncio.gather` (casi simultáneas), cada una descontando 3 unidades.
+      Resultado real: `stock final = 4` (10-3-3), confirmando que el `SELECT ... FOR UPDATE` serializa
+      correctamente y no hay pérdida de actualización (el bug típico sería `stock=7`, como si una de
+      las dos escrituras se hubiera perdido).
+- [x] **Responsive** — panel `/app/negocio` probado en navegador real a 1440/900/640/380px: el rail
+      colapsa a menú hamburguesa por debajo de 900px (mismo comportamiento que ya tenía `Sidebar.tsx`
+      para `/app`), las tarjetas de Resumen reflowan sin overflow horizontal en ningún ancho.
+- [x] **Regresión de lo existente** — `git diff` contra el punto de partida de esta migración
+      confirma **cero cambios** en cualquier archivo del flujo NFC (`nfc.py`,
+      `nfc_provisioning.py`, `crypto.py`, `QrCodePanel.tsx`, `/app/nfc`, `/app/admin`). Tabs Ficha
+      técnica, Taller, Diagnóstico, Control de partes y Promoción de `/app` verificadas en el mismo
+      pase final sin errores de consola ni de red.
+
+**Cuenta de demostración dejada lista a propósito** (a diferencia de las cuentas `@carlink.test` de
+todas las pruebas anteriores, **esta no se borró** — es para que el usuario entre él mismo):
+`taller.demo@carlink.com.co` / taller "Taller Central CarLink", sembrado con datos reales en todos
+los módulos (3 mecánicos, 4 servicios de catálogo, 3 clientes con vehículo, 3 repuestos de
+inventario con uno en alerta de stock bajo, 2 órdenes de trabajo, 2 citas, 1 notificación, 1
+documento, 1 reseña). Credenciales entregadas directamente al usuario, no documentadas aquí.
 
 ### Fase 8 — Despliegue
 - [ ] Migraciones aplicadas manualmente contra Supabase real (procedimiento de `docs/DEPLOY.md`).
