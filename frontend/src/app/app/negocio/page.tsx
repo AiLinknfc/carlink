@@ -49,11 +49,17 @@ export default function NegocioPage() {
   const [activeTab, setActiveTab] = useState('resumen')
   const { workshop, loading: workshopLoading } = useMyWorkshop()
 
+  /* Solo redirige por falta de sesión — `user` llega junto con `authLoading`
+     (misma llamada a getSession()). El account_type vive en `profile`, que
+     AuthProvider trae en un fetch aparte DESPUÉS de que `authLoading` ya bajó
+     a false: redirigir en base a `profile?.account_type` acá rebotaba a todo
+     taller/empresa real de vuelta a /app por una condición de carrera
+     (confirmado navegando la app real, no solo con tsc/tests). Si no es
+     cuenta de negocio, se explica inline más abajo — sin redirect. */
   useEffect(() => {
     if (authLoading) return
-    if (!user) { router.push('/'); return }
-    if (!isBusinessAccount(profile?.account_type)) router.push('/app')
-  }, [authLoading, user, profile, router])
+    if (!user) router.push('/')
+  }, [authLoading, user, router])
 
   const pageBg = theme === 'light' ? '#f7f6f2' : '#060606'
   const vignetteBg = theme === 'light'
@@ -66,8 +72,28 @@ export default function NegocioPage() {
 
   const subValid = isSubscriptionValid(profile?.subscription_status, profile?.trial_ends_at, profile?.created_at)
 
-  if (authLoading || !user || !isBusinessAccount(profile?.account_type)) {
+  if (authLoading || !user) {
     return <div style={{ minHeight: '100vh', background: pageBg }} />
+  }
+
+  // `profile` todavía no llega (fetch aparte, ver comentario arriba) — espera
+  // en vez de decidir con un account_type que aún no se sabe.
+  if (!profile) {
+    return <div style={{ minHeight: '100vh', background: pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: rootTextColor }}>Cargando…</div>
+  }
+
+  if (!isBusinessAccount(profile.account_type)) {
+    return (
+      <div style={{ minHeight: '100vh', background: pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: rootTextColor, padding: 24 }}>
+        <div style={{ maxWidth: 420, textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, marginBottom: 8 }}>Esto es para talleres y empresas</div>
+          <p style={{ color: textMuted, fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' }}>
+            Tu cuenta es de tipo conductor. El panel de negocio es solo para cuentas taller/empresa.
+          </p>
+          <a href="/app" style={{ color: '#F5C518', fontWeight: 700 }}>Volver a mi ficha</a>
+        </div>
+      </div>
+    )
   }
 
   return (
