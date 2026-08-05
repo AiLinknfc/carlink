@@ -1,6 +1,26 @@
 # Pendientes de Implementación
 
-_Última actualización: 2026-07-29._
+_Última actualización: 2026-08-04._
+
+## Panel de negocio taller/empresa — migración de tallerpro/ (2026-08-04)
+
+Plan completo, fase por fase, con lo hecho y verificado en cada una: `docs/PLAN_MIGRACION_TALLERPRO.md`.
+Fases 0 a 7 completas (modelo de datos, backend, los 11 módulos del frontend, integración con lo
+existente, auditoría de datos quemados, QA contra la DB real) — **todo en la rama local
+`feat/taller-empresa-panel`, todavía sin hacer push ni desplegar** (decisión explícita del usuario,
+2026-08-04: preparar el despliegue pero no ejecutarlo todavía).
+
+**Pendiente antes de dar esto por cerrado:**
+1. **Push + despliegue (Fase 8)** — instrucciones exactas al final de `docs/PLAN_MIGRACION_TALLERPRO.md`.
+   Las migraciones 023–032 **ya están aplicadas contra la Supabase real** (aditivas, sin efecto hasta
+   que se despliegue el código que las usa) — lo único que falta es el código (push + deploy).
+2. Confirmar que `DEEPSEEK_API_KEY` esté configurada en Railway antes o justo después del deploy
+   (la usa el nuevo Diagnóstico IA del taller, mismo patrón que el OCR existente) — no se pudo
+   verificar desde este entorno (`railway login` requiere hacerlo el usuario en su propia terminal).
+3. Suite de `pytest` formal para los routers nuevos — el trabajo se verificó con scripts E2E
+   desechables contra la DB real en cada fase, pero esos scripts no quedan corriendo en CI.
+4. Ver también la fila `empresa` faltante en `nfc_token_limits` (pendiente ya existente, no
+   relacionado — el panel nuevo no depende de eso, confirmado en la Fase 5 del plan).
 
 ## QR de llavero + ficha de prueba 7 días (2026-07-29)
 

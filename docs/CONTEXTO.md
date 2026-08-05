@@ -1,6 +1,6 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-07-27. Este archivo reemplaza y unifica el antiguo `CONTEXTO_HOY.md`._
+_Última actualización: 2026-08-04._
 
 ## Estado actual
 
@@ -8,6 +8,18 @@ _Última actualización: 2026-07-27. Este archivo reemplaza y unifica el antiguo
 - **Backend**: FastAPI + SQLAlchemy async + asyncpg — producción en Railway (`api.carlink.com.co`)
 - **DB**: Supabase Cloud PostgreSQL (ref `xgdshunvmeceqnzmkcsg`) — **local, staging y producción comparten la misma instancia** hasta que se separen ambientes (ver `docs/DEPLOY.md`)
 - **Tipos de cuenta**: `persona` (default), `taller` (vía `POST /workshops`), `empresa`
+
+## Panel de negocio taller/empresa (2026-08-04, sin desplegar todavía)
+
+Migración completa de `tallerpro/` (SaaS de taller standalone con datos mock) hacia una sección
+aditiva de CarLink — panel multi-cliente en `/app/negocio` (clientes, órdenes de trabajo,
+inventario, citas, notificaciones, rentabilidad, documentos, diagnóstico IA, perfil del taller,
+ficha pública). No reemplaza ni toca las tabs por-vehículo existentes de `/app`
+(Ficha/Taller/Diagnóstico/Partes/Config). Detalle completo, fase por fase: `docs/PLAN_MIGRACION_TALLERPRO.md`.
+
+**Vive en la rama local `feat/taller-empresa-panel` — sin push, sin desplegar** (a propósito, ver
+`docs/PENDIENTES.md`). Las migraciones de DB (023–032) sí están aplicadas contra la Supabase real
+(aditivas, inertes hasta que se despliegue el código).
 
 ## Arquitectura del llavero NFC (rediseñada 2026-07-27)
 

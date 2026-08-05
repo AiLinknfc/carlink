@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, apiUrl } from '@/lib/supabase'
+import { isBusinessAccount } from '@/lib/constants'
 
 export default function CallbackPage() {
   const router = useRouter()
@@ -10,8 +11,28 @@ export default function CallbackPage() {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/'); return }
+      const token = session.access_token
+
+      // Taller/empresa aterriza directo en su panel de negocio, no en la
+      // ficha de un vehículo — account_type solo pasa a 'taller' después de
+      // que POST /workshops crea el Workshop (workshops.py), así que llegar
+      // aquí con una cuenta de negocio ya garantiza que existe.
       try {
-        const token = session.access_token
+        const profileRes = await fetch(apiUrl('/auth/me'), { headers: { Authorization: `Bearer ${token}` } })
+        if (profileRes.ok) {
+          const profile = await profileRes.json()
+          if (isBusinessAccount(profile?.account_type)) {
+            router.push('/app/negocio')
+            return
+          }
+        } else {
+          console.warn('[callback] /auth/me returned', profileRes.status)
+        }
+      } catch (e) {
+        console.warn('[callback] profile fetch failed:', e)
+      }
+
+      try {
         const res = await fetch(apiUrl('/vehicles'), {
           headers: { Authorization: `Bearer ${token}` },
         })

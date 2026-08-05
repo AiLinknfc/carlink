@@ -305,6 +305,14 @@ completo** al terminar — verificado con consultas directas a la DB real, cero 
       preexistente) como en `/app/negocio` (los 10 módulos, comportamiento nuevo) — mismo
       `isSubscriptionValid()`, mismos tres parámetros, mismo resultado en ambos lados. Datos de
       prueba eliminados al terminar.
+- [x] **Redirección post-login (agregado 2026-08-04, pedido explícito del usuario)**:
+      `frontend/src/app/auth/callback/page.tsx` mandaba a *cualquier* cuenta con al menos un
+      vehículo a `/app` (la ficha), sin importar el tipo de cuenta — un taller/empresa tenía que
+      entrar y navegar manualmente a "Mi negocio". Ahora consulta `/auth/me` primero: si
+      `isBusinessAccount(account_type)`, redirige directo a `/app/negocio`; si no, seguía el mismo
+      camino de siempre. **Verificado en navegador real** con la cuenta demo (aterriza en el
+      Resumen del panel de negocio, no en `/app`) y con una cuenta `persona` desechable (sigue
+      aterrizando en `/app` sin cambios) — sin regresión.
 
 ### Fase 6 — Auditoría de datos quemados — **COMPLETA** (2026-08-04)
 - [x] `DiagnosticoTab.tsx` (**este era el hallazgo real y grande de esta fase** — preexistente en
@@ -387,13 +395,56 @@ los módulos (3 mecánicos, 4 servicios de catálogo, 3 clientes con vehículo, 
 inventario con uno en alerta de stock bajo, 2 órdenes de trabajo, 2 citas, 1 notificación, 1
 documento, 1 reseña). Credenciales entregadas directamente al usuario, no documentadas aquí.
 
-### Fase 8 — Despliegue
-- [ ] Migraciones aplicadas manualmente contra Supabase real (procedimiento de `docs/DEPLOY.md`).
-- [ ] Variables de entorno: confirmar que `DEEPSEEK_API_KEY` ya configurada en Railway cubre el
-      nuevo uso (diagnóstico IA); no se necesita `GEMINI_API_KEY` en ningún lado.
-- [ ] Actualizar `docs/PENDIENTES.md` y `docs/CONTEXTO.md` al cerrar cada fase.
-- [ ] Marcar este archivo (`docs/PLAN_MIGRACION_TALLERPRO.md`) con las casillas cumplidas en cada
-      PR/commit relevante.
+### Fase 8 — Despliegue — **preparada, sin ejecutar** (2026-08-04, decisión explícita del usuario:
+"prepárame el push pero no lo hagas" / "NO quiero dañar lo que hay en producción")
+- [x] Migraciones aplicadas manualmente contra Supabase real (023 a 032, procedimiento de
+      `docs/DEPLOY.md`) — hecho progresivamente en las Fases 1 y 6, todas aditivas (ninguna toca ni
+      borra nada existente), verificadas contra la DB real cada vez.
+- [ ] Variables de entorno: `DEEPSEEK_API_KEY` — **no se pudo verificar desde este entorno**
+      (`railway login` requiere hacerlo el usuario en su propia terminal, no desde un agente
+      sandboxeado — ver `docs/DEPLOY.md` "Lecciones del despliegue..."). Confirmar en el dashboard
+      de Railway antes o justo después del deploy. No se necesita `GEMINI_API_KEY` en ningún lado
+      (el diagnóstico IA del taller usa DeepSeek, mismo proveedor que el OCR existente).
+- [x] `docs/PENDIENTES.md` y `docs/CONTEXTO.md` actualizados.
+- [x] Este archivo, marcado fase por fase a medida que se avanzó.
+- [ ] **Push + deploy — pendiente, a propósito.** Todo commiteado en la rama local
+      `feat/taller-empresa-panel` (8 commits), **nunca se hizo `git push`** — `origin/master` sigue
+      exactamente en `fda402e`, el commit previo a esta migración. carlink.com.co y
+      api.carlink.com.co están intocados.
+
+**Verificación de seguridad antes del push** (2026-08-04): `git diff master..feat/taller-empresa-panel`
+— 51 archivos, +6470/-172 líneas, todas explicables por los cambios documentados en este plan (ver
+Fases 2-7); ninguna elimina o renombra código existente fuera de los 3 refactors puntuales ya
+documentados (`SubscriptionExpiredCard` extraído, `WorkshopConfigTab.tsx` con el nuevo link,
+`Sidebar.tsx` con `navItemsOverride`/`userName` opcionales). Los archivos sin relación con esta
+migración que estaban modificados/sin trackear desde antes de empezar
+(`frontend/src/components/LandingSections.tsx`, `PRESENTATION_FUNDRAISING.md`, `PRESENTATION_M&A.md`,
+`tallerpro/`) **no están en ningún commit de esta rama** — un `git push` de esta rama no los toca.
+
+**Cuando el usuario decida desplegar, dos caminos:**
+
+1. **Recomendado — revisar primero en GitHub, sin tocar `master` todavía:**
+   ```bash
+   git push origin feat/taller-empresa-panel
+   # abre un PR en GitHub contra master para revisar el diff completo antes de fusionar
+   ```
+   Vercel genera automáticamente una URL de preview para la rama (no toca producción). Cuando el
+   PR se vea bien, fusionarlo desde GitHub (o `git checkout master && git merge feat/taller-empresa-panel && git push origin master`) dispara el deploy real a Vercel + Railway.
+
+2. **Directo — fusionar y desplegar de una vez:**
+   ```bash
+   git checkout master
+   git merge feat/taller-empresa-panel
+   git push origin master
+   ```
+   Esto dispara el deploy automático en Vercel (frontend) y Railway (backend) de inmediato, como
+   describe `docs/DEPLOY.md`. Railway puede tardar varios minutos y tiene el comportamiento de
+   redeploys lento/confuso ya documentado ahí ("Lecciones del despliegue de la reactivación NFC") —
+   verificar con el marcador de `version` en `/api/health` en vez de probar el feature directamente,
+   para no confundir "el deploy no ha terminado" con "no funciona".
+
+En cualquiera de los dos casos, después del deploy real: reprobar el login con la cuenta demo
+(`taller.demo@carlink.com.co`) contra el dominio real, no solo local.
 
 ## 4. Mapeo de features TallerPro → CarLink
 
