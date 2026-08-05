@@ -7,7 +7,34 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import admin, auth, certificates, diagnostics, documents, found_requests, gallery, job_applications, maintenance, nfc, ocr, parts, service_logs, upload, vehicles, workshops
+from app.routers import (
+    admin,
+    appointments,
+    auth,
+    certificates,
+    diagnostics,
+    documents,
+    found_requests,
+    gallery,
+    job_applications,
+    maintenance,
+    nfc,
+    ocr,
+    parts,
+    service_logs,
+    upload,
+    vehicles,
+    work_orders,
+    workshop_ai,
+    workshop_clients,
+    workshop_documents,
+    workshop_inventory,
+    workshop_mechanics,
+    workshop_notifications,
+    workshop_reviews,
+    workshop_services,
+    workshops,
+)
 from app.services.cache import close_redis
 
 settings = get_settings()
@@ -60,6 +87,20 @@ app.include_router(ocr.router, prefix="/api")
 app.include_router(found_requests.router, prefix="/api")
 app.include_router(job_applications.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+
+# Panel de negocio taller/empresa (migración de tallerpro/, ver
+# docs/PLAN_MIGRACION_TALLERPRO.md) — todos comparten el prefijo /workshops,
+# separados en varios archivos como el resto de recursos de este proyecto.
+app.include_router(workshop_mechanics.router, prefix="/api")
+app.include_router(workshop_services.router, prefix="/api")
+app.include_router(workshop_clients.router, prefix="/api")
+app.include_router(workshop_inventory.router, prefix="/api")
+app.include_router(work_orders.router, prefix="/api")
+app.include_router(appointments.router, prefix="/api")
+app.include_router(workshop_notifications.router, prefix="/api")
+app.include_router(workshop_documents.router, prefix="/api")
+app.include_router(workshop_reviews.router, prefix="/api")
+app.include_router(workshop_ai.router, prefix="/api")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,18 @@ import type {
   GalleryImage, GalleryCreate, GalleryUpdate,
   Diagnostic, DiagnosticCreate,
   ServiceLog, ServiceLogCreate,
-  Workshop, WorkshopUpdate,
+  Workshop, WorkshopUpdate, WorkshopPublic, WorkshopDashboard,
+  WorkshopMechanic, WorkshopMechanicCreate, WorkshopMechanicUpdate,
+  WorkshopServiceItem, WorkshopServiceItemCreate, WorkshopServiceItemUpdate,
+  WorkshopClient, WorkshopClientCreate, WorkshopClientUpdate,
+  WorkshopVehicle, WorkshopVehicleCreate, WorkshopVehicleUpdate,
+  WorkOrder, WorkOrderCreate, WorkOrderUpdate, WorkOrderPhotoEvidence, WorkOrderPhotoEvidenceCreate,
+  WorkshopInventoryPart, WorkshopInventoryPartCreate, WorkshopInventoryPartUpdate,
+  Appointment, AppointmentCreate, AppointmentUpdate,
+  WorkshopNotification, WorkshopNotificationCreate,
+  WorkshopDocument, WorkshopDocumentCreate,
+  WorkshopReview, WorkshopReviewCreate,
+  AiDiagnoseRequest, AiDiagnoseResult,
   NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
@@ -115,6 +126,102 @@ export const workshopApi = {
   getMe: () => request<Workshop>('GET', '/workshops/me'),
   updateMe: (data: WorkshopUpdate) => request<Workshop>('PUT', '/workshops/me', data),
   search: (q: string) => request<Workshop[]>('GET', `/workshops/search?q=${q}`),
+  getDashboard: () => request<WorkshopDashboard>('GET', '/workshops/me/dashboard'),
+  getPublic: (code: string) => request<WorkshopPublic>('GET', `/workshops/${code}`),
+  aiDiagnose: (data: AiDiagnoseRequest) => request<AiDiagnoseResult>('POST', '/workshops/me/ai-diagnose', data),
+}
+
+// ── Panel de negocio (taller/empresa) ──
+// Ver docs/PLAN_MIGRACION_TALLERPRO.md — todos requieren un workshop propio
+// (POST /workshops ya hecho) y viven bajo /workshops/me/...
+
+export const workshopMechanicsApi = {
+  list: () => request<WorkshopMechanic[]>('GET', '/workshops/me/mechanics'),
+  create: (data: WorkshopMechanicCreate) => request<WorkshopMechanic>('POST', '/workshops/me/mechanics', data),
+  update: (id: string, data: WorkshopMechanicUpdate) => request<WorkshopMechanic>('PUT', `/workshops/me/mechanics/${id}`, data),
+  delete: (id: string) => request('DELETE', `/workshops/me/mechanics/${id}`),
+}
+
+export const workshopServicesApi = {
+  list: () => request<WorkshopServiceItem[]>('GET', '/workshops/me/services'),
+  create: (data: WorkshopServiceItemCreate) => request<WorkshopServiceItem>('POST', '/workshops/me/services', data),
+  update: (id: string, data: WorkshopServiceItemUpdate) => request<WorkshopServiceItem>('PUT', `/workshops/me/services/${id}`, data),
+  delete: (id: string) => request('DELETE', `/workshops/me/services/${id}`),
+}
+
+export const workshopClientsApi = {
+  list: (q?: string) => request<WorkshopClient[]>('GET', `/workshops/me/clients${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  create: (data: WorkshopClientCreate) => request<WorkshopClient>('POST', '/workshops/me/clients', data),
+  update: (id: string, data: WorkshopClientUpdate) => request<WorkshopClient>('PUT', `/workshops/me/clients/${id}`, data),
+  delete: (id: string) => request('DELETE', `/workshops/me/clients/${id}`),
+}
+
+export const workshopVehiclesApi = {
+  list: (opts?: { clientId?: string; q?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.clientId) params.set('client_id', opts.clientId)
+    if (opts?.q) params.set('q', opts.q)
+    const qs = params.toString()
+    return request<WorkshopVehicle[]>('GET', `/workshops/me/vehicles${qs ? `?${qs}` : ''}`)
+  },
+  create: (data: WorkshopVehicleCreate) => request<WorkshopVehicle>('POST', '/workshops/me/vehicles', data),
+  update: (id: string, data: WorkshopVehicleUpdate) => request<WorkshopVehicle>('PUT', `/workshops/me/vehicles/${id}`, data),
+  delete: (id: string) => request('DELETE', `/workshops/me/vehicles/${id}`),
+}
+
+export const workOrdersApi = {
+  list: (opts?: { status?: string; clientId?: string; workshopVehicleId?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.status) params.set('status', opts.status)
+    if (opts?.clientId) params.set('client_id', opts.clientId)
+    if (opts?.workshopVehicleId) params.set('workshop_vehicle_id', opts.workshopVehicleId)
+    const qs = params.toString()
+    return request<WorkOrder[]>('GET', `/workshops/me/work-orders${qs ? `?${qs}` : ''}`)
+  },
+  get: (id: string) => request<WorkOrder>('GET', `/workshops/me/work-orders/${id}`),
+  create: (data: WorkOrderCreate) => request<WorkOrder>('POST', '/workshops/me/work-orders', data),
+  update: (id: string, data: WorkOrderUpdate) => request<WorkOrder>('PUT', `/workshops/me/work-orders/${id}`, data),
+  updateStatus: (id: string, status: string) => request<WorkOrder>('PUT', `/workshops/me/work-orders/${id}/status`, { status }),
+  addPhoto: (id: string, data: WorkOrderPhotoEvidenceCreate) => request<WorkOrderPhotoEvidence>('POST', `/workshops/me/work-orders/${id}/photos`, data),
+}
+
+export const workshopInventoryApi = {
+  list: (lowStockOnly?: boolean) => request<WorkshopInventoryPart[]>('GET', `/workshops/me/inventory${lowStockOnly ? '?low_stock_only=true' : ''}`),
+  create: (data: WorkshopInventoryPartCreate) => request<WorkshopInventoryPart>('POST', '/workshops/me/inventory', data),
+  update: (id: string, data: WorkshopInventoryPartUpdate) => request<WorkshopInventoryPart>('PUT', `/workshops/me/inventory/${id}`, data),
+  updateStock: (id: string, stock: number) => request<WorkshopInventoryPart>('PUT', `/workshops/me/inventory/${id}/stock`, { stock }),
+  delete: (id: string) => request('DELETE', `/workshops/me/inventory/${id}`),
+}
+
+export const appointmentsApi = {
+  list: (opts?: { date?: string; status?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.date) params.set('date', opts.date)
+    if (opts?.status) params.set('status', opts.status)
+    const qs = params.toString()
+    return request<Appointment[]>('GET', `/workshops/me/appointments${qs ? `?${qs}` : ''}`)
+  },
+  create: (data: AppointmentCreate) => request<Appointment>('POST', '/workshops/me/appointments', data),
+  update: (id: string, data: AppointmentUpdate) => request<Appointment>('PUT', `/workshops/me/appointments/${id}`, data),
+  delete: (id: string) => request('DELETE', `/workshops/me/appointments/${id}`),
+  convert: (id: string) => request<WorkOrder>('POST', `/workshops/me/appointments/${id}/convert`, {}),
+}
+
+export const workshopNotificationsApi = {
+  list: () => request<WorkshopNotification[]>('GET', '/workshops/me/notifications'),
+  send: (data: WorkshopNotificationCreate) => request<WorkshopNotification>('POST', '/workshops/me/notifications', data),
+}
+
+export const workshopDocumentsApi = {
+  list: (docType?: string) => request<WorkshopDocument[]>('GET', `/workshops/me/documents${docType ? `?doc_type=${encodeURIComponent(docType)}` : ''}`),
+  get: (id: string) => request<WorkshopDocument>('GET', `/workshops/me/documents/${id}`),
+  create: (data: WorkshopDocumentCreate) => request<WorkshopDocument>('POST', '/workshops/me/documents', data),
+}
+
+export const workshopReviewsApi = {
+  list: () => request<WorkshopReview[]>('GET', '/workshops/me/reviews'),
+  create: (data: WorkshopReviewCreate) => request<WorkshopReview>('POST', '/workshops/me/reviews', data),
+  respond: (id: string, manager_response: string) => request<WorkshopReview>('PUT', `/workshops/me/reviews/${id}/respond`, { manager_response }),
 }
 
 export const nfcApi = {

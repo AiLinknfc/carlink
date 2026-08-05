@@ -9,6 +9,16 @@ import {
   diagnosticsApi,
   serviceLogsApi,
   workshopApi,
+  workshopMechanicsApi,
+  workshopServicesApi,
+  workshopClientsApi,
+  workshopVehiclesApi,
+  workOrdersApi,
+  workshopInventoryApi,
+  appointmentsApi,
+  workshopNotificationsApi,
+  workshopDocumentsApi,
+  workshopReviewsApi,
   nfcApi,
   uploadApi,
   profileApi,
@@ -24,6 +34,17 @@ import type {
   Diagnostic,
   NfcToken,
   Workshop,
+  WorkshopMechanic,
+  WorkshopServiceItem,
+  WorkshopClient,
+  WorkshopVehicle,
+  WorkOrder,
+  WorkshopInventoryPart,
+  Appointment,
+  WorkshopNotification,
+  WorkshopDocument,
+  WorkshopReview,
+  WorkshopDashboard,
   ServiceLog,
   Profile,
 } from './types'
@@ -444,6 +465,35 @@ export function useWorkshops() {
   return { workshops, loading, reload: load }
 }
 
+/** El taller/empresa propio de la cuenta autenticada (GET /workshops/me) —
+ * distinto de useWorkshops(), que busca en el directorio público. Base del
+ * panel de negocio en /app/negocio (docs/PLAN_MIGRACION_TALLERPRO.md). */
+export function useMyWorkshop() {
+  const [workshop, setWorkshop] = useState<Workshop | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setWorkshop(await workshopApi.getMe())
+    } catch (e) {
+      console.error('Failed to load my workshop:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const updateWorkshop = useCallback(async (data: Parameters<typeof workshopApi.updateMe>[0]) => {
+    const result = await workshopApi.updateMe(data)
+    if (result) setWorkshop(result)
+    return result
+  }, [])
+
+  return { workshop, loading, reload: load, updateWorkshop }
+}
+
 export function useServiceLogs(vehicleId: string | undefined) {
   const [logs, setLogs] = useState<ServiceLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -469,6 +519,401 @@ export function useServiceLogs(vehicleId: string | undefined) {
   }, [load])
 
   return { logs, loading, reload: load }
+}
+
+// ── Panel de negocio (taller/empresa) ──
+// Ver docs/PLAN_MIGRACION_TALLERPRO.md — todos escopeados al taller de la
+// cuenta autenticada (sin vehicleId), mismo patrón load/reload que el resto
+// de hooks de este archivo.
+
+export function useWorkshopDashboard() {
+  const [dashboard, setDashboard] = useState<WorkshopDashboard | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await workshopApi.getDashboard()
+      setDashboard(data)
+    } catch (e) {
+      console.error('Failed to load workshop dashboard:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  return { dashboard, loading, reload: load }
+}
+
+export function useWorkshopMechanics() {
+  const [mechanics, setMechanics] = useState<WorkshopMechanic[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setMechanics((await workshopMechanicsApi.list()) || [])
+    } catch (e) {
+      console.error('Failed to load mechanics:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const addMechanic = useCallback(async (data: Parameters<typeof workshopMechanicsApi.create>[0]) => {
+    const result = await workshopMechanicsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateMechanic = useCallback(async (id: string, data: Parameters<typeof workshopMechanicsApi.update>[1]) => {
+    const result = await workshopMechanicsApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deleteMechanic = useCallback(async (id: string) => {
+    const ok = await workshopMechanicsApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  return { mechanics, loading, reload: load, addMechanic, updateMechanic, deleteMechanic }
+}
+
+export function useWorkshopServices() {
+  const [services, setServices] = useState<WorkshopServiceItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setServices((await workshopServicesApi.list()) || [])
+    } catch (e) {
+      console.error('Failed to load service catalog:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const addService = useCallback(async (data: Parameters<typeof workshopServicesApi.create>[0]) => {
+    const result = await workshopServicesApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateService = useCallback(async (id: string, data: Parameters<typeof workshopServicesApi.update>[1]) => {
+    const result = await workshopServicesApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deleteService = useCallback(async (id: string) => {
+    const ok = await workshopServicesApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  return { services, loading, reload: load, addService, updateService, deleteService }
+}
+
+export function useWorkshopClients(q?: string) {
+  const [clients, setClients] = useState<WorkshopClient[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setClients((await workshopClientsApi.list(q)) || [])
+    } catch (e) {
+      console.error('Failed to load clients:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [q])
+
+  useEffect(() => { load() }, [load])
+
+  const addClient = useCallback(async (data: Parameters<typeof workshopClientsApi.create>[0]) => {
+    const result = await workshopClientsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateClient = useCallback(async (id: string, data: Parameters<typeof workshopClientsApi.update>[1]) => {
+    const result = await workshopClientsApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deleteClient = useCallback(async (id: string) => {
+    const ok = await workshopClientsApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  return { clients, loading, reload: load, addClient, updateClient, deleteClient }
+}
+
+export function useWorkshopVehicles(opts?: { clientId?: string; q?: string }) {
+  const [vehicles, setVehicles] = useState<WorkshopVehicle[]>([])
+  const [loading, setLoading] = useState(true)
+  const clientId = opts?.clientId
+  const q = opts?.q
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setVehicles((await workshopVehiclesApi.list({ clientId, q })) || [])
+    } catch (e) {
+      console.error('Failed to load workshop vehicles:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [clientId, q])
+
+  useEffect(() => { load() }, [load])
+
+  const addVehicle = useCallback(async (data: Parameters<typeof workshopVehiclesApi.create>[0]) => {
+    const result = await workshopVehiclesApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateVehicle = useCallback(async (id: string, data: Parameters<typeof workshopVehiclesApi.update>[1]) => {
+    const result = await workshopVehiclesApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deleteVehicle = useCallback(async (id: string) => {
+    const ok = await workshopVehiclesApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  return { vehicles, loading, reload: load, addVehicle, updateVehicle, deleteVehicle }
+}
+
+export function useWorkOrders(opts?: { status?: string; clientId?: string; workshopVehicleId?: string }) {
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const status = opts?.status
+  const clientId = opts?.clientId
+  const workshopVehicleId = opts?.workshopVehicleId
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setWorkOrders((await workOrdersApi.list({ status, clientId, workshopVehicleId })) || [])
+    } catch (e) {
+      console.error('Failed to load work orders:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [status, clientId, workshopVehicleId])
+
+  useEffect(() => { load() }, [load])
+
+  const addWorkOrder = useCallback(async (data: Parameters<typeof workOrdersApi.create>[0]) => {
+    const result = await workOrdersApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateWorkOrder = useCallback(async (id: string, data: Parameters<typeof workOrdersApi.update>[1]) => {
+    const result = await workOrdersApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateWorkOrderStatus = useCallback(async (id: string, status: string) => {
+    const result = await workOrdersApi.updateStatus(id, status)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { workOrders, loading, reload: load, addWorkOrder, updateWorkOrder, updateWorkOrderStatus }
+}
+
+export function useWorkshopInventory(lowStockOnly?: boolean) {
+  const [parts, setParts] = useState<WorkshopInventoryPart[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setParts((await workshopInventoryApi.list(lowStockOnly)) || [])
+    } catch (e) {
+      console.error('Failed to load workshop inventory:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [lowStockOnly])
+
+  useEffect(() => { load() }, [load])
+
+  const addPart = useCallback(async (data: Parameters<typeof workshopInventoryApi.create>[0]) => {
+    const result = await workshopInventoryApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updatePart = useCallback(async (id: string, data: Parameters<typeof workshopInventoryApi.update>[1]) => {
+    const result = await workshopInventoryApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateStock = useCallback(async (id: string, stock: number) => {
+    const result = await workshopInventoryApi.updateStock(id, stock)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deletePart = useCallback(async (id: string) => {
+    const ok = await workshopInventoryApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  return { parts, loading, reload: load, addPart, updatePart, updateStock, deletePart }
+}
+
+export function useAppointments(opts?: { date?: string; status?: string }) {
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const date = opts?.date
+  const status = opts?.status
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setAppointments((await appointmentsApi.list({ date, status })) || [])
+    } catch (e) {
+      console.error('Failed to load appointments:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [date, status])
+
+  useEffect(() => { load() }, [load])
+
+  const addAppointment = useCallback(async (data: Parameters<typeof appointmentsApi.create>[0]) => {
+    const result = await appointmentsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const updateAppointment = useCallback(async (id: string, data: Parameters<typeof appointmentsApi.update>[1]) => {
+    const result = await appointmentsApi.update(id, data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const deleteAppointment = useCallback(async (id: string) => {
+    const ok = await appointmentsApi.delete(id)
+    if (ok) await load()
+    return ok
+  }, [load])
+
+  const convertAppointment = useCallback(async (id: string) => {
+    const result = await appointmentsApi.convert(id)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { appointments, loading, reload: load, addAppointment, updateAppointment, deleteAppointment, convertAppointment }
+}
+
+export function useWorkshopNotifications() {
+  const [notifications, setNotifications] = useState<WorkshopNotification[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setNotifications((await workshopNotificationsApi.list()) || [])
+    } catch (e) {
+      console.error('Failed to load notifications:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const sendNotification = useCallback(async (data: Parameters<typeof workshopNotificationsApi.send>[0]) => {
+    const result = await workshopNotificationsApi.send(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { notifications, loading, reload: load, sendNotification }
+}
+
+export function useWorkshopDocuments(docType?: string) {
+  const [documents, setDocuments] = useState<WorkshopDocument[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setDocuments((await workshopDocumentsApi.list(docType)) || [])
+    } catch (e) {
+      console.error('Failed to load documents:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [docType])
+
+  useEffect(() => { load() }, [load])
+
+  const createDocument = useCallback(async (data: Parameters<typeof workshopDocumentsApi.create>[0]) => {
+    const result = await workshopDocumentsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { documents, loading, reload: load, createDocument }
+}
+
+export function useWorkshopReviews() {
+  const [reviews, setReviews] = useState<WorkshopReview[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setReviews((await workshopReviewsApi.list()) || [])
+    } catch (e) {
+      console.error('Failed to load reviews:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const addReview = useCallback(async (data: Parameters<typeof workshopReviewsApi.create>[0]) => {
+    const result = await workshopReviewsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const respondReview = useCallback(async (id: string, response: string) => {
+    const result = await workshopReviewsApi.respond(id, response)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { reviews, loading, reload: load, addReview, respondReview }
 }
 
 export function useUpload() {

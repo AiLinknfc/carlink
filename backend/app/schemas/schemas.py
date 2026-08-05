@@ -340,6 +340,35 @@ class WorkshopCreate(BaseModel):
     vehicle_city: str | None = None
 
 
+class WorkshopUpdate(BaseModel):
+    """Actualización parcial del perfil del taller — todo opcional, a diferencia
+    de WorkshopCreate (que exige legal_id/name porque también sirve para el
+    registro inicial). Usado por el módulo "Perfil del taller" del panel de
+    negocio (docs/PLAN_MIGRACION_TALLERPRO.md Fase 4.10)."""
+    name: str | None = None
+    address: str | None = None
+    city: str | None = None
+    phone: str | None = None
+    description: str | None = None
+    logo_url: str | None = None
+    stamps_required: int | None = None
+    promotion_description: str | None = None
+    slogan: str | None = None
+    workshop_type: str | None = None
+    email: str | None = None
+    business_hours: str | None = None
+    specialties: list[str] | None = None
+    manager_name: str | None = None
+    manager_role: str | None = None
+    manager_avatar: str | None = None
+    tax_rate_percent: Decimal | None = None
+    certification_code: str | None = None
+    social_instagram: str | None = None
+    social_facebook: str | None = None
+    social_website: str | None = None
+    social_whatsapp: str | None = None
+
+
 class WorkshopOut(BaseModel):
     id: UUID
     owner_id: UUID
@@ -354,6 +383,21 @@ class WorkshopOut(BaseModel):
     is_verified: bool
     stamps_required: int = 6
     promotion_description: str = ""
+    slogan: str = ""
+    workshop_type: str = ""
+    email: str = ""
+    business_hours: str = ""
+    specialties: list[str] = Field(default_factory=list)
+    manager_name: str = ""
+    manager_role: str = ""
+    manager_avatar: str = ""
+    tax_rate_percent: Decimal = Decimal("0")
+    certification_code: str = ""
+    social_instagram: str = ""
+    social_facebook: str = ""
+    social_website: str = ""
+    social_whatsapp: str = ""
+    rating: float = 0.0
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -367,6 +411,506 @@ class WorkshopSearchResult(BaseModel):
     city: str
     phone: str
     is_verified: bool
+
+
+class WorkshopPublicOut(WorkshopOut):
+    """Perfil público del taller (GET /workshops/{code}) — mismo shape que
+    WorkshopOut más los sub-recursos que arma la ficha pública, para no
+    requerir N llamadas adicionales desde el frontend."""
+    mechanics: list["WorkshopMechanicOut"] = Field(default_factory=list)
+    service_items: list["WorkshopServiceItemOut"] = Field(default_factory=list)
+    reviews: list["WorkshopReviewOut"] = Field(default_factory=list)
+
+
+# =========== Workshop mechanics ===========
+class WorkshopMechanicCreate(BaseModel):
+    name: str
+    role: str = ""
+    specialty: str = ""
+    phone: str = ""
+    active: bool = True
+    avatar_url: str = ""
+
+
+class WorkshopMechanicUpdate(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    specialty: str | None = None
+    phone: str | None = None
+    active: bool | None = None
+    avatar_url: str | None = None
+
+
+class WorkshopMechanicOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    name: str
+    role: str
+    specialty: str
+    phone: str
+    active: bool
+    avatar_url: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop service catalog ===========
+class WorkshopServiceItemCreate(BaseModel):
+    name: str
+    category: str = ""
+    estimated_price: Decimal = Decimal("0")
+    estimated_hours: Decimal = Decimal("0")
+    description: str = ""
+
+
+class WorkshopServiceItemUpdate(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    estimated_price: Decimal | None = None
+    estimated_hours: Decimal | None = None
+    description: str | None = None
+
+
+class WorkshopServiceItemOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    name: str
+    category: str
+    estimated_price: Decimal
+    estimated_hours: Decimal
+    description: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop clients & vehicles ===========
+class WorkshopClientCreate(BaseModel):
+    name: str
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    document_id: str = ""
+
+
+class WorkshopClientUpdate(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    document_id: str | None = None
+
+
+class WorkshopClientOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    name: str
+    phone: str
+    email: str
+    address: str
+    document_id: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WorkshopVehicleCreate(BaseModel):
+    client_id: UUID
+    license_plate: str
+    brand: str = ""
+    model: str = ""
+    year: int | None = None
+    vin: str = ""
+    mileage: int = 0
+    fuel_type: str = ""
+    color: str = ""
+    linked_vehicle_id: UUID | None = None
+
+
+class WorkshopVehicleUpdate(BaseModel):
+    license_plate: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    vin: str | None = None
+    mileage: int | None = None
+    fuel_type: str | None = None
+    color: str | None = None
+    linked_vehicle_id: UUID | None = None
+
+
+class WorkshopVehicleOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    client_id: UUID
+    linked_vehicle_id: UUID | None
+    license_plate: str
+    brand: str
+    model: str
+    year: int | None
+    vin: str
+    mileage: int
+    fuel_type: str
+    color: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Work orders ===========
+class WorkOrderLaborItemIn(BaseModel):
+    description: str
+    hours: Decimal = Decimal("0")
+    rate_per_hour: Decimal = Decimal("0")
+
+
+class WorkOrderLaborItemOut(BaseModel):
+    id: UUID
+    description: str
+    hours: Decimal
+    rate_per_hour: Decimal
+    total: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class WorkOrderPartIn(BaseModel):
+    part_id: UUID | None = None
+    part_name: str
+    sku: str = ""
+    quantity: int = 1
+    unit_cost: Decimal = Decimal("0")
+    unit_price: Decimal = Decimal("0")
+
+
+class WorkOrderPartOut(BaseModel):
+    id: UUID
+    part_id: UUID | None
+    part_name: str
+    sku: str
+    quantity: int
+    unit_cost: Decimal
+    unit_price: Decimal
+    subtotal: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class WorkOrderPhotoEvidenceIn(BaseModel):
+    url: str
+    caption: str = ""
+    category: str = ""
+    uploaded_by: str = ""
+
+
+class WorkOrderPhotoEvidenceOut(BaseModel):
+    id: UUID
+    url: str
+    caption: str
+    category: str
+    uploaded_by: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WorkOrderCreate(BaseModel):
+    workshop_vehicle_id: UUID
+    client_id: UUID
+    mechanic_id: UUID | None = None
+    estimated_completion_date: datetime | None = None
+    status: str = "Pendiente"
+    symptoms: str = ""
+    technical_notes: str = ""
+    category: str = ""
+    payment_method: str = ""
+    is_paid: bool = False
+    labor_items: list[WorkOrderLaborItemIn] = Field(default_factory=list)
+    parts_items: list[WorkOrderPartIn] = Field(default_factory=list)
+
+
+class WorkOrderUpdate(BaseModel):
+    mechanic_id: UUID | None = None
+    estimated_completion_date: datetime | None = None
+    status: str | None = None
+    symptoms: str | None = None
+    technical_notes: str | None = None
+    category: str | None = None
+    payment_method: str | None = None
+    is_paid: bool | None = None
+    labor_items: list[WorkOrderLaborItemIn] | None = None
+    parts_items: list[WorkOrderPartIn] | None = None
+
+
+class WorkOrderStatusUpdate(BaseModel):
+    status: str
+
+
+class WorkOrderOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    order_number: str
+    workshop_vehicle_id: UUID
+    client_id: UUID
+    mechanic_id: UUID | None
+    entry_date: datetime
+    estimated_completion_date: datetime | None
+    completed_date: datetime | None
+    status: str
+    symptoms: str
+    technical_notes: str
+    category: str
+    labor_total: Decimal
+    parts_total: Decimal
+    total_cost_price: Decimal
+    total_amount: Decimal
+    tax_amount: Decimal
+    final_total: Decimal
+    net_profit: Decimal
+    is_paid: bool
+    payment_method: str
+    created_at: datetime
+    labor_items: list[WorkOrderLaborItemOut] = Field(default_factory=list)
+    parts_items: list[WorkOrderPartOut] = Field(default_factory=list)
+    photo_evidences: list[WorkOrderPhotoEvidenceOut] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop inventory ===========
+class WorkshopInventoryPartCreate(BaseModel):
+    name: str
+    sku: str = ""
+    category: str = "Otros"
+    stock: int = 0
+    min_stock: int = 0
+    cost_price: Decimal = Decimal("0")
+    retail_price: Decimal = Decimal("0")
+    location: str = ""
+    compatible_models: list[str] = Field(default_factory=list)
+    last_restock_date: date | None = None
+
+
+class WorkshopInventoryPartUpdate(BaseModel):
+    name: str | None = None
+    sku: str | None = None
+    category: str | None = None
+    stock: int | None = None
+    min_stock: int | None = None
+    cost_price: Decimal | None = None
+    retail_price: Decimal | None = None
+    location: str | None = None
+    compatible_models: list[str] | None = None
+    last_restock_date: date | None = None
+
+
+class WorkshopInventoryStockUpdate(BaseModel):
+    stock: int
+
+
+class WorkshopInventoryPartOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    sku: str
+    name: str
+    category: str
+    stock: int
+    min_stock: int
+    cost_price: Decimal
+    retail_price: Decimal
+    location: str
+    compatible_models: list[str]
+    last_restock_date: date | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Appointments ===========
+class AppointmentCreate(BaseModel):
+    client_name: str
+    client_phone: str = ""
+    client_email: str = ""
+    vehicle_plate: str = ""
+    vehicle_model: str = ""
+    service_category: str = ""
+    notes: str = ""
+    appointment_date: date
+    time_slot: str
+    duration_minutes: int = 60
+    status: str = "Pendiente"
+
+
+class AppointmentUpdate(BaseModel):
+    client_name: str | None = None
+    client_phone: str | None = None
+    client_email: str | None = None
+    vehicle_plate: str | None = None
+    vehicle_model: str | None = None
+    service_category: str | None = None
+    notes: str | None = None
+    appointment_date: date | None = None
+    time_slot: str | None = None
+    duration_minutes: int | None = None
+    status: str | None = None
+
+
+class AppointmentOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    client_name: str
+    client_phone: str
+    client_email: str
+    vehicle_plate: str
+    vehicle_model: str
+    service_category: str
+    notes: str
+    appointment_date: date
+    time_slot: str
+    duration_minutes: int
+    status: str
+    converted_to_work_order_id: UUID | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop notifications ===========
+class WorkshopNotificationCreate(BaseModel):
+    recipient_name: str
+    recipient_phone: str = ""
+    recipient_email: str = ""
+    channel: str = "Email"
+    notification_type: str
+    message: str
+    vehicle_plate: str = ""
+    work_order_id: UUID | None = None
+
+
+class WorkshopNotificationOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    recipient_name: str
+    recipient_phone: str
+    recipient_email: str
+    channel: str
+    notification_type: str
+    message: str
+    status: str
+    vehicle_plate: str
+    work_order_id: UUID | None
+    sent_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop issued documents ===========
+class WorkshopDocumentCreate(BaseModel):
+    doc_type: str
+    client_name: str
+    client_tax_id: str = ""
+    recipient_role: str = ""
+    vehicle_plate: str = ""
+    vehicle_model: str = ""
+    work_order_id: UUID | None = None
+    amount: Decimal | None = None
+    mechanic_name: str = ""
+    validity_months: int | None = None
+    details: str = ""
+    issued_by: str
+
+
+class WorkshopDocumentOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    doc_number: str
+    doc_type: str
+    issue_date: date
+    client_name: str
+    client_tax_id: str
+    recipient_role: str
+    vehicle_plate: str
+    vehicle_model: str
+    work_order_id: UUID | None
+    amount: Decimal | None
+    mechanic_name: str
+    validity_months: int | None
+    details: str
+    issued_by: str
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Workshop reviews ===========
+class WorkshopReviewCreate(BaseModel):
+    client_name: str
+    rating: int = Field(ge=1, le=5)
+    comment: str = ""
+    vehicle_model: str = ""
+    is_verified_client: bool = False
+
+
+class WorkshopReviewRespond(BaseModel):
+    manager_response: str
+
+
+class WorkshopReviewOut(BaseModel):
+    id: UUID
+    workshop_id: UUID
+    client_name: str
+    rating: int
+    review_date: date
+    comment: str
+    vehicle_model: str
+    is_verified_client: bool
+    manager_response: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# =========== Dashboard ===========
+class WorkshopDashboardOut(BaseModel):
+    active_work_orders: int
+    today_appointments: int
+    low_stock_alerts: int
+    current_month_revenue: Decimal
+    current_month_profit: Decimal
+    avg_profit_margin: float
+    total_clients: int
+
+
+# =========== AI diagnostics ===========
+class AiDiagnoseRequest(BaseModel):
+    vehicle_brand: str = ""
+    vehicle_model: str = ""
+    vehicle_year: int | None = None
+    vehicle_mileage: int | None = None
+    symptoms: str
+
+
+class AiDiagnoseLabor(BaseModel):
+    description: str
+    estimated_hours: float
+    suggested_rate_per_hour: float
+
+
+class AiDiagnosePart(BaseModel):
+    part_name: str
+    estimated_cost: float
+    urgency: str
+
+
+class AiDiagnoseResult(BaseModel):
+    diagnostic_summary: str
+    possible_causes: list[str] = Field(default_factory=list)
+    recommended_labor: list[AiDiagnoseLabor] = Field(default_factory=list)
+    recommended_parts: list[AiDiagnosePart] = Field(default_factory=list)
+    technical_notes: str = ""
+    estimated_total_cost: float = 0
 
 
 # =========== Service Logs ===========

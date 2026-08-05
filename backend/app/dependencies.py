@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Vehicle
+from app.models.models import Vehicle, Workshop
 from app.services.auth import verify_supabase_jwt
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -51,3 +51,15 @@ async def verify_vehicle(vehicle_id: UUID, user_id: str, db: AsyncSession) -> Ve
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
     return vehicle
+
+
+async def verify_workshop(user_id: str, db: AsyncSession) -> Workshop:
+    """Panel de negocio (taller/empresa): toda la data nueva (clientes, órdenes,
+    inventario, citas, etc.) cuelga del workshop del usuario autenticado — nunca
+    de un vehicle_id, porque los clientes de un taller casi nunca son usuarios
+    de CarLink. Ver docs/PLAN_MIGRACION_TALLERPRO.md."""
+    result = await db.execute(select(Workshop).where(Workshop.owner_id == uuid.UUID(user_id)))
+    workshop = result.scalar_one_or_none()
+    if not workshop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No workshop registered for this account")
+    return workshop

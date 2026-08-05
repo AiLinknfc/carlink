@@ -71,6 +71,34 @@ def send_found_request_email(
         return False
 
 
+def send_generic_email(to_email: str, subject: str, html_body: str) -> bool:
+    """Envío genérico usado por el panel de negocio del taller (notificaciones
+    a clientes: cita, vehículo listo, etc. — docs/PLAN_MIGRACION_TALLERPRO.md).
+    Mismo patrón SMTP que el resto de este módulo, sin plantilla fija."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping email send")
+        return False
+    if not to_email:
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        print(f"[email] Sent generic email to {to_email}")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send generic email: {e}")
+        return False
+
+
 def send_job_application_email(
     applicant_name: str,
     applicant_email: str,

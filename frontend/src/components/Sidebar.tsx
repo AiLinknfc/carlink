@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { CarLinkMark } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
+
+interface NavItem { id: string; label: string; icon: ReactNode }
 
 interface Props {
   activeTab: string
@@ -19,6 +21,13 @@ interface Props {
   subscriptionStatus?: string | null
   trialEndsAt?: string | null
   profileCreatedAt?: string
+  /** Reemplaza el listado de tabs calculado por accountType — usado por
+   * páginas fuera del contexto de "un vehículo activo" (ej. /app/negocio). */
+  navItemsOverride?: NavItem[]
+  /** Nombre a mostrar en el bloque inferior del rail cuando no hay `vehicle`
+   * (ese bloque, con el botón de salir, antes solo aparecía si `vehicle.owner`
+   * existía — lo desacopla para poder reusar el rail sin contexto de vehículo). */
+  userName?: string
 }
 
 const ALL_NAV_ITEMS = [
@@ -38,13 +47,13 @@ const TALLER_NAV_ITEMS = [
   { id: 'config', label: 'Promoción', icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, userName }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const navItems = accountType === 'taller' ? TALLER_NAV_ITEMS : ALL_NAV_ITEMS
+  const navItems = navItemsOverride ?? (accountType === 'taller' ? TALLER_NAV_ITEMS : ALL_NAV_ITEMS)
   const plateShort = plateText ? plateText.split('-')[0] : ''
 
   useEffect(() => {
@@ -206,6 +215,24 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             </span>
           </a>
         )}
+        {isBusinessAccount(accountType) && (
+          <a href="/app/negocio" style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
+            padding: expanded ? '12px 14px' : '12px 0', border: `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}`, textDecoration: 'none',
+            background: 'transparent', color: '#F5C518',
+            cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 700,
+            borderRadius: 11, marginBottom: 8, letterSpacing: '.02em',
+          }}
+          title="Panel de negocio: clientes, órdenes de trabajo, inventario y más">
+            <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+            <span style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', display: expanded ? 'inline' : 'none' }}>
+              Mi negocio
+            </span>
+          </a>
+        )}
         {navItems.map(item => {
           const isActive = activeTab === item.id
           const isHovered = hoveredTab === item.id
@@ -274,15 +301,15 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         return null
       })()}
 
-      {vehicle?.owner && (
+      {(vehicle?.owner || userName) && (
         <div style={{ padding: '14px 16px', borderTop: `1px solid ${dividerColor}`, display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
           <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flex: '0 0 auto' }}>
-            {(vehicle.owner?.charAt(0) || 'U').toUpperCase()}
+            {((vehicle?.owner || userName)?.charAt(0) || 'U').toUpperCase()}
           </span>
           {expanded && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>
-                {vehicle.owner}
+                {vehicle?.owner || userName}
                 {accountType === 'taller' && <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.12)', color: '#F5C518', fontWeight: 700, letterSpacing: '.05em', verticalAlign: 'middle' }}>TALLER</span>}
               </div>
               <div style={{ fontSize: 11, color: textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plateText || ''}</div>

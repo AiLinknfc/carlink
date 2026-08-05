@@ -124,7 +124,24 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/017_increase_persona_token_limit.sql
 \i supabase/migrations/018_revert_persona_token_limit_to_1.sql
 \i supabase/migrations/019_nfc_activation_codes.sql
+\i supabase/migrations/020_job_applications.sql
+\i supabase/migrations/021_nfc_qr_slug.sql
+\i supabase/migrations/022_nfc_tag_inventory.sql
+\i supabase/migrations/023_workshop_profile_extend.sql
+\i supabase/migrations/024_workshop_mechanics.sql
+\i supabase/migrations/025_workshop_service_items.sql
+\i supabase/migrations/026_workshop_clients_vehicles.sql
+\i supabase/migrations/027_work_orders.sql
+\i supabase/migrations/028_workshop_inventory.sql
+\i supabase/migrations/029_appointments.sql
+\i supabase/migrations/030_workshop_notifications_documents.sql
+\i supabase/migrations/031_workshop_reviews.sql
 ```
+
+**Nota sobre 023–031 (2026-08-04)**: modelo de datos del panel nuevo de taller/empresa (migración de
+`tallerpro/`, ver `docs/PLAN_MIGRACION_TALLERPRO.md`). Todas aditivas — ninguna toca columnas ni
+tablas existentes. Aplicadas y verificadas contra la base real de producción (13 tablas nuevas +
+columnas nuevas en `workshops` confirmadas por consulta directa a `information_schema`).
 
 **Nota sobre 017/018**: la 017 subió el límite de llaveros activos de `persona` a 2 sin una razón de producto documentada. Se decidió revertir a 1 (un token = un llavero, sin excepción) — la 018 corrige esto. Correr ambas en orden dado que no se puede confirmar si la 017 ya se aplicó antes en producción; el resultado neto es 1 de cualquier forma.
 
