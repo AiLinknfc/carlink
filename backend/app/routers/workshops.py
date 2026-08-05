@@ -206,9 +206,18 @@ async def get_my_workshop_dashboard(
 @router.get("/search", response_model=list[WorkshopSearchResult])
 async def search_workshops(
     db: Annotated[AsyncSession, Depends(get_db)],
-    q: str = Query("", min_length=1),
-    city: str = Query("", min_length=0),
+    q: str = Query(""),
+    city: str = Query(""),
 ):
+    """Search workshops by code, name, or legal_id, optionally filtered by city.
+
+    `q` was `Query("", min_length=1)` — contradictory, since FastAPI validates
+    an explicitly-sent empty string against min_length (only an *omitted*
+    param falls back to the default unvalidated). Every call with `q=""`
+    (e.g. FichaTab.tsx's useWorkshops(), which searches with an empty term
+    to list all workshops) 422'd silently — apiGet() swallows the failure
+    into null, so the dropdown just always rendered empty. Found running the
+    app in a real browser (docs/PLAN_MIGRACION_TALLERPRO.md)."""
     """Search workshops by code, name, or legal_id, optionally filtered by city."""
     query = select(Workshop)
 
