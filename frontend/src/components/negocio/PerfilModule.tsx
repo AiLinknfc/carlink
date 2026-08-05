@@ -21,6 +21,13 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
     social_instagram: workshop.social_instagram, social_facebook: workshop.social_facebook,
     social_website: workshop.social_website, social_whatsapp: workshop.social_whatsapp,
   })
+  // Sellos de fidelidad: campo separado porque stamps_required es numérico
+  // (slider) y ya vivía en WorkshopConfigTab.tsx (/app → tab Promoción) antes
+  // de que existiera este panel — se dejó esa tab funcionando tal cual (no se
+  // tocó) y este panel se volvió la fuente completa, ver
+  // docs/PLAN_MIGRACION_TALLERPRO.md Fase 5.
+  const [stampsRequired, setStampsRequired] = useState(workshop.stamps_required)
+  const [promoDesc, setPromoDesc] = useState(workshop.promotion_description)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -33,6 +40,8 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
       social_instagram: workshop.social_instagram, social_facebook: workshop.social_facebook,
       social_website: workshop.social_website, social_whatsapp: workshop.social_whatsapp,
     })
+    setStampsRequired(workshop.stamps_required)
+    setPromoDesc(workshop.promotion_description)
   }, [workshop])
 
   const field = (k: keyof typeof form) => ({
@@ -49,6 +58,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
       specialties: form.specialties.split(',').map(s => s.trim()).filter(Boolean),
       social_instagram: form.social_instagram, social_facebook: form.social_facebook,
       social_website: form.social_website, social_whatsapp: form.social_whatsapp,
+      stamps_required: stampsRequired, promotion_description: promoDesc,
     })
     setSaving(false)
     if (result) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
@@ -98,6 +108,15 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
             <div><label style={labelStyle(t)}>Sitio web</label><input style={inputStyle(t)} {...field('social_website')} /></div>
             <div><label style={labelStyle(t)}>WhatsApp</label><input style={inputStyle(t)} {...field('social_whatsapp')} /></div>
           </div>
+          <div style={{ paddingTop: 6, borderTop: `1px solid ${t.subtleBorder}` }}>
+            <label style={labelStyle(t)}>Sellos requeridos para el beneficio de fidelidad</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="range" min={1} max={20} value={stampsRequired} onChange={e => setStampsRequired(Number(e.target.value))} style={{ flex: 1, accentColor: t.gold }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: t.gold, minWidth: 32, textAlign: 'center' }}>{stampsRequired}</span>
+            </div>
+          </div>
+          <div><label style={labelStyle(t)}>Descripción de la promoción</label><textarea rows={2} style={{ ...inputStyle(t), resize: 'vertical' }} value={promoDesc} onChange={e => setPromoDesc(e.target.value)} placeholder="Ej. Cambio de aceite gratis al completar todos los sellos" /></div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
             <button onClick={save} disabled={saving} style={primaryBtnStyle(t, saving)}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>
             {saved && <span style={{ fontSize: 12.5, color: t.success, fontWeight: 700 }}>¡Guardado!</span>}

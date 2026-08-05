@@ -58,9 +58,17 @@ export default function WorkshopConfigTab({ theme }: WorkshopConfigTabProps) {
       <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: '0 0 6px' }}>
         Configuración de promoción
       </h2>
-      <p style={{ fontSize: 13, color: textMuted, margin: '0 0 24px', lineHeight: 1.5 }}>
+      <p style={{ fontSize: 13, color: textMuted, margin: '0 0 12px', lineHeight: 1.5 }}>
         Define cuántos sellos necesita un cliente para obtener un beneficio y personaliza la descripción de tu promoción.
       </p>
+
+      {/* Mecánicos, catálogo de servicios, reseñas, IVA y redes sociales viven
+          en el panel de negocio completo — esto sigue siendo el acceso
+          rápido a solo los sellos de fidelidad. */}
+      <a href="/app/negocio" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#F5C518', fontWeight: 700, textDecoration: 'none', margin: '0 0 24px' }}>
+        Ir al panel de negocio completo (mecánicos, servicios, reseñas, IVA…)
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+      </a>
 
       {/* Preview de sellos */}
       <div style={{ padding: 20, borderRadius: 16, background: cardBg, border: `1px solid ${border}`, marginBottom: 20 }}>

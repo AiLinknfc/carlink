@@ -279,16 +279,32 @@ Todos los datos de prueba (perfiles, talleres, clientes, vehículos, órdenes, c
 notificaciones, documentos, reseñas, usuarios de Supabase Auth) fueron creados y **eliminados por
 completo** al terminar — verificado con consultas directas a la DB real, cero residuos.
 
-### Fase 5 — Integración con lo existente (sin romper nada)
-- [ ] `WorkshopConfigTab.tsx`: decidir si se deja como acceso rápido a "sellos" y se linkea al
-      perfil completo nuevo, o se fusiona — sin perder la función de sellos que ya está en producción.
-- [ ] `ServiceFormModal.tsx` (búsqueda de taller al registrar mantenimiento): si el taller
-      encontrado tiene también panel de negocio, evaluar (no obligatorio en v1) que la orden de
-      trabajo se pueda originar desde ahí.
-- [ ] `docs/PENDIENTES.md`: agregar la fila `empresa` en `nfc_token_limits` ya estaba pendiente —
-      revisar si el panel nuevo depende de que esa cuenta tenga límites reales antes de lanzar.
-- [ ] Confirmar que el gate de suscripción/trial (`isSubscriptionValid`) también protege el panel
-      nuevo igual que protege hoy `TallerTab`/`WorkshopConfigTab`.
+### Fase 5 — Integración con lo existente (sin romper nada) — **COMPLETA** (2026-08-04)
+- [x] `WorkshopConfigTab.tsx`: se decidió **no fusionar** — sigue siendo el acceso rápido a solo
+      sellos de fidelidad dentro de `/app`, funcionando exactamente igual que antes. Se le agregó
+      un link "Ir al panel de negocio completo" hacia `/app/negocio`. `PerfilModule.tsx` (el panel
+      nuevo) ahora también incluye sellos requeridos + descripción de la promoción — mismos campos
+      (`stamps_required`, `promotion_description`), mismo `PUT /workshops/me`, así que ambos
+      lugares quedan siempre consistentes sin duplicar lógica ni datos.
+- [x] `ServiceFormModal.tsx` — **evaluado, no implementado, decisión documentada**: crear
+      automáticamente una orden de trabajo en el panel del taller encontrado (a partir de que un
+      conductor registra un mantenimiento y elige ese taller) implicaría que una cuenta `persona`
+      escriba datos dentro de la cartera de clientes de una cuenta `taller` distinta sin que el
+      taller lo haya pedido — es una decisión de producto/autorización, no solo técnica, y el plan
+      ya la marcaba explícitamente como no obligatoria para v1. Se deja pendiente para una decisión
+      explícita del negocio antes de construirla, no se implementó unilateralmente.
+- [x] `docs/PENDIENTES.md` / `nfc_token_limits` — **revisado, sin acción**: el panel de negocio
+      nuevo no crea ni depende de tokens NFC en ningún momento (clientes, órdenes, inventario, etc.
+      son entidades separadas de `nfc_tokens`/`nfc_token_limits`). La fila faltante de `empresa` en
+      `nfc_token_limits` sigue siendo un pendiente real, pero es del dominio NFC (ya rastreado en
+      `docs/PENDIENTES.md` desde antes) — no es un bloqueante de esta migración y no se tocó aquí
+      para no mezclar cambios de un sistema con otro.
+- [x] Gate de suscripción/trial — **verificado en navegador real**, no solo leyendo el código:
+      cuenta de prueba con `profiles.created_at` adelantado 8 días (fuera de la ventana de prueba
+      de 7 días) mostró "Suscripción vencida" tanto en `/app` (tabs Taller y Promoción, comportamiento
+      preexistente) como en `/app/negocio` (los 10 módulos, comportamiento nuevo) — mismo
+      `isSubscriptionValid()`, mismos tres parámetros, mismo resultado en ambos lados. Datos de
+      prueba eliminados al terminar.
 
 ### Fase 6 — Auditoría de datos quemados (hallazgos ya confirmados a limpiar)
 - [ ] `DiagnosticoTab.tsx`: `DEFAULT_CHECKS` (Emisión de gases, Frenos... todo "PASA" fijo),
