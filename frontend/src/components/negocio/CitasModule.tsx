@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useAppointments } from '@/lib/hooks'
 import type { Appointment } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
-import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState } from './shared'
+import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, SERVICE_CATEGORIES } from './shared'
 
 const STATUS_COLOR: Record<string, string> = {
   'Pendiente': '#8f8a7a', 'Confirmada': '#3aa0ff', 'Completada': '#2ecc71', 'Cancelada': '#ff4d6a',
@@ -120,7 +120,11 @@ function AppointmentFormModal({ t, theme, onClose, onSave }: {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div><label style={labelStyle(t)}>Modelo</label><input style={inputStyle(t)} value={vehicleModel} onChange={e => setVehicleModel(e.target.value)} /></div>
-        <div><label style={labelStyle(t)}>Servicio</label><input style={inputStyle(t)} value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} placeholder="Frenos, Aceite…" /></div>
+        <div>
+          <label style={labelStyle(t)}>Servicio</label>
+          <input style={inputStyle(t)} list="service-categories" value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} placeholder="Frenos, Aceite…" />
+          <datalist id="service-categories">{SERVICE_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
+        </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div><label style={labelStyle(t)}>Fecha</label><input type="date" style={inputStyle(t)} value={date} onChange={e => setDate(e.target.value)} /></div>

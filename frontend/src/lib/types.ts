@@ -98,6 +98,11 @@ export interface GalleryImage {
   created_at: string;
 }
 
+export interface DiagnosticCdaCheck {
+  name: string;
+  passed: boolean;
+}
+
 export interface Diagnostic {
   id: string;
   vehicle_id: string;
@@ -105,6 +110,12 @@ export interface Diagnostic {
   description: string;
   severity: string;
   resolved: boolean;
+  // Solo aplican cuando alert_type === 'cda' (ver migración 032 y
+  // docs/PLAN_MIGRACION_TALLERPRO.md Fase 6).
+  cda_code: string | null;
+  cda_expiry_date: string | null;
+  cda_checks: DiagnosticCdaCheck[] | null;
+  cda_cert_url: string | null;
   created_at: string;
 }
 
@@ -525,6 +536,10 @@ export type DiagnosticCreate = {
   alert_type: string;
   description: string;
   severity?: string;
+  cda_code?: string;
+  cda_expiry_date?: string;
+  cda_checks?: DiagnosticCdaCheck[];
+  cda_cert_url?: string;
 };
 
 export type ServiceLogCreate = {

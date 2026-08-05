@@ -306,28 +306,56 @@ completo** al terminar — verificado con consultas directas a la DB real, cero 
       `isSubscriptionValid()`, mismos tres parámetros, mismo resultado en ambos lados. Datos de
       prueba eliminados al terminar.
 
-### Fase 6 — Auditoría de datos quemados (hallazgos ya confirmados a limpiar)
-- [ ] `DiagnosticoTab.tsx`: `DEFAULT_CHECKS` (Emisión de gases, Frenos... todo "PASA" fijo),
-      `cdaCode` generado con `Math.random()`, `cdaExpiry = hoy + 365 días` fijo — mover a datos
-      reales del taller/CDA que hizo la revisión (nueva tabla o reutilizar `diagnostics`).
-  - _Nota: esto es preexistente en CarLink, no viene de TallerPro, pero cae dentro del pedido
-    explícito del usuario de "no dejar datos quemados"._
-- [ ] TallerPro `WorkOrdersManager.tsx`: IVA fijo `0.19` (dos lugares) → usar
-      `workshop.tax_rate_percent`.
-- [ ] TallerPro: mecánico por defecto `"Mec. Fernando Ugarte"` hardcodeado en 4 lugares
-      (`WorkOrdersManager.tsx`, `DocumentGeneratorModal.tsx`, `initialData.ts`, `App.tsx`
-      `handleConvertAppointment`) → tomar de `workshop_mechanics` real del taller (o dejar vacío si
-      no hay ninguno cargado).
-- [ ] TallerPro `initialData.ts` completo (clientes, vehículos, partes, órdenes, citas,
-      notificaciones, profits, perfil de ejemplo "AutoMundo Diagnósticos") → **no migra a
-      producción**; solo sirve como referencia de forma/shape de los datos, y opcionalmente como
-      seed de un ambiente de demo/staging separado si se pide explícitamente.
-- [ ] Catálogos que sí vale la pena migrar como datos de referencia reales (no instancias): los
-      `enum`/listas de `ServiceCategory`, `WorkshopType`, `DocumentType`, `NotificationType` de
-      `tallerpro/src/types.ts` — evaluar cuáles suman valor sobre lo que ya existe en
-      `frontend/src/lib/part-categories.ts` / categorías actuales, y agregarlas sin duplicar.
-- [ ] `AiDiagnosticsModal.tsx` / `NotificationsCenter.tsx`: quitar todo texto/branding "Gemini" y
-      la llamada directa a `/api/gemini/*` — pasa a backend propio (Fase 2).
+### Fase 6 — Auditoría de datos quemados — **COMPLETA** (2026-08-04)
+- [x] `DiagnosticoTab.tsx` (**este era el hallazgo real y grande de esta fase** — preexistente en
+      CarLink, no venía de tallerpro, pero cae directo en el pedido explícito de "no dejar datos
+      quemados"). Reescrito por completo:
+  - `DEFAULT_CHECKS` (6 categorías siempre en "PASA") → checklist real por revisión, guardado en
+    `diagnostics.cda_checks` (JSONB), capturado en un formulario nuevo (solo cuentas
+    taller/empresa, mismo criterio de permisos que `PartesTab`/`ARCHITECTURE.md` §6).
+  - `cdaCode` generado con `Math.random()` en cada render → `diagnostics.cda_code`, el que
+    realmente ingresa quien hizo la revisión.
+  - `cdaExpiry = hoy + 365 días` fijo → `diagnostics.cda_expiry_date`, fecha real, con estado
+    "vencido" calculado de verdad (antes ni siquiera podía vencer).
+  - Certificado escaneado en `localStorage` (`carlink_cda_${vehicleId}`, no sobrevivía a cambiar de
+    dispositivo/navegador) → subida real a R2 vía `uploadFile()` (ya existía, importada pero sin
+    usar) → `diagnostics.cda_cert_url`.
+  - Badge "APROBADO" fijo sin importar el resultado → calculado de verdad (`APROBADO` solo si
+    todas las categorías pasan, si no `CON OBSERVACIONES`).
+  - **Bug aparte encontrado y corregido de paso**: el botón "Descargar certificado" estaba
+    completamente roto — llamaba a `window.html2canvas` (nunca cargado, ningún `<script>` ni
+    import en ningún lado) sobre `document.querySelector('[data-diag-card]')` (ningún elemento
+    tenía ese atributo). Ambos silenciosos: el botón no hacía nada al hacer clic, sin error
+    visible. Corregido con un `import('html2canvas')` real (ya estaba en `package-lock.json` como
+    dependencia transitiva de `jspdf`, ahora es dependencia directa) y el atributo puesto en el
+    elemento correcto.
+  - Migración `032`: `diagnostics.cda_code`, `cda_expiry_date`, `cda_checks` (JSONB),
+    `cda_cert_url` — nullable, solo aplican cuando `alert_type='cda'`. Aplicada y verificada contra
+    la DB real.
+  - **Verificado en navegador real**: cuenta taller de prueba → tab Diagnóstico sin revisión CDA
+    (estado vacío honesto, sin botón de registrar para cuenta `persona`) → registrar una revisión
+    con "Luces" marcado como NO PASA → la ficha muestra "CON OBSERVACIONES" (no "APROBADO") con el
+    código y fecha reales ingresados → segunda revisión con certificado subido y todo en PASA →
+    "APROBADO" real, certificado real visible, botón "Descargar certificado" genera un PNG real de
+    213 KB (antes no hacía nada). Datos de prueba eliminados al terminar.
+- [x] TallerPro `WorkOrdersManager.tsx` IVA fijo `0.19` → nunca se copió; `OrdenesModule.tsx`
+      (Fase 4) siempre usó `workshop.tax_rate_percent` real desde el principio.
+- [x] TallerPro mecánico por defecto `"Mec. Fernando Ugarte"` hardcodeado → nunca se copió;
+      `work_orders.mechanic_id` es opcional y se elige de `workshop_mechanics` real, o queda sin
+      asignar. La conversión de cita a orden (`appointments.py`) tampoco inventa un mecánico.
+- [x] TallerPro `initialData.ts` → nunca migró a producción, confirmado.
+- [x] Catálogos de referencia de tallerpro que sí valía la pena migrar: `ServiceCategory` (9
+      categorías reales del rubro) agregado como `SERVICE_CATEGORIES` en
+      `components/negocio/shared.ts`, usado como sugerencias de `<datalist>` (no un `<select>`
+      cerrado) en los campos de categoría de Órdenes, Citas y Catálogo de servicios — mantiene
+      nombres consistentes entre órdenes sin forzar al taller a encajar en una lista rígida (de
+      esto depende que Rentabilidad agrupe bien "por categoría"). `WorkshopType`, `DocumentType` y
+      `NotificationType` de tallerpro ya habían quedado cubiertos por listas equivalentes propias
+      construidas en la Fase 4 (`DOC_TYPES` en `DocumentosModule.tsx`, `TYPES` en
+      `NotificacionesModule.tsx`) — no se duplicaron.
+- [x] `AiDiagnosticsModal.tsx` / `NotificationsCenter.tsx` (branding "Gemini", llamada directa a
+      `/api/gemini/*`) → nunca se copiaron; `DiagnosticoIAModule.tsx` (Fase 4) siempre llamó al
+      endpoint propio con DeepSeek desde el principio.
 
 ### Fase 7 — QA y verificación contra sistemas reales
 _(siguiendo la práctica ya establecida en el proyecto: verificar contra la DB/API real, no solo

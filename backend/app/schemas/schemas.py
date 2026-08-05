@@ -267,11 +267,21 @@ class GalleryOut(BaseModel):
 
 
 # =========== Diagnostics ===========
+class DiagnosticCdaCheck(BaseModel):
+    name: str
+    passed: bool
+
+
 class DiagnosticCreate(BaseModel):
     vehicle_id: UUID
     alert_type: str
     description: str
     severity: str = "info"
+    # Solo se usan cuando alert_type == "cda" — ver migración 032.
+    cda_code: str | None = None
+    cda_expiry_date: date | None = None
+    cda_checks: list[DiagnosticCdaCheck] | None = None
+    cda_cert_url: str | None = None
 
 
 class DiagnosticOut(BaseModel):
@@ -281,6 +291,10 @@ class DiagnosticOut(BaseModel):
     description: str
     severity: str
     resolved: bool
+    cda_code: str | None = None
+    cda_expiry_date: date | None = None
+    cda_checks: list[DiagnosticCdaCheck] | None = None
+    cda_cert_url: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

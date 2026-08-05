@@ -518,7 +518,7 @@ export default function AppPage() {
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
           {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
-           activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} /> :
+           activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :

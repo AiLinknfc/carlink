@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useMyWorkshop, useWorkshopMechanics, useWorkshopServices, useWorkshopReviews } from '@/lib/hooks'
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
-import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money } from './shared'
+import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
 
 export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'dark'; workshop: Workshop }) {
   const t = negocioTokens(theme)
@@ -260,7 +260,11 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
             >Guardar</button>
           </>}>
           <div><label style={labelStyle(t)}>Nombre</label><input style={inputStyle(t)} value={serviceName} onChange={e => setServiceName(e.target.value)} placeholder="Cambio de aceite" /></div>
-          <div><label style={labelStyle(t)}>Categoría</label><input style={inputStyle(t)} value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} placeholder="Mantenimiento Preventivo" /></div>
+          <div>
+            <label style={labelStyle(t)}>Categoría</label>
+            <input style={inputStyle(t)} list="service-categories" value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} placeholder="Mantenimiento Preventivo" />
+            <datalist id="service-categories">{SERVICE_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Precio estimado</label><input type="number" style={inputStyle(t)} value={servicePrice} onChange={e => setServicePrice(e.target.value)} /></div>
             <div><label style={labelStyle(t)}>Horas estimadas</label><input type="number" style={inputStyle(t)} value={serviceHours} onChange={e => setServiceHours(e.target.value)} /></div>

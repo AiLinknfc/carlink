@@ -6,7 +6,7 @@ import { workOrdersApi } from '@/lib/api'
 import type { WorkOrder, WorkOrderLaborItemIn, WorkOrderPartIn, WorkOrderStatus } from '@/lib/types'
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
-import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money } from './shared'
+import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
 
 const STATUSES: (WorkOrderStatus | string)[] = ['Pendiente', 'En Proceso', 'Diagnosticado', 'Listo para Entrega', 'Entregado', 'Cancelado']
 
@@ -204,7 +204,11 @@ function WorkOrderFormModal({ t, theme, workshop, order, onClose, onSaved }: {
         </div>
       </div>
 
-      <div><label style={labelStyle(t)}>Categoría</label><input style={inputStyle(t)} value={category} onChange={e => setCategory(e.target.value)} placeholder="Mantenimiento Preventivo, Sistema de Frenos…" /></div>
+      <div>
+        <label style={labelStyle(t)}>Categoría</label>
+        <input style={inputStyle(t)} list="service-categories" value={category} onChange={e => setCategory(e.target.value)} placeholder="Mantenimiento Preventivo, Sistema de Frenos…" />
+        <datalist id="service-categories">{SERVICE_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
+      </div>
       <div><label style={labelStyle(t)}>Síntomas / falla reportada</label><textarea rows={2} style={{ ...inputStyle(t), resize: 'vertical' }} value={symptoms} onChange={e => setSymptoms(e.target.value)} /></div>
       <div><label style={labelStyle(t)}>Notas técnicas</label><textarea rows={2} style={{ ...inputStyle(t), resize: 'vertical' }} value={technicalNotes} onChange={e => setTechnicalNotes(e.target.value)} /></div>
 

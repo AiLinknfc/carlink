@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Date, DateTime, DECIMAL, ForeignKey, Integer, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY, INET, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -172,6 +172,14 @@ class Diagnostic(Base):
     description: Mapped[str] = mapped_column(Text)
     severity: Mapped[str] = mapped_column(Text, default="info")
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Solo aplican cuando alert_type == "cda" — resultado real de una revisión
+    # técnico-mecánica (RTM/CDA), ver migración 032 y
+    # docs/PLAN_MIGRACION_TALLERPRO.md Fase 6 (antes esto se inventaba en el
+    # cliente: código con Math.random(), vencimiento fijo a +365 días).
+    cda_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cda_expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cda_checks: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    cda_cert_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     vehicle = relationship("Vehicle", back_populates="diagnostics")

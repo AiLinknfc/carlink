@@ -136,7 +136,12 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/029_appointments.sql
 \i supabase/migrations/030_workshop_notifications_documents.sql
 \i supabase/migrations/031_workshop_reviews.sql
+\i supabase/migrations/032_diagnostic_cda_fields.sql
 ```
+
+**Nota sobre 032 (2026-08-04)**: agrega columnas CDA/RTM reales a `diagnostics` (Fase 6 de
+`docs/PLAN_MIGRACION_TALLERPRO.md`) — corrige un dato quemado preexistente de `DiagnosticoTab.tsx`
+(código y fecha de vencimiento inventados en el cliente). Aplicada y verificada contra la base real.
 
 **Nota sobre 023–031 (2026-08-04)**: modelo de datos del panel nuevo de taller/empresa (migración de
 `tallerpro/`, ver `docs/PLAN_MIGRACION_TALLERPRO.md`). Todas aditivas — ninguna toca columnas ni

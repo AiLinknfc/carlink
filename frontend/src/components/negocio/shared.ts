@@ -23,6 +23,25 @@ export function negocioTokens(theme: 'light' | 'dark') {
 
 export type NegocioTokens = ReturnType<typeof negocioTokens>
 
+/* Categorías de servicio de referencia — migradas de tallerpro/src/types.ts
+   (ServiceCategory) porque son un catálogo real del rubro, no datos de
+   ejemplo inventados (ver docs/PLAN_MIGRACION_TALLERPRO.md Fase 6). Se usan
+   como sugerencias de <datalist> (no un <select> cerrado) para no forzar a
+   un taller a encajar en categorías que no le calzan, pero sí mantener
+   nombres consistentes entre órdenes — de eso depende que Rentabilidad
+   agrupe bien "por categoría de servicio". */
+export const SERVICE_CATEGORIES = [
+  'Mantenimiento Preventivo',
+  'Sistema de Frenos',
+  'Motor y Transmisión',
+  'Suspensión y Dirección',
+  'Sistema Eléctrico y Diagnóstico',
+  'Climatización',
+  'Neumáticos y Alineación',
+  'Desabolladura y Pintura',
+  'Estética y Limpieza',
+]
+
 export function inputStyle(t: NegocioTokens): CSSProperties {
   return {
     padding: '10px 12px', borderRadius: 10, fontSize: 13.5, fontFamily: 'inherit', outline: 'none',
