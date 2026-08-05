@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { CITIES } from '@/lib/constants'
@@ -175,12 +175,12 @@ const COLORS = [
   { name: 'Naranja', hex: '#ea580c' }, { name: 'Marrón', hex: '#78350f' },
 ]
 
-export default function RegisterPage() {
+function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | 'empresa' }) {
   const router = useRouter()
   const { user, profile } = useAuth()
 
   /* mode: persona (vehicle owner) or empresa (workshop) */
-  const [mode, setMode] = useState<'persona' | 'empresa'>('persona')
+  const [mode, setMode] = useState<'persona' | 'empresa'>(initialMode)
 
 /* Persona fields */
   const [brand, setBrand] = useState('')
@@ -272,6 +272,17 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!user) { router.push('/'); return }
+    // En modo empresa, verificar si ya tiene taller registrado
+    if (mode === 'empresa') {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session?.access_token) return
+        fetch(apiUrl('/workshops/me'), { headers: { Authorization: `Bearer ${session.access_token}` } })
+          .then(r => { if (r.ok) return r.json() })
+          .then(d => { if (d?.id) router.push('/app/negocio') })
+          .catch(() => {})
+      })
+      return
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.access_token) return
       fetch(apiUrl('/vehicles'), { headers: { Authorization: `Bearer ${session.access_token}` } })
@@ -279,7 +290,7 @@ export default function RegisterPage() {
         .then(d => { if (d?.length) router.push('/app') })
         .catch(() => {})
     })
-  }, [user, router])
+  }, [user, router, mode])
 
   const years = useMemo(() => {
     const y = new Date().getFullYear()
@@ -408,7 +419,7 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       })
-      if (res.ok) { window.location.href = '/app'; return }
+      if (res.ok) { window.location.href = '/app/negocio'; return }
       const rb = await res.text()
       try { setErrorMsg(JSON.parse(rb).detail || rb) } catch { setErrorMsg(rb || `Error ${res.status}`) }
     } catch { setErrorMsg('Error de conexión') }
@@ -688,5 +699,20 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function RegisterPageWrapper() {
+  const searchParams = useSearchParams()
+  const initialMode = (searchParams.get('mode') as 'persona' | 'empresa' | null) === 'empresa' ? 'empresa' : 'persona'
+
+  return <RegisterPage initialMode={initialMode} />
+}
+
+export default function RegisterPageSuspense() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cargando...</div>}>
+      <RegisterPageWrapper />
+    </Suspense>
   )
 }

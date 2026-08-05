@@ -1,17 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, apiUrl } from '@/lib/supabase'
 import { isBusinessAccount } from '@/lib/constants'
 
-export default function CallbackPage() {
+function CallbackPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/'); return }
       const token = session.access_token
+
+      // Leer el modo de registro guardado en sessionStorage
+      const registerMode = typeof window !== 'undefined' ? sessionStorage.getItem('carlink_register_mode') : null
+      if (registerMode) {
+        sessionStorage.removeItem('carlink_register_mode')
+      }
 
       // Taller/empresa aterriza directo en su panel de negocio, no en la
       // ficha de un vehículo — account_type solo pasa a 'taller' después de
@@ -48,7 +55,13 @@ export default function CallbackPage() {
       } catch (e) {
         console.warn('[callback] fetch failed:', e)
       }
-      router.push('/register')
+
+      // Si venía de un registro de empresa, ir a /register?mode=empresa
+      if (registerMode === 'empresa') {
+        router.push('/register?mode=empresa')
+      } else {
+        router.push('/register')
+      }
     })
   }, [router])
 
@@ -59,5 +72,13 @@ export default function CallbackPage() {
         <div style={{ color: '#b6b2a6', fontSize: 14 }}>Autenticando...</div>
       </div>
     </div>
+  )
+}
+
+export default function CallbackPage() {
+  return (
+    <Suspense fallback={<div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#060606' }}>Cargando...</div>}>
+      <CallbackPageContent />
+    </Suspense>
   )
 }

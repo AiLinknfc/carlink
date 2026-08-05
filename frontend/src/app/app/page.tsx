@@ -38,6 +38,13 @@ export default function AppPage() {
      conductor radica sus PQRS desde el asistente de la landing. */
   const isBusiness = isBusinessAccount(profile?.account_type)
   const isAdmin = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
+
+  // Redirigir cuentas de negocio a su panel dedicado
+  useEffect(() => {
+    if (!loading && profile && isBusiness) {
+      router.replace('/app/negocio')
+    }
+  }, [loading, profile, isBusiness, router])
   const [activeTab, setActiveTab] = useState('ficha')
   const [vehicle, setVehicle] = useState<any>(null)
   const [vehicleLoading, setVehicleLoading] = useState(true)

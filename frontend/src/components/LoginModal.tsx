@@ -115,8 +115,15 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       return
     }
 
+    // Guardar el modo de registro antes de ir al callback
+    if (accountType === 'business') {
+      sessionStorage.setItem('carlink_register_mode', 'empresa')
+    } else {
+      sessionStorage.removeItem('carlink_register_mode')
+    }
+
     router.push('/auth/callback')
-  }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router])
+  }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router, accountType])
 
   const handleGoogle = useCallback(() => {
     setError(null)
@@ -124,9 +131,15 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setShowTermsError(true)
       return
     }
+    // Guardar el modo de registro (persona/empresa) para que el callback sepa a dónde redirigir
+    if (accountType === 'business') {
+      sessionStorage.setItem('carlink_register_mode', 'empresa')
+    } else {
+      sessionStorage.removeItem('carlink_register_mode')
+    }
     onClose()
     requestAnimationFrame(() => signIn())
-  }, [acceptedTerms, signIn, onClose])
+  }, [acceptedTerms, signIn, onClose, accountType])
 
   if (!isOpen) return null
 
@@ -259,8 +272,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       </button>
                     </div>
 
-                    {accountType === 'user' ? (
-                    <>
                     {/* Email + Password */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
@@ -416,40 +427,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         {mode === 'signin' ? 'Crear una' : 'Iniciar sesión'}
                       </span>
                     </p>
-                    </>
-                    ) : (
-                    // Taller / Empresa — redirigir a registro
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '18px 8px 6px', textAlign: 'center' }}>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: 14,
-                        background: 'rgba(245,197,24,0.10)', border: `1px solid ${goldBorder}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: gold,
-                      }}>
-                        <WrenchIcon width={24} height={24} />
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: gold, background: 'rgba(245,197,24,0.14)', border: `1px solid ${goldBorder}`, borderRadius: 999, padding: '3px 10px' }}>
-                        Registro para talleres
-                      </span>
-                      <p style={{ fontSize: 13, color: textSecondary, maxWidth: '30ch', lineHeight: 1.5, margin: 0 }}>
-                        Registra tu <span style={{ color: textPrimary, fontWeight: 700 }}>taller o empresa</span> y accede a clientes, fichas y facturación.
-                      </p>
-                      <button
-                        onClick={() => { onClose(); window.location.href = '/register?mode=empresa' }}
-                        style={{
-                          width: '100%', padding: '13px 18px', borderRadius: 12, border: 'none',
-                          background: `linear-gradient(135deg, ${gold}, #e0b100)`, color: '#111',
-                          fontWeight: 800, fontSize: 14, fontFamily: 'var(--font-ui)',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          boxShadow: '0 0 22px rgba(245,197,24,0.35)', transition: 'all .18s',
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 30px rgba(245,197,24,0.5)' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 22px rgba(245,197,24,0.35)' }}
-                      >
-                        Registrar mi taller
-                        <ArrowRightIcon width={18} height={18} />
-                      </button>
-                    </div>
-                    )}
 
                     {/* Security badge */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, color: textMuted }}>

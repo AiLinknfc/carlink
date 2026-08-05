@@ -115,14 +115,14 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
     <div style={{ position: 'relative', zIndex: 10, color: k.text }}>
       {/* ===== CÓMO FUNCIONA ===== */}
       <style>{`
-        @keyframes comoPhoneGlow { 0%,20%{box-shadow:0 0 0 rgba(245,197,24,0)} 25%,35%{box-shadow:0 0 46px rgba(245,197,24,.55)} 40%,100%{box-shadow:0 0 0 rgba(245,197,24,0)} }
-        @keyframes comoPlateMove { 0%,5%{transform:translateX(-140px) rotate(-10deg);opacity:.95} 22%{transform:translateX(-12px) rotate(-2deg);opacity:1} 28%,100%{transform:translateX(0) rotate(0);opacity:0} }
-        @keyframes comoRipple { 0%,22%{transform:translate(-50%,-50%) scale(.3);opacity:0} 27%{transform:translate(-50%,-50%) scale(.5);opacity:.9} 35%,100%{transform:translate(-50%,-50%) scale(2.6);opacity:0} }
-        @keyframes comoCheckFade { 0%,24%{opacity:0;transform:scale(.6)} 30%{opacity:1;transform:scale(1)} 36%,100%{opacity:0;transform:scale(.6)} }
-        @keyframes comoGaugeSweep { 0%,35%{opacity:0;transform:translateY(18px) scale(.92)} 42%{opacity:1;transform:translateY(0) scale(1)} 62%{opacity:1} 68%,100%{opacity:0;transform:translateY(-14px) scale(.94)} }
-        @keyframes comoBenefitPop { 0%,42%{opacity:0;transform:scale(.7)} 50%{opacity:1;transform:scale(1)} 62%{opacity:1} 68%,100%{opacity:0;transform:scale(.7)} }
-        @keyframes comoStoryVis { 0%{opacity:0;transform:translateY(10px) scale(.95)} 8%{opacity:1;transform:translateY(0) scale(1)} 28%{opacity:1} 38%,100%{opacity:0;transform:translateY(-8px) scale(.95)} }
-        @keyframes comoStoryMsg { 0%{opacity:0;transform:translateY(10px)} 8%{opacity:1;transform:translateY(0)} 28%{opacity:1} 38%,100%{opacity:0;transform:translateY(-8px)} }
+        @keyframes comoPhoneGlow { 0%,17%{box-shadow:0 0 0 rgba(245,197,24,0)} 18%,28%{box-shadow:0 0 46px rgba(245,197,24,.55)} 32%,100%{box-shadow:0 0 0 rgba(245,197,24,0)} }
+        @keyframes comoPlateMove { 0%,4%{transform:translateX(-140px) rotate(-10deg);opacity:.95} 18%{transform:translateX(-12px) rotate(-2deg);opacity:1} 22%,100%{transform:translateX(0) rotate(0);opacity:0} }
+        @keyframes comoRipple { 0%,17%{transform:translate(-50%,-50%) scale(.3);opacity:0} 18%{transform:translate(-50%,-50%) scale(.4);opacity:.3} 22%{transform:translate(-50%,-50%) scale(1);opacity:1} 28%,100%{transform:translate(-50%,-50%) scale(2.6);opacity:0} }
+        @keyframes comoCheckFade { 0%,21%{opacity:0;transform:scale(.6)} 24%{opacity:1;transform:scale(1)} 30%,100%{opacity:0;transform:scale(.6)} }
+        @keyframes comoGaugeSweep { 0%,30%{opacity:0;transform:translateY(18px) scale(.92)} 35%{opacity:1;transform:translateY(0) scale(1)} 52%{opacity:1} 57%,100%{opacity:0;transform:translateY(-14px) scale(.94)} }
+        @keyframes comoBenefitPop { 0%,36%{opacity:0;transform:scale(.7)} 42%{opacity:1;transform:scale(1)} 52%{opacity:1} 57%,100%{opacity:0;transform:scale(.7)} }
+        @keyframes comoStoryVis { 0%{opacity:0;transform:translateY(10px) scale(.95)} 6%{opacity:1;transform:translateY(0) scale(1)} 24%{opacity:1} 30%,100%{opacity:0;transform:translateY(-8px) scale(.95)} }
+        @keyframes comoStoryMsg { 0%{opacity:0;transform:translateY(10px)} 6%{opacity:1;transform:translateY(0)} 24%{opacity:1} 30%,100%{opacity:0;transform:translateY(-8px)} }
         @keyframes sponsorScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         @media(max-width:860px){ [data-r="nfcScenes"]{grid-template-columns:1fr !important} [data-r="nfcScenes"]>div{padding:10px 0 !important} [data-r="nfcScenes"]>div>div:first-child{min-height:190px !important} [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} }
         @media(max-width:1024px){ [data-r="footergrid"]{grid-template-columns:1fr 1fr !important} }
@@ -140,25 +140,25 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
             {/* ESCENA 1 — Ingresa tu placa */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <div style={{ position: 'relative', height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'comoStoryVis 12s cubic-bezier(.22,1,.36,1) 0s infinite both' }}>
+              <div style={{ position: 'relative', height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'comoStoryVis 8s cubic-bezier(.22,1,.36,1) 0s infinite both' }}>
                 {/* phone */}
-                <div style={{ position: 'relative', width: 110, height: 222, borderRadius: 20, background: 'linear-gradient(155deg,#1c1c1c,#0a0a0a)', border: '2px solid rgba(255,255,255,0.14)', boxShadow: '0 20px 40px rgba(0,0,0,.55)', animation: 'comoPhoneGlow 12s cubic-bezier(.22,1,.36,1) infinite' }}>
+                <div style={{ position: 'relative', width: 110, height: 222, borderRadius: 20, background: 'linear-gradient(155deg,#1c1c1c,#0a0a0a)', border: '2px solid rgba(255,255,255,0.14)', boxShadow: '0 20px 40px rgba(0,0,0,.55)', animation: 'comoPhoneGlow 8s cubic-bezier(.22,1,.36,1) infinite' }}>
                   <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', width: 32, height: 4, borderRadius: 3, background: 'rgba(255,255,255,0.18)' }} />
                   <div style={{ position: 'absolute', inset: '15px 5px', borderRadius: 13, background: '#050505', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" style={{ animation: 'comoCheckFade 12s cubic-bezier(.22,1,.36,1) infinite' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" style={{ animation: 'comoCheckFade 8s cubic-bezier(.22,1,.36,1) infinite' }}>
                       <circle cx="12" cy="12" r="10" fill="none" stroke="#F5C518" strokeWidth="1.6" />
                       <path d="M7 12.5l3 3 7-7" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <div style={{ position: 'absolute', left: 5, top: '50%', width: 24, height: 24, borderRadius: '50%', border: '2px solid #F5C518', transform: 'translate(-50%,-50%)', animation: 'comoRipple 12s cubic-bezier(.22,1,.36,1) infinite' }} />
+                  <div style={{ position: 'absolute', left: 5, top: '50%', width: 24, height: 24, borderRadius: '50%', border: '2px solid #F5C518', transform: 'translate(-50%,-50%)', animation: 'comoRipple 8s cubic-bezier(.22,1,.36,1) infinite' }} />
                 </div>
                 {/* plate approaching */}
-                <div style={{ position: 'absolute', left: '50%', top: '50%', width: 90, height: 48, marginLeft: -84, marginTop: -24, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateMove 12s cubic-bezier(.22,1,.36,1) infinite' }}>
+                <div style={{ position: 'absolute', left: '50%', top: '50%', width: 90, height: 48, marginLeft: -84, marginTop: -24, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateMove 8s cubic-bezier(.22,1,.36,1) infinite' }}>
                   <span style={{ fontSize: '6.5px', fontWeight: 800, letterSpacing: '.16em', color: '#3a3a1e' }}>COLOMBIA</span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.03em', lineHeight: 1 }}>ABC 123</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', animation: 'comoStoryMsg 12s cubic-bezier(.22,1,.36,1) 0s infinite both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>01</span>
                 <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Ingresa tu placa</span>
               </div>
@@ -166,9 +166,9 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
             {/* ESCENA 2 — Activa tus indicadores */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <div style={{ position: 'relative', height: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, animation: 'comoStoryVis 12s cubic-bezier(.22,1,.36,1) 4s infinite both' }}>
+              <div style={{ position: 'relative', height: 230, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, animation: 'comoStoryVis 8s cubic-bezier(.22,1,.36,1) 2.6s infinite both' }}>
                 {/* gauge */}
-                <div style={{ position: 'relative', width: 104, height: 104, flex: '0 0 auto', animation: 'comoGaugeSweep 12s cubic-bezier(.22,1,.36,1) infinite' }}>
+                <div style={{ position: 'relative', width: 104, height: 104, flex: '0 0 auto', animation: 'comoGaugeSweep 8s cubic-bezier(.22,1,.36,1) infinite' }}>
                   <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'conic-gradient(from 135deg,#F5C518 0deg 190deg,rgba(255,255,255,0.08) 190deg 270deg,transparent 270deg 360deg)', filter: 'drop-shadow(0 0 10px rgba(245,197,24,0.35))' }} />
                   <div style={{ position: 'absolute', inset: 9, borderRadius: '50%', background: 'radial-gradient(circle at 50% 35%,#1a1d24,#0c0d11)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="#F5C518"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /></svg>
@@ -181,14 +181,14 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                     { label: 'Llantas', color: '#ff8a3d', bg: 'rgba(255,138,61,0.08)', border: 'rgba(255,138,61,0.4)', shadow: 'rgba(255,138,61,0.18)', delay: '.06s' },
                     { label: 'Transmisión', color: '#F5C518', bg: 'rgba(245,197,24,0.08)', border: 'rgba(245,197,24,0.4)', shadow: 'rgba(245,197,24,0.18)', delay: '.09s' }
                   ].map(b => (
-                    <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 11, background: b.bg, border: `1px solid ${b.border}`, boxShadow: `0 0 14px ${b.shadow}`, animation: `comoBenefitPop 12s cubic-bezier(.22,1,.36,1) infinite`, animationDelay: b.delay }}>
+                    <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 11, background: b.bg, border: `1px solid ${b.border}`, boxShadow: `0 0 14px ${b.shadow}`, animation: `comoBenefitPop 8s cubic-bezier(.22,1,.36,1) infinite`, animationDelay: b.delay }}>
                       <span style={{ width: 14, height: 14, flex: '0 0 auto', borderRadius: '50%', border: `1.5px solid ${b.color}`, background: 'transparent' }} />
                       <span style={{ fontSize: 11, fontWeight: 700, color: b.color }}>{b.label}</span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', animation: 'comoStoryMsg 12s cubic-bezier(.22,1,.36,1) 4s infinite both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>02</span>
                 <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Activa tus indicadores</span>
               </div>
@@ -196,7 +196,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
             {/* ESCENA 3 — Publica tu ficha */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <div style={{ position: 'relative', height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'comoStoryVis 12s cubic-bezier(.22,1,.36,1) 8s infinite both' }}>
+              <div style={{ position: 'relative', height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'comoStoryVis 8s cubic-bezier(.22,1,.36,1) 5.3s infinite both' }}>
                 <div style={{ width: '100%', maxWidth: 270, borderRadius: 18, padding: '18px 20px', background: 'linear-gradient(158deg,#191919 0%,#141414 60%,#0f0f0f 100%)', border: '1px solid rgba(245,197,24,0.32)', boxShadow: '0 24px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,0.06)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 800, color: '#F5C518', letterSpacing: '.05em' }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F5C518', boxShadow: '0 0 8px #F5C518' }} />Ficha publicada</span>
@@ -211,7 +211,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#8f8a7a' }}><span>Próximo servicio</span><span style={{ color: '#f5f3ec', fontWeight: 600 }}>51.200 km</span></div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', animation: 'comoStoryMsg 12s cubic-bezier(.22,1,.36,1) 8s infinite both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>03</span>
                 <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Publica tu ficha</span>
               </div>
