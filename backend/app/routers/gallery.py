@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
-from app.models.models import GalleryImage
+from app.models.models import GalleryImage, Vehicle
 from app.schemas.schemas import GalleryCreate, GalleryOut, GalleryUpdate
 from app.services.cache import cache_invalidate_vehicle
 

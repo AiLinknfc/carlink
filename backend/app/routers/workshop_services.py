@@ -10,11 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopServiceItem
-from app.schemas.schemas import (
-    WorkshopServiceItemCreate,
-    WorkshopServiceItemOut,
-    WorkshopServiceItemUpdate,
-)
+from app.schemas.schemas import WorkshopServiceItemCreate, WorkshopServiceItemOut, WorkshopServiceItemUpdate
 
 router = APIRouter(prefix="/workshops/me/services", tags=["workshop-services"])
 

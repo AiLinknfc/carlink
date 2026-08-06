@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
-from app.models.models import Part
+from app.models.models import Part, Vehicle
 from app.schemas.schemas import PartCreate, PartOut, PartUpdate
 from app.services.cache import cache_invalidate_vehicle
 

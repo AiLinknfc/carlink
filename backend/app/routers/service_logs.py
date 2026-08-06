@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
-from app.models.models import ServiceLog
+from app.models.models import ServiceLog, Vehicle
 from app.schemas.schemas import ServiceLogCreate, ServiceLogOut
 
 router = APIRouter(prefix="/service-logs", tags=["service-logs"])

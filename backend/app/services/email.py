@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 import smtplib
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -66,7 +66,7 @@ def send_found_request_email(
             server.sendmail(FROM_EMAIL, owner_email, msg.as_string())
         print(f"[email] Sent found-request email to {owner_email}")
         return True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[email] Failed to send: {e}")
         return False
 
@@ -94,7 +94,7 @@ def send_generic_email(to_email: str, subject: str, html_body: str) -> bool:
             server.sendmail(FROM_EMAIL, to_email, msg.as_string())
         print(f"[email] Sent generic email to {to_email}")
         return True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[email] Failed to send generic email: {e}")
         return False
 
@@ -163,6 +163,6 @@ def send_job_application_email(
             server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
         print(f"[email] Sent job application email to {ADMIN_EMAIL}")
         return True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[email] Failed to send job application email: {e}")
         return False

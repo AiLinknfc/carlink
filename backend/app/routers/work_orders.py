@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -385,7 +385,7 @@ async def create_work_order(
         category=body.category,
         payment_method=body.payment_method,
         is_paid=body.is_paid,
-        completed_date=datetime.now(UTC) if body.status in _COMPLETING_STATUSES else None,
+        completed_date=datetime.now(timezone.utc) if body.status in _COMPLETING_STATUSES else None,
     )
 
     workshop = await _insert_order_with_unique_number(order, workshop, user_id, db)
@@ -412,7 +412,7 @@ async def update_work_order(
     for key, val in update_data.items():
         setattr(order, key, val)
     if new_status and new_status in _COMPLETING_STATUSES and not order.completed_date:
-        order.completed_date = datetime.now(UTC)
+        order.completed_date = datetime.now(timezone.utc)
 
     if body.labor_items is not None:
         await _apply_labor_items(order, body.labor_items, db)
@@ -439,7 +439,7 @@ async def update_work_order_status(
     order, workshop = await _get_owned_order(order_id, user_id, db)
     order.status = body.status
     if body.status in _COMPLETING_STATUSES and not order.completed_date:
-        order.completed_date = datetime.now(UTC)
+        order.completed_date = datetime.now(timezone.utc)
     await db.flush()
     await _auto_invoice_if_delivered_and_paid(order, workshop, db)
     await _sync_client_records_if_linked(order, workshop, db)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -102,7 +102,7 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
         return False, None
 
     expires_at = trial.created_at + timedelta(days=TRIAL_DAYS)
-    if datetime.now(UTC) <= expires_at:
+    if datetime.now(timezone.utc) <= expires_at:
         return True, None
     return False, "trial_expired"
 
@@ -311,7 +311,7 @@ async def get_token_url(
         )
         row = url_result.first()
         encrypted, qr_slug = (row[0], row[1]) if row else (None, None)
-    except Exception:  # noqa: BLE001
+    except Exception:
         encrypted, qr_slug = None, None
 
     if not encrypted:
@@ -333,7 +333,7 @@ async def get_token_url(
                 await db.flush()
                 qr_slug = candidate
                 break
-            except Exception:  # noqa: BLE001
+            except Exception:
                 await db.rollback()
 
     qr_url = f"{get_settings().frontend_url}/nfc/q/{qr_slug}" if qr_slug else None

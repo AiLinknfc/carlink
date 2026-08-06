@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -79,7 +79,7 @@ async def request_verification(
     profile.verification_doc_url = body.verification_doc_url
     profile.verification_status = "pending"
     profile.verification_note = ""
-    profile.verification_requested_at = datetime.now(UTC)
+    profile.verification_requested_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(profile)
     return profile

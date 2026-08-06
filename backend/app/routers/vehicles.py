@@ -75,8 +75,8 @@ async def create_vehicle(
     try:
         profile = await ensure_profile(user_id, db)
         logger.info(f"Profile ensured for user {user_id}")
-    except Exception:
-        logger.exception("Failed to ensure profile for user %s", user_id)
+    except Exception as e:
+        logger.error(f"Failed to ensure profile for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No se pudo crear el perfil. Verifica tu conexión e intenta de nuevo.",
@@ -104,7 +104,7 @@ async def create_vehicle(
         await db.flush()
         await db.refresh(vehicle)
     except Exception as e:
-        logger.exception("Failed to create vehicle for user %s", user_id)
+        logger.error(f"Failed to create vehicle for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Vehicle creation failed: {e}")
     await cache_delete(f"vehicles:list:{user_id}")
     logger.info(f"Vehicle created successfully: {vehicle.id}")
@@ -134,8 +134,8 @@ async def create_vehicle(
                     {"url": generated.token_url_encrypted, "id": str(trial_token.id)},
                 )
                 await db.flush()
-        except Exception:
-            logger.exception("Failed to mint trial NFC token for vehicle %s", vehicle.id)
+        except Exception as e:
+            logger.error(f"Failed to mint trial NFC token for vehicle {vehicle.id}: {e}", exc_info=True)
 
     return vehicle
 

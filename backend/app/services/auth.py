@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 import httpx
 from jose import jwk, jwt
@@ -21,7 +21,7 @@ JWKS_FETCHED_AT: float = 0
 
 async def _fetch_jwks() -> dict:
     global JWKS_CACHE, JWKS_FETCHED_AT
-    now = datetime.now(UTC).timestamp()
+    now = datetime.now().timestamp()
     if JWKS_CACHE and (now - JWKS_FETCHED_AT) < 3600:
         return JWKS_CACHE
     url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
@@ -60,7 +60,7 @@ async def verify_supabase_jwt(token: str) -> str | None:
             options={"verify_exp": True},
         )
         return payload.get("sub")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning(f"JWT verify failed: {e}")
         return None
 

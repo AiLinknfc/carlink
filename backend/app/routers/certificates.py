@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
-from app.models.models import Certificate
+from app.models.models import Certificate, Vehicle
 from app.schemas.schemas import CertificateCreate, CertificateOut, CertificateUpdate
 from app.services.storage import get_file, key_from_url
 
