@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import FoundRequest, NfcToken, Profile, Vehicle
+from app.models.models import FoundRequest, Profile, Vehicle
 from app.schemas.schemas import FoundRequestCreate, FoundRequestOut
 from app.services.cache import get_redis
 from app.services.email import send_found_request_email

@@ -6,14 +6,27 @@ import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
 
+const SECTIONS = [
+  { id: 'general', label: 'General' },
+  { id: 'mecanicos', label: 'Mecánicos' },
+  { id: 'servicios', label: 'Servicios' },
+  { id: 'resenas', label: 'Reseñas' },
+] as const
+
+/* Sub-tabs (General/Mecánicos/Servicios/Reseñas) — igual que tallerpro
+   (WorkshopProfileModal: activeTab 'general'|'mechanics'|'services', ver
+   docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase C.7). Antes todo esto vivía en una
+   sola página larga sin segmentar. */
 export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'dark'; workshop: Workshop }) {
   const t = negocioTokens(theme)
   const { updateWorkshop } = useMyWorkshop()
+  const [section, setSection] = useState<typeof SECTIONS[number]['id']>('general')
   const { mechanics, addMechanic, updateMechanic, deleteMechanic } = useWorkshopMechanics()
   const { services, addService, deleteService } = useWorkshopServices()
   const { reviews, addReview, respondReview } = useWorkshopReviews()
 
   const [form, setForm] = useState({
+    name: workshop.name,
     slogan: workshop.slogan, workshop_type: workshop.workshop_type, email: workshop.email,
     business_hours: workshop.business_hours, manager_name: workshop.manager_name,
     manager_role: workshop.manager_role, tax_rate_percent: String(Number(workshop.tax_rate_percent)),
@@ -31,8 +44,15 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // Toggle "Publicar mi ficha pública" — aplica al instante (no espera al
+  // botón "Guardar cambios" del resto del formulario), default true
+  // (migración 033) para no des-publicar ninguna ficha existente.
+  const [published, setPublished] = useState(workshop.is_published)
+  const [togglingPublish, setTogglingPublish] = useState(false)
+
   useEffect(() => {
     setForm({
+      name: workshop.name,
       slogan: workshop.slogan, workshop_type: workshop.workshop_type, email: workshop.email,
       business_hours: workshop.business_hours, manager_name: workshop.manager_name,
       manager_role: workshop.manager_role, tax_rate_percent: String(Number(workshop.tax_rate_percent)),
@@ -42,7 +62,16 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
     })
     setStampsRequired(workshop.stamps_required)
     setPromoDesc(workshop.promotion_description)
+    setPublished(workshop.is_published)
   }, [workshop])
+
+  const togglePublish = async () => {
+    setTogglingPublish(true)
+    const next = !published
+    const result = await updateWorkshop({ is_published: next })
+    setTogglingPublish(false)
+    if (result) setPublished(result.is_published)
+  }
 
   const field = (k: keyof typeof form) => ({
     value: form[k],
@@ -50,8 +79,10 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
   })
 
   const save = async () => {
+    if (!form.name.trim()) return
     setSaving(true)
     const result = await updateWorkshop({
+      name: form.name.trim(),
       slogan: form.slogan, workshop_type: form.workshop_type, email: form.email,
       business_hours: form.business_hours, manager_name: form.manager_name, manager_role: form.manager_role,
       tax_rate_percent: Number(form.tax_rate_percent) || 0,
@@ -82,10 +113,60 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
   const [responseText, setResponseText] = useState('')
 
   return (
-    <div style={{ animation: 'sectionIn .4s both', display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
+    <div style={{ animation: 'sectionIn .4s both', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
+      <div style={{ display: 'flex', gap: 6, borderBottom: `1px solid ${t.subtleBorder}` }}>
+        {SECTIONS.map(s => (
+          <button key={s.id} onClick={() => setSection(s.id)} style={{
+            padding: '10px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: 'none', background: 'transparent',
+            color: section === s.id ? t.gold : t.textMuted,
+            borderBottom: `2px solid ${section === s.id ? t.gold : 'transparent'}`, marginBottom: -1,
+          }}>{s.label}</button>
+        ))}
+      </div>
+
+      {section === 'general' && (
+      <div style={{ padding: 20, borderRadius: 16, background: t.cardBg, border: `1px solid ${published ? t.border : 'rgba(255,77,106,0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: t.textPrimary, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Ficha pública
+            <span style={{ fontSize: 9.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: published ? 'rgba(46,204,113,0.14)' : 'rgba(255,77,106,0.12)', color: published ? t.success : t.danger }}>
+              {published ? 'PUBLICADA' : 'OCULTA'}
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: t.textMuted, margin: '4px 0 0', maxWidth: 440, lineHeight: 1.5 }}>
+            {published
+              ? <>Visible en <code style={{ color: t.textPrimary }}>/taller/{workshop.code}</code> y su código QR — cualquiera con el enlace o el QR puede verla.</>
+              : 'Oculta: tu QR y tu enlace público muestran "no disponible" hasta que la vuelvas a publicar.'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {published && (
+            <a href={`/taller/${workshop.code}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 700, color: t.gold, textDecoration: 'none' }}>Ver ficha ↗</a>
+          )}
+          <button onClick={togglePublish} disabled={togglingPublish} aria-label="Publicar ficha pública" role="switch" aria-checked={published} style={{
+            width: 46, height: 26, borderRadius: 999, border: 'none', cursor: togglingPublish ? 'default' : 'pointer',
+            background: published ? t.gold : t.subtleBorder, position: 'relative', flex: '0 0 auto', opacity: togglingPublish ? 0.6 : 1, transition: 'background .18s',
+          }}>
+            <span style={{
+              position: 'absolute', top: 3, left: published ? 23 : 3, width: 20, height: 20, borderRadius: '50%',
+              background: published ? '#111' : t.textMuted, transition: 'left .18s',
+            }} />
+          </button>
+        </div>
+      </div>
+      )}
+
+      {section === 'general' && (
       <div style={{ padding: 20, borderRadius: 16, background: t.cardBg, border: `1px solid ${t.border}` }}>
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 14 }}>Datos del taller</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle(t)}>Nombre del taller</label>
+            <input style={inputStyle(t)} {...field('name')} placeholder="Ej. Taller Central CarLink" />
+            <p style={{ fontSize: 11, color: t.textMuted, margin: '5px 0 0' }}>
+              Es el nombre que ven tus clientes: en el sidebar, la ficha pública y su QR.
+            </p>
+          </div>
           <div><label style={labelStyle(t)}>Eslogan</label><input style={inputStyle(t)} {...field('slogan')} placeholder="Ej. Calidad garantizada en cada servicio" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Tipo de taller</label><input style={inputStyle(t)} {...field('workshop_type')} placeholder="Taller multimarca, CDA…" /></div>
@@ -118,12 +199,14 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
           <div><label style={labelStyle(t)}>Descripción de la promoción</label><textarea rows={2} style={{ ...inputStyle(t), resize: 'vertical' }} value={promoDesc} onChange={e => setPromoDesc(e.target.value)} placeholder="Ej. Cambio de aceite gratis al completar todos los sellos" /></div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-            <button onClick={save} disabled={saving} style={primaryBtnStyle(t, saving)}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>
+            <button onClick={save} disabled={saving || !form.name.trim()} style={primaryBtnStyle(t, saving || !form.name.trim())}>{saving ? 'Guardando…' : 'Guardar cambios'}</button>
             {saved && <span style={{ fontSize: 12.5, color: t.success, fontWeight: 700 }}>¡Guardado!</span>}
           </div>
         </div>
       </div>
+      )}
 
+      {section === 'mecanicos' && (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Mecánicos</div>
@@ -150,7 +233,9 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
           ))}
         </div>
       </div>
+      )}
 
+      {section === 'servicios' && (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Catálogo de servicios</div>
@@ -174,7 +259,9 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
           ))}
         </div>
       </div>
+      )}
 
+      {section === 'resenas' && (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Reseñas ({workshop.rating.toFixed(1)}★)</div>
@@ -206,6 +293,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
           ))}
         </div>
       </div>
+      )}
 
       {reviewModal && (
         <AdminModal isOpen onClose={() => setReviewModal(false)} title="Registrar reseña" theme={theme} maxWidth={400}

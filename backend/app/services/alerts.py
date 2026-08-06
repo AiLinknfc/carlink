@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import NfcAccessLog, NfcAlert, NfcToken
+from app.models.models import NfcAccessLog, NfcAlert
 
 
 async def check_and_create_alerts(
@@ -16,7 +16,7 @@ async def check_and_create_alerts(
 ) -> list[NfcAlert]:
     """Check access patterns and create alerts if thresholds are exceeded."""
     alerts_created = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # 1. Frequent scans: >50 in last 24h
     day_ago = now - timedelta(hours=24)

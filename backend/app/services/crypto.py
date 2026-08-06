@@ -31,7 +31,7 @@ def encrypt_url(plaintext: str) -> str | None:
         aesgcm = AESGCM(key)
         ct = aesgcm.encrypt(nonce, plaintext.encode(), None)
         return base64.b64encode(nonce + ct).decode()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"encrypt_url failed: {e}")
         return None
 
@@ -49,5 +49,5 @@ def decrypt_url(token: str) -> str | None:
         ct = raw[12:]
         aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ct, None).decode()
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None

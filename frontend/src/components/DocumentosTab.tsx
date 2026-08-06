@@ -3,10 +3,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { uploadFile, isPdf, downloadFile, fileExtension } from '@/lib/upload'
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiDelete, vehicleInvoicesApi } from '@/lib/api'
+import { downloadInvoicePdf } from '@/lib/invoicePdf'
 import CameraCapture from './CameraCapture'
 import FileCard, { getStatusColor, getStatusLabel } from './FileCard'
-import type { Document } from '@/lib/types'
+import type { Document, VehicleInvoice } from '@/lib/types'
 
 function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   return createPortal(
@@ -69,6 +70,13 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
   const [createSaving, setCreateSaving] = useState(false)
   const [createFile, setCreateFile] = useState<File | null>(null)
 
+  // Facturas/certificados que llegan solos de talleres reales — no se crean
+  // ni editan acá, solo se ven y se descargan.
+  // docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2.
+  const [invoices, setInvoices] = useState<VehicleInvoice[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(true)
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
+
   const flash = useCallback((msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2600)
@@ -100,6 +108,33 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
   }, [vehicleId, determineStatus])
 
   useEffect(() => { loadDocs() }, [loadDocs, refreshKey])
+
+  const loadInvoices = useCallback(async () => {
+    if (!vehicleId) { setInvoicesLoading(false); return }
+    setInvoicesLoading(true)
+    const data = await vehicleInvoicesApi.listByVehicle(vehicleId)
+    setInvoices(data || [])
+    setInvoicesLoading(false)
+  }, [vehicleId])
+
+  useEffect(() => { loadInvoices() }, [loadInvoices, refreshKey])
+
+  const handleDownloadInvoice = useCallback(async (inv: VehicleInvoice) => {
+    setDownloadingInvoiceId(inv.id)
+    try {
+      await downloadInvoicePdf({
+        docNumber: inv.doc_number, docType: inv.workshop_is_cda ? 'Certificado' : inv.doc_type,
+        issueDate: inv.issue_date, amount: inv.amount, details: inv.details,
+        issuerName: inv.workshop_name,
+        leftColumn: { label: 'Taller', primary: inv.workshop_name },
+        rightColumn: { label: 'Vehículo', primary: `${inv.vehicle_plate || ''} ${inv.vehicle_model || ''}`.trim(), secondary: inv.mechanic_name ? `Atendido por ${inv.mechanic_name}` : undefined },
+        footerNote: `Recibido de ${inv.workshop_name} · Generado con CarLink`,
+        fileName: `${inv.doc_type.toLowerCase().replace(/\s+/g, '-')}-${inv.doc_number}.pdf`,
+      })
+    } finally {
+      setDownloadingInvoiceId(null)
+    }
+  }, [])
 
   const handleUpload = useCallback(async (file: File, docId: string) => {
     setUploading(true)
@@ -548,6 +583,61 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
       {!loading && documents.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
           Crea tus documentos legales desde los botones superiores.
+        </div>
+      )}
+
+      {/* Facturas y certificados de talleres reales — llegan solas cuando un
+          taller marca una orden tuya como pagada y entregada (o si es un
+          CDA, cuando emite tu certificado). Sin crear/editar/borrar: es lo
+          que el taller registró, no algo que armes vos.
+          docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2. */}
+      {(invoicesLoading || invoices.length > 0) && (
+        <div style={{ marginTop: 40, animation: 'textIn .5s .15s both' }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
+              Registrado por tus talleres
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(20px,2.2vw,26px)', fontWeight: 800, letterSpacing: '-.02em', margin: '2px 0 4px' }}>
+              Facturas y certificados
+            </h2>
+            <p style={{ color: 'var(--text-2)', margin: 0, fontSize: 13.5 }}>
+              Se registran solos cuando un taller entrega y cobra tu vehículo — no podés editarlos, son su registro.
+            </p>
+          </div>
+
+          {invoicesLoading ? (
+            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)', fontSize: 13 }}>Cargando…</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+              {invoices.map(inv => (
+                <div key={inv.id} style={{ padding: 18, borderRadius: 16, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: inv.workshop_is_cda ? '#F5C518' : '#5be89a' }}>
+                        {inv.workshop_is_cda ? 'Certificado CDA' : inv.doc_type}
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)', marginTop: 2 }}>{inv.doc_number}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{new Date(inv.issue_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>{inv.workshop_name}</div>
+                  {inv.details && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.details}</div>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)' }}>{inv.amount != null ? `$${Math.round(inv.amount).toLocaleString('es-CO')}` : '—'}</span>
+                    <button onClick={() => handleDownloadInvoice(inv)} disabled={downloadingInvoiceId === inv.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none',
+                      background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12, cursor: downloadingInvoiceId === inv.id ? 'default' : 'pointer',
+                      opacity: downloadingInvoiceId === inv.id ? 0.6 : 1,
+                    }}>
+                      {downloadingInvoiceId === inv.id ? 'Generando…' : (
+                        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>PDF</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

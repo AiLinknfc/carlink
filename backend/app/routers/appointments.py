@@ -10,9 +10,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
-from app.models.models import Appointment, Workshop, WorkOrder, WorkshopClient, WorkshopVehicle
-from app.routers.work_orders import _insert_order_with_unique_number, _ORDER_LOADS
-from app.schemas.schemas import AppointmentCreate, AppointmentOut, AppointmentUpdate, WorkOrderOut
+from app.models.models import (
+    Appointment,
+    WorkOrder,
+    Workshop,
+    WorkshopClient,
+    WorkshopVehicle,
+)
+from app.routers.work_orders import _ORDER_LOADS, _insert_order_with_unique_number
+from app.schemas.schemas import (
+    AppointmentCreate,
+    AppointmentOut,
+    AppointmentUpdate,
+    WorkOrderOut,
+)
 
 router = APIRouter(prefix="/workshops/me/appointments", tags=["appointments"])
 

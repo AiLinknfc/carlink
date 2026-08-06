@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Date, DateTime, DECIMAL, ForeignKey, Integer, Text, func
+from sqlalchemy import DECIMAL, Boolean, Date, DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -91,6 +91,10 @@ class MaintenanceRecord(Base):
     lubricant_type: Mapped[str] = mapped_column(Text, default="")
     next_service_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+    # Migración 034 — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3: idempotencia
+    # (no duplicar si la orden se re-guarda) y trazabilidad de qué orden generó
+    # este registro automático.
+    source_work_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("work_orders.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -111,6 +115,11 @@ class Part(Base):
     mileage_installed: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lifespan_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # Migración 034 — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3: marca las
+    # partes que un taller registró solo al entregar/cobrar una orden (no
+    # las que el dueño crea a mano) — el frontend las muestra sin edición.
+    workshop_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="SET NULL"), nullable=True)
+    source_work_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("work_orders.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -219,6 +228,10 @@ class Workshop(Base):
     logo_url: Mapped[str] = mapped_column(Text, default="")
     rating: Mapped[float] = mapped_column(default=0.0)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Toggle de "Perfil del taller" (panel de negocio) — controla si
+    # GET /workshops/{code} (ficha pública + su QR) responde o no. Migración
+    # 033, default true para no des-publicar fichas existentes.
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     stamps_required: Mapped[int] = mapped_column(Integer, default=6)
     promotion_description: Mapped[str] = mapped_column(Text, default="")
     # Panel de negocio (migración de tallerpro/, ver docs/PLAN_MIGRACION_TALLERPRO.md)

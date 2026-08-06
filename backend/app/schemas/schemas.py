@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
-import re
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -84,7 +84,7 @@ class MaintenanceCreate(BaseModel):
     date: str | None = None
     workshop: str = ""
     workshop_id: UUID | None = None
-    cost: Decimal = Field(default=Decimal("0"))
+    cost: Decimal = Field(default=Decimal(0))
     lubricant_brand: str = ""
     lubricant_type: str = ""
     next_service_mileage: int | None = None
@@ -103,6 +103,7 @@ class MaintenanceOut(BaseModel):
     lubricant_brand: str
     lubricant_type: str
     next_service_mileage: int | None
+    source_work_order_id: UUID | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -146,6 +147,11 @@ class PartOut(BaseModel):
     mileage_installed: int | None
     lifespan_mileage: int | None
     notes: str
+    # Presente solo si un taller la registró al entregar/cobrar una orden
+    # (docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3) — el frontend la muestra
+    # sin edición cuando esto no es null.
+    workshop_id: UUID | None = None
+    source_work_order_id: UUID | None = None
     created_at: datetime
     # Fecha del último reemplazo: la batería envejece por tiempo, no sólo por km.
     # El tipo del frontend ya lo declaraba, pero el backend nunca lo enviaba.
@@ -381,6 +387,7 @@ class WorkshopUpdate(BaseModel):
     social_facebook: str | None = None
     social_website: str | None = None
     social_whatsapp: str | None = None
+    is_published: bool | None = None
 
 
 class WorkshopOut(BaseModel):
@@ -395,6 +402,7 @@ class WorkshopOut(BaseModel):
     description: str
     logo_url: str
     is_verified: bool
+    is_published: bool = True
     stamps_required: int = 6
     promotion_description: str = ""
     slogan: str = ""
@@ -405,7 +413,7 @@ class WorkshopOut(BaseModel):
     manager_name: str = ""
     manager_role: str = ""
     manager_avatar: str = ""
-    tax_rate_percent: Decimal = Decimal("0")
+    tax_rate_percent: Decimal = Decimal(0)
     certification_code: str = ""
     social_instagram: str = ""
     social_facebook: str = ""
@@ -431,9 +439,9 @@ class WorkshopPublicOut(WorkshopOut):
     """Perfil público del taller (GET /workshops/{code}) — mismo shape que
     WorkshopOut más los sub-recursos que arma la ficha pública, para no
     requerir N llamadas adicionales desde el frontend."""
-    mechanics: list["WorkshopMechanicOut"] = Field(default_factory=list)
-    service_items: list["WorkshopServiceItemOut"] = Field(default_factory=list)
-    reviews: list["WorkshopReviewOut"] = Field(default_factory=list)
+    mechanics: list[WorkshopMechanicOut] = Field(default_factory=list)
+    service_items: list[WorkshopServiceItemOut] = Field(default_factory=list)
+    reviews: list[WorkshopReviewOut] = Field(default_factory=list)
 
 
 # =========== Workshop mechanics ===========
@@ -473,8 +481,8 @@ class WorkshopMechanicOut(BaseModel):
 class WorkshopServiceItemCreate(BaseModel):
     name: str
     category: str = ""
-    estimated_price: Decimal = Decimal("0")
-    estimated_hours: Decimal = Decimal("0")
+    estimated_price: Decimal = Decimal(0)
+    estimated_hours: Decimal = Decimal(0)
     description: str = ""
 
 
@@ -575,8 +583,8 @@ class WorkshopVehicleOut(BaseModel):
 # =========== Work orders ===========
 class WorkOrderLaborItemIn(BaseModel):
     description: str
-    hours: Decimal = Decimal("0")
-    rate_per_hour: Decimal = Decimal("0")
+    hours: Decimal = Decimal(0)
+    rate_per_hour: Decimal = Decimal(0)
 
 
 class WorkOrderLaborItemOut(BaseModel):
@@ -594,8 +602,8 @@ class WorkOrderPartIn(BaseModel):
     part_name: str
     sku: str = ""
     quantity: int = 1
-    unit_cost: Decimal = Decimal("0")
-    unit_price: Decimal = Decimal("0")
+    unit_cost: Decimal = Decimal(0)
+    unit_price: Decimal = Decimal(0)
 
 
 class WorkOrderPartOut(BaseModel):
@@ -699,8 +707,8 @@ class WorkshopInventoryPartCreate(BaseModel):
     category: str = "Otros"
     stock: int = 0
     min_stock: int = 0
-    cost_price: Decimal = Decimal("0")
-    retail_price: Decimal = Decimal("0")
+    cost_price: Decimal = Decimal(0)
+    retail_price: Decimal = Decimal(0)
     location: str = ""
     compatible_models: list[str] = Field(default_factory=list)
     last_restock_date: date | None = None
@@ -858,6 +866,29 @@ class WorkshopDocumentOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VehicleInvoiceOut(BaseModel):
+    """Documentos emitidos por un taller (facturas, certificados) que le
+    llegan al dueño real del vehículo — docs/PLAN_FACTURACION_AUTOMATICA.md
+    Paso 2. Solo existen si `workshop_vehicles.linked_vehicle_id` conecta la
+    orden con una cuenta CarLink real; de ahí sale este endpoint aparte de
+    `WorkshopDocumentOut` (que es la vista del taller, sin ese filtro)."""
+    id: UUID
+    doc_number: str
+    doc_type: str
+    issue_date: date
+    amount: Decimal | None
+    details: str
+    mechanic_name: str
+    vehicle_plate: str
+    vehicle_model: str
+    workshop_name: str
+    # true si el taller emisor es un CDA — el frontend lo usa para mostrar
+    # esto como certificado en vez de factura, sin inventar datos de una
+    # revisión CDA real (esa sigue siendo la de `diagnostics.cda_checks`).
+    workshop_is_cda: bool
+    created_at: datetime
+
+
 # =========== Workshop reviews ===========
 class WorkshopReviewCreate(BaseModel):
     client_name: str
@@ -925,6 +956,21 @@ class AiDiagnoseResult(BaseModel):
     recommended_parts: list[AiDiagnosePart] = Field(default_factory=list)
     technical_notes: str = ""
     estimated_total_cost: float = 0
+
+
+# "Mejorar con IA" del compositor de notificaciones (ver
+# docs/PLAN_PARIDAD_UI_TALLERPRO.md — tallerpro/NotificationsCenter.tsx).
+class AiNotificationRequest(BaseModel):
+    notification_type: str
+    client_name: str = ""
+    vehicle_plate: str = ""
+    order_number: str | None = None
+    total_amount: float | None = None
+    draft: str | None = None
+
+
+class AiNotificationResult(BaseModel):
+    message: str
 
 
 # =========== Service Logs ===========

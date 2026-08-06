@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -14,12 +14,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcTokenLimit, Profile, Vehicle, Workshop
+from app.models.models import (
+    MaintenanceRecord,
+    NfcAccessLog,
+    NfcToken,
+    NfcTokenLimit,
+    Profile,
+    Vehicle,
+    Workshop,
+)
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
-from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, TRIAL_DAYS, generate_human_code
+from app.services.nfc_provisioning import (
+    TRIAL_ACCOUNT_TYPES,
+    TRIAL_DAYS,
+    generate_human_code,
+)
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
@@ -90,7 +102,7 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
         return False, None
 
     expires_at = trial.created_at + timedelta(days=TRIAL_DAYS)
-    if datetime.now(timezone.utc) <= expires_at:
+    if datetime.now(UTC) <= expires_at:
         return True, None
     return False, "trial_expired"
 
@@ -299,7 +311,7 @@ async def get_token_url(
         )
         row = url_result.first()
         encrypted, qr_slug = (row[0], row[1]) if row else (None, None)
-    except Exception:
+    except Exception:  # noqa: BLE001
         encrypted, qr_slug = None, None
 
     if not encrypted:
@@ -321,7 +333,7 @@ async def get_token_url(
                 await db.flush()
                 qr_slug = candidate
                 break
-            except Exception:
+            except Exception:  # noqa: BLE001
                 await db.rollback()
 
     qr_url = f"{get_settings().frontend_url}/nfc/q/{qr_slug}" if qr_slug else None

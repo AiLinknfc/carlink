@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface Props {
@@ -22,7 +24,17 @@ export default function AdminModal({ isOpen, onClose, title, subtitle, theme, ma
   const textPrimary = isDark ? '#f5f3ec' : '#17171a'
   const textMuted = isDark ? '#7c786e' : '#7a756a'
 
-  return (
+  // Portal a document.body: el panel de este mismo modal anima con
+  // `transform` (y/scale, más abajo) — si otro AdminModal se abre DESDE
+  // DENTRO de este (ej. "+ Agregar mecánico" dentro del modal de Perfil),
+  // sin portal quedaría anidado bajo ese `transform` y el navegador vuelve
+  // `position: fixed` relativo a ese ancestro en vez del viewport, así que
+  // el modal hijo aparece descentrado/recortado. El portal lo evita: el
+  // nodo real vive en <body>, sin ancestros con transform de por medio.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  const modal = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -60,6 +72,9 @@ export default function AdminModal({ isOpen, onClose, title, subtitle, theme, ma
       )}
     </AnimatePresence>
   )
+
+  if (!mounted) return null
+  return createPortal(modal, document.body)
 }
 
 export const adminModalStyles = {

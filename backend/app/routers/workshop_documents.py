@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -37,7 +37,7 @@ async def _next_doc_number(workshop_id: UUID, db: AsyncSession) -> str:
     los documentos históricos del taller sin importar el año, así que un taller
     que cruzara de año seguía la numeración vieja en vez de reiniciar (bug
     encontrado en la revisión del backend, ver docs/PLAN_MIGRACION_TALLERPRO.md)."""
-    year = date.today().year
+    year = datetime.now(UTC).date().year
     count = await db.scalar(
         select(func.count()).select_from(WorkshopIssuedDocument).where(
             WorkshopIssuedDocument.workshop_id == workshop_id,

@@ -1,33 +1,65 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { workshopApi } from '@/lib/api'
+import { apiUrl } from '@/lib/supabase'
 import type { WorkshopPublic } from '@/lib/types'
 
 /* Ficha pública del taller — docs/PLAN_MIGRACION_TALLERPRO.md Fase 4.11.
    Server público, sin auth: GET /workshops/{code} ya trae mecánicos activos,
-   catálogo de servicios y reseñas resueltos en un solo response. */
+   catálogo de servicios y reseñas resueltos en un solo response.
+
+   Fetch propio (no workshopApi.getPublic/request()) porque acá sí importa
+   distinguir "taller no encontrado" (código inválido) de "taller no
+   publicado" (toggle de Perfil del taller apagado, migración 033) — el
+   helper compartido `request()` traga todo non-2xx en `null` sin exponer el
+   `detail`, y tocarlo afectaría cualquier otro call site del proyecto. */
 export default function PublicWorkshopPage() {
   const params = useParams<{ code: string }>()
   const [workshop, setWorkshop] = useState<WorkshopPublic | null>(null)
   const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [status, setStatus] = useState<'ok' | 'not_found' | 'not_published'>('ok')
 
   useEffect(() => {
     if (!params.code) return
-    workshopApi.getPublic(params.code).then(w => {
-      if (w) setWorkshop(w)
-      else setNotFound(true)
-    }).finally(() => setLoading(false))
+    let cancelled = false
+    fetch(apiUrl(`/workshops/${params.code}`))
+      .then(async res => {
+        if (cancelled) return
+        if (res.ok) {
+          setWorkshop(await res.json())
+          return
+        }
+        if (res.status === 404) {
+          const body = await res.json().catch(() => null)
+          setStatus(body?.detail === 'Workshop profile is not published' ? 'not_published' : 'not_found')
+        } else {
+          setStatus('not_found')
+        }
+      })
+      .catch(() => { if (!cancelled) setStatus('not_found') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [params.code])
 
   if (loading) {
     return <div style={{ padding: 80, textAlign: 'center', color: 'var(--text-3)' }}>Cargando…</div>
   }
 
-  if (notFound || !workshop) {
+  if (status === 'not_published') {
+    return (
+      <div style={{ padding: 80, textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, marginBottom: 8 }}>Esta ficha no está publicada</div>
+        <p style={{ color: 'var(--text-3)', fontSize: 14, maxWidth: 380, margin: '0 auto 20px', lineHeight: 1.6 }}>
+          El taller decidió ocultar temporalmente su ficha pública. Vuelve a intentarlo más tarde.
+        </p>
+        <Link href="/" style={{ color: '#F5C518', fontWeight: 700 }}>Volver al inicio</Link>
+      </div>
+    )
+  }
+
+  if (status === 'not_found' || !workshop) {
     return (
       <div style={{ padding: 80, textAlign: 'center' }}>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, marginBottom: 8 }}>Taller no encontrado</div>
@@ -77,6 +109,10 @@ export default function PublicWorkshopPage() {
       {workshop.description && (
         <p style={{ color: 'var(--text-2)', fontSize: 15, lineHeight: 1.7, marginBottom: 28 }}>{workshop.description}</p>
       )}
+
+      {/* QR de esta ficha — a pedido del usuario, toda ficha digital debe
+          traer su QR asociado y visible acá mismo. */}
+      <FichaQr code={workshop.code} />
 
       {workshop.service_items.length > 0 && (
         <Section title="Catálogo de servicios">
@@ -142,6 +178,66 @@ export default function PublicWorkshopPage() {
           </div>
         </Section>
       )}
+    </div>
+  )
+}
+
+/* QR que apunta a esta misma ficha pública — mismo patrón/librería que
+   QrCodePanel.tsx (llaveros NFC), pero standalone e inline en vez de modal:
+   esto NO es el flujo de activación NFC, es un QR genérico de "compartir
+   este link" (docs/PLAN_PARIDAD_UI_TALLERPRO.md, pedido del usuario
+   2026-08-05). */
+function FichaQr({ code }: { code: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const qrRef = useRef<any>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    let cancelled = false
+    const url = window.location.href
+
+    import('qr-code-styling').then(({ default: QRCodeStyling }) => {
+      if (cancelled || !containerRef.current) return
+      qrRef.current = new QRCodeStyling({
+        width: 168, height: 168, data: url, margin: 8,
+        qrOptions: { errorCorrectionLevel: 'H' },
+        dotsOptions: { type: 'rounded', color: '#111111' },
+        cornersSquareOptions: { type: 'extra-rounded', color: '#111111' },
+        cornersDotOptions: { type: 'dot', color: '#111111' },
+        backgroundOptions: { color: '#ffffff' },
+      })
+      containerRef.current.innerHTML = ''
+      qrRef.current.append(containerRef.current)
+      setReady(true)
+    })
+
+    return () => { cancelled = true }
+  }, [code])
+
+  const handleDownload = () => qrRef.current?.download({ name: `ficha-${code}`, extension: 'png' })
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+      padding: 22, borderRadius: 18, background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 28,
+    }}>
+      <div style={{ padding: 10, borderRadius: 12, background: '#fff', flex: '0 0 auto', width: 168, height: 168, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={containerRef} />
+      </div>
+      <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+        <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 6 }}>Código QR de esta ficha</div>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px', lineHeight: 1.6 }}>
+          Escanéalo o compártelo para que cualquiera llegue directo a esta ficha pública — en tarjetas, redes o en el mostrador del taller.
+        </p>
+        <button onClick={handleDownload} disabled={!ready} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, border: 'none',
+          background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12.5, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : 0.5,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+          Descargar PNG
+        </button>
+      </div>
     </div>
   )
 }

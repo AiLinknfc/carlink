@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from datetime import UTC
 from typing import Annotated
 from uuid import UUID
 
@@ -57,8 +58,8 @@ async def get_nfc_stats(
         select(func.count(NfcToken.id)).where(NfcToken.is_active == True)
     )).scalar() or 0
 
-    from datetime import datetime, timezone, timedelta
-    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    from datetime import datetime, timedelta
+    day_ago = datetime.now(UTC) - timedelta(hours=24)
     today_access = (await db.execute(
         select(func.count(NfcAccessLog.id)).where(NfcAccessLog.scanned_at >= day_ago)
     )).scalar() or 0
@@ -212,13 +213,13 @@ async def resolve_alert(
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    from datetime import datetime, timezone
+    from datetime import datetime
     result = await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     alert.resolved = body.resolved
-    alert.resolved_at = datetime.now(timezone.utc) if body.resolved else None
+    alert.resolved_at = datetime.now(UTC) if body.resolved else None
     await db.flush()
     await db.refresh(alert)
     return alert
@@ -384,10 +385,10 @@ async def update_limit(
     if not limit:
         raise HTTPException(status_code=404, detail="Limit not found for this account type")
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(limit, field, value)
-    limit.updated_at = datetime.now(timezone.utc)
+    limit.updated_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(limit)
     return limit

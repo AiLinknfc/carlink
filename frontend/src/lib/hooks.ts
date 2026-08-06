@@ -698,7 +698,20 @@ export function useWorkshopVehicles(opts?: { clientId?: string; q?: string }) {
     return ok
   }, [load])
 
-  return { vehicles, loading, reload: load, addVehicle, updateVehicle, deleteVehicle }
+  // Vincular/desvincular con una cuenta CarLink real — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3.
+  const linkVehicle = useCallback(async (id: string) => {
+    const result = await workshopVehiclesApi.link(id)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const unlinkVehicle = useCallback(async (id: string) => {
+    const result = await workshopVehiclesApi.unlink(id)
+    if (result) await load()
+    return result
+  }, [load])
+
+  return { vehicles, loading, reload: load, addVehicle, updateVehicle, deleteVehicle, linkVehicle, unlinkVehicle }
 }
 
 export function useWorkOrders(opts?: { status?: string; clientId?: string; workshopVehicleId?: string }) {

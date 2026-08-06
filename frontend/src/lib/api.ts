@@ -18,8 +18,9 @@ import type {
   Appointment, AppointmentCreate, AppointmentUpdate,
   WorkshopNotification, WorkshopNotificationCreate,
   WorkshopDocument, WorkshopDocumentCreate,
+  VehicleInvoice,
   WorkshopReview, WorkshopReviewCreate,
-  AiDiagnoseRequest, AiDiagnoseResult,
+  AiDiagnoseRequest, AiDiagnoseResult, AiNotificationRequest, AiNotificationResult,
   NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
@@ -104,6 +105,10 @@ export const documentsApi = {
   delete: (id: string) => request('DELETE', `/documents/${id}`),
 }
 
+export const vehicleInvoicesApi = {
+  listByVehicle: (vehicleId: string) => request<VehicleInvoice[]>('GET', `/invoices/vehicle/${vehicleId}`),
+}
+
 export const galleryApi = {
   listByVehicle: (vehicleId: string) => request<GalleryImage[]>('GET', `/gallery/vehicle/${vehicleId}`),
   create: (data: GalleryCreate) => request<GalleryImage>('POST', '/gallery', data),
@@ -129,6 +134,7 @@ export const workshopApi = {
   getDashboard: () => request<WorkshopDashboard>('GET', '/workshops/me/dashboard'),
   getPublic: (code: string) => request<WorkshopPublic>('GET', `/workshops/${code}`),
   aiDiagnose: (data: AiDiagnoseRequest) => request<AiDiagnoseResult>('POST', '/workshops/me/ai-diagnose', data),
+  aiImproveNotification: (data: AiNotificationRequest) => request<AiNotificationResult>('POST', '/workshops/me/ai-notification-message', data),
 }
 
 // ── Panel de negocio (taller/empresa) ──
@@ -167,6 +173,10 @@ export const workshopVehiclesApi = {
   create: (data: WorkshopVehicleCreate) => request<WorkshopVehicle>('POST', '/workshops/me/vehicles', data),
   update: (id: string, data: WorkshopVehicleUpdate) => request<WorkshopVehicle>('PUT', `/workshops/me/vehicles/${id}`, data),
   delete: (id: string) => request('DELETE', `/workshops/me/vehicles/${id}`),
+  /** Busca por la placa ya cargada — nunca por un `linked_vehicle_id` a
+   * mano. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
+  link: (id: string) => request<WorkshopVehicle>('POST', `/workshops/me/vehicles/${id}/link`),
+  unlink: (id: string) => request<WorkshopVehicle>('POST', `/workshops/me/vehicles/${id}/unlink`),
 }
 
 export const workOrdersApi = {

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 from jose import jwk, jwt
-from jose.exceptions import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +21,7 @@ JWKS_FETCHED_AT: float = 0
 
 async def _fetch_jwks() -> dict:
     global JWKS_CACHE, JWKS_FETCHED_AT
-    now = datetime.now().timestamp()
+    now = datetime.now(UTC).timestamp()
     if JWKS_CACHE and (now - JWKS_FETCHED_AT) < 3600:
         return JWKS_CACHE
     url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
@@ -62,7 +60,7 @@ async def verify_supabase_jwt(token: str) -> str | None:
             options={"verify_exp": True},
         )
         return payload.get("sub")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"JWT verify failed: {e}")
         return None
 

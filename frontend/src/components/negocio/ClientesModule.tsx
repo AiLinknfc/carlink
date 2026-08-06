@@ -96,7 +96,20 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
   onAddVehicle: () => void
   onEditVehicle: (v: WorkshopVehicle) => void
 }) {
-  const { vehicles, loading, deleteVehicle } = useWorkshopVehicles({ clientId: client.id })
+  const { vehicles, loading, deleteVehicle, linkVehicle, unlinkVehicle } = useWorkshopVehicles({ clientId: client.id })
+  const [linkingId, setLinkingId] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
+
+  // Vincular con la cuenta CarLink real del cliente (por placa exacta) —
+  // sin esto, las facturas/historial automáticos (Paso 1-2) no tienen a
+  // quién llegarle. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3.
+  const handleLink = async (v: WorkshopVehicle) => {
+    setLinkingId(v.id)
+    setLinkError(null)
+    const result = await linkVehicle(v.id)
+    setLinkingId(null)
+    if (!result) setLinkError(v.id)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -126,19 +139,28 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
       {!loading && vehicles.length === 0 && <div style={emptyState(t, 'Este cliente no tiene vehículos registrados')} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {vehicles.map(v => (
-          <div key={v.id} onClick={() => onEditVehicle(v)} style={{
+          <div key={v.id} style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px',
-            borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}`, cursor: 'pointer',
+            borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}`,
           }}>
-            <div>
+            <div onClick={() => onEditVehicle(v)} style={{ cursor: 'pointer' }}>
               <div style={{ fontWeight: 700, fontSize: 13.5, color: t.textPrimary }}>{v.license_plate}</div>
               <div style={{ fontSize: 12, color: t.textMuted }}>{[v.brand, v.model, v.year].filter(Boolean).join(' ') || '—'}</div>
+              {linkError === v.id && <div style={{ fontSize: 11, color: t.danger, marginTop: 3 }}>Ninguna cuenta CarLink tiene esta placa</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {v.linked_vehicle_id && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'rgba(46,204,113,0.12)', color: t.success }}>CarLink</span>
+              {v.linked_vehicle_id ? (
+                <button onClick={() => unlinkVehicle(v.id)} title="Desvincular de la cuenta CarLink" style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
+                  background: 'rgba(46,204,113,0.12)', color: t.success, border: 'none',
+                }}>CarLink ✓</button>
+              ) : (
+                <button onClick={() => handleLink(v)} disabled={linkingId === v.id} title="Buscar una cuenta CarLink con esta placa y vincularla" style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: linkingId === v.id ? 'default' : 'pointer',
+                  background: 'transparent', color: t.textMuted, border: `1px dashed ${t.subtleBorder}`,
+                }}>{linkingId === v.id ? 'Buscando…' : 'Vincular'}</button>
               )}
-              <button onClick={(e) => { e.stopPropagation(); deleteVehicle(v.id) }} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer', padding: 4 }}>
+              <button onClick={() => deleteVehicle(v.id)} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer', padding: 4 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" /></svg>
               </button>
             </div>

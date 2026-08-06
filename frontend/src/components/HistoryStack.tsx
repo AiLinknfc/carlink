@@ -129,7 +129,14 @@ export default function HistoryStack({ records, onEdit }: Props) {
                   <span style={{ fontSize: 12, color: theme.sub, fontWeight: 600, whiteSpace: 'nowrap' }}>
                     {r.date ? new Date(r.date).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                   </span>
-                  {onEdit && (
+                  {/* Registrado solo por un taller (docs/PLAN_FACTURACION_AUTOMATICA.md
+                      Paso 3) — nunca editable, ni siquiera por el dueño del vehículo. */}
+                  {r.workshop_id ? (
+                    <span title="Registrado por el taller — no editable" style={{
+                      fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999,
+                      background: 'rgba(255,255,255,0.1)', color: theme.sub, whiteSpace: 'nowrap',
+                    }}>Del taller</span>
+                  ) : onEdit && (
                     <button onClick={() => onEdit(r)} title="Editar" style={{
                       width: 30, height: 30, borderRadius: 8, border: `1px solid ${theme.accent}55`,
                       background: 'rgba(255,255,255,0.06)', color: theme.text, cursor: 'pointer',

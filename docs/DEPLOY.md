@@ -137,7 +137,23 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/030_workshop_notifications_documents.sql
 \i supabase/migrations/031_workshop_reviews.sql
 \i supabase/migrations/032_diagnostic_cda_fields.sql
+\i supabase/migrations/033_workshop_ficha_public_toggle.sql
+\i supabase/migrations/034_parts_workshop_attribution.sql
 ```
+
+**Nota sobre 034 (2026-08-05)**: agrega `parts.workshop_id`/`parts.source_work_order_id` y
+`maintenance_records.source_work_order_id` — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. Cuando un
+taller entrega y cobra una orden de un vehículo vinculado a una cuenta CarLink real, se crean solos
+un registro de historial y una `Part` por cada repuesto realmente reemplazado; estas columnas
+marcan la procedencia (para que el cliente no pueda editarlos) y dan idempotencia. Aditiva, sin
+tocar columnas existentes. Aplicada y verificada contra la base real (columnas confirmadas por
+`information_schema`).
+
+**Nota sobre 033 (2026-08-05)**: agrega `workshops.is_published` (default `true`) — toggle "Publicar
+mi ficha pública" en Perfil del taller (panel de negocio, docs/PLAN_PARIDAD_UI_TALLERPRO.md).
+`GET /workshops/{code}` (la ficha pública y su QR) devuelve 404 si el taller lo apagó. Aditiva,
+default true, no des-publica ninguna ficha existente. Aplicada y verificada contra la base real
+(columna confirmada por consulta directa a `information_schema`).
 
 **Nota sobre 032 (2026-08-04)**: agrega columnas CDA/RTM reales a `diagnostics` (Fase 6 de
 `docs/PLAN_MIGRACION_TALLERPRO.md`) — corrige un dato quemado preexistente de `DiagnosticoTab.tsx`
