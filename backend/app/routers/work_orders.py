@@ -14,13 +14,20 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import (
-    Workshop,
+    MaintenanceRecord,
+    Part,
     WorkOrder,
     WorkOrderLaborItem,
     WorkOrderPart,
     WorkOrderPhotoEvidence,
+    Workshop,
+    WorkshopClient,
     WorkshopInventoryPart,
+    WorkshopIssuedDocument,
+    WorkshopMechanic,
+    WorkshopVehicle,
 )
+from app.routers.workshop_documents import _next_doc_number
 from app.schemas.schemas import (
     WorkOrderCreate,
     WorkOrderOut,
@@ -122,11 +129,11 @@ async def _recompute_totals(work_order: WorkOrder, workshop: Workshop, db: Async
         await db.execute(select(WorkOrderPart).where(WorkOrderPart.work_order_id == work_order.id))
     ).scalars().all()
 
-    labor_total = sum((li.total for li in labor_rows), Decimal("0"))
-    parts_total = sum((pi.subtotal for pi in parts_rows), Decimal("0"))
-    total_cost_price = sum((pi.unit_cost * pi.quantity for pi in parts_rows), Decimal("0")).quantize(Decimal("0.01"))
+    labor_total = sum((li.total for li in labor_rows), Decimal(0))
+    parts_total = sum((pi.subtotal for pi in parts_rows), Decimal(0))
+    total_cost_price = sum((pi.unit_cost * pi.quantity for pi in parts_rows), Decimal(0)).quantize(Decimal("0.01"))
     total_amount = labor_total + parts_total
-    tax_amount = (total_amount * (workshop.tax_rate_percent / Decimal("100"))).quantize(Decimal("0.01"))
+    tax_amount = (total_amount * (workshop.tax_rate_percent / Decimal(100))).quantize(Decimal("0.01"))
     final_total = total_amount + tax_amount
     net_profit = total_amount - total_cost_price
 
@@ -137,6 +144,155 @@ async def _recompute_totals(work_order: WorkOrder, workshop: Workshop, db: Async
     work_order.tax_amount = tax_amount
     work_order.final_total = final_total
     work_order.net_profit = net_profit
+
+
+async def _auto_invoice_if_delivered_and_paid(order: WorkOrder, workshop: Workshop, db: AsyncSession) -> None:
+    """Factura de compra automática — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 1.
+    En cuanto una orden queda Entregada Y pagada (en cualquier orden: primero
+    se paga y después se entrega, o al revés — se llama tras cualquiera de los
+    dos cambios), se emite sola, sin que el taller tenga que ir a "Documentos"
+    a hacerlo a mano. Idempotente: si ya existe una factura para esta orden no
+    crea una segunda aunque el estado se vuelva a guardar después.
+
+    Solo cubre la emisión interna (`workshop_issued_documents`) — enviarla a
+    la sección "Facturas" del cliente (si su vehículo está vinculado a una
+    cuenta CarLink real) y actualizar su historial/partes son los próximos
+    pasos del plan, todavía no implementados acá."""
+    if order.status != "Entregado" or not order.is_paid:
+        return
+    already = await db.scalar(
+        select(func.count()).select_from(WorkshopIssuedDocument).where(
+            WorkshopIssuedDocument.work_order_id == order.id,
+            WorkshopIssuedDocument.doc_type == "Factura de compra",
+        )
+    )
+    if already:
+        return
+
+    client = (
+        await db.execute(select(WorkshopClient).where(WorkshopClient.id == order.client_id))
+    ).scalar_one_or_none()
+    vehicle = (
+        await db.execute(select(WorkshopVehicle).where(WorkshopVehicle.id == order.workshop_vehicle_id))
+    ).scalar_one_or_none()
+    mechanic_name = ""
+    if order.mechanic_id:
+        mechanic = (
+            await db.execute(select(WorkshopMechanic).where(WorkshopMechanic.id == order.mechanic_id))
+        ).scalar_one_or_none()
+        mechanic_name = mechanic.name if mechanic else ""
+
+    doc = WorkshopIssuedDocument(
+        workshop_id=workshop.id,
+        doc_type="Factura de compra",
+        client_name=client.name if client else "",
+        client_tax_id=client.document_id if client else "",
+        vehicle_plate=vehicle.license_plate if vehicle else "",
+        vehicle_model=vehicle.model if vehicle else "",
+        work_order_id=order.id,
+        amount=order.final_total,
+        mechanic_name=mechanic_name,
+        details=order.symptoms or order.category,
+        issued_by=workshop.name,
+    )
+    # SAVEPOINT (begin_nested), no db.rollback() liso — esto corre en medio de
+    # update_work_order/update_work_order_status, que ya tienen cambios de la
+    # orden sin commitear en la misma sesión. Un rollback de toda la
+    # transacción (como sí hace _next_doc_number en workshop_documents.py,
+    # donde es la única operación pendiente) se llevaría puestos esos cambios
+    # de la orden — acá solo se debe descartar el intento de insert que chocó.
+    for attempt in range(5):
+        doc.doc_number = await _next_doc_number(workshop.id, db)
+        try:
+            async with db.begin_nested():
+                db.add(doc)
+                await db.flush()
+            return
+        except IntegrityError:
+            if attempt == 4:
+                return
+
+
+# Categorías de `workshop_inventory_parts` (InventarioModule.tsx: Otros,
+# Motor, Frenos, Suspensión, Eléctrico, Filtros, Neumáticos, Carrocería) →
+# categorías fijas de `parts` del lado persona (lib/part-categories.ts:
+# Frenos, Motor, Suspensión, Eléctrico, Filtros, Transmisión, Enfriamiento,
+# Llantas, Otros). Lo que no tiene equivalente directo (Carrocería) cae en
+# "Otros" en vez de inventar una categoría nueva.
+_INVENTORY_TO_PERSONA_PART_CATEGORY = {
+    "Motor": "Motor",
+    "Frenos": "Frenos",
+    "Suspensión": "Suspensión",
+    "Eléctrico": "Eléctrico",
+    "Filtros": "Filtros",
+    "Neumáticos": "Llantas",
+    "Carrocería": "Otros",
+    "Otros": "Otros",
+}
+
+
+async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, db: AsyncSession) -> None:
+    """Historial + repuestos reemplazados del cliente — docs/PLAN_FACTURACION_AUTOMATICA.md
+    Paso 3. Solo corre si el vehículo del taller está vinculado a una cuenta
+    CarLink real (`workshop_vehicles.linked_vehicle_id`, ver
+    `workshop_clients.py` → `link_workshop_vehicle`). Idempotente por
+    `source_work_order_id` — no duplica si la orden se re-guarda. El cliente
+    nunca puede editar lo que esto crea (se filtra en el frontend por
+    `workshop_id`/`source_work_order_id` presentes)."""
+    if order.status != "Entregado" or not order.is_paid:
+        return
+    workshop_vehicle = (
+        await db.execute(select(WorkshopVehicle).where(WorkshopVehicle.id == order.workshop_vehicle_id))
+    ).scalar_one_or_none()
+    if not workshop_vehicle or not workshop_vehicle.linked_vehicle_id:
+        return
+    linked_vehicle_id = workshop_vehicle.linked_vehicle_id
+
+    already_history = await db.scalar(
+        select(func.count()).select_from(MaintenanceRecord).where(MaintenanceRecord.source_work_order_id == order.id)
+    )
+    if not already_history:
+        db.add(MaintenanceRecord(
+            vehicle_id=linked_vehicle_id,
+            workshop_id=workshop.id,
+            source_work_order_id=order.id,
+            service_type=order.category or "Servicio de taller",
+            description=f"{order.symptoms or order.category or 'Servicio realizado'} (Orden {order.order_number})",
+            mileage=workshop_vehicle.mileage or 0,
+            workshop=workshop.name,
+            cost=order.final_total,
+        ))
+
+    already_parts = await db.scalar(
+        select(func.count()).select_from(Part).where(Part.source_work_order_id == order.id)
+    )
+    if not already_parts:
+        # Solo líneas con un repuesto real de inventario vinculado — una línea
+        # de texto libre (sin part_id) no tiene categoría de la que partir,
+        # así que no se inventa una.
+        lines = (
+            await db.execute(
+                select(WorkOrderPart).where(WorkOrderPart.work_order_id == order.id, WorkOrderPart.part_id.isnot(None))
+            )
+        ).scalars().all()
+        for line in lines:
+            inv = (
+                await db.execute(select(WorkshopInventoryPart).where(WorkshopInventoryPart.id == line.part_id))
+            ).scalar_one_or_none()
+            if not inv:
+                continue
+            db.add(Part(
+                vehicle_id=linked_vehicle_id,
+                workshop_id=workshop.id,
+                source_work_order_id=order.id,
+                name=inv.name,
+                category=_INVENTORY_TO_PERSONA_PART_CATEGORY.get(inv.category, "Otros"),
+                part_number=inv.sku,
+                status="ok",
+                mileage_installed=workshop_vehicle.mileage or None,
+                notes=f"Reemplazado por {workshop.name} — Orden {order.order_number}",
+            ))
+    await db.flush()
 
 
 async def _next_order_number(workshop_id: UUID, db: AsyncSession) -> str:
@@ -265,6 +421,8 @@ async def update_work_order(
     await _recompute_totals(order, workshop, db)
 
     await db.flush()
+    await _auto_invoice_if_delivered_and_paid(order, workshop, db)
+    await _sync_client_records_if_linked(order, workshop, db)
     result = await db.execute(select(WorkOrder).options(*_ORDER_LOADS).where(WorkOrder.id == order.id))
     return result.scalar_one()
 
@@ -278,11 +436,13 @@ async def update_work_order_status(
 ):
     """Cambio rápido de estado desde el tablero de órdenes (drag/drop o botón),
     sin tocar mano de obra/repuestos — equivalente a handleUpdateOrderStatus."""
-    order, _ = await _get_owned_order(order_id, user_id, db)
+    order, workshop = await _get_owned_order(order_id, user_id, db)
     order.status = body.status
     if body.status in _COMPLETING_STATUSES and not order.completed_date:
         order.completed_date = datetime.now(timezone.utc)
     await db.flush()
+    await _auto_invoice_if_delivered_and_paid(order, workshop, db)
+    await _sync_client_records_if_linked(order, workshop, db)
     await db.refresh(order)
     return order
 

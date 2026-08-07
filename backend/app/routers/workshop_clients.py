@@ -4,12 +4,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
-from app.models.models import WorkshopClient, WorkshopVehicle
+from app.models.models import Vehicle, WorkshopClient, WorkshopVehicle
 from app.schemas.schemas import (
     WorkshopClientCreate,
     WorkshopClientOut,
@@ -161,7 +161,7 @@ async def update_workshop_vehicle(
 ):
     vehicle = await _get_owned_workshop_vehicle(vehicle_id, user_id, db)
     update_data = body.model_dump(exclude_unset=True)
-    if "license_plate" in update_data and update_data["license_plate"]:
+    if update_data.get("license_plate"):
         update_data["license_plate"] = update_data["license_plate"].upper()
     for key, val in update_data.items():
         setattr(vehicle, key, val)
@@ -178,3 +178,40 @@ async def delete_workshop_vehicle(
 ):
     vehicle = await _get_owned_workshop_vehicle(vehicle_id, user_id, db)
     await db.delete(vehicle)
+
+
+@router.post("/vehicles/{vehicle_id}/link", response_model=WorkshopVehicleOut)
+async def link_workshop_vehicle(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Vincula este vehículo del taller con una cuenta CarLink real —
+    docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3 (para que las facturas y el
+    historial le lleguen al cliente). Busca por placa exacta en vez de
+    aceptar un `linked_vehicle_id` a mano: el taller nunca ve ni elige entre
+    vehículos de otras cuentas, solo confirma si SU cliente (por la placa que
+    ya cargó) tiene o no cuenta CarLink."""
+    workshop_vehicle = await _get_owned_workshop_vehicle(vehicle_id, user_id, db)
+    plate = workshop_vehicle.license_plate.strip().upper()
+    result = await db.execute(select(Vehicle).where(func.upper(Vehicle.plate) == plate))
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No hay ninguna cuenta CarLink registrada con esta placa")
+    workshop_vehicle.linked_vehicle_id = vehicle.id
+    await db.flush()
+    await db.refresh(workshop_vehicle)
+    return workshop_vehicle
+
+
+@router.post("/vehicles/{vehicle_id}/unlink", response_model=WorkshopVehicleOut)
+async def unlink_workshop_vehicle(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    workshop_vehicle = await _get_owned_workshop_vehicle(vehicle_id, user_id, db)
+    workshop_vehicle.linked_vehicle_id = None
+    await db.flush()
+    await db.refresh(workshop_vehicle)
+    return workshop_vehicle

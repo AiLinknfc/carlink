@@ -5,7 +5,17 @@ import { CarLinkMark } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
 
-interface NavItem { id: string; label: string; icon: ReactNode }
+interface NavItem {
+  id: string; label: string; icon: ReactNode
+  /** Si viene, el item se renderiza como <a> a una ruta real (nueva pestaña)
+   * en vez de un botón que cambia `activeTab` — ej. la ficha pública del
+   * taller, que vive fuera de /app/negocio. */
+  href?: string
+  /** Borde/texto dorado siempre visible (no solo con hover/activo) — mismo
+   * estilo que tenía el botón "Mi negocio" retirado. Se usa en "Perfil del
+   * taller", el item de la sección Administración. */
+  emphasize?: boolean
+}
 
 interface Props {
   activeTab: string
@@ -24,13 +34,19 @@ interface Props {
   /** Reemplaza el listado de tabs calculado por accountType — usado por
    * páginas fuera del contexto de "un vehículo activo" (ej. /app/negocio). */
   navItemsOverride?: NavItem[]
+  /** Segundo grupo, separado del principal por una línea divisoria y una
+   * etiqueta (ej. "Administración" — mismo patrón que la sección separada
+   * de tallerpro para "Perfil & Datos del Taller" en su Navigation.tsx).
+   * Usa el mismo `onTabChange`/`href`, solo cambia dónde se pinta. */
+  navItemsSecondary?: NavItem[]
+  navItemsSecondaryLabel?: string
   /** Nombre a mostrar en el bloque inferior del rail cuando no hay `vehicle`
    * (ese bloque, con el botón de salir, antes solo aparecía si `vehicle.owner`
    * existía — lo desacopla para poder reusar el rail sin contexto de vehículo). */
   userName?: string
 }
 
-const ALL_NAV_ITEMS = [
+const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'ficha', label: 'Ficha técnica', icon: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></> },
   { id: 'historial', label: 'Historial', icon: <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></> },
   { id: 'partes', label: 'Control de partes', icon: <><path d="M12 14l3.5-3.5"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></> },
@@ -39,7 +55,7 @@ const ALL_NAV_ITEMS = [
   { id: 'documentos', label: 'Documentos', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></> },
 ]
 
-const TALLER_NAV_ITEMS = [
+const TALLER_NAV_ITEMS: NavItem[] = [
   ALL_NAV_ITEMS[0],
   { id: 'taller', label: 'Taller', icon: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.3-.6-.6-2.3z"/> },
   { id: 'diagnostico', label: 'Diagnóstico', icon: <><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5 2 7h10c0-2 2-4 2-7a7 7 0 0 0-7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="18" x2="10" y2="21"/><line x1="14" y1="18" x2="14" y2="21"/></> },
@@ -47,7 +63,7 @@ const TALLER_NAV_ITEMS = [
   { id: 'config', label: 'Promoción', icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, userName }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -98,6 +114,78 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   const textSecondary = isDark ? '#7c786e' : '#6f6a5f'
   const textMuted = isDark ? '#6f6a5f' : '#8f8a7a'
   const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(17,17,17,0.06)'
+
+  // "Administración" (navItemsSecondary, hoy solo /app/negocio la pasa):
+  // Admin NFC entra acá agrupado en vez de suelto arriba, solo si la cuenta
+  // es admin de la plataforma — ver comentario en el <nav> más abajo.
+  const ADMIN_NFC_ITEM: NavItem = {
+    id: '__admin_nfc__', label: 'Admin NFC', href: '/admin', emphasize: true,
+    icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>,
+  }
+  const secondaryItems: NavItem[] = navItemsSecondary
+    ? [...(isAdmin ? [ADMIN_NFC_ITEM] : []), ...navItemsSecondary]
+    : []
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = activeTab === item.id
+    const isHovered = hoveredTab === item.id
+    const showGlow = isActive || isHovered
+    const itemStyle = {
+      position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 12,
+      width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
+      padding: expanded ? '12px 14px' : '12px 0',
+      border: item.emphasize ? `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}` : 'none',
+      textDecoration: 'none',
+      background: 'transparent', color: item.emphasize ? '#F5C518' : isActive ? textPrimary : isHovered ? textPrimary : textSecondary,
+      cursor: 'pointer', textAlign: expanded ? 'left' as const : 'center' as const, fontSize: 14, fontWeight: item.emphasize ? 700 : 600,
+      borderRadius: 11, transition: 'color .2s', letterSpacing: item.emphasize ? '.02em' : undefined,
+    }
+    const inner = (
+      <>
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 11,
+          background: 'linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02))',
+          opacity: showGlow ? 1 : 0, transition: 'opacity .25s',
+        }} />
+        <span style={{
+          position: 'absolute', left: 0, top: '50%', height: 20, width: 3,
+          borderRadius: '0 3px 3px 0', background: '#F5C518',
+          transform: 'translateY(-50%)',
+          opacity: showGlow ? 1 : 0, transition: 'opacity .25s',
+          boxShadow: '0 0 10px #F5C518',
+        }} />
+        <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          {item.icon}
+        </svg>
+        <span
+          style={{
+            position: 'relative', zIndex: 1, whiteSpace: 'nowrap',
+            display: expanded ? 'inline' : 'none',
+          }}
+        >
+          {item.label}
+        </span>
+      </>
+    )
+    if (item.href) {
+      return (
+        <a key={item.id} href={item.href} target="_blank" rel="noopener noreferrer"
+          onMouseEnter={() => setHoveredTab(item.id)}
+          onMouseLeave={() => setHoveredTab(null)}
+          style={itemStyle}>
+          {inner}
+        </a>
+      )
+    }
+    return (
+      <button key={item.id} onClick={() => { onTabChange(item.id); if (isMobile) setMobileOpen(false) }}
+        onMouseEnter={() => setHoveredTab(item.id)}
+        onMouseLeave={() => setHoveredTab(null)}
+        style={itemStyle}>
+        {inner}
+      </button>
+    )
+  }
 
   return (
     <>
@@ -197,7 +285,11 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       )}
 
       <nav style={{ flex: 1, overflowY: 'auto', padding: expanded ? '14px 12px' : '14px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'hidden', alignItems: expanded ? 'stretch' : 'center' }}>
-        {isAdmin && (
+        {/* Standalone solo fuera del contexto de "Administración" (ej. /app
+            persona, que no pasa navItemsSecondary) — dentro de /app/negocio
+            Admin NFC se muestra agrupado en esa sección, más abajo, no acá
+            arriba (evita duplicarlo). */}
+        {isAdmin && !navItemsSecondary && (
           <a href="/admin" style={{
             display: 'flex', alignItems: 'center', gap: 12,
             width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
@@ -215,66 +307,25 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             </span>
           </a>
         )}
-        {isBusinessAccount(accountType) && (
-          <a href="/app/negocio" style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
-            padding: expanded ? '12px 14px' : '12px 0', border: `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}`, textDecoration: 'none',
-            background: 'transparent', color: '#F5C518',
-            cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 700,
-            borderRadius: 11, marginBottom: 8, letterSpacing: '.02em',
-          }}
-          title="Panel de negocio: clientes, órdenes de trabajo, inventario y más">
-            <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg>
-            <span style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', display: expanded ? 'inline' : 'none' }}>
-              Mi negocio
-            </span>
-          </a>
+        {/* "Administración" va primero — a pedido del usuario, no al final
+            como en tallerpro (Navigation.tsx la pone después de los 7 tabs
+            principales). "Perfil del taller" salió de acá — ya se accede
+            desde el botón de perfil del topbar — y en su lugar entra
+            "Admin NFC" (agrupado acá en vez de arriba suelto, solo para
+            cuentas admin de la plataforma; una cuenta de taller normal no
+            ve nada en esta sección). El dorado que antes tenía "Mi negocio"
+            (retirado) va en cada item (`emphasize: true`). */}
+        {secondaryItems.length > 0 && (
+          <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${dividerColor}` }}>
+            {expanded && (
+              <div style={{ padding: '0 14px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: textSecondary }}>
+                {navItemsSecondaryLabel || 'Administración'}
+              </div>
+            )}
+            {secondaryItems.map(renderNavItem)}
+          </div>
         )}
-        {navItems.map(item => {
-          const isActive = activeTab === item.id
-          const isHovered = hoveredTab === item.id
-          const showGlow = isActive || isHovered
-          return (
-            <button key={item.id} onClick={() => { onTabChange(item.id); if (isMobile) setMobileOpen(false) }}
-              onMouseEnter={() => setHoveredTab(item.id)}
-              onMouseLeave={() => setHoveredTab(null)}
-              style={{
-                position: 'relative', display: 'flex', alignItems: 'center', gap: 12,
-                width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
-                padding: expanded ? '12px 14px' : '12px 0', border: 'none',
-                background: 'transparent', color: isActive ? textPrimary : isHovered ? textPrimary : textSecondary,
-                cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 600,
-                borderRadius: 11, transition: 'color .2s',
-              }}>
-              <span style={{
-                position: 'absolute', inset: 0, borderRadius: 11,
-                background: 'linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02))',
-                opacity: showGlow ? 1 : 0, transition: 'opacity .25s',
-              }} />
-              <span style={{
-                position: 'absolute', left: 0, top: '50%', height: 20, width: 3,
-                borderRadius: '0 3px 3px 0', background: '#F5C518',
-                transform: 'translateY(-50%)',
-                opacity: showGlow ? 1 : 0, transition: 'opacity .25s',
-                boxShadow: '0 0 10px #F5C518',
-              }} />
-              <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                {item.icon}
-              </svg>
-              <span
-                style={{
-                  position: 'relative', zIndex: 1, whiteSpace: 'nowrap',
-                  display: expanded ? 'inline' : 'none',
-                }}
-              >
-                {item.label}
-              </span>
-            </button>
-          )
-        })}
+        {navItems.map(renderNavItem)}
       </nav>
 
       {/* Subscription banner for taller accounts */}

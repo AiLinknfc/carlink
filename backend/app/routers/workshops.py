@@ -5,7 +5,6 @@ import string
 import uuid
 from decimal import Decimal
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -17,13 +16,13 @@ from app.models.models import (
     Appointment,
     Profile,
     Vehicle,
+    WorkOrder,
     Workshop,
     WorkshopClient,
     WorkshopInventoryPart,
     WorkshopMechanic,
     WorkshopReview,
     WorkshopServiceItem,
-    WorkOrder,
 )
 from app.schemas.schemas import (
     WorkshopCreate,
@@ -258,6 +257,12 @@ async def get_workshop_by_code(
     workshop = result.scalar_one_or_none()
     if not workshop:
         raise HTTPException(status_code=404, detail="Workshop not found")
+    # Toggle "Publicar mi ficha pública" en Perfil del taller — un taller que
+    # lo apagó no debe ser visible en su URL pública ni en su QR, aunque el
+    # código exista. Detail distinto de "not found" para que el frontend
+    # pueda mostrar un mensaje claro en vez de "taller no encontrado".
+    if not workshop.is_published:
+        raise HTTPException(status_code=404, detail="Workshop profile is not published")
 
     mechanics = (
         await db.execute(

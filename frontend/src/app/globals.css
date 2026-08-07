@@ -389,3 +389,14 @@ select option { background: #141414; color: #f5f3ec; }
 .text-mileage { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-14xl); letter-spacing: 0.01em; }
 .text-section-title { font-family: var(--font-display); font-weight: var(--fw-black); font-size: clamp(var(--fs-9xl), 3.8vw, var(--fs-13xl)); letter-spacing: 0.01em; text-transform: uppercase; }
 .text-subtitle { font-family: var(--font-display); font-weight: var(--fw-black); font-size: var(--fs-5xl); letter-spacing: 0.01em; text-transform: uppercase; }
+
+/* Imprimir solo un área puntual (ej. "Imprimir informe" de Rentabilidad,
+   docs/PLAN_PARIDAD_UI_TALLERPRO.md — igual que window.print() en tallerpro)
+   sin que salga el sidebar/topbar/el resto de la app en la hoja impresa. */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+  .print-only-header { display: block !important; margin-bottom: 16px; }
+}

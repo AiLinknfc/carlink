@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import NfcAccessLog, NfcAlert, NfcToken
+from app.models.models import NfcAccessLog, NfcAlert
 
 
 async def check_and_create_alerts(

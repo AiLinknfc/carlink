@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime
 
 import httpx
 from jose import jwk, jwt
-from jose.exceptions import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

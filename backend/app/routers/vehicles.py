@@ -14,7 +14,12 @@ from app.dependencies import get_current_user
 from app.models.models import NfcToken, Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
 from app.services.auth import ensure_profile
-from app.services.cache import cache_delete, cache_get, cache_invalidate_vehicle, cache_set
+from app.services.cache import (
+    cache_delete,
+    cache_get,
+    cache_invalidate_vehicle,
+    cache_set,
+)
 from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, generate_nfc_token
 
 logger = logging.getLogger("carlink")

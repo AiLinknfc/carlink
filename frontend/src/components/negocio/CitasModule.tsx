@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppointments } from '@/lib/hooks'
+import { useAppointments, useWorkshopNotifications } from '@/lib/hooks'
 import type { Appointment } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, SERVICE_CATEGORIES } from './shared'
@@ -10,64 +10,130 @@ const STATUS_COLOR: Record<string, string> = {
   'Pendiente': '#8f8a7a', 'Confirmada': '#3aa0ff', 'Completada': '#2ecc71', 'Cancelada': '#ff4d6a',
 }
 
-export default function CitasModule({ theme, onConverted }: { theme: 'light' | 'dark'; onConverted?: () => void }) {
+/* Grid de cards (no lista de filas) + filtro rápido por fecha + búsqueda —
+   igual que tallerpro/src/components/AppointmentsManager.tsx
+   (docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase C.4). */
+export default function CitasModule({ theme, onConverted }: {
+  theme: 'light' | 'dark'
+  /** Igual que tallerpro (AppointmentsManager → App.handleConvertAppointment):
+   * al convertir, navega a Órdenes y abre de inmediato el detalle de la
+   * orden recién creada — con los datos del cliente/vehículo, para que el
+   * taller la complete (mano de obra, repuestos, fotos) ahí mismo, en vez
+   * de solo crear una orden vacía en silencio. */
+  onConverted?: (orderId: string) => void
+}) {
   const t = negocioTokens(theme)
   const { appointments, loading, addAppointment, updateAppointment, deleteAppointment, convertAppointment } = useAppointments()
+  const { sendNotification } = useWorkshopNotifications()
   const [modal, setModal] = useState(false)
   const [converting, setConverting] = useState<string | null>(null)
+  const [notifying, setNotifying] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'tomorrow'>('all')
+  const [search, setSearch] = useState('')
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
 
   const sorted = [...appointments].sort((a, b) => (a.appointment_date + a.time_slot).localeCompare(b.appointment_date + b.time_slot))
+  const filtered = sorted.filter(a => {
+    if (dateFilter === 'today' && a.appointment_date !== todayStr) return false
+    if (dateFilter === 'tomorrow' && a.appointment_date !== tomorrowStr) return false
+    if (!search.trim()) return true
+    const q = search.trim().toLowerCase()
+    return a.client_name.toLowerCase().includes(q) || a.vehicle_plate.toLowerCase().includes(q)
+  })
 
   const handleConvert = async (id: string) => {
     setConverting(id)
     setError('')
     const result = await convertAppointment(id)
     setConverting(null)
-    if (result) onConverted?.()
+    if (result) onConverted?.(result.id)
     else setError('No se pudo convertir la cita en orden')
+  }
+
+  const handleNotify = async (a: Appointment) => {
+    setNotifying(a.id)
+    await sendNotification({
+      recipient_name: a.client_name, recipient_phone: a.client_phone, recipient_email: a.client_email,
+      channel: 'WhatsApp', notification_type: 'Recordatorio Cita',
+      message: `Hola ${a.client_name}, te recordamos tu cita del ${a.appointment_date} a las ${a.time_slot} para ${a.service_category || 'tu vehículo'} (${a.vehicle_plate}).`,
+    })
+    setNotifying(null)
   }
 
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button onClick={() => setModal(true)} style={primaryBtnStyle(t)}>+ Nueva cita</button>
+      {/* Filtro rápido por fecha + búsqueda — igual que tallerpro */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {([['all', 'Todas las citas'], ['today', `Hoy (${todayStr})`], ['tomorrow', 'Mañana']] as const).map(([val, label]) => (
+            <button key={val} onClick={() => setDateFilter(val)} style={{
+              padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
+              background: dateFilter === val ? t.gold : t.subtleBorder, color: dateFilter === val ? '#111' : t.textSecondary,
+            }}>{label}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: '1 1 260px', maxWidth: 340 }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por cliente o placa…" style={{ ...inputStyle(t), paddingLeft: 30 }} />
+          </div>
+          <button onClick={() => setModal(true)} style={{ ...primaryBtnStyle(t), whiteSpace: 'nowrap' }}>+ Nueva cita</button>
+        </div>
       </div>
 
       {error && <div style={{ color: t.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
       {!loading && sorted.length === 0 && <div style={emptyState(t, 'Sin citas agendadas')} />}
+      {!loading && sorted.length > 0 && filtered.length === 0 && <div style={emptyState(t, 'Ninguna cita coincide con el filtro')} />}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {sorted.map(a => (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+        {filtered.map(a => (
           <div key={a.id} style={{
-            display: 'grid', gridTemplateColumns: '120px minmax(160px,1fr) 130px 110px', gap: 14, alignItems: 'center',
-            padding: '14px 18px', borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}`,
+            padding: 18, borderRadius: 16, background: t.cardBg, border: `1px solid ${t.border}`,
+            display: 'flex', flexDirection: 'column', gap: 12,
           }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: t.textPrimary }}>{new Date(a.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</div>
-              <div style={{ fontSize: 11.5, color: t.textMuted }}>{a.time_slot}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottom: `1px solid ${t.subtleBorder}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: t.success, background: 'rgba(46,204,113,0.1)', padding: '3px 8px', borderRadius: 6 }}>{a.time_slot}</span>
+                <span style={{ fontSize: 11.5, color: t.textMuted, fontWeight: 600 }}>{new Date(a.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</span>
+              </div>
+              <span style={{ fontSize: 9.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: `${STATUS_COLOR[a.status] || t.textMuted}22`, color: STATUS_COLOR[a.status] || t.textMuted }}>{a.status}</span>
             </div>
+
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.textPrimary }}>{a.client_name}</div>
-              <div style={{ fontSize: 11.5, color: t.textMuted }}>{a.vehicle_plate} · {a.service_category}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: t.textPrimary, background: t.subtleBorder, padding: '2px 7px', borderRadius: 6 }}>{a.vehicle_plate}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: t.textPrimary }}>{a.vehicle_model}</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: t.textSecondary, marginTop: 4 }}>{a.client_name}</div>
+              {a.client_phone && <div style={{ fontSize: 11.5, color: t.textMuted }}>📞 {a.client_phone}</div>}
             </div>
-            <div>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: `${STATUS_COLOR[a.status] || t.textMuted}22`, color: STATUS_COLOR[a.status] || t.textMuted }}>{a.status}</span>
+
+            <div style={{ padding: 10, borderRadius: 10, background: t.subtleBorder }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary }}>{a.service_category || 'Servicio general'}</div>
+              {a.notes && <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 3, fontStyle: 'italic' }}>{a.notes}</div>}
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              {!a.converted_to_work_order_id && a.status !== 'Cancelada' && (
-                <button onClick={() => handleConvert(a.id)} disabled={converting === a.id} style={{ ...ghostBtnStyle(t), padding: '6px 12px', fontSize: 11.5 }}>
-                  {converting === a.id ? '…' : 'Convertir'}
-                </button>
-              )}
-              {a.status !== 'Cancelada' && !a.converted_to_work_order_id && (
-                <button onClick={() => updateAppointment(a.id, { status: 'Cancelada' })} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                </button>
-              )}
-              <button onClick={() => deleteAppointment(a.id)} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" /></svg>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: `1px solid ${t.subtleBorder}` }}>
+              <button onClick={() => handleNotify(a)} disabled={notifying === a.id} style={{ background: 'transparent', border: 'none', color: '#3aa0ff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, padding: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                {notifying === a.id ? 'Enviando…' : 'Avisar'}
               </button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {a.status !== 'Completada' && !a.converted_to_work_order_id && (
+                  <button onClick={() => handleConvert(a.id)} disabled={converting === a.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: 'none',
+                    background: t.gold, color: '#111', fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+                  }}>
+                    {converting === a.id ? '…' : 'Convertir a orden'}
+                  </button>
+                )}
+                <button onClick={() => deleteAppointment(a.id)} title="Eliminar" style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer', padding: 4 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         ))}

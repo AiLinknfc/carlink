@@ -14,12 +14,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import MaintenanceRecord, NfcAccessLog, NfcToken, NfcTokenLimit, Profile, Vehicle, Workshop
+from app.models.models import (
+    MaintenanceRecord,
+    NfcAccessLog,
+    NfcToken,
+    NfcTokenLimit,
+    Profile,
+    Vehicle,
+    Workshop,
+)
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
-from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, TRIAL_DAYS, generate_human_code
+from app.services.nfc_provisioning import (
+    TRIAL_ACCOUNT_TYPES,
+    TRIAL_DAYS,
+    generate_human_code,
+)
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 

@@ -23,6 +23,7 @@ from app.routers import (
     parts,
     service_logs,
     upload,
+    vehicle_invoices,
     vehicles,
     work_orders,
     workshop_ai,
@@ -73,6 +74,7 @@ async def health():
 # Routers
 app.include_router(auth.router, prefix="/api")
 app.include_router(vehicles.router, prefix="/api")
+app.include_router(vehicle_invoices.router, prefix="/api")
 app.include_router(maintenance.router, prefix="/api")
 app.include_router(nfc.router, prefix="/api")
 app.include_router(parts.router, prefix="/api")

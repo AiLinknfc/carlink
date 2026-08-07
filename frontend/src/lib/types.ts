@@ -37,6 +37,9 @@ export interface MaintenanceRecord {
   lubricant_brand: string;
   lubricant_type: string;
   next_service_mileage: number | null;
+  /** Presente si un taller lo creó solo al entregar/cobrar una orden — el
+   * frontend lo muestra sin edición. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
+  source_work_order_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +55,10 @@ export interface Part {
   mileage_installed: number | null;
   lifespan_mileage: number | null;
   notes: string;
+  /** Ambos presentes si un taller la registró solo al entregar/cobrar una
+   * orden — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
+  workshop_id: string | null;
+  source_work_order_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,6 +172,9 @@ export interface Workshop {
   description: string;
   logo_url: string;
   is_verified: boolean;
+  /** Toggle "Publicar mi ficha pública" (Perfil del taller) — si es false,
+   * GET /workshops/{code} (la ficha pública y su QR) devuelve 404. */
+  is_published: boolean;
   stamps_required: number;
   promotion_description: string;
   // Panel de negocio (migración de tallerpro/, ver docs/PLAN_MIGRACION_TALLERPRO.md)
@@ -381,6 +391,24 @@ export interface WorkshopDocument {
   details: string;
   issued_by: string;
   status: string;
+  created_at: string;
+}
+
+/** Factura/certificado que le llegó a este vehículo desde un taller — solo
+ * existen si `workshop_vehicles.linked_vehicle_id` conecta la orden con esta
+ * cuenta CarLink real. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2. */
+export interface VehicleInvoice {
+  id: string;
+  doc_number: string;
+  doc_type: string;
+  issue_date: string;
+  amount: number | null;
+  details: string;
+  mechanic_name: string;
+  vehicle_plate: string;
+  vehicle_model: string;
+  workshop_name: string;
+  workshop_is_cda: boolean;
   created_at: string;
 }
 
@@ -710,6 +738,21 @@ export type AiDiagnoseRequest = {
   vehicle_mileage?: number;
   symptoms: string;
 };
+
+// "Mejorar con IA" del compositor de notificaciones — igual que tallerpro
+// (NotificationsCenter.tsx), pero por DeepSeek en vez de Gemini.
+export type AiNotificationRequest = {
+  notification_type: string;
+  client_name?: string;
+  vehicle_plate?: string;
+  order_number?: string;
+  total_amount?: number;
+  draft?: string;
+};
+
+export interface AiNotificationResult {
+  message: string;
+}
 
 
 // ── NFC Admin Types ──

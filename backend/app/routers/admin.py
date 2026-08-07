@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from datetime import timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -57,7 +58,7 @@ async def get_nfc_stats(
         select(func.count(NfcToken.id)).where(NfcToken.is_active == True)
     )).scalar() or 0
 
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
     day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
     today_access = (await db.execute(
         select(func.count(NfcAccessLog.id)).where(NfcAccessLog.scanned_at >= day_ago)
