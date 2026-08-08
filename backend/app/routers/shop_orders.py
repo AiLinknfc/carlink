@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
 from app.models.models import ShopOrder
@@ -24,7 +23,6 @@ from app.schemas.schemas import (
 from app.services import email, wompi
 
 logger = logging.getLogger("carlink")
-settings = get_settings()
 
 router = APIRouter(prefix="/shop", tags=["shop"])
 
@@ -164,15 +162,28 @@ async def list_shop_orders(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """'Mis pedidos' — requiere sesión (a diferencia del resto de este
-    carrito, que es público a propósito): acá sí hace falta saber quién
-    pregunta. La cuenta admin ve todas las órdenes (cola de despacho);
-    cualquier otra cuenta ve solo las suyas."""
-    is_admin = bool(settings.admin_user_id) and user_id == settings.admin_user_id
-    query = select(ShopOrder).order_by(ShopOrder.created_at.desc()).limit(200)
-    if not is_admin:
-        query = query.where(ShopOrder.user_id == uuid.UUID(user_id))
-    result = await db.execute(query)
+    """'Mis pedidos' en modo cliente — requiere sesión (a diferencia del
+    resto de este carrito, que es público a propósito), pero siempre
+    devuelve solo las órdenes de quien pregunta, sin excepción por cuenta
+    admin. Ver /shop/admin/orders para la cola completa de despacho."""
+    result = await db.execute(
+        select(ShopOrder)
+        .where(ShopOrder.user_id == uuid.UUID(user_id))
+        .order_by(ShopOrder.created_at.desc())
+        .limit(200)
+    )
+    return result.scalars().all()
+
+
+@router.get("/admin/orders", response_model=list[ShopOrderDetailOut])
+async def list_all_shop_orders(
+    admin_user_id: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Cola de despacho — modo administrador (panel Admin NFC), separada a
+    propósito de GET /orders (modo cliente): acá sí se ven las órdenes de
+    todo el mundo, incluidas las de compradores que no iniciaron sesión."""
+    result = await db.execute(select(ShopOrder).order_by(ShopOrder.created_at.desc()).limit(200))
     return result.scalars().all()
 
 

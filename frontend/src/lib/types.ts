@@ -873,3 +873,32 @@ export interface NfcStats {
   unresolved_alerts: number;
   whitelist_count: number;
 }
+
+// Checkout del llavero NFC (CartModal.tsx / OrderTrackingModal.tsx / admin/page.tsx)
+export type ShopOrderPaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error';
+export type ShopOrderFulfillmentStatus = 'unfulfilled' | 'shipped' | 'delivered';
+
+export interface ShopOrderDetail {
+  id: string;
+  reference: string;
+  status: ShopOrderPaymentStatus;
+  plate_text: string;
+  plate_type: string;
+  plate_city: string;
+  quantity: number;
+  amount_in_cents: number;
+  currency: string;
+  wompi_transaction_id: string | null;
+  created_at: string;
+  updated_at: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  shipping_address: string;
+  shipping_city: string;
+  notes: string;
+  fulfillment_status: ShopOrderFulfillmentStatus;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  tracking_note: string;
+}

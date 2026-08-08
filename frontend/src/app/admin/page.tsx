@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { adminApi, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate } from '@/lib/types'
+import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail } from '@/lib/types'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
 
@@ -68,7 +68,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -104,6 +104,13 @@ export default function AdminPage() {
   const [inventorySubmitting, setInventorySubmitting] = useState(false)
   const [inventoryBulkModal, setInventoryBulkModal] = useState(false)
   const [inventoryBulkText, setInventoryBulkText] = useState('')
+
+  // Pedidos — cola de despacho del checkout de Wompi (modo administrador,
+  // separado a propósito de "Mis pedidos" en modo cliente, que solo lee).
+  const [shopOrders, setShopOrders] = useState<ShopOrderDetail[]>([])
+  const [selectedOrderRef, setSelectedOrderRef] = useState<string | null>(null)
+  const [trackingNoteDraft, setTrackingNoteDraft] = useState('')
+  const [markingOrderRef, setMarkingOrderRef] = useState<string | null>(null)
   const [inventoryBulkSubmitting, setInventoryBulkSubmitting] = useState(false)
 
   const c = {
@@ -128,6 +135,7 @@ export default function AdminPage() {
     else if (tab === 'whitelist') loadWhitelist()
     else if (tab === 'inventory') loadInventory()
     else if (tab === 'limits') loadLimits()
+    else if (tab === 'orders') loadShopOrders()
   }, [tab])
 
   useEffect(() => {
@@ -181,6 +189,19 @@ export default function AdminPage() {
     const inv = await adminApi.listInventory()
     if (inv) setInventory(inv)
     setLoading2(false)
+  }
+  async function loadShopOrders() {
+    setLoading2(true)
+    const o = await adminApi.listAllShopOrders()
+    if (o) setShopOrders(o)
+    setLoading2(false)
+  }
+  async function markShopOrderShipped(reference: string) {
+    setMarkingOrderRef(reference)
+    const updated = await adminApi.markShopOrderShipped(reference, trackingNoteDraft.trim())
+    if (updated) setShopOrders(prev => prev.map(o => o.reference === reference ? updated : o))
+    setMarkingOrderRef(null)
+    setTrackingNoteDraft('')
   }
 
   async function loadJobApplications() {
@@ -318,6 +339,8 @@ export default function AdminPage() {
 
   if (loading || !user) return <div style={{ padding: 40, color: c.muted }}>Cargando...</div>
 
+  const pendingShipmentCount = shopOrders.filter(o => o.status === 'approved' && o.fulfillment_status === 'unfulfilled').length
+
   const tabs = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'tokens', label: 'Tokens' },
@@ -325,6 +348,7 @@ export default function AdminPage() {
     { key: 'whitelist', label: 'Whitelist' },
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
     { key: 'limits', label: 'Límites' },
+    { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
   ] as const
 
   return (
@@ -611,6 +635,62 @@ export default function AdminPage() {
               </div>
             ))}
             {limits.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay límites configurados</div>}
+          </div>
+        )}
+
+        {/* Pedidos — cola de despacho del checkout de Wompi. Modo administrador:
+            se ve la placa/guía/etapas de TODO el mundo y se puede adjuntar la
+            ruta de envío. "Mis pedidos" (modo cliente) es de solo lectura. */}
+        {tab === 'orders' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {shopOrders.map(o => {
+              const canShip = o.status === 'approved' && o.fulfillment_status === 'unfulfilled'
+              const paymentColor = o.status === 'approved' ? '#2ecc71' : o.status === 'pending' ? c.accent : '#ff4d6a'
+              return (
+                <div key={o.reference} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>
+                        {o.reference} · <span style={{ color: paymentColor }}>{o.status === 'approved' ? 'Pagado' : o.status === 'pending' ? 'Pago pendiente' : o.status === 'declined' ? 'Rechazado' : o.status === 'voided' ? 'Anulado' : 'Error'}</span>
+                        {o.status === 'approved' && (
+                          <span style={{ color: o.fulfillment_status === 'delivered' ? '#2ecc71' : o.fulfillment_status === 'shipped' ? c.accent : c.muted }}>
+                            {' · '}{o.fulfillment_status === 'delivered' ? 'Entregado' : o.fulfillment_status === 'shipped' ? 'Enviado' : 'Por enviar'}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>
+                        {o.customer_name} · {o.customer_phone} · {o.customer_email}
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>
+                        Placa {o.plate_text} · x{o.quantity} · {o.shipping_address}, {o.shipping_city}
+                      </div>
+                      <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(o.created_at).toLocaleString()}</div>
+                      {o.tracking_note && <div style={{ fontSize: 12, color: c.accent, marginTop: 4 }}>Guía: {o.tracking_note}</div>}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>
+                      {'$' + Math.round(o.amount_in_cents / 100).toLocaleString('es-CO')}
+                    </div>
+                  </div>
+
+                  {canShip && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <input
+                        value={selectedOrderRef === o.reference ? trackingNoteDraft : ''}
+                        onChange={e => { setSelectedOrderRef(o.reference); setTrackingNoteDraft(e.target.value) }}
+                        placeholder="Guía / transportadora (opcional)"
+                        style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 13 }}
+                      />
+                      <button onClick={() => { setSelectedOrderRef(o.reference); markShopOrderShipped(o.reference) }}
+                        disabled={markingOrderRef === o.reference}
+                        style={{ ...accentBtnStyle, opacity: markingOrderRef === o.reference ? 0.6 : 1, cursor: markingOrderRef === o.reference ? 'default' : 'pointer' }}>
+                        {markingOrderRef === o.reference ? 'Marcando…' : 'Marcar como enviado'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {shopOrders.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay pedidos aún</div>}
           </div>
         )}
       </div>

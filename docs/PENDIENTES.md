@@ -168,14 +168,18 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     backend; el estado final se confirma reconsultando a Wompi (nunca lo que reporte el
     navegador), con un webhook de respaldo para producción. Ver `docs/DEPLOY.md` (`WOMPI_*`).
     **✅ "Mis pedidos" real + notificaciones (2026-08-08)** — `OrderTrackingModal.tsx` ya no lee
-    `localStorage`, usa `GET /shop/orders` (autenticado; la cuenta admin ve todas las órdenes,
-    cualquier otra solo las suyas). Solo se abre desde el botón "Mis pedidos" del topbar de
-    `/app` — dejó de abrirse solo al cerrar el carrito. Correo automático al cliente cuando se
-    aprueba el pago + al admin para que sepa que hay que despachar; botón admin "Marcar como
-    enviado" dispara un segundo correo real (`app/services/email.py`,
-    `PATCH /shop/orders/{reference}/fulfillment`, migración 039). **Requiere `SMTP_USER`/
-    `SMTP_PASS` configurados para salir de verdad** — sin eso, cada envío queda logueado como
-    "skipping" y no rompe nada, pero no llega ningún correo real; ver `backend/.env.example`.
+    `localStorage`, usa `GET /shop/orders` (autenticado, siempre solo las órdenes propias de quien
+    pregunta — modo cliente, de solo lectura: estado del pago + 3 pasos de envío, y "Comprar
+    otro"). Solo se abre desde el botón "Mis pedidos" del topbar de `/app` — dejó de abrirse solo
+    al cerrar el carrito. Gestión de envío (adjuntar guía, marcar etapas) vive aparte, exclusiva
+    del panel **Admin NFC** (`/admin`, pestaña "Pedidos") vía `GET /shop/admin/orders` — cola
+    completa de todo el mundo, con el botón "Marcar como enviado" ahí, no en "Mis pedidos" aunque
+    quien mire sea la cuenta admin. Correo automático al cliente cuando se aprueba el pago + al
+    admin para que sepa que hay que despachar; marcar como enviado dispara un segundo correo real
+    (`app/services/email.py`, `PATCH /shop/orders/{reference}/fulfillment`, migración 039).
+    **Requiere `SMTP_USER`/`SMTP_PASS` configurados para salir de verdad** — sin eso, cada envío
+    queda logueado como "skipping" y no rompe nada, pero no llega ningún correo real; ver
+    `backend/.env.example`.
     Pendiente nuevo que dejó esto: **"Mis pedidos" para compradores anónimos de la landing
     pública** — el checkout de `app/page.tsx` sigue sin requerir sesión (a propósito), pero una
     orden creada sin login (`user_id` null) no queda asociada a ninguna cuenta; si esa persona

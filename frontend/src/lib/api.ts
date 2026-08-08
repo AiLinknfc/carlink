@@ -26,6 +26,7 @@ import type {
   UploadOut,
   NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
+  ShopOrderDetail,
 } from './types'
 
 async function request<T = unknown>(
@@ -325,4 +326,15 @@ export const adminApi = {
   createInventory: (data: NfcTagInventoryCreate) => request<NfcTagInventoryEntry>('POST', '/admin/nfc/inventory', data),
   bulkCreateInventory: (entries: NfcTagInventoryCreate[]) => request<NfcTagInventoryEntry[]>('POST', '/admin/nfc/inventory/bulk', { entries }),
   deleteInventory: (id: string) => request('DELETE', `/admin/nfc/inventory/${id}`),
+  // Cola de despacho del checkout de Wompi — modo administrador (ve las órdenes
+  // de todo el mundo). El modo cliente ("Mis pedidos") usa shopOrderApi.list().
+  listAllShopOrders: () => request<ShopOrderDetail[]>('GET', '/shop/admin/orders'),
+  markShopOrderShipped: (reference: string, tracking_note: string) =>
+    request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'shipped', tracking_note }),
+}
+
+// "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta
+// (ver adminApi.listAllShopOrders para la cola completa en modo administrador).
+export const shopOrderApi = {
+  list: () => request<ShopOrderDetail[]>('GET', '/shop/orders'),
 }
