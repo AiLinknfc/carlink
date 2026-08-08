@@ -289,7 +289,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
           <div onClick={() => { reset(); onClose() }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} />
           <motion.div initial={{ opacity: 0, y: 30, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-            style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 540, maxHeight: '92vh', overflowY: 'auto', background: bg, border: `1px solid ${border}`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', color: text }}>
+            style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 480, maxHeight: '92vh', overflowY: 'auto', background: bg, border: `1px solid ${border}`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', color: text }}>
 
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: bg, zIndex: 2, borderRadius: '18px 18px 0 0' }}>
@@ -333,14 +333,31 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                   <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>
                     {payMethod === 'whatsapp' ? 'Te contactamos por WhatsApp para coordinar el pago' : 'Tu llavero viene en curso'}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, color: GOLD, marginBottom: 20 }}>#{orderId}</div>
+                  <div style={{
+                    display: 'inline-block', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    fontSize: 12, fontWeight: 700, letterSpacing: '.02em', color: '#f5f3ec', background: '#0c0c0e',
+                    border: '1px solid rgba(245,197,24,0.35)', padding: '6px 14px', borderRadius: 8, marginBottom: 20,
+                  }}>
+                    #{orderId}
+                  </div>
                   <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-                      <div style={{ position: 'relative', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {[0, 1, 2].map(i => (
-                          <div key={i} style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `2px solid ${GOLD}`, opacity: 0, animation: `nfcRipple 2.6s ease-out infinite`, animationDelay: `${i * 0.85}s` }} />
-                        ))}
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                      {/* El camión entra desde la izquierda, cruza y sale por la derecha —
+                          "el chip va camino a tu dirección", en loop. */}
+                      <div style={{ position: 'relative', width: 46, height: 34, overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{
+                          position: 'absolute', left: 4, right: 4, bottom: 6, height: 2, borderRadius: 1,
+                          backgroundImage: `repeating-linear-gradient(90deg, ${GOLD}66 0 6px, transparent 6px 12px)`,
+                          animation: 'shipmentRoad 0.7s linear infinite',
+                        }} />
+                        <div style={{ position: 'absolute', left: '50%', bottom: 7, animation: 'shipmentDrive 2.2s ease-in-out infinite' }}>
+                          <svg width="26" height="20" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+                            <path d="M15 18H9" />
+                            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14v10" />
+                            <circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" />
+                          </svg>
+                        </div>
                       </div>
                       <div style={{ textAlign: 'left' }}>
                         <div style={{ fontSize: 13, fontWeight: 700 }}>Llega en 5 días hábiles</div>

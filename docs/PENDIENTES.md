@@ -187,6 +187,14 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     clave para unirlas). Si se quiere que un comprador anónimo pueda ver su pedido iniciando
     sesión después, hace falta diseñar cómo asociarlas (¿por email al hacer login? ¿un link mágico
     en el correo de confirmación?) — no es solo agregar el botón en la landing.
+    **Aviso del usuario (2026-08-08) — revisar `CITIES` (`lib/constants.ts`)**: hoy "Ciudad de la
+    placa" (expedición RUNT) y "Ciudad de envío" (destino del paquete en `CartModal.tsx`) comparten
+    la misma lista de ~32 departamentos con sus ciudades principales. Son conceptualmente listas
+    distintas (los organismos de tránsito que expiden placas no son los mismos municipios donde
+    puede vivir un comprador) — no verificado si esto ya causó un problema real, pero antes de
+    confiar en `CITIES` para expedición de placas conviene chequear contra una lista oficial RUNT.
+    "Ciudad de envío" ya tiene salida para pueblos fuera de la lista (commit `5105b81`); "Ciudad de
+    la placa" sigue exigiendo selección exacta sin escape hatch.
 15. **Rama `feat/taller-empresa-v2` — ✅ borrada (2026-08-07)**, junto con `feat/taller-empresa-panel`
     (ambas locales, nunca llegaron a `origin` — confirmado con `git ls-remote`). Estaban
     completamente contenidas en `master`, sin nada único que perder.

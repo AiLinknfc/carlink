@@ -161,6 +161,17 @@ select option { background: #141414; color: #f5f3ec; }
   0% { transform: scale(0.55); opacity: 0.75; }
   100% { transform: scale(2.1); opacity: 0; }
 }
+/* Confirmación de pedido (CartModal.tsx) — el camión entra, cruza y sale
+   hacia el destino del envío, en vez del ícono de reloj con ondas. */
+@keyframes shipmentDrive {
+  0% { transform: translateX(-34px); opacity: 0; }
+  18% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { transform: translateX(34px); opacity: 0; }
+}
+@keyframes shipmentRoad {
+  to { background-position: -24px 0; }
+}
 @keyframes nfcFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
