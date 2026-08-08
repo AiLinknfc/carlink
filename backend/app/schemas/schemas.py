@@ -221,6 +221,13 @@ class DocumentOut(BaseModel):
     file_url: str
     notes: str
     created_at: datetime
+    # True when this document was created before the vehicle's last
+    # ownership transfer (docs/PENDIENTES.md "traslado de vehículo" —
+    # documents like tarjeta de propiedad/SOAT/facturas from before a
+    # transfer usually carry the previous owner's personal data). Computed
+    # per-request in documents.py, not stored — never true for a document
+    # created after (or on a vehicle that never transferred).
+    is_pre_transfer: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -887,6 +894,10 @@ class VehicleInvoiceOut(BaseModel):
     # revisión CDA real (esa sigue siendo la de `diagnostics.cda_checks`).
     workshop_is_cda: bool
     created_at: datetime
+    # Same idea as DocumentOut.is_pre_transfer — a factura emitida antes de
+    # que el vehículo cambiara de dueño puede traer datos del comprador
+    # anterior (nombre, a veces en `details`). Ver docs/PENDIENTES.md.
+    is_pre_transfer: bool = False
 
 
 # =========== Workshop reviews ===========

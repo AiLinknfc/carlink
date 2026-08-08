@@ -24,11 +24,17 @@ async def list_documents(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await verify_vehicle(vehicle_id, user_id, db)
+    vehicle = await verify_vehicle(vehicle_id, user_id, db)
     result = await db.execute(
         select(Document).where(Document.vehicle_id == vehicle_id).order_by(Document.created_at.desc())
     )
-    return list(result.scalars().all())
+    docs = list(result.scalars().all())
+    return [
+        DocumentOut.model_validate(d, from_attributes=True).model_copy(
+            update={"is_pre_transfer": bool(vehicle.transferred_at and d.created_at < vehicle.transferred_at)}
+        )
+        for d in docs
+    ]
 
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)

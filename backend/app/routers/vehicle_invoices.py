@@ -30,7 +30,7 @@ async def list_vehicle_invoices(
     solo las órdenes cuyo `workshop_vehicles.linked_vehicle_id` apunta acá
     (docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2). Mismo patrón que
     `documents.py`/`maintenance.py`: `verify_vehicle` primero, confirma dueño."""
-    await verify_vehicle(vehicle_id, user_id, db)
+    vehicle = await verify_vehicle(vehicle_id, user_id, db)
 
     query = (
         select(WorkshopIssuedDocument, Workshop.name, Workshop.workshop_type)
@@ -56,6 +56,7 @@ async def list_vehicle_invoices(
             workshop_name=workshop_name,
             workshop_is_cda="cda" in (workshop_type or "").lower(),
             created_at=doc.created_at,
+            is_pre_transfer=bool(vehicle.transferred_at and doc.created_at < vehicle.transferred_at),
         )
         for doc, workshop_name, workshop_type in rows
     ]

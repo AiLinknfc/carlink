@@ -86,6 +86,9 @@ export interface Document {
   notes: string;
   created_at: string;
   updated_at: string;
+  /* True si es de antes del último traslado del vehículo — puede tener
+     datos del dueño anterior. Ver docs/PENDIENTES.md. */
+  is_pre_transfer?: boolean;
 }
 
 export interface DocumentEnhanced extends Document {
@@ -410,6 +413,9 @@ export interface VehicleInvoice {
   workshop_name: string;
   workshop_is_cda: boolean;
   created_at: string;
+  /* True si es de antes del último traslado del vehículo — puede tener
+     datos del dueño anterior. Ver docs/PENDIENTES.md. */
+  is_pre_transfer?: boolean;
 }
 
 export interface WorkshopReview {

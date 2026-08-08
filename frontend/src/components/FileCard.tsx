@@ -3,6 +3,7 @@
 /* Card compartida por Documentos y Certificados: una sola definición garantiza
    que ambas secciones tengan exactamente la misma estructura y dimensiones. */
 
+import { useState } from 'react'
 import { isPdf } from '@/lib/upload'
 
 export function getStatusColor(status: string): string {
@@ -78,6 +79,15 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
   const isPdfFile = hasFile && isPdf(doc.file_url)
   const idleBorder = hasFile ? 'rgba(245,197,24,0.22)' : 'var(--border)'
 
+  /* Documento de antes del último traslado del vehículo — puede traer datos
+     personales del dueño anterior (tarjeta de propiedad, facturas). No se
+     oculta el archivo (a veces sí hace falta, ej. para gestionar el
+     traspaso legal), pero requiere un clic explícito para verlo en vez de
+     mostrarlo directo. Ver docs/PENDIENTES.md. */
+  const isPreTransfer = Boolean(doc?.is_pre_transfer)
+  const [revealed, setRevealed] = useState(false)
+  const showLockedState = isPreTransfer && hasFile && !revealed
+
 
   return (
     <div style={{
@@ -128,7 +138,22 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
 
       {/* Slot del archivo — único bloque elástico de la card */}
       <div style={{ flex: 1, minHeight: 0, borderRadius: 11, overflow: 'hidden' }}>
-        {hasFile ? (
+        {showLockedState ? (
+          <div style={{
+            height: '100%', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 8,
+            borderRadius: 11, border: '1px dashed rgba(255,138,61,0.4)',
+            background: 'rgba(255,138,61,0.06)', color: '#ff8a3d',
+            fontSize: 11, textAlign: 'center', padding: '0 14px',
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span style={{ fontWeight: 600, lineHeight: 1.4 }}>Documento de antes del traslado — puede tener datos del dueño anterior</span>
+            <button onClick={() => setRevealed(true)} style={{
+              padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(255,138,61,0.5)',
+              background: 'transparent', color: '#ff8a3d', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+            }}>Ver de todas formas</button>
+          </div>
+        ) : hasFile ? (
           <div onClick={() => onPreview(doc.file_url)} style={{ position: 'relative', height: '100%', cursor: 'pointer', borderRadius: 11, overflow: 'hidden' }}>
             {isPdfFile ? (
               <div style={{

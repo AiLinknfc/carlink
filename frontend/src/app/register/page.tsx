@@ -619,6 +619,12 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                 {wsHasVehicle && (
                   <div style={{ marginTop: 14 }}>
                     <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, marginBottom: 8 }}>Vehículo de prueba</div>
+                    <p style={{ fontSize: 11.5, color: tk.hintText, lineHeight: 1.5, margin: '0 0 12px', padding: '10px 12px', borderRadius: 10, background: tk.hintBg }}>
+                      Esta cuenta es exclusiva para tu negocio — este es el único vehículo que incluye ficha de
+                      prueba gratis de 7 días. Si además querés una ficha personal para tu propio carro, usá otra
+                      cuenta para eso. Y si más adelante querés agregar otro vehículo a este negocio, vas a
+                      necesitar comprar y activar un llavero NFC para él.
+                    </p>
                     <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div>
                         <label style={{ fontSize: 10, color: tk.sectionTitle, fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>

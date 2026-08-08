@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -88,6 +88,18 @@ async def create_vehicle(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This plate is already registered")
 
+    # Only this account's very first vehicle is eligible for the free trial
+    # below — checked before insert so the new row doesn't count itself.
+    # Decision (2026-08-07): a taller/empresa that wants a 2nd+ vehicle with
+    # a working public ficha needs to buy and claim a physical keychain for
+    # it, same as any additional vehicle for a persona account. Without this
+    # check every vehicle a business account ever created got its own free
+    # 7-day trial with no limit.
+    other_vehicles_count = (
+        await db.execute(select(func.count(Vehicle.id)).where(Vehicle.owner_id == uid))
+    ).scalar() or 0
+    is_first_vehicle = other_vehicles_count == 0
+
     vehicle = Vehicle(
         owner_id=uid,
         plate=body.plate.upper(),
@@ -109,12 +121,12 @@ async def create_vehicle(
     await cache_delete(f"vehicles:list:{user_id}")
     logger.info(f"Vehicle created successfully: {vehicle.id}")
 
-    # Taller/empresa accounts get a free 7-day public-ficha trial, minted
-    # automatically — no physical keychain involved. Persona never gets this;
-    # it always requires claiming a real keychain (see app/routers/nfc.py
-    # _has_ficha_access). Best-effort: a failure here must not block vehicle
-    # registration.
-    if profile.account_type in TRIAL_ACCOUNT_TYPES:
+    # Taller/empresa accounts get a free 7-day public-ficha trial on their
+    # first vehicle only, minted automatically — no physical keychain
+    # involved. Persona never gets this; it always requires claiming a real
+    # keychain (see app/routers/nfc.py _has_ficha_access). Best-effort: a
+    # failure here must not block vehicle registration.
+    if profile.account_type in TRIAL_ACCOUNT_TYPES and is_first_vehicle:
         try:
             generated = generate_nfc_token()
             trial_token = NfcToken(

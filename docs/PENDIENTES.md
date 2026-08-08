@@ -1,13 +1,21 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-07 (segunda pasada — "implementa todo")._
+_Última actualización: 2026-08-07 (tercera pasada — modelo de cuentas taller/persona)._
 
-**Ejecutado en la segunda pasada de esta sesión** (commits locales, sin pushear — ver #2): limpieza
-de `TRIAL_ACCOUNT_TYPES`, barrido completo de emojis en la UI (19 archivos), suite `pytest` a 0
-fallos (arreglado `test_admin.py`, agregado `test_workshop_clients.py`), ramas locales obsoletas
-borradas, "Historial de clientes" investigado y cerrado. Detalle de cada uno en su ítem. Lo que
-**no** se tocó y por qué también está explicado en el lugar correspondiente — nada se marcó "hecho"
-sin decirlo explícitamente.
+**Ejecutado en la tercera pasada** (commits locales, sin pushear — ver #2): trial gratis de 7 días
+ahora solo se otorga al primer vehículo de una cuenta taller/empresa (antes, cada vehículo nuevo
+recibía uno propio sin límite); mensaje explicativo en el registro de taller aclarando que es una
+cuenta exclusiva de negocio; documentos y facturas de antes del último traslado de un vehículo
+ahora se ocultan detrás de un clic explícito ("Ver de todas formas") en vez de mostrarse directo,
+porque pueden traer datos del dueño anterior; se encontraron y arreglaron dos gaps reales del
+modelo ORM en el camino (ver "Hallazgos" más abajo). Detalle completo en el ítem de cada uno.
+
+**Ejecutado en la segunda pasada** (commits locales, sin pushear — ver #2): limpieza
+de `TRIAL_ACCOUNT_TYPES`, barrido completo de emojis en la UI (19 archivos + 1 más encontrado por
+el usuario después), suite `pytest` a 0 fallos (arreglado `test_admin.py`, agregado
+`test_workshop_clients.py`), ramas locales obsoletas borradas, "Historial de clientes" investigado
+y cerrado. Lo que **no** se tocó y por qué también está explicado en el lugar correspondiente —
+nada se marcó "hecho" sin decirlo explícitamente.
 
 Este es el **único** lugar donde se lleva la lista de qué falta. Antes estaba repartida entre
 este archivo, las secciones "Pendiente" de `CONTEXTO.md`, `DEPLOY.md`, `TESTS_PLAN.md` (ahora
@@ -127,7 +135,7 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     doubles mal tipados (`MagicMock` auto-generando corrutinas donde el código real usa métodos
     síncronos de `Result`) — mismo patrón que los 7 de `test_maintenance.py`/`test_nfc.py`
     arreglados en la primera pasada de esta sesión. La suite completa de backend queda en
-    **38/38 pasando, 0 fallos**.
+    **41/41 pasando, 0 fallos**.
 12. **Frontend: cero tests más allá de `plate.test.ts`** — no implementado en esta sesión (fuera del
     alcance de "implementa todo" dado el tiempo disponible: componentes/hooks/E2E son un esfuerzo
     grande aparte). Ver checklist heredado de `TESTS_PLAN.md` en la sección de abajo.
@@ -173,7 +181,7 @@ relacionado* agregó campos a los modelos que esos tests mockean:
 Los 7 se corrigieron en la primera pasada de esta sesión. En la segunda pasada se arreglaron
 también los 5 de `test_admin.py` (mismo patrón: `MagicMock` sin `spec=AsyncSession` en sus hijos
 auto-generados, así que un `db.execute(...)` sin mockear a mano devolvía un `result.scalars()`
-async en vez de sync). **La suite completa queda en 38/38, 0 fallos** — todo commiteado localmente,
+async en vez de sync). **La suite completa queda en 41/41, 0 fallos (+3 con test_vehicles.py en la tercera pasada)** — todo commiteado localmente,
 sin pushear.
 
 **Por qué importa más allá de estos 7 tests:** esto confirma que el patrón `MagicMock(spec=Model)`
@@ -233,6 +241,64 @@ terminado"), ya que demostró servir para diagnosticar un problema real de produ
 
 ---
 
+## Modelo de cuentas taller/persona — decisiones confirmadas (2026-08-07)
+
+Discusión completa con el usuario sobre cómo debe funcionar el acceso taller vs. persona. Decisiones
+tomadas (no solo sugeridas — ya implementadas donde aplicaba código):
+
+1. **Una cuenta de negocio (taller/empresa) es exclusiva para el negocio.** Si el dueño del taller
+   también quiere una ficha personal para su propio carro, usa **otra cuenta** (otro correo) para
+   eso — no se construye navegación puente entre `/app` y `/app/negocio` para la misma cuenta.
+   Reflejado con un mensaje explicativo en el formulario de registro de taller (`app/register/page.tsx`)
+   en el momento en que activan el checkbox de "vehículo de prueba".
+2. **Un llavero NFC = un vehículo**, confirmado como ya es el modelo actual (`NfcToken.vehicle_id`
+   es una FK fija) — no había nada que cambiar ahí.
+3. **El trial gratis de taller/empresa es solo para el primer vehículo de la cuenta.** ✅
+   Implementado (`backend/app/routers/vehicles.py::create_vehicle`) — antes, cada vehículo nuevo que
+   creaba una cuenta taller recibía su propio trial de 7 días sin límite; ahora se cuenta cuántos
+   vehículos ya tiene la cuenta antes de decidir si mintear el trial. Agregar un 2do+ vehículo (o
+   "reemplazar" el vehículo por uno nuevo) requiere comprar y activar un llavero físico, igual que
+   una cuenta persona. Cubierto por `tests/test_vehicles.py` (3 tests).
+4. **Documentos/facturas de antes de un traslado de vehículo pueden traer datos del dueño
+   anterior — no se ocultan del todo (a veces hacen falta para el traspaso legal), pero requieren
+   un clic explícito para verlos.** ✅ Implementado: `DocumentOut`/`VehicleInvoiceOut` ahora traen
+   `is_pre_transfer: bool` (`created_at` del documento/factura anterior a `vehicle.transferred_at`).
+   `FileCard.tsx` (documentos: SOAT, RTM, tarjeta de propiedad, pólizas) y la sección "Facturas y
+   certificados" de `DocumentosTab.tsx` muestran un estado bloqueado con el mensaje "Documento de
+   antes del traslado — puede tener datos del dueño anterior" + botón "Ver de todas formas" en vez
+   de mostrar el archivo/factura directo. El historial de mantenimiento y las partes (`parts`,
+   `maintenance_records`) **no se tocaron** — a propósito, el usuario quiere que ese historial se
+   valide y se vea siempre, es la diferencia explícita entre "historial técnico" (sin datos
+   personales) y "documentos legales" (con datos personales) que él mismo trazó en la conversación.
+
+### Hallazgos de arquitectura encontrados construyendo esto
+
+- **El modelo ORM (`Vehicle` en `models.py`) le faltaban 4 columnas que la base de datos ya tenía**
+  desde la migración `011_vehicle_transfers.sql` (`status`, `transferred_at`,
+  `transferred_to_user_id`, `original_owner_id`) — nadie las había agregado al ORM cuando se creó esa
+  migración, así que ningún endpoint de FastAPI podía leerlas (la función `complete_vehicle_transfer`
+  las escribe por SQL directo vía RPC, por eso el traslado en sí nunca se rompió — pero cualquier
+  otra parte del backend quedaba ciega a si un vehículo se había traspasado o no). Agregadas ahora
+  porque el gate de documentos las necesita.
+- **Al agregarlas, `Profile.vehicles` se rompió** (`AmbiguousForeignKeysError` — con 3 FKs de
+  `vehicles` hacia `profiles.id`, SQLAlchemy ya no podía adivinar cuál usar para esa relación).
+  Corregido con `foreign_keys=` explícito en ambos lados de la relación. Esto se habría roto en el
+  primer arranque de la app en producción si no se hubiera detectado corriendo la suite de tests
+  completa después del cambio — otro caso de "verificar contra el sistema real, no solo el diff".
+- **No existe ninguna UI para "agregar otro vehículo" a una cuenta ya logueada.** `POST /vehicles`
+  solo se llama una vez, desde el formulario de registro (`app/register/page.tsx`) — no hay botón
+  "+" en `/app` ni en `/app/negocio` para un segundo vehículo. La regla de "el 2do vehículo necesita
+  llavero" (punto 3 arriba) ya está protegida en el backend pase lo que pase, pero **hoy no hay forma
+  de ejercerla desde la UI** porque la funcionalidad en sí no existe todavía. Construir esa pantalla
+  (con el mensaje de "necesitás comprar un llavero" en el momento justo) es un pendiente aparte, no
+  incluido en esta pasada — avisame si querés que la construya.
+- **La misma necesidad de "ocultar contenido con datos de un dueño anterior" probablemente aplica a
+  `Certificate`/`CertificadosTab.tsx`** (certificados con costo y fecha, mismo patrón que
+  `documents.py`) — no se tocó en esta pasada, mismo mecanismo (`is_pre_transfer`) se podría
+  replicar ahí si hace falta.
+
+---
+
 ## Checklist de tests pendientes (fusionado desde `TESTS_PLAN.md`, borrado — vivía duplicado)
 
 ### Backend (pytest) — no existen todavía
@@ -240,15 +306,17 @@ terminado"), ya que demostró servir para diagnosticar un problema real de produ
 - [ ] `test_nfc_activation.py` — flujo completo de provisión + activación (admin rechaza `tag_uid`
       duplicado, código usado/inválido da 404 genérico, reclamo concurrente solo gana uno, rate
       limit de `/nfc/activate` bloquea el 6to intento, respeta `nfc_token_limits` por `account_type`)
-- [ ] `test_vehicles.py` — CRUD de vehículos con auth
+- [x] `test_vehicles.py` — CRUD de vehículos con auth: **hecho parcialmente (2026-08-07)**, 3 tests
+      cubriendo la regla de trial gratis solo en el primer vehículo (ver arriba). Falta CRUD general
+      (update/delete/lista), esos 3 no lo cubren.
 - [ ] `test_found_requests.py` — endpoints públicos y autenticados
 - [ ] `test_api_health.py`, `test_cors.py`, `test_rate_limit.py` — integración
 - [ ] RLS policies, cascade deletes, trigger `on_auth_user_created` — tests contra DB real
 - [ ] Cobertura de los 9 routers nuevos de taller/empresa (ver pendiente #10)
 
 _Ya existen (no repetir):_ `test_maintenance.py`, `test_nfc.py`, `test_admin.py` (los 3 recién
-arreglados, 0 fallos), `test_certificates.py`, `test_ocr.py`, `test_workshop_clients.py` (nuevo,
-2026-08-07 — aislamiento entre talleres, ver pendiente #10).
+arreglados, 0 fallos), `test_certificates.py`, `test_ocr.py`, `test_workshop_clients.py` (aislamiento
+entre talleres), `test_vehicles.py` (gating del trial gratis — ambos nuevos, 2026-08-07).
 
 ### Frontend (Vitest) — no existen todavía
 - [ ] Componentes: `FichaTab`, `Sidebar`, `ServiceFormModal`, `PartFormModal`

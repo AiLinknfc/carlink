@@ -34,7 +34,10 @@ class Profile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    vehicles = relationship("Vehicle", back_populates="owner", cascade="all, delete-orphan")
+    vehicles = relationship(
+        "Vehicle", back_populates="owner", cascade="all, delete-orphan",
+        foreign_keys="[Vehicle.owner_id]",
+    )
     workshops = relationship("Workshop", back_populates="owner", cascade="all, delete-orphan")
     found_requests_received = relationship("FoundRequest", back_populates="owner", foreign_keys="FoundRequest.owner_id")
     found_requests_found = relationship("FoundRequest", back_populates="finder", foreign_keys="FoundRequest.finder_id")
@@ -62,10 +65,29 @@ class Vehicle(Base):
     sell_description: Mapped[str] = mapped_column(Text, default="")
     vehicle_condition: Mapped[str] = mapped_column(Text, default="usado")
     description_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
+    # Ownership transfer (011_vehicle_transfers.sql) — were missing from this
+    # ORM model even though the DB columns existed (added 2026-08-07 while
+    # building the sensitive-documents-after-transfer gate, which needs
+    # `transferred_at` from Python; the transfer RPCs themselves write these
+    # via raw SQL in complete_vehicle_transfer/cancel_vehicle_transfer, so
+    # this ORM gap never broke that flow — just made these fields unreadable
+    # from any FastAPI endpoint).
+    status: Mapped[str] = mapped_column(Text, default="active")
+    transferred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    transferred_to_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    original_owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    owner = relationship("Profile", back_populates="vehicles")
+    # foreign_keys explícito: además de owner_id, este modelo ahora tiene
+    # transferred_to_user_id/original_owner_id apuntando también a
+    # profiles.id (agregados 2026-08-07) — sin esto SQLAlchemy no puede
+    # decidir solo cuál FK usar para esta relación.
+    owner = relationship("Profile", back_populates="vehicles", foreign_keys=[owner_id])
     maintenance_records = relationship("MaintenanceRecord", back_populates="vehicle", cascade="all, delete-orphan")
     parts = relationship("Part", back_populates="vehicle", cascade="all, delete-orphan")
     certificates = relationship("Certificate", back_populates="vehicle", cascade="all, delete-orphan")
