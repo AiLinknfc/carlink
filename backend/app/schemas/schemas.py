@@ -1322,3 +1322,57 @@ class NfcTagInventoryOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# =========== Shop Orders (checkout del llavero NFC, pagado con Wompi) ===========
+# Sin precio: el monto lo calcula siempre el backend (PRODUCT_PRICE_COP * quantity
+# en app/routers/shop_orders.py) — nunca se confía en un total mandado por el
+# cliente, la firma de integridad de Wompi se calcula sobre el monto real.
+
+class ShopOrderCreate(BaseModel):
+    plate_text: str
+    plate_type: str
+    plate_city: str
+    quantity: int = 1
+    customer_name: str
+    customer_email: str
+    customer_phone: str
+    shipping_address: str
+    shipping_city: str
+    notes: str = ""
+
+    @field_validator('quantity')
+    @classmethod
+    def validate_quantity(cls, v: int) -> int:
+        if v < 1 or v > 10:
+            raise ValueError('quantity debe estar entre 1 y 10')
+        return v
+
+
+class ShopOrderCreateOut(BaseModel):
+    order_id: UUID
+    reference: str
+    amount_in_cents: int
+    currency: str
+    integrity_signature: str
+
+
+class ShopOrderConfirm(BaseModel):
+    transaction_id: str
+
+
+class ShopOrderOut(BaseModel):
+    id: UUID
+    reference: str
+    status: str
+    plate_text: str
+    plate_type: str
+    plate_city: str
+    quantity: int
+    amount_in_cents: int
+    currency: str
+    wompi_transaction_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

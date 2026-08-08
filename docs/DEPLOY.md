@@ -25,7 +25,20 @@ SMTP_PASS=...
 ENVIRONMENT=production
 PORT=8000
 CORS_ORIGINS=https://carlink.app,https://www.carlink.app
+WOMPI_PRIVATE_KEY=prv_...
+WOMPI_EVENTS_SECRET=...
+WOMPI_INTEGRITY_SECRET=...
 ```
+
+**`WOMPI_*` — checkout del llavero NFC (`app/routers/shop_orders.py`, `app/services/wompi.py`)**: las
+tres son del dashboard de Wompi (Desarrolladores > Secretos para integración técnica). Elegir
+sandbox (`prv_test_...`) o producción (`prv_prod_...`) se hace solo con qué llave privada se
+configura acá — `wompi.py` elige el host de la API (`sandbox.wompi.co` / `production.wompi.co`)
+mirando el prefijo, no hay una variable de ambiente separada que se pueda desincronizar. También
+hay que configurar la URL de este endpoint (`https://<backend>/api/shop/webhooks/wompi`) como
+webhook de "Eventos" en el dashboard de Wompi — si no, los pagos solo se confirman por el camino
+activo (`POST /shop/orders/{reference}/confirm`, que dispara el frontend) y no hay respaldo si la
+persona cierra la pestaña antes de que ese llamado termine.
 
 **`ENCRYPTION_KEY` es obligatoria para el flujo NFC, no opcional**: desde la migración 019, un token solo se crea vía `/nfc/activate` (nunca en el navegador), así que el frontend nunca tiene el token crudo — la única forma de que "Copiar enlace" funcione es recuperar la URL cifrada del servidor. Sin `ENCRYPTION_KEY`, `encrypt_url()` (`app/services/crypto.py`) degrada silenciosamente y ningún llavero activado podrá mostrar su enlace. Verificar que esté seteada es parte del checklist de post-despliegue.
 
@@ -37,6 +50,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 NEXT_PUBLIC_SITE_URL=https://carlink.app
 NEXT_PUBLIC_API_URL=https://api.carlink.app
+NEXT_PUBLIC_WOMPI_PUBLIC_KEY=pub_...
 ```
 
 ## Arquitectura de despliegue
@@ -152,7 +166,14 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/035_workshop_promotions.sql
 \i supabase/migrations/036_part_category.sql
 \i supabase/migrations/037_profile_verification.sql
+\i supabase/migrations/038_shop_orders.sql
 ```
+
+**Nota sobre 038 (2026-08-08)**: crea `shop_orders` — checkout real del llavero NFC pagado con
+Wompi (reemplaza la maqueta que solo vivía en `localStorage`, docs/PENDIENTES.md ítem 14). Tabla
+nueva, no toca nada existente. Aplicada y verificada contra la base real (columnas confirmadas por
+`information_schema`, y una orden de prueba real de principio a fin contra el sandbox de Wompi —
+ver la nota de arriba sobre `WOMPI_*`).
 
 **Nota sobre 035–037 (2026-08-08)**: `backend/migrations/` existía en paralelo a `supabase/migrations/`
 con su propia numeración (002–005), nunca referenciada desde este checklist ni desde ningún otro

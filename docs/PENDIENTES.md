@@ -162,11 +162,15 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     tallerpro (925 líneas, selector de tema + formulario de calificación). Marcada explícitamente
     como opcional/fuera del alcance inmediato — el QR + toggle de publicación de esa misma fase ya
     se adelantó y está hecho. No implementado en esta sesión.
-14. **Carrito "Solicitar llavero NFC"** (`CartModal.tsx`) sigue siendo una maqueta de UI — al pagar
-    solo cierra el modal y muestra un toast, sin crear ninguna orden real ni cobrar de verdad.
-    **No implementado en esta sesión** — necesita elegir un proveedor de pagos real (Stripe/Wompi/
-    PSE) antes de que tenga sentido construir el backend de pedidos; es una decisión de negocio, no
-    solo técnica.
+14. **✅ Carrito "Comprar llavero NFC" cobra de verdad (2026-08-08)** — `CartModal.tsx` ya no es
+    maqueta: crea una orden real (`shop_orders`, migración 038) y cobra con el widget embebido de
+    Wompi (`app/services/wompi.py`, `app/routers/shop_orders.py`). El monto lo calcula siempre el
+    backend; el estado final se confirma reconsultando a Wompi (nunca lo que reporte el
+    navegador), con un webhook de respaldo para producción. Ver `docs/DEPLOY.md` (`WOMPI_*`).
+    Pendiente nuevo que dejó esto: **`OrderTrackingModal.tsx` sigue leyendo `localStorage`**
+    (`loadOrders()` de `lib/shop.ts`) en vez de `GET /shop/orders` real — quedó fuera de alcance a
+    propósito para no inflar el cambio. "Mis pedidos" hoy no muestra las órdenes reales pagadas
+    con Wompi.
 15. **Rama `feat/taller-empresa-v2` — ✅ borrada (2026-08-07)**, junto con `feat/taller-empresa-panel`
     (ambas locales, nunca llegaron a `origin` — confirmado con `git ls-remote`). Estaban
     completamente contenidas en `master`, sin nada único que perder.

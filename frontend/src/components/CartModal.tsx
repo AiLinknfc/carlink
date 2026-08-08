@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PLATE_COLOR_SCHEMES, COP, processPayment, type ShopOrder } from '@/lib/shop'
+import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, type PlateType } from '@/lib/plate'
-import { apiGet } from '@/lib/api'
+import { apiGet, apiPost } from '@/lib/api'
+import { openWompiCheckout } from '@/lib/wompi'
 import Plate3D from '@/components/Plate3D'
 import { Icon } from '@/lib/icons_new'
 import { CITIES } from '@/lib/constants'
@@ -43,11 +44,12 @@ const PLATE_BG: Record<string, { bg: string; ink: string; label: string }> = {
   clasico:     { bg: 'linear-gradient(90deg,#2e4a75 0%,#2e4a75 22%,#e8e0d0 22%,#e8e0d0 78%,#2e4a75 78%,#2e4a75 100%)', ink: '#111116', label: '#2e4a75' },
 }
 
+// Wompi ya ofrece tarjeta, Nequi, PSE y botón Bancolombia dentro de su propio
+// widget — tener 3 radios separados para eso era la maqueta (ninguno cambiaba
+// el cobro real). Queda un solo método real + el respaldo manual de WhatsApp.
 const PAYMENT_METHODS = [
-  { id: 'card', name: 'Tarjeta de crédito / débito', icon: 'CreditCard' as const },
-  { id: 'nequi', name: 'Nequi', icon: 'Smartphone' as const },
-  { id: 'bancolombia', name: 'Bancolombia', icon: 'Bank' as const },
-  { id: 'whatsapp', name: 'WhatsApp (pago contraentrega)', icon: 'MessageCircle' as const },
+  { id: 'wompi', name: 'Tarjeta, Nequi, PSE o Bancolombia', icon: 'CreditCard' as const },
+  { id: 'whatsapp', name: 'Coordinar pago por WhatsApp', icon: 'MessageCircle' as const },
 ]
 
 export default function CartModal({ isOpen, onClose, theme, plateText: initialPlateText, plateType: initialPlateType, city: initialCity }: Props) {
@@ -81,7 +83,9 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [shipCity, setShipCity] = useState('')
-  const [payMethod, setPayMethod] = useState('card')
+  const [payMethod, setPayMethod] = useState('wompi')
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
   const [touched, setTouched] = useState({ letters: false, numbers: false, city: false })
   const [typeConfirmed, setTypeConfirmed] = useState(false)
   const [showErrors, setShowErrors] = useState(false)
@@ -184,21 +188,56 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setShowErrors(false)
   }
 
-  const handlePay = () => {
-    if (!canPay) return
-    const id = `CL-${Date.now().toString(36).toUpperCase()}`
-    const order: ShopOrder = {
-      id,
-      items: [{ id: `${id}-item`, productId: 'fob-std', productName: 'Llavero NFC CarLink', color: { id: 'gold', name: 'Dorado CarLink', hex: '#F5C518', ring: 'rgba(245,197,24,0.5)' }, plateText: fullPlate, plateType: selectedType, quantity: qty, unitPrice: productPrice, total }],
-      total,
-      name: name.trim(), email: email.trim(), phone: `+57 ${phone}`, address: address.trim(), city: shipCity.trim(),
-      paymentMethod: payMethod as ShopOrder['paymentMethod'],
-      status: 'pending', createdAt: new Date().toISOString(),
-      estimatedDelivery: new Date(Date.now() + 5 * 86400000).toISOString(),
+  const handlePay = async () => {
+    if (!canPay || paying) return
+    setPayError(null)
+    setPaying(true)
+    try {
+      // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
+      // calcula el backend (49.900 * cantidad), nunca se manda un precio
+      // desde acá. Devuelve la referencia + la firma de integridad que el
+      // widget de Wompi necesita para no dejar alterar el monto.
+      const created = await apiPost<{ order_id: string; reference: string; amount_in_cents: number; currency: string; integrity_signature: string }>('/shop/orders', {
+        plate_text: fullPlate, plate_type: selectedType, plate_city: plateCity, quantity: qty,
+        customer_name: name.trim(), customer_email: email.trim(), customer_phone: phone,
+        shipping_address: address.trim(), shipping_city: shipCity.trim(), notes: notes.trim(),
+      })
+      if (!created) throw new Error('No se pudo crear la orden')
+
+      if (payMethod === 'whatsapp') {
+        const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n• Placa: ${fullPlate} (${plateCity})\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
+        window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank')
+        setOrderId(created.reference)
+        setStep('done')
+        return
+      }
+
+      const transaction = await openWompiCheckout({
+        reference: created.reference,
+        amountInCents: created.amount_in_cents,
+        currency: created.currency,
+        integritySignature: created.integrity_signature,
+        customerData: { email: email.trim(), fullName: name.trim(), phoneNumber: phone, phoneNumberPrefix: '+57' },
+        shippingAddress: { addressLine1: address.trim(), city: shipCity.trim(), region: shipCity.trim(), country: 'CO', phoneNumber: phone, name: name.trim() },
+      })
+      if (!transaction) return // cerró el widget sin pagar — se queda en este paso, no es un error
+
+      // Nunca se confía en el status que reporta el navegador: el backend
+      // vuelve a preguntarle a Wompi directamente con la llave privada.
+      const confirmed = await apiPost<{ status: string }>(`/shop/orders/${created.reference}/confirm`, { transaction_id: transaction.id })
+      if (confirmed?.status === 'approved') {
+        setOrderId(created.reference)
+        setStep('done')
+      } else if (confirmed?.status === 'declined' || confirmed?.status === 'error') {
+        setPayError('El pago no se pudo procesar. Puedes intentar de nuevo o coordinar por WhatsApp.')
+      } else {
+        setPayError(`Estamos confirmando tu pago. Si no se actualiza en unos minutos, escríbenos con tu referencia ${created.reference}.`)
+      }
+    } catch {
+      setPayError('No pudimos conectar con la pasarela de pagos. Intenta de nuevo o paga por WhatsApp.')
+    } finally {
+      setPaying(false)
     }
-    processPayment(order)
-    setOrderId(id)
-    setStep('done')
   }
 
   const reset = () => {
@@ -212,8 +251,9 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setPlateExists(false)
     setQty(1)
     setName(''); setEmail(''); setPhone(''); setAddress(''); setShipCity(''); setNotes('')
-    setOrderId(''); setPayMethod('card'); setCityOpen(false)
+    setOrderId(''); setPayMethod('wompi'); setCityOpen(false)
     setShipCityOpen(false); setShipCitySelected(false)
+    setPaying(false); setPayError(null)
     setTouched({ letters: false, numbers: false, city: false })
     setShowErrors(false)
   }
@@ -269,8 +309,12 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2.2"><path d="M20 6L9 17l-5-5"/></svg>
                     </div>
                   </motion.div>
-                  <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Pedido confirmado</div>
-                  <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>Tu llavero viene en curso</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
+                    {payMethod === 'whatsapp' ? 'Pedido registrado' : 'Pago confirmado'}
+                  </div>
+                  <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>
+                    {payMethod === 'whatsapp' ? 'Te contactamos por WhatsApp para coordinar el pago' : 'Tu llavero viene en curso'}
+                  </div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, color: GOLD, marginBottom: 20 }}>#{orderId}</div>
                   <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
@@ -544,9 +588,17 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     ))}
                   </div>
 
+                  {payError && (
+                    <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#ef4444' }}>
+                      {payError}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setStep('shipping')} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Atrás</button>
-                    <button onClick={handlePay} disabled={!canPay} style={{ flex: 2, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Pagar {COP(total)}</button>
+                    <button onClick={() => setStep('shipping')} disabled={paying} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: paying ? 'not-allowed' : 'pointer', opacity: paying ? 0.6 : 1 }}>Atrás</button>
+                    <button onClick={handlePay} disabled={!canPay || paying} style={{ flex: 2, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: (canPay && !paying) ? 'pointer' : 'not-allowed', opacity: (canPay && !paying) ? 1 : 0.5 }}>
+                      {paying ? 'Procesando...' : payMethod === 'whatsapp' ? `Continuar por WhatsApp` : `Pagar ${COP(total)}`}
+                    </button>
                   </div>
                 </div>
               )}

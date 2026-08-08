@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # Encryption (AES-256-GCM, 64-char hex = 32 bytes)
     encryption_key: str = ""
 
+    # Wompi (pasarela de pagos del checkout del llavero NFC). La llave
+    # pública NO va acá — es del frontend (NEXT_PUBLIC_WOMPI_PUBLIC_KEY),
+    # se manda al navegador a propósito. Estas tres son secretas.
+    wompi_private_key: str = ""
+    wompi_events_secret: str = ""
+    wompi_integrity_secret: str = ""
+
     model_config = {"env_file": ".env", "case_sensitive": False, "extra": "ignore"}
 
     @property

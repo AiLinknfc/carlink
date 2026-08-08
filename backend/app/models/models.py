@@ -679,3 +679,31 @@ class WorkshopReview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     workshop = relationship("Workshop", back_populates="reviews")
+
+
+class ShopOrder(Base):
+    """Órdenes reales del checkout del llavero NFC (CartModal.tsx), pagadas
+    con Wompi. Reemplaza la maqueta que solo vivía en localStorage del
+    navegador — ver supabase/migrations/038_shop_orders.sql."""
+    __tablename__ = "shop_orders"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reference: Mapped[str] = mapped_column(Text, unique=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    plate_text: Mapped[str] = mapped_column(Text)
+    plate_type: Mapped[str] = mapped_column(Text)
+    plate_city: Mapped[str] = mapped_column(Text)
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    amount_in_cents: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(Text, default="COP")
+    customer_name: Mapped[str] = mapped_column(Text)
+    customer_email: Mapped[str] = mapped_column(Text)
+    customer_phone: Mapped[str] = mapped_column(Text)
+    shipping_address: Mapped[str] = mapped_column(Text)
+    shipping_city: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    wompi_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wompi_last_event: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
