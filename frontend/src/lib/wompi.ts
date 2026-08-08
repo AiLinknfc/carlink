@@ -60,17 +60,26 @@ export function loadWompiWidget(): Promise<void> {
   if (loadPromise) return loadPromise
 
   loadPromise = new Promise((resolve, reject) => {
+    // Si el script nunca dispara load ni error (bloqueado por una extensión,
+    // firewall, DNS colgado, etc.) esto igual falla en 8s en vez de dejar el
+    // botón de pago en "Procesando..." para siempre sin ninguna pista.
+    const timer = setTimeout(() => {
+      loadPromise = null
+      reject(new Error('El widget de Wompi tardó demasiado en cargar (revisa tu conexión o si algo lo está bloqueando)'))
+    }, 8000)
+    const settle = (fn: () => void) => { clearTimeout(timer); fn() }
+
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${WIDGET_SRC}"]`)
     if (existing) {
-      existing.addEventListener('load', () => resolve())
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar el widget de Wompi')))
+      existing.addEventListener('load', () => settle(resolve))
+      existing.addEventListener('error', () => settle(() => reject(new Error('No se pudo cargar el widget de Wompi'))))
       return
     }
     const script = document.createElement('script')
     script.src = WIDGET_SRC
     script.async = true
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('No se pudo cargar el widget de Wompi'))
+    script.onload = () => settle(resolve)
+    script.onerror = () => settle(() => reject(new Error('No se pudo cargar el widget de Wompi')))
     document.head.appendChild(script)
   })
   return loadPromise

@@ -13,6 +13,18 @@ import { CITIES } from '@/lib/constants'
 
 const GOLD = '#F5C518'
 
+// apiPost/apiGet no tienen timeout propio (heredado de lib/api.ts, usado en
+// toda la app) — si `getAccessToken()` o el fetch se cuelgan sin lanzar
+// error, el botón de pago se quedaba en "Procesando..." para siempre sin
+// ninguna pista de qué falló. Esto lo convierte en un error visible a los
+// 12s en vez de un cuelgue silencioso.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} tardó demasiado (¿problema de red?)`)), ms)
+    promise.then(v => { clearTimeout(timer); resolve(v) }, e => { clearTimeout(timer); reject(e) })
+  })
+}
+
 type Step = 'customize' | 'shipping' | 'payment' | 'done'
 
 interface Props {
@@ -197,11 +209,11 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       // calcula el backend (49.900 * cantidad), nunca se manda un precio
       // desde acá. Devuelve la referencia + la firma de integridad que el
       // widget de Wompi necesita para no dejar alterar el monto.
-      const created = await apiPost<{ order_id: string; reference: string; amount_in_cents: number; currency: string; integrity_signature: string }>('/shop/orders', {
+      const created = await withTimeout(apiPost<{ order_id: string; reference: string; amount_in_cents: number; currency: string; integrity_signature: string }>('/shop/orders', {
         plate_text: fullPlate, plate_type: selectedType, plate_city: plateCity, quantity: qty,
         customer_name: name.trim(), customer_email: email.trim(), customer_phone: phone,
         shipping_address: address.trim(), shipping_city: shipCity.trim(), notes: notes.trim(),
-      })
+      }), 12000, 'Crear la orden')
       if (!created) throw new Error('No se pudo crear la orden')
 
       if (payMethod === 'whatsapp') {
@@ -224,7 +236,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
 
       // Nunca se confía en el status que reporta el navegador: el backend
       // vuelve a preguntarle a Wompi directamente con la llave privada.
-      const confirmed = await apiPost<{ status: string }>(`/shop/orders/${created.reference}/confirm`, { transaction_id: transaction.id })
+      const confirmed = await withTimeout(apiPost<{ status: string }>(`/shop/orders/${created.reference}/confirm`, { transaction_id: transaction.id }), 15000, 'Confirmar el pago')
       if (confirmed?.status === 'approved') {
         setOrderId(created.reference)
         setStep('done')
@@ -233,8 +245,9 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       } else {
         setPayError(`Estamos confirmando tu pago. Si no se actualiza en unos minutos, escríbenos con tu referencia ${created.reference}.`)
       }
-    } catch {
-      setPayError('No pudimos conectar con la pasarela de pagos. Intenta de nuevo o paga por WhatsApp.')
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : ''
+      setPayError(`No pudimos conectar con la pasarela de pagos${detail ? ` (${detail})` : ''}. Intenta de nuevo o paga por WhatsApp.`)
     } finally {
       setPaying(false)
     }
