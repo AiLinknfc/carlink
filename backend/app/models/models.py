@@ -705,5 +705,12 @@ class ShopOrder(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     wompi_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     wompi_last_event: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Estado del envío físico, separado del estado del pago (`status` arriba)
+    # — lo mueve un admin a mano desde "Mis pedidos", ver
+    # supabase/migrations/039_shop_orders_fulfillment.sql.
+    fulfillment_status: Mapped[str] = mapped_column(Text, default="unfulfilled")
+    shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tracking_note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

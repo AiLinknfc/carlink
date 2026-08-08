@@ -167,7 +167,14 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/036_part_category.sql
 \i supabase/migrations/037_profile_verification.sql
 \i supabase/migrations/038_shop_orders.sql
+\i supabase/migrations/039_shop_orders_fulfillment.sql
 ```
+
+**Nota sobre 039 (2026-08-08)**: agrega `fulfillment_status`/`shipped_at`/`delivered_at`/
+`tracking_note` a `shop_orders` — estado del *envío*, separado del estado del *pago* (`status`,
+ya real desde 038). Lo mueve un admin a mano desde "Mis pedidos"
+(`PATCH /shop/orders/{reference}/fulfillment`, requiere `ADMIN_USER_ID`), dispara el correo
+"tu llavero ya salió" al cliente. Aditiva, aplicada y verificada contra la base real.
 
 **Nota sobre 038 (2026-08-08)**: crea `shop_orders` — checkout real del llavero NFC pagado con
 Wompi (reemplaza la maqueta que solo vivía en `localStorage`, docs/PENDIENTES.md ítem 14). Tabla

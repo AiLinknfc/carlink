@@ -554,6 +554,15 @@ export default function AppPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
           </button>
 
+          {/* "Mis pedidos" — único lugar donde se abre OrderTrackingModal ahora
+              (antes se abría solo al cerrar el carrito, sin importar el motivo). */}
+          <button onClick={() => setShowOrderTracking(true)} title="Mis pedidos" className="topbar-cart"
+            style={topBtn()}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
+            onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>
+          </button>
+
           {isAdmin && (
             <a href="/admin" title="Admin NFC"
               style={{ ...topBtn(), textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1022,15 +1031,20 @@ export default function AppPage() {
       {/* Cart Modal — compra de llavero NFC */}
       <CartModal
         isOpen={showCart}
-        onClose={() => { setShowCart(false); setShowOrderTracking(true) }}
+        onClose={() => setShowCart(false)}
         theme={theme}
         plateText={vehicle?.plate || ''}
         plateType={vehicle?.type || 'particular'}
         city={vehicle?.city || 'Bogotá'}
       />
 
-      {/* Order Tracking Modal — seguimiento post-compra */}
-      <OrderTrackingModal isOpen={showOrderTracking} onClose={() => setShowOrderTracking(false)} />
+      {/* Order Tracking Modal — "Mis pedidos". Solo se abre cuando se le da
+          clic al botón del topbar, nunca automáticamente al cerrar el carrito. */}
+      <OrderTrackingModal
+        isOpen={showOrderTracking}
+        onClose={() => setShowOrderTracking(false)}
+        onBuyAnother={() => { setShowOrderTracking(false); setShowCart(true) }}
+      />
 
       {/* Found Requests Panel */}
       {showFoundPanel && (

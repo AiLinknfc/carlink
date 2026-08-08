@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -1376,3 +1377,24 @@ class ShopOrderOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ShopOrderDetailOut(ShopOrderOut):
+    """Para 'Mis pedidos' (GET /shop/orders, autenticado) — incluye los datos
+    de envío/contacto y el estado de despacho, que el resumen público de
+    ShopOrderOut no necesita exponer."""
+    customer_name: str
+    customer_email: str
+    customer_phone: str
+    shipping_address: str
+    shipping_city: str
+    notes: str
+    fulfillment_status: str
+    shipped_at: datetime | None = None
+    delivered_at: datetime | None = None
+    tracking_note: str
+
+
+class ShopOrderFulfillmentUpdate(BaseModel):
+    status: Literal["shipped", "delivered"]
+    tracking_note: str = ""

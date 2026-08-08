@@ -167,10 +167,22 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     Wompi (`app/services/wompi.py`, `app/routers/shop_orders.py`). El monto lo calcula siempre el
     backend; el estado final se confirma reconsultando a Wompi (nunca lo que reporte el
     navegador), con un webhook de respaldo para producción. Ver `docs/DEPLOY.md` (`WOMPI_*`).
-    Pendiente nuevo que dejó esto: **`OrderTrackingModal.tsx` sigue leyendo `localStorage`**
-    (`loadOrders()` de `lib/shop.ts`) en vez de `GET /shop/orders` real — quedó fuera de alcance a
-    propósito para no inflar el cambio. "Mis pedidos" hoy no muestra las órdenes reales pagadas
-    con Wompi.
+    **✅ "Mis pedidos" real + notificaciones (2026-08-08)** — `OrderTrackingModal.tsx` ya no lee
+    `localStorage`, usa `GET /shop/orders` (autenticado; la cuenta admin ve todas las órdenes,
+    cualquier otra solo las suyas). Solo se abre desde el botón "Mis pedidos" del topbar de
+    `/app` — dejó de abrirse solo al cerrar el carrito. Correo automático al cliente cuando se
+    aprueba el pago + al admin para que sepa que hay que despachar; botón admin "Marcar como
+    enviado" dispara un segundo correo real (`app/services/email.py`,
+    `PATCH /shop/orders/{reference}/fulfillment`, migración 039). **Requiere `SMTP_USER`/
+    `SMTP_PASS` configurados para salir de verdad** — sin eso, cada envío queda logueado como
+    "skipping" y no rompe nada, pero no llega ningún correo real; ver `backend/.env.example`.
+    Pendiente nuevo que dejó esto: **"Mis pedidos" para compradores anónimos de la landing
+    pública** — el checkout de `app/page.tsx` sigue sin requerir sesión (a propósito), pero una
+    orden creada sin login (`user_id` null) no queda asociada a ninguna cuenta; si esa persona
+    inicia sesión después, no hay forma de que `GET /shop/orders` la encuentre (no existe ninguna
+    clave para unirlas). Si se quiere que un comprador anónimo pueda ver su pedido iniciando
+    sesión después, hace falta diseñar cómo asociarlas (¿por email al hacer login? ¿un link mágico
+    en el correo de confirmación?) — no es solo agregar el botón en la landing.
 15. **Rama `feat/taller-empresa-v2` — ✅ borrada (2026-08-07)**, junto con `feat/taller-empresa-panel`
     (ambas locales, nunca llegaron a `origin` — confirmado con `git ls-remote`). Estaban
     completamente contenidas en `master`, sin nada único que perder.

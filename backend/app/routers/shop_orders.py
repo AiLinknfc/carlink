@@ -2,24 +2,29 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
-from app.dependencies import get_current_user_optional
+from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
 from app.models.models import ShopOrder
 from app.schemas.schemas import (
     ShopOrderConfirm,
     ShopOrderCreate,
     ShopOrderCreateOut,
+    ShopOrderDetailOut,
+    ShopOrderFulfillmentUpdate,
     ShopOrderOut,
 )
-from app.services import wompi
+from app.services import email, wompi
 
 logger = logging.getLogger("carlink")
+settings = get_settings()
 
 router = APIRouter(prefix="/shop", tags=["shop"])
 
@@ -72,6 +77,43 @@ def _apply_transaction_data(order: ShopOrder, txn: dict) -> bool:
     return True
 
 
+def _notify_order_approved(order: ShopOrder) -> None:
+    """Correo al cliente ("pago confirmado") + al admin ("hay que
+    despachar"), disparado una sola vez por orden — el caller solo debe
+    llamar esto cuando detecta la transición a 'approved' (was_approved era
+    False, ahora order.status == 'approved'), nunca en cada webhook/confirm
+    repetido. Best-effort: un fallo de SMTP nunca debe tumbar la
+    confirmación del pago, por eso el try/except acá adentro."""
+    try:
+        email.send_order_confirmed_email(
+            customer_email=order.customer_email,
+            customer_name=order.customer_name,
+            reference=order.reference,
+            plate_text=order.plate_text,
+            quantity=order.quantity,
+            amount_in_cents=order.amount_in_cents,
+            currency=order.currency,
+        )
+    except Exception as e:
+        logger.error(f"send_order_confirmed_email failed for {order.reference}: {e}")
+
+    try:
+        email.send_order_admin_notification_email(
+            reference=order.reference,
+            plate_text=order.plate_text,
+            quantity=order.quantity,
+            amount_in_cents=order.amount_in_cents,
+            currency=order.currency,
+            customer_name=order.customer_name,
+            customer_phone=order.customer_phone,
+            customer_email=order.customer_email,
+            shipping_address=order.shipping_address,
+            shipping_city=order.shipping_city,
+        )
+    except Exception as e:
+        logger.error(f"send_order_admin_notification_email failed for {order.reference}: {e}")
+
+
 @router.post("/orders", response_model=ShopOrderCreateOut, status_code=status.HTTP_201_CREATED)
 async def create_shop_order(
     body: ShopOrderCreate,
@@ -117,9 +159,64 @@ async def create_shop_order(
     )
 
 
+@router.get("/orders", response_model=list[ShopOrderDetailOut])
+async def list_shop_orders(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """'Mis pedidos' — requiere sesión (a diferencia del resto de este
+    carrito, que es público a propósito): acá sí hace falta saber quién
+    pregunta. La cuenta admin ve todas las órdenes (cola de despacho);
+    cualquier otra cuenta ve solo las suyas."""
+    is_admin = bool(settings.admin_user_id) and user_id == settings.admin_user_id
+    query = select(ShopOrder).order_by(ShopOrder.created_at.desc()).limit(200)
+    if not is_admin:
+        query = query.where(ShopOrder.user_id == uuid.UUID(user_id))
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 @router.get("/orders/{reference}", response_model=ShopOrderOut)
 async def get_shop_order(reference: str, db: Annotated[AsyncSession, Depends(get_db)]):
     return await _get_order_by_reference(reference, db)
+
+
+@router.patch("/orders/{reference}/fulfillment", response_model=ShopOrderDetailOut)
+async def update_shop_order_fulfillment(
+    reference: str,
+    body: ShopOrderFulfillmentUpdate,
+    admin_user_id: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Botón admin en 'Mis pedidos' para marcar un pedido como enviado o
+    entregado. Solo tiene sentido sobre un pedido ya pagado."""
+    order = await _get_order_by_reference(reference, db)
+    if order.status != "approved":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order is not paid yet")
+
+    now = datetime.now(timezone.utc)
+    order.fulfillment_status = body.status
+    if body.tracking_note:
+        order.tracking_note = body.tracking_note
+
+    if body.status == "shipped":
+        order.shipped_at = now
+        try:
+            email.send_order_shipped_email(
+                customer_email=order.customer_email,
+                customer_name=order.customer_name,
+                reference=order.reference,
+                plate_text=order.plate_text,
+                tracking_note=order.tracking_note,
+            )
+        except Exception as e:
+            logger.error(f"send_order_shipped_email failed for {order.reference}: {e}")
+    elif body.status == "delivered":
+        order.delivered_at = now
+
+    await db.flush()
+    await db.refresh(order)
+    return order
 
 
 @router.post("/orders/{reference}/confirm", response_model=ShopOrderOut)
@@ -134,6 +231,7 @@ async def confirm_shop_order(
     vía principal de confirmación (el webhook de más abajo es el respaldo
     para producción; en local Wompi no puede pegarle a localhost)."""
     order = await _get_order_by_reference(reference, db)
+    was_approved = order.status == "approved"
 
     txn = await wompi.fetch_transaction(body.transaction_id)
     if txn is None:
@@ -141,6 +239,9 @@ async def confirm_shop_order(
 
     if not _apply_transaction_data(order, txn):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction does not match this order")
+
+    if not was_approved and order.status == "approved":
+        _notify_order_approved(order)
 
     await db.flush()
     await db.refresh(order)
@@ -169,6 +270,9 @@ async def wompi_webhook(request: Request, db: Annotated[AsyncSession, Depends(ge
         logger.warning(f"Wompi webhook: orden no encontrada para reference={txn.get('reference')}")
         return {"ok": True}
 
+    was_approved = order.status == "approved"
     _apply_transaction_data(order, txn)
+    if not was_approved and order.status == "approved":
+        _notify_order_approved(order)
     await db.flush()
     return {"ok": True}

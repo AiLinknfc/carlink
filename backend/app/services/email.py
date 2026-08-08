@@ -166,3 +166,198 @@ def send_job_application_email(
     except Exception as e:
         print(f"[email] Failed to send job application email: {e}")
         return False
+
+
+# ── Checkout del llavero NFC (app/routers/shop_orders.py) ──
+# Toman argumentos primitivos, no el modelo ShopOrder, para no acoplar este
+# módulo a app/models — mismo criterio que el resto de este archivo.
+
+def _format_cop(amount_in_cents: int) -> str:
+    return "$" + f"{amount_in_cents / 100:,.0f}".replace(",", ".")
+
+
+def _stage_line(active_step: int) -> str:
+    """1 = pagado, 2 = enviado, 3 = entregado. Texto plano con color en vez
+    de flexbox, para que se vea bien en cualquier cliente de correo."""
+    steps = ["Pagado", "Enviado", "Entregado"]
+    parts = []
+    for i, label in enumerate(steps, start=1):
+        if i <= active_step:
+            parts.append(f'<span style="color:#F5C518;font-weight:700;">{label} &#10003;</span>')
+        else:
+            parts.append(f'<span style="color:#999;">{label}</span>')
+    return " &nbsp;&rarr;&nbsp; ".join(parts)
+
+
+def send_order_confirmed_email(
+    customer_email: str,
+    customer_name: str,
+    reference: str,
+    plate_text: str,
+    quantity: int,
+    amount_in_cents: int,
+    currency: str = "COP",
+) -> bool:
+    """Al cliente, apenas Wompi confirma el pago (transición a 'approved') —
+    ver app/routers/shop_orders.py."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping order-confirmed email")
+        return False
+
+    subject = "CarLink — Pago confirmado, tu llavero NFC va en camino"
+    html = f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Gracias, {customer_name}!</h2>
+        <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
+          Tu pago quedó confirmado y ya estamos preparando tu llavero NFC.
+        </p>
+        <div style="text-align: center; margin-bottom: 16px;">{_stage_line(1)}</div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.8;">
+          <strong>Pedido:</strong> {reference}<br>
+          <strong>Placa:</strong> {plate_text}<br>
+          <strong>Cantidad:</strong> {quantity}<br>
+          <strong>Total:</strong> {_format_cop(amount_in_cents)} {currency}<br>
+          <strong>Entrega estimada:</strong> 5 días hábiles
+        </div>
+      </div>
+      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
+        Te avisamos por acá apenas salga hacia tu dirección.
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = customer_email
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
+        print(f"[email] Sent order-confirmed email to {customer_email} ({reference})")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send order-confirmed email: {e}")
+        return False
+
+
+def send_order_shipped_email(
+    customer_email: str,
+    customer_name: str,
+    reference: str,
+    plate_text: str,
+    tracking_note: str = "",
+) -> bool:
+    """Al cliente, cuando el admin marca la orden como enviada desde 'Mis
+    pedidos' (PATCH /shop/orders/{reference}/fulfillment)."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping order-shipped email")
+        return False
+
+    subject = "CarLink — Tu llavero NFC ya salió"
+    tracking_line = f'<div style="margin-top:12px;"><strong>Seguimiento:</strong> {tracking_note}</div>' if tracking_note else ""
+    html = f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡{customer_name}, tu llavero va en camino!</h2>
+        <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
+          Acabamos de despachar el pedido <strong>{reference}</strong> (placa {plate_text}).
+        </p>
+        <div style="text-align: center; margin-bottom: 16px;">{_stage_line(2)}</div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333;">
+          Debería llegar en los próximos días.{tracking_line}
+        </div>
+      </div>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = customer_email
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
+        print(f"[email] Sent order-shipped email to {customer_email} ({reference})")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send order-shipped email: {e}")
+        return False
+
+
+def send_order_admin_notification_email(
+    reference: str,
+    plate_text: str,
+    quantity: int,
+    amount_in_cents: int,
+    currency: str,
+    customer_name: str,
+    customer_phone: str,
+    customer_email: str,
+    shipping_address: str,
+    shipping_city: str,
+) -> bool:
+    """Al admin (ADMIN_EMAIL), apenas Wompi confirma un pago — todo lo que
+    hace falta para preparar y despachar el llavero."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping order admin-notification email")
+        return False
+    if not ADMIN_EMAIL:
+        print("[email] ADMIN_EMAIL not configured — skipping order admin-notification email")
+        return False
+
+    subject = f"CarLink — Nuevo pedido pagado: {reference}"
+    html = f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Pedido pagado — hay que despachar</h2>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.8;">
+          <strong>Pedido:</strong> {reference}<br>
+          <strong>Placa:</strong> {plate_text} &times;{quantity}<br>
+          <strong>Total:</strong> {_format_cop(amount_in_cents)} {currency}
+        </div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; margin-top: 12px; font-size: 14px; color: #333; line-height: 1.8;">
+          <strong>Cliente:</strong> {customer_name}<br>
+          <strong>Contacto:</strong> {customer_phone} · {customer_email}<br>
+          <strong>Enviar a:</strong> {shipping_address}, {shipping_city}
+        </div>
+      </div>
+      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
+        Marca el pedido como enviado desde "Mis pedidos" cuando lo despaches — eso le avisa al cliente.
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = ADMIN_EMAIL
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
+        print(f"[email] Sent order admin-notification email to {ADMIN_EMAIL} ({reference})")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send order admin-notification email: {e}")
+        return False
