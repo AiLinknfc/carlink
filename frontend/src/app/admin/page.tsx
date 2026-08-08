@@ -203,6 +203,12 @@ export default function AdminPage() {
     setMarkingOrderRef(null)
     setTrackingNoteDraft('')
   }
+  async function markShopOrderDelivered(reference: string) {
+    setMarkingOrderRef(reference)
+    const updated = await adminApi.markShopOrderDelivered(reference)
+    if (updated) setShopOrders(prev => prev.map(o => o.reference === reference ? updated : o))
+    setMarkingOrderRef(null)
+  }
 
   async function loadJobApplications() {
     const list = await jobApplicationApi.list()
@@ -645,6 +651,7 @@ export default function AdminPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {shopOrders.map(o => {
               const canShip = o.status === 'approved' && o.fulfillment_status === 'unfulfilled'
+              const canDeliver = o.status === 'approved' && o.fulfillment_status === 'shipped'
               const paymentColor = o.status === 'approved' ? '#2ecc71' : o.status === 'pending' ? c.accent : '#ff4d6a'
               return (
                 <div key={o.reference} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16 }}>
@@ -684,6 +691,16 @@ export default function AdminPage() {
                         disabled={markingOrderRef === o.reference}
                         style={{ ...accentBtnStyle, opacity: markingOrderRef === o.reference ? 0.6 : 1, cursor: markingOrderRef === o.reference ? 'default' : 'pointer' }}>
                         {markingOrderRef === o.reference ? 'Marcando…' : 'Marcar como enviado'}
+                      </button>
+                    </div>
+                  )}
+
+                  {canDeliver && (
+                    <div style={{ display: 'flex', marginTop: 10 }}>
+                      <button onClick={() => markShopOrderDelivered(o.reference)}
+                        disabled={markingOrderRef === o.reference}
+                        style={{ ...accentBtnStyle, background: '#2ecc71', opacity: markingOrderRef === o.reference ? 0.6 : 1, cursor: markingOrderRef === o.reference ? 'default' : 'pointer' }}>
+                        {markingOrderRef === o.reference ? 'Marcando…' : 'Marcar como entregado'}
                       </button>
                     </div>
                   )}

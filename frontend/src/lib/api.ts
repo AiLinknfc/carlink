@@ -331,6 +331,8 @@ export const adminApi = {
   listAllShopOrders: () => request<ShopOrderDetail[]>('GET', '/shop/admin/orders'),
   markShopOrderShipped: (reference: string, tracking_note: string) =>
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'shipped', tracking_note }),
+  markShopOrderDelivered: (reference: string) =>
+    request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'delivered' }),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta

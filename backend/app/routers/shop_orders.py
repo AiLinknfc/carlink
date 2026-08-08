@@ -199,8 +199,10 @@ async def update_shop_order_fulfillment(
     admin_user_id: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Botón admin en 'Mis pedidos' para marcar un pedido como enviado o
-    entregado. Solo tiene sentido sobre un pedido ya pagado."""
+    """Botón admin en el panel Admin NFC (pestaña "Pedidos") para marcar un
+    pedido como enviado o entregado — nunca desde 'Mis pedidos' en modo
+    cliente, que es de solo lectura. Solo tiene sentido sobre un pedido ya
+    pagado."""
     order = await _get_order_by_reference(reference, db)
     if order.status != "approved":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order is not paid yet")
