@@ -1,15 +1,21 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-07 (cuarta pasada — registro de vehículo: motos, placa, documento, tema)._
+_Última actualización: 2026-08-07 (quinta pasada — documento de identidad eliminado del todo)._
+
+**Ejecutado en la quinta pasada**: el campo "Documento de identidad" de `app/register/page.tsx`
+**se eliminó por completo** (no solo se hizo opcional, como en la cuarta pasada) — el usuario
+decidió que no lo requiere en absoluto en este flujo, ni por escritura manual ni por lo que
+`handleScanCard` (OCR de la tarjeta de propiedad) llegara a leer. Se borró el estado
+`regDocument`, el `<input>`, el autollenado desde el OCR, y el envío a `PUT /auth/me`. Los 4 campos
+restantes (Nombre, Tipo, Año, Modelo) se reempacaron de una grilla de 3 filas (la última a ancho
+completo) a 2 columnas × 2 filas sin huecos, manteniendo el mismo orden.
 
 **Ejecutado en la cuarta pasada** (commits locales, sin pushear — ver #2): el registro de
 vehículo ahora sugiere marca/modelo también para motos (antes solo autos), la placa cambia de
 formato solo con el tipo (carro ABC-123 vs. moto ABC-12D — **el backend rechazaba el formato de
-moto con 422, bug real encontrado y arreglado**), el documento de identidad dejó de ser obligatorio
-al registrarse (solo se completa si escaneas la tarjeta de propiedad, o a mano si querés), y las
-sugerencias de modelo/marca ya no son un `<datalist>` nativo sin tema — hay un componente nuevo
-(`ThemedSuggestInput`) que sí respeta claro/oscuro. Detalle completo en "Registro de vehículo:
-motos, placa y documento" más abajo.
+moto con 422, bug real encontrado y arreglado**), y las sugerencias de modelo/marca ya no son un
+`<datalist>` nativo sin tema — hay un componente nuevo (`ThemedSuggestInput`) que sí respeta
+claro/oscuro. Detalle completo en "Registro de vehículo: motos, placa y documento" más abajo.
 
 **Ejecutado en la tercera pasada**: trial gratis de 7 días
 ahora solo se otorga al primer vehículo de una cuenta taller/empresa (antes, cada vehículo nuevo
@@ -329,11 +335,11 @@ Pedido del usuario tras usar el registro: el documento de identidad se pedía de
 no había sugerencias de marca/modelo para moto, la placa no cambiaba de formato con el tipo, y las
 listas de sugerencias no respetaban el tema claro/oscuro.
 
-- [x] **Documento de identidad ya no es obligatorio para registrarse** (`app/register/page.tsx`).
-      Sigue existiendo el campo (por si el usuario prefiere escribirlo, o para cuando `handleScanCard`
-      lo lee de la tarjeta de propiedad escaneada — eso ya existía, no se tocó), pero ya no bloquea el
-      registro y solo se manda al backend si tiene contenido. Label marcado "(opcional)" + texto
-      aclarando que se puede pedir después, al solicitar verificación de perfil.
+- [x] **Documento de identidad — eliminado por completo del registro (quinta pasada, no solo
+      opcional).** Primero se hizo opcional (cuarta pasada); el usuario decidió después que
+      directamente no lo requiere en este flujo — se borró el campo, el estado, el autollenado
+      desde `handleScanCard` (OCR de la tarjeta de propiedad) y el envío a `PUT /auth/me`. Los 4
+      campos que quedan (Nombre, Tipo, Año, Modelo) se reempacaron en 2×2 sin huecos.
 - [x] **Sugerencias de marca/modelo para moto** — antes `BRANDS`/`MODELS_BY_BRAND` solo tenían marcas
       y líneas de carro, así que elegir "Moto" como tipo dejaba ambos campos sin ninguna sugerencia
       (el propio código lo admitía en un comentario: "si aun así no hay nada (p. ej. Moto), devuelve

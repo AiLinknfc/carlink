@@ -234,7 +234,6 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
 /* Persona fields */
   const [brand, setBrand] = useState('')
   const [regName, setRegName] = useState('')
-  const [regDocument, setRegDocument] = useState('')
   const [scanning, setScanning] = useState(false)
   const [scanHint, setScanHint] = useState<string | null>(null)
   const [regPlateLetters, setRegPlateLetters] = useState('')
@@ -432,7 +431,9 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
         filled.push('color')
       }
       if (data.owner_name) { setRegName(data.owner_name); filled.push('propietario') }
-      if (data.document_number) { setRegDocument(data.document_number.replace(/[^0-9A-Za-z.-]/g, '')); filled.push('documento') }
+      // El documento de identidad ya no se captura en el registro (pedido
+      // del usuario, 2026-08-07) — ni a mano ni desde la tarjeta escaneada,
+      // aunque el OCR (services/ocr.py) lo siga leyendo si está en la foto.
       setScanHint(filled.length
         ? `Leímos: ${filled.join(', ')}. Revisa que esté correcto antes de continuar.`
         : 'No pudimos leer datos claros. Completa el formulario a mano.')
@@ -455,12 +456,10 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
     const token = (await supabase.auth.getSession()).data.session?.access_token
     if (!token) { setErrorMsg('Sesión expirada'); setSaving(false); return }
     try {
-      /* El documento de identidad queda en el perfil: es el dato que luego se
-         contrasta con la tarjeta de propiedad al pedir la verificación. Solo
-         se manda si el usuario lo escribió o vino de escanear la tarjeta —
-         nunca se fuerza a completarlo para poder registrarse. */
+      // Ya no se pide ni se manda documento de identidad en el registro
+      // (pedido del usuario, 2026-08-07) — si alguna vez hace falta, se
+      // pide aparte al solicitar verificación de perfil, no acá.
       const profileBody: Record<string, string> = { full_name: regName }
-      if (regDocument.trim()) profileBody.document_number = regDocument.trim()
       await fetch(apiUrl('/auth/me'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -596,20 +595,15 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                 )}
               </div>
 
+              {/* Sin campo de documento de identidad a propósito (pedido del
+                  usuario, 2026-08-07) — nunca se pide de entrada. Nombre →
+                  Tipo → Año → Modelo empacados en 2 columnas x 2 filas, sin
+                  huecos, en vez de 3 filas con la última a ancho completo. */}
               <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del propietario</label>
                   <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>
-                    Documento de identidad <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: tk.sectionTitle }}>(opcional)</span>
-                  </label>
-                  <input value={regDocument} onChange={e => setRegDocument(e.target.value.replace(/[^0-9A-Za-z.-]/g, ''))} placeholder="Se completa solo al escanear tu tarjeta de propiedad" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
-                  <div style={{ fontSize: 10.5, color: tk.sectionTitle, marginTop: 5, lineHeight: 1.4 }}>No hace falta ahora — se pide más adelante si alguna vez solicitas verificar tu perfil.</div>
-                </div>
-                {/* Tipo → Año → Modelo: primero se acota el vehículo (carrocería y
-                    año) y al final se elige la línea, para guiar mejor la búsqueda. */}
                 <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Tipo</label>
                   <select value={regType} onChange={e => setRegType(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none', cursor: 'pointer' }}>
@@ -622,10 +616,10 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                     {years.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
-                <div style={{ gridColumn: '1 / -1' }}>
+                <div>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Modelo / línea</label>
                   <ThemedSuggestInput value={regModel} onChange={setRegModel} suggestions={regModels}
-                    placeholder={regModels.length ? `Elige o escribe (ej. ${regModels[0]})` : (brand ? 'Escribe el modelo' : 'Selecciona la marca y elige el modelo')}
+                    placeholder={regModels.length ? `Elige (ej. ${regModels[0]})` : (brand ? 'Escribe el modelo' : 'Elige marca primero')}
                     theme={{ inputBg: tk.inputBg, inputBorder: tk.inputBorder, inputText: tk.inputText, accent: tk.accent, muted: tk.muted, panelBg: tk.cardBg }} />
                 </div>
               </div>
