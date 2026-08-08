@@ -11,6 +11,19 @@ export interface ParsedPlate {
   formatted: string;
 }
 
+/* Nombre visible por tipo de placa — usado para mostrarle al usuario qué tipo
+   reconocimos a partir de lo que escribió (AddVehicleModal.tsx), y reusable
+   por cualquier otro lugar que hoy arma su propio mapa inline (CartModal.tsx). */
+export const PLATE_TYPE_LABELS: Record<PlateType, string> = {
+  particular: 'Particular',
+  moto: 'Moto',
+  publico: 'Público',
+  diplomatica: 'Diplomática',
+  carga: 'Carga',
+  remolque: 'Remolque',
+  clasico: 'Clásico',
+};
+
 const PATTERNS: Record<PlateType, RegExp> = {
   particular:  /^[A-Z]{3}-\d{3}$/i,
   moto:        /^[A-Z]{3}-\d{2}[A-Z]$/i,

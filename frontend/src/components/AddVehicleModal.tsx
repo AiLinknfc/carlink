@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { apiPost } from '@/lib/api'
-import { formatPlate, getPlateConfig, type PlateType } from '@/lib/plate'
-import { brandsForType, plateTypeFor, VEHICLE_TYPES } from '@/lib/vehicleBrands'
+import { formatPlate, getPlateConfig, parsePlate, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
+import { brandsForType, plateTypeFor, VEHICLE_TYPES, modelSuggestions } from '@/lib/vehicleBrands'
+import { CITIES } from '@/lib/constants'
 import ThemedSuggestInput from './ThemedSuggestInput'
 
 /* CSS vars (no un objeto de tema en JS como register/page.tsx) porque este
@@ -41,14 +42,23 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const plateType: PlateType = plateTypeFor(type)
   const plateConfig = getPlateConfig(plateType)
   const plate = formatPlate(plateLetters, plateNumbers, plateType)
-  const canSubmit = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen) && brand && model.trim() && !saving
+  const plateComplete = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen)
+  const canSubmit = plateComplete && brand && model.trim() && !saving
   const brandOptions = brandsForType(type)
+  // Mismas sugerencias de modelo que app/register/page.tsx (@/lib/vehicleBrands,
+  // antes vivían solo ahí) — filtradas por marca + tipo + año.
+  const modelOptions = useMemo(() => modelSuggestions(brand, type, year), [brand, type, year])
+  // Confirmación de qué tipo de placa se reconoció en lo que se escribió —
+  // el campo ya está limitado al formato del Tipo elegido (no se puede escribir
+  // una placa de moto con Tipo=Auto), así que esto siempre coincide; es
+  // feedback para el usuario, no una validación cruzada.
+  const detectedPlateType = plateComplete ? parsePlate(plate)?.type : null
 
   // Si cambian de carrocería y la marca elegida no existe en la lista nueva
   // (ej. Chevrolet con tipo Moto), se limpia en vez de dejar una combinación
   // imposible.
   useEffect(() => {
-    if (brand && !brandOptions.includes(brand)) setBrand('')
+    if (brand && !brandOptions.includes(brand)) { setBrand(''); setModel('') }
   }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
@@ -122,14 +132,30 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
               <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(plateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, plateConfig.moto ? 3 : plateConfig.numLen))} maxLength={plateConfig.moto ? 3 : plateConfig.numLen} placeholder={plateConfig.moto ? '12D' : plateConfig.placeholder.split('-')[1]}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
             </div>
+            {/* Confirma qué tipo de placa se reconoció en lo escrito — pedido
+                explícito, aunque hoy siempre coincide con Tipo porque el campo
+                ya está limitado a su formato. */}
+            {detectedPlateType && (
+              <div style={{ fontSize: 10.5, color: '#F5C518', marginTop: 5, fontWeight: 600 }}>
+                Placa de {PLATE_TYPE_LABELS[detectedPlateType]}
+              </div>
+            )}
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ciudad</label>
-            <input value={city} onChange={e => setCity(e.target.value)} placeholder="Bogotá"
-              style={{ width: '100%', padding: '11px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+            {/* Mismas opciones que app/register/page.tsx (@/lib/constants), no
+                una lista aparte. */}
+            <select value={city} onChange={e => setCity(e.target.value)}
+              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: city ? 'var(--text-1)' : 'var(--text-3)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+              <option value="">Selecciona</option>
+              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 
+        {/* Orden pedido: Marca, Tipo, Año, Modelo, Color — misma distribución
+            de grillas (2 columnas + 3 columnas) que ya había, solo cambia qué
+            campo va en cada casilla. */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Marca</label>
@@ -137,9 +163,11 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
               style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Modelo</label>
-            <input value={model} onChange={e => setModel(e.target.value)} placeholder="Ej. 3, Duster, Spark"
-              style={{ width: '100%', padding: '11px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tipo</label>
+            <select value={type} onChange={e => setType(e.target.value)}
+              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+              {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
         </div>
 
@@ -152,11 +180,12 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tipo</label>
-            <select value={type} onChange={e => setType(e.target.value)}
-              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-              {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Modelo</label>
+            {/* Mismas sugerencias que el registro (marca + tipo + año), antes
+                era un input libre sin ninguna ayuda. */}
+            <ThemedSuggestInput value={model} onChange={setModel} suggestions={modelOptions}
+              placeholder={modelOptions.length ? `Elige (ej. ${modelOptions[0]})` : (brand ? 'Escribe el modelo' : 'Elige marca primero')}
+              style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Color</label>
