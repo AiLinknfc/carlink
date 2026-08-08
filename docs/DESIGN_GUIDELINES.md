@@ -1,5 +1,18 @@
 # CarLink Design Guidelines
 
+## Regla dura: sin emojis en la interfaz
+
+**Nunca usar emojis en ningún elemento visible de la app** (botones, labels, toasts, badges,
+mensajes de error/éxito, títulos de sección, contenido generado dinámicamente, etc.) — pedido
+explícito y repetido del usuario (2026-08-07). Usar en su lugar: los iconos/SVG del sistema ya
+existente, texto plano, o los colores semánticos ya definidos abajo (`--accent`, verde/naranja/rojo)
+para transmitir estado. Esto aplica también a texto generado por IA que se muestre en la UI (p.ej.
+diagnósticos, notificaciones) — si el texto viene de un modelo, filtrar/pedir explícitamente que no
+incluya emojis antes de renderizarlo.
+
+Esta regla es solo de **interfaz de la app** — no aplica a la documentación interna (`docs/*.md`),
+donde emojis como ✅/❌/🔴 ya se usan como notación de estado en tablas y checklists y son válidos ahí.
+
 ## Typography
 
 **Maximum 2 font families:**

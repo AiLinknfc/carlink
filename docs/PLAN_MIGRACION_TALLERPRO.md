@@ -395,22 +395,28 @@ los módulos (3 mecánicos, 4 servicios de catálogo, 3 clientes con vehículo, 
 inventario con uno en alerta de stock bajo, 2 órdenes de trabajo, 2 citas, 1 notificación, 1
 documento, 1 reseña). Credenciales entregadas directamente al usuario, no documentadas aquí.
 
-### Fase 8 — Despliegue — **preparada, sin ejecutar** (2026-08-04, decisión explícita del usuario:
-"prepárame el push pero no lo hagas" / "NO quiero dañar lo que hay en producción")
-- [x] Migraciones aplicadas manualmente contra Supabase real (023 a 032, procedimiento de
-      `docs/DEPLOY.md`) — hecho progresivamente en las Fases 1 y 6, todas aditivas (ninguna toca ni
-      borra nada existente), verificadas contra la DB real cada vez.
-- [ ] Variables de entorno: `DEEPSEEK_API_KEY` — **no se pudo verificar desde este entorno**
-      (`railway login` requiere hacerlo el usuario en su propia terminal, no desde un agente
-      sandboxeado — ver `docs/DEPLOY.md` "Lecciones del despliegue..."). Confirmar en el dashboard
-      de Railway antes o justo después del deploy. No se necesita `GEMINI_API_KEY` en ningún lado
-      (el diagnóstico IA del taller usa DeepSeek, mismo proveedor que el OCR existente).
-- [x] `docs/PENDIENTES.md` y `docs/CONTEXTO.md` actualizados.
+### Fase 8 — Despliegue — **✅ hecho, en producción** (actualizado 2026-08-07)
+
+_Nota: esta fase se escribió originalmente el 2026-08-04 con la decisión explícita del usuario de
+"prepárame el push pero no lo hagas" — el push/merge a `master` sí se terminó haciendo el
+2026-08-06 en una sesión posterior (junto con la paridad visual y la facturación automática, ver
+los otros dos planes). En el camino hubo un reset accidental que sacó 2 commits de `master` sin
+llegar a pushearlos a `origin`; se recuperaron de objetos colgantes del repo local y se
+re-mergearon explícitamente (`bcf7038`). `origin/master` y producción están al día con eso desde
+el 6 de agosto._
+
+- [x] Migraciones aplicadas manualmente contra Supabase real (023 a 034 a esta altura — 032-034 se
+      agregaron en las sesiones de paridad visual y facturación automática, ver esos planes),
+      procedimiento de `docs/DEPLOY.md`, verificadas contra la DB real cada vez.
+- [x] `docs/PENDIENTES.md` y `docs/CONTEXTO.md` actualizados (2026-08-07, ver ese archivo — es
+      ahora la única fuente de verdad de pendientes, no se repiten acá).
 - [x] Este archivo, marcado fase por fase a medida que se avanzó.
-- [ ] **Push + deploy — pendiente, a propósito.** Todo commiteado en la rama local
-      `feat/taller-empresa-panel` (8 commits), **nunca se hizo `git push`** — `origin/master` sigue
-      exactamente en `fda402e`, el commit previo a esta migración. carlink.com.co y
-      api.carlink.com.co están intocados.
+- [x] **Push + deploy — hecho.** `origin/master` = `master` = `bcf7038`. Verificado en vivo
+      2026-08-07: `api.carlink.com.co/api/health` responde `{"version": "1.0.2"}`, igual que el
+      código actual; `carlink.com.co` responde 200.
+- [ ] **`DEEPSEEK_API_KEY` en Railway — pendiente real, confirmado sin configurar** (el usuario lo
+      confirmó 2026-08-07). El Diagnóstico IA del taller fallará hasta que se agregue. Ver
+      `docs/PENDIENTES.md` #1.
 
 **Verificación de seguridad antes del push** (2026-08-04): `git diff master..feat/taller-empresa-panel`
 — 51 archivos, +6470/-172 líneas, todas explicables por los cambios documentados en este plan (ver

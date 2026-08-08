@@ -184,6 +184,13 @@ Cuando una orden de trabajo queda **pagada** (`is_paid=true`) y en estado **Entr
 - `HistorialTab.tsx`/`PartesTab.tsx`: mostrar de dónde viene cada registro ("Registrado por
   {nombre del taller}") y ocultar edición cuando `workshop_id` está presente.
 
+**Nota (2026-08-07):** las 4 preguntas de esta sección quedaron respondidas por la sección
+"Decisiones confirmadas por el usuario" al inicio del documento y por cómo se ejecutaron los Pasos
+1-3 — se dejan abajo sin borrar solo como registro de qué se preguntó, ninguna sigue abierta. Lo que
+sí sigue pendiente de verdad de todo este plan vive en `docs/PENDIENTES.md` (verificación visual de
+los PDF, y la decisión de arquitectura sobre auto-escritura en cuentas de terceros — ver "Hallazgos
+de arquitectura" ahí).
+
 ## 3. Decisiones que necesito que confirmes antes de empezar
 
 1. **¿Dónde vive "Facturas" en el menú de modo persona?** Hoy el sidebar de persona tiene: Ficha

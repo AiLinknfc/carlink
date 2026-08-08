@@ -1,25 +1,35 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-08-04._
+_Última actualización: 2026-08-07._
 
 ## Estado actual
 
 - **Frontend**: Next.js 15 (App Router) + React 19 + TypeScript — producción en Vercel (`carlink.com.co`)
 - **Backend**: FastAPI + SQLAlchemy async + asyncpg — producción en Railway (`api.carlink.com.co`)
 - **DB**: Supabase Cloud PostgreSQL (ref `xgdshunvmeceqnzmkcsg`) — **local, staging y producción comparten la misma instancia** hasta que se separen ambientes (ver `docs/DEPLOY.md`)
-- **Tipos de cuenta**: `persona` (default), `taller` (vía `POST /workshops`), `empresa`
+- **Tipos de cuenta**: la columna `profiles.account_type` **solo admite `'persona'` o `'taller'` por
+  constraint de DB** (`003_multi_tenant.sql`). `'empresa'`/`'business'` **nunca llegan a la base** —
+  son solo un estado transitorio de la UI de registro/login (`LoginModal.tsx`) que termina creando
+  una cuenta `'taller'`; el frontend los trata como sinónimos vía `isBusinessAccount()`. Ver
+  `docs/PENDIENTES.md` → "Hallazgos de arquitectura" #1 (esto invalida el pendiente histórico de
+  "agregar fila `empresa` a `nfc_token_limits`" — no hay tal fila posible).
 
-## Panel de negocio taller/empresa (2026-08-04, sin desplegar todavía)
+## Panel de negocio taller/empresa (2026-08-04 → 2026-08-06, EN PRODUCCIÓN)
 
 Migración completa de `tallerpro/` (SaaS de taller standalone con datos mock) hacia una sección
 aditiva de CarLink — panel multi-cliente en `/app/negocio` (clientes, órdenes de trabajo,
 inventario, citas, notificaciones, rentabilidad, documentos, diagnóstico IA, perfil del taller,
-ficha pública). No reemplaza ni toca las tabs por-vehículo existentes de `/app`
-(Ficha/Taller/Diagnóstico/Partes/Config). Detalle completo, fase por fase: `docs/PLAN_MIGRACION_TALLERPRO.md`.
+ficha pública), más paridad visual con tallerpro y facturación automática al entregar/cobrar una
+orden. No reemplaza ni toca las tabs por-vehículo existentes de `/app`
+(Ficha/Taller/Diagnóstico/Partes/Config). Detalle completo, fase por fase: `docs/PLAN_MIGRACION_TALLERPRO.md`,
+`docs/PLAN_PARIDAD_UI_TALLERPRO.md`, `docs/PLAN_FACTURACION_AUTOMATICA.md`.
 
-**Vive en la rama local `feat/taller-empresa-panel` — sin push, sin desplegar** (a propósito, ver
-`docs/PENDIENTES.md`). Las migraciones de DB (023–032) sí están aplicadas contra la Supabase real
-(aditivas, inertes hasta que se despliegue el código).
+**Ya está en `master` y desplegado en producción** — verificado 2026-08-07:
+`api.carlink.com.co/api/health` responde `version 1.0.2`, igual que el código de `master`.
+Todas las migraciones de DB (023–034) están aplicadas contra la Supabase real. Lo que sigue
+pendiente (variable de entorno de IA sin confirmar, verificación visual de PDFs, etc.) vive en
+`docs/PENDIENTES.md` — **ese es el único lugar donde se lleva la lista de pendientes**, no lo
+repitas acá.
 
 ## Arquitectura del llavero NFC (rediseñada 2026-07-27)
 
@@ -36,9 +46,7 @@ Migración `019_nfc_activation_codes.sql` agrega las columnas de provisión a `n
 **Confirmado funcionando en producción de punta a punta** (provisión → activación → ficha pública) al cierre de esta sesión.
 
 ### Pendiente sobre el llavero NFC
-- El carrito "Solicitar llavero NFC" sigue siendo una maqueta de UI sin backend real de pedidos/pago (decisión explícita: fuera de alcance por ahora).
-- `nfc_token_limits` solo tiene semillas para `persona` y `taller` — falta agregar `empresa` para que el límite de negocio se aplique de verdad y no caiga al default de código (1).
-- El rol "admin" es un solo UUID hardcodeado (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`), no un rol basado en `account_type`. No escala a múltiples administradores.
+Lista completa y actualizada en `docs/PENDIENTES.md` (única fuente de verdad de pendientes).
 
 ## Servidores locales
 

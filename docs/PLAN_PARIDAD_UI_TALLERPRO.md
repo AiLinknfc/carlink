@@ -207,6 +207,7 @@ el data-fetching, solo el JSX/layout), traducir cada `grid-cols-N` de Tailwind a
       `PublicWorkshopCard.tsx` de tallerpro (925 líneas — el componente más grande de todos, incluye
       selector de tema claro/oscuro/CDA y formulario de calificación con distribución de estrellas).
       Es un salto grande de tamaño; se deja como fase aparte para no bloquear el resto.
+      (Tracked en `docs/PENDIENTES.md` #13.)
 - [x] **QR de la ficha + toggle de publicación** — ✅ hecho (2026-08-05, adelantado a pedido del
       usuario, no se esperó a decidir el resto de la Fase D):
   - Migración `033_workshop_ficha_public_toggle.sql` — `workshops.is_published boolean default true`.

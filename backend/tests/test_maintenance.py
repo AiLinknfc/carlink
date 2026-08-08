@@ -35,6 +35,7 @@ def _fake_record(overrides: dict | None = None) -> MagicMock:
     r.lubricant_brand = ""
     r.lubricant_type = ""
     r.next_service_mileage = None
+    r.source_work_order_id = None
     r.created_at = datetime.now(timezone.utc)
     if overrides:
         for k, v in overrides.items():

@@ -74,6 +74,16 @@ NEXT_PUBLIC_API_URL=https://api.carlink.app
 5. Probar admin panel: `/admin` → stats, tokens, alerts, whitelist, limits
 6. Verificar que el NFC público funciona con token real
 
+### Confirmar que un deploy realmente aterrizó (procedimiento, adoptado 2026-08)
+Railway puede tardar varios minutos y sus redeploys son lentos/confusos (ver "Lecciones del
+despliegue de la reactivación NFC" más abajo) — no asumir que un deploy terminó solo porque pasó
+tiempo. Antes de cada push a `master`, bumpear `version` en `GET /api/health`
+(`backend/app/main.py`). Después del push, hacer poll de `https://api.carlink.com.co/api/health`
+hasta que el `version` devuelto coincida con el que se acaba de subir — recién ahí se confirma que
+el backend nuevo está sirviendo tráfico real, en vez de confundir "el deploy no ha terminado" con
+"el feature no funciona". Usado dos veces con éxito (bump a `1.0.1` y a `1.0.2`, este último
+específicamente para diagnosticar una caída de producción).
+
 ### Post-despliegue
 1. Monitorear logs de Railway por errores
 2. Verificar rate limiting funciona
@@ -171,6 +181,8 @@ columnas nuevas en `workshops` confirmadas por consulta directa a `information_s
 **Regla:** cada vez que se agregue un archivo a `supabase/migrations/`, en el mismo PR se debe (1) correrlo contra la base real y (2) añadir su línea `\i` aquí. Este checklist es actualmente la única fuente de verdad de qué se aplicó — no hay tabla de control de versión de esquema (ver "Pendiente: separación de ambientes" abajo).
 
 ### Pendiente: separación de ambientes
+_(Tracked también en `docs/PENDIENTES.md` #9 — esa es la lista única de pendientes del proyecto;
+esta sección se deja acá porque tiene el detalle del plan de 3 pasos.)_
 
 El estado actual (una sola base de datos para los tres entornos) es la causa raíz de varios bugs de producción recientes: migraciones corridas de forma inconsistente, código defensivo agregado para tolerar un esquema desconocido en vez de corregirlo. Recomendado:
 
