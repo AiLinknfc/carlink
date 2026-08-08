@@ -14,6 +14,7 @@ import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
 import QuickRegisterModal from '@/components/QuickRegisterModal'
 import TransferVehicleModal from '@/components/TransferVehicleModal'
+import AddVehicleModal from '@/components/AddVehicleModal'
 import CertificadosTab from '@/components/CertificadosTab'
 import DocumentosTab from '@/components/DocumentosTab'
 import GaleriaTab from '@/components/GaleriaTab'
@@ -48,6 +49,12 @@ export default function AppPage() {
   const [activeTab, setActiveTab] = useState('ficha')
   const [vehicle, setVehicle] = useState<any>(null)
   const [vehicleLoading, setVehicleLoading] = useState(true)
+  // Todos los vehículos de la cuenta (2026-08-07, feature "agregar vehículo")
+  // — antes solo se guardaba data[0] y el resto de los vehículos de una
+  // cuenta con más de uno quedaban invisibles en la UI, sin forma de verlos
+  // ni de agregar uno nuevo.
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [editName, setEditName] = useState('')
   const [editModelo, setEditModelo] = useState('')
@@ -340,10 +347,36 @@ export default function AppPage() {
     if (!user) { router.push('/'); return }
     setVehicleLoading(true)
     apiGet('/vehicles').then((data) => {
-      if (data?.length) setVehicle(data[0])
+      if (data?.length) {
+        setVehicles(data)
+        // Recuerda cuál vehículo estaba activo entre recargas — si el
+        // guardado ya no existe (se borró, o es de otra cuenta) cae al primero.
+        const savedId = typeof window !== 'undefined' ? localStorage.getItem('carlink_active_vehicle_id') : null
+        setVehicle(data.find((v: any) => v.id === savedId) || data[0])
+      }
       setVehicleLoading(false)
     })
   }, [user, loading, router])
+
+  const switchVehicle = useCallback((id: string) => {
+    const found = vehicles.find(v => v.id === id)
+    if (!found) return
+    setVehicle(found)
+    setActiveTab('ficha')
+    if (typeof window !== 'undefined') localStorage.setItem('carlink_active_vehicle_id', id)
+  }, [vehicles])
+
+  const handleVehicleCreated = useCallback((newVehicle: any) => {
+    setVehicles(vs => [...vs, newVehicle])
+    switchVehicle(newVehicle.id)
+    setShowAddVehicle(false)
+    setRefreshKey(k => k + 1)
+    // switchVehicle ya guarda el id en localStorage, pero newVehicle todavía
+    // no estaba en `vehicles` cuando se define switchVehicle acá arriba —
+    // se setea directo para no depender del orden de renders.
+    setVehicle(newVehicle)
+    if (typeof window !== 'undefined') localStorage.setItem('carlink_active_vehicle_id', newVehicle.id)
+  }, [switchVehicle])
 
   useEffect(() => {
     if (!showProfile) return
@@ -430,7 +463,20 @@ export default function AppPage() {
         subscriptionStatus={profile?.subscription_status}
         trialEndsAt={profile?.trial_ends_at}
         profileCreatedAt={profile?.created_at}
+        vehicles={vehicles.map(v => ({ id: v.id, plate: v.plate, brand: v.brand, model: v.model }))}
+        activeVehicleId={vehicle?.id}
+        onSwitchVehicle={switchVehicle}
+        onAddVehicle={() => setShowAddVehicle(true)}
       />
+
+      {showAddVehicle && (
+        <AddVehicleModal
+          onClose={() => setShowAddVehicle(false)}
+          isFirstVehicle={vehicles.length === 0}
+          isBusinessAccount={isBusiness}
+          onCreated={handleVehicleCreated}
+        />
+      )}
 
       <div className="sidebar-wrap" style={{
         marginLeft: 'var(--rail-w, 266px)', transition: 'margin-left .22s cubic-bezier(0.22,1,0.36,1)', flex: 1, padding: '44px clamp(24px,4vw,56px) 72px',

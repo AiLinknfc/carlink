@@ -285,13 +285,28 @@ tomadas (no solo sugeridas — ya implementadas donde aplicaba código):
   Corregido con `foreign_keys=` explícito en ambos lados de la relación. Esto se habría roto en el
   primer arranque de la app en producción si no se hubiera detectado corriendo la suite de tests
   completa después del cambio — otro caso de "verificar contra el sistema real, no solo el diff".
-- **No existe ninguna UI para "agregar otro vehículo" a una cuenta ya logueada.** `POST /vehicles`
-  solo se llama una vez, desde el formulario de registro (`app/register/page.tsx`) — no hay botón
-  "+" en `/app` ni en `/app/negocio` para un segundo vehículo. La regla de "el 2do vehículo necesita
-  llavero" (punto 3 arriba) ya está protegida en el backend pase lo que pase, pero **hoy no hay forma
-  de ejercerla desde la UI** porque la funcionalidad en sí no existe todavía. Construir esa pantalla
-  (con el mensaje de "necesitás comprar un llavero" en el momento justo) es un pendiente aparte, no
-  incluido en esta pasada — avisame si querés que la construya.
+- **UI de "agregar otro vehículo" — ✅ construida (2026-08-07, cuarta pasada).** No existía ninguna
+  hasta ahora (`POST /vehicles` solo se llamaba una vez, desde el registro). Agregado:
+  - `AddVehicleModal.tsx` (nuevo) — formulario compacto (placa, ciudad, marca, modelo, año, tipo,
+    color), llama `POST /vehicles` directo. Al terminar, muestra si el vehículo recibió la ficha de
+    prueba gratis (solo el primero de una cuenta taller/empresa) o si hace falta comprar un llavero
+    — con un CTA a `/shop` en ese caso.
+  - Selector de vehículo activo en `Sidebar.tsx` (`<select>`, solo aparece si la cuenta tiene más de
+    uno) + botón "Agregar vehículo" siempre visible — ambos dentro del bloque "Vehículo" del rail
+    expandido. La selección persiste en `localStorage` (`carlink_active_vehicle_id`) entre recargas.
+  - `app/app/page.tsx` ya no descarta el resto de los vehículos de la cuenta (`data[0]` a secas) —
+    guarda la lista completa y expone el cambio de activo.
+  - Solo aplica a cuentas `persona` en la práctica: `/app` ya redirige toda cuenta de negocio a
+    `/app/negocio` antes de renderizar nada de esto (`isBusiness` check al inicio de la página) — lo
+    cual además confirma que la separación taller/persona del punto 1 de arriba ya estaba forzada a
+    nivel de código, no solo de convención.
+  - **No verificado en navegador real** — mismo motivo de siempre (sin Chromium en este entorno).
+    `tsc --noEmit` y `vitest run` limpios (sin nuevas fallas). Sí vale una pasada visual tuya,
+    sobre todo el estado de "vehículo agregado, comprá un llavero" y el selector con 2+ vehículos.
+  - **No incluido en esta pasada**: no hay forma de *editar* o *eliminar* un vehículo agregado desde
+    esta UI (ya existe `PUT /vehicles/{id}`/`DELETE /vehicles/{id}` en el backend, pero nada nuevo se
+    conectó a ellos) — la edición de datos del vehículo activo sigue siendo la única vía existente
+    (modal de perfil dentro de `FichaTab`).
 - **La misma necesidad de "ocultar contenido con datos de un dueño anterior" probablemente aplica a
   `Certificate`/`CertificadosTab.tsx`** (certificados con costo y fecha, mismo patrón que
   `documents.py`) — no se tocó en esta pasada, mismo mecanismo (`is_pre_transfer`) se podría

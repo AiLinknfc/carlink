@@ -44,6 +44,14 @@ interface Props {
    * (ese bloque, con el botón de salir, antes solo aparecía si `vehicle.owner`
    * existía — lo desacopla para poder reusar el rail sin contexto de vehículo). */
   userName?: string
+  /** Lista completa de vehículos de la cuenta (2026-08-07, feature de
+   * "agregar vehículo") — si trae más de uno, se muestra un selector debajo
+   * de la placa activa. `onAddVehicle` siempre se ofrece si viene, sin
+   * importar cuántos vehículos ya haya. */
+  vehicles?: { id: string; plate: string; brand?: string; model?: string }[]
+  activeVehicleId?: string
+  onSwitchVehicle?: (id: string) => void
+  onAddVehicle?: () => void
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
@@ -63,7 +71,7 @@ const TALLER_NAV_ITEMS: NavItem[] = [
   { id: 'config', label: 'Promoción', icon: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></> },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, onAddVehicle }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -271,6 +279,32 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
                 <Plate3D plate={plateText} city={city || ''} />
               </div>
             </div>
+          )}
+
+          {vehicles && vehicles.length > 1 && (
+            <select
+              value={activeVehicleId || ''}
+              onChange={e => onSwitchVehicle?.(e.target.value)}
+              style={{
+                width: '100%', marginTop: 10, padding: '7px 9px', borderRadius: 8,
+                border: `1px solid ${dividerColor}`, background: 'transparent', color: textPrimary,
+                fontSize: 11.5, fontWeight: 600, cursor: 'pointer', outline: 'none',
+              }}>
+              {vehicles.map(v => (
+                <option key={v.id} value={v.id}>{v.plate} — {[v.brand, v.model].filter(Boolean).join(' ') || 'Vehículo'}</option>
+              ))}
+            </select>
+          )}
+
+          {onAddVehicle && (
+            <button onClick={onAddVehicle} style={{
+              display: 'flex', alignItems: 'center', gap: 6, width: '100%', marginTop: 8,
+              padding: '7px 2px', border: 'none', background: 'transparent', color: '#F5C518',
+              fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Agregar vehículo
+            </button>
           )}
         </div>
       )}
