@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from typing import Annotated
 from uuid import UUID
@@ -10,7 +11,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_user_optional
 from app.models.models import NfcToken, Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
 from app.services.auth import ensure_profile
@@ -42,6 +43,40 @@ async def list_vehicles(
     vehicles = list(result.scalars().all())
     await cache_set(f"vehicles:list:{user_id}", [VehicleOut.model_validate(v).model_dump() for v in vehicles], ttl=120)
     return vehicles
+
+
+@router.get("/plate-check")
+async def check_plate(
+    plate: str,
+    user_id: Annotated[str | None, Depends(get_current_user_optional)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Público (no requiere sesión) — lo usa el checkout del llavero NFC para
+    saber, antes de dejar avanzar la compra, si esa placa ya está asociada a
+    un vehículo existente. Declarado antes de /{vehicle_id} a propósito: si
+    quedara después, Starlette lo matchearía contra esa ruta primero y
+    "plate-check" fallaría al intentar convertirse a UUID.
+
+    No devuelve a quién pertenece la placa (evita filtrar datos de otra
+    cuenta) — solo si existe y si es la cuenta que está consultando, para que
+    el frontend distinga "verifica tu cuenta" (es de alguien más) de
+    "contáctanos para reemplazo/duplicado" (ya es tuya).
+    """
+    normalized = re.sub(r"[^A-Z0-9]", "", plate.strip().upper())
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="plate query param required")
+
+    result = await db.execute(
+        select(Vehicle.owner_id).where(
+            func.regexp_replace(func.upper(Vehicle.plate), r"[^A-Z0-9]", "", "g") == normalized
+        )
+    )
+    row = result.first()
+    if not row:
+        return {"exists": False, "owned_by_you": False}
+
+    owned_by_you = bool(user_id) and str(row[0]) == user_id
+    return {"exists": True, "owned_by_you": owned_by_you}
 
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)

@@ -32,6 +32,17 @@ async def get_current_user(
     return user_id
 
 
+async def get_current_user_optional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> str | None:
+    """Igual que get_current_user pero nunca lanza 401 — para endpoints públicos
+    (ej. el checkout del llavero NFC, que no requiere sesión) que igual quieren
+    saber si hay un usuario logueado para personalizar la respuesta."""
+    if not credentials:
+        return None
+    return await verify_supabase_jwt(credentials.credentials)
+
+
 async def get_current_admin(
     user_id: Annotated[str, Depends(get_current_user)],
 ) -> str:
