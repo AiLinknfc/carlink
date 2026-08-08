@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { FOB_COLORS, PLATE_COLOR_SCHEMES, COP, type FobColor, type CartItem, type ShopProduct } from '@/lib/shop'
 import { useShopCart } from '@/lib/shop-cart-context'
+import { getPlateConfig, type PlateType } from '@/lib/plate'
+import Plate3D from '@/components/Plate3D'
 
 const GOLD = '#F5C518'
 const PLATE_TYPES = [
@@ -41,6 +43,7 @@ export default function ProductCustomizer({ product, theme, onAdded }: Props) {
 
   const plateText = `${plateLetters}-${plateNumbers}`
   const plateColors = PLATE_COLOR_SCHEMES[plateType]
+  const plateConfig = getPlateConfig(plateType as PlateType)
   const total = product.price * qty
 
   const handleAdd = () => {
@@ -93,13 +96,14 @@ export default function ProductCustomizer({ product, theme, onAdded }: Props) {
         {/* Plate preview */}
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: muted, fontWeight: 700, marginBottom: 6 }}>Tu placa</div>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4, padding: '8px 18px', borderRadius: 10,
-            background: plateColors.bg, fontFamily: 'var(--font-display)', fontSize: 22,
-            color: plateColors.bgLabel, letterSpacing: '.06em', boxShadow: `0 4px 20px ${plateColors.ring}`,
-          }}>
-            {plateText}
-          </div>
+          <Plate3D
+            plate={plateText}
+            city=""
+            bg={plateColors.bg}
+            inkColor={plateColors.bgLabel}
+            showLabel={false}
+            size="md"
+          />
         </div>
 
         {engraving && (
@@ -134,11 +138,11 @@ export default function ProductCustomizer({ product, theme, onAdded }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div>
             <div style={labelStyle}>Letras</div>
-            <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC" style={inputStyle} />
+            <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, plateConfig.letterLen))} maxLength={plateConfig.letterLen} placeholder={'A'.repeat(plateConfig.letterLen)} style={inputStyle} />
           </div>
           <div>
             <div style={labelStyle}>Números</div>
-            <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123" style={inputStyle} />
+            <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.replace(plateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, plateConfig.moto ? 3 : plateConfig.numLen))} maxLength={plateConfig.moto ? 3 : plateConfig.numLen} placeholder={plateConfig.moto ? '12D' : '1'.repeat(plateConfig.numLen)} style={inputStyle} />
           </div>
         </div>
 

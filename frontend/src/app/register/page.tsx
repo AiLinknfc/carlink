@@ -6,7 +6,7 @@ import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { CITIES } from '@/lib/constants'
 import { supabase, apiUrl } from '@/lib/supabase'
-import { formatPlate, parsePlate, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
+import { formatPlate, parsePlate, getPlateConfig, type PlateType, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
 import { scanVehicleCard } from '@/lib/upload'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor } from '@/lib/vehicleBrands'
@@ -296,6 +296,10 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
 
   const regPlate = formatPlate(regPlateLetters, regPlateNumbers, plateTypeFor(regType))
   const wsPlate = formatPlate(wsPlateLetters, wsPlateNumbers, plateTypeFor(wsType))
+  const regPlateType: PlateType = plateTypeFor(regType)
+  const regPlateConfig = getPlateConfig(regPlateType)
+  const wsPlateType: PlateType = plateTypeFor(wsType)
+  const wsPlateConfig = getPlateConfig(wsPlateType)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -643,11 +647,10 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                       border-box) que el selector de ciudad. autoFocus deja el cursor
                       titilando para señalar dónde escribir. */}
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <input value={regPlateLetters} onChange={e => setRegPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC" autoFocus
+                    <input value={regPlateLetters} onChange={e => setRegPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, regPlateConfig.letterLen))} maxLength={regPlateConfig.letterLen} placeholder={'A'.repeat(regPlateConfig.letterLen)} autoFocus
                       style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
                     <span style={{ color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 20 }}>-</span>
-                    {/* Moto: 2 números + 1 letra (ABC-12D) — carro: 3 números. */}
-                    <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.toUpperCase().replace(regType === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={regType === 'Moto' ? '12D' : '123'}
+                    <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.toUpperCase().replace(regPlateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, regPlateConfig.moto ? 3 : regPlateConfig.numLen))} maxLength={regPlateConfig.moto ? 3 : regPlateConfig.numLen} placeholder={regPlateConfig.moto ? '12D' : regPlateConfig.placeholder.split('-')[1]}
                       style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
                   </div>
                 </div>
@@ -722,10 +725,10 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                       <div>
                         <label style={{ fontSize: 10, color: tk.sectionTitle, fontWeight: 600, display: 'block', marginBottom: 4 }}>Placa</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                          <input value={wsPlateLetters} onChange={e => setWsPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
+                          <input value={wsPlateLetters} onChange={e => setWsPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, wsPlateConfig.letterLen))} maxLength={wsPlateConfig.letterLen} placeholder={'A'.repeat(wsPlateConfig.letterLen)}
                             style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
                           <span style={{ padding: '0 8px', color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18 }}> - </span>
-                          <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.toUpperCase().replace(wsType === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={wsType === 'Moto' ? '12D' : '123'}
+                          <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.toUpperCase().replace(wsPlateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, wsPlateConfig.moto ? 3 : wsPlateConfig.numLen))} maxLength={wsPlateConfig.moto ? 3 : wsPlateConfig.numLen} placeholder={wsPlateConfig.moto ? '12D' : wsPlateConfig.placeholder.split('-')[1]}
                             style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
                         </div>
                       </div>

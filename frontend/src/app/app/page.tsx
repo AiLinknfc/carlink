@@ -27,6 +27,8 @@ import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import QrCodePanel from '@/components/QrCodePanel'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
+import OrderTrackingModal from '@/components/OrderTrackingModal'
+import CartModal from '@/components/CartModal'
 
 export default function AppPage() {
   const router = useRouter()
@@ -89,6 +91,7 @@ export default function AppPage() {
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null)
   const [urlRecoveryFailed, setUrlRecoveryFailed] = useState<Record<string, boolean>>({})
   const [showQuickRegister, setShowQuickRegister] = useState(false)
+  const [showOrderTracking, setShowOrderTracking] = useState(false)
   const [showCart, setShowCart] = useState(false)
   const [payMethod, setPayMethod] = useState('card')
   const [appToast, setAppToast] = useState<string | null>(null)
@@ -544,7 +547,7 @@ export default function AppPage() {
             )}
           </button>
 
-          <button onClick={() => setShowCart(true)} title="Solicitar llavero NFC" className="topbar-cart"
+          <button onClick={() => setShowCart(true)} title="Comprar llavero NFC" className="topbar-cart"
             style={topBtn()}
             onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
             onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
@@ -650,7 +653,7 @@ export default function AppPage() {
       {/* Profile right panel */}
       {showProfile && (
         <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 72, background: 'transparent', display: 'flex', justifyContent: 'flex-end' }}>
-          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 266, maxWidth: '100vw', height: '100vh', margin: 0, overflowY: 'auto', background: 'var(--panel-bg)', borderLeft: '1px solid var(--panel-border)', boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 420, maxWidth: '100vw', height: '100vh', margin: 0, overflowY: 'auto', background: 'var(--panel-bg)', borderLeft: '1px solid var(--panel-border)', boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, padding: '20px 24px 0', borderBottom: '1px solid var(--panel-border)', paddingBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>{initial}</span>
@@ -1016,49 +1019,18 @@ export default function AppPage() {
         />
       )}
 
-      {/* Cart — Solicitar llavero NFC */}
-      {showCart && (
-        <div onClick={() => setShowCart(false)} style={{ position: 'fixed', inset: 0, zIndex: 74, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Tienda CarLink</div>
-              <button onClick={() => setShowCart(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
+      {/* Cart Modal — compra de llavero NFC */}
+      <CartModal
+        isOpen={showCart}
+        onClose={() => { setShowCart(false); setShowOrderTracking(true) }}
+        theme={theme}
+        plateText={vehicle?.plate || ''}
+        plateType={vehicle?.type || 'particular'}
+        city={vehicle?.city || 'Bogotá'}
+      />
 
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 14, borderRadius: 16, background: tDark ? 'linear-gradient(135deg,rgba(245,197,24,0.14),rgba(20,20,20,0.6))' : 'linear-gradient(135deg,rgba(245,197,24,0.12),rgba(247,246,242,0.9))', border: '1px solid rgba(245,197,24,0.28)', margin: '10px 0 16px' }}>
-              <span style={{ width: 60, height: 60, flex: '0 0 auto', borderRadius: 14, background: tDark ? 'radial-gradient(circle at 40% 35%,#3a3a3a,#141414)' : 'radial-gradient(circle at 40% 35%,#fffdf4,#f0ead6)', border: '2px solid #F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518', boxShadow: '0 0 22px rgba(245,197,24,0.35)' }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6M8.5 12a3.5 3.5 0 0 1 3.5-3.5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
-              </span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>Llavero NFC CarLink</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Personaliza tu llavero con colores, grabado y tipo de placa. Pago seguro, sin registro.</div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-              {[
-                { icon: 'Palette' as const, title: 'Personaliza', desc: '7 colores disponibles' },
-                { icon: 'Pencil' as const, title: 'Grabado', desc: 'Texto personalizado' },
-                { icon: 'CreditCard' as const, title: 'Múltiples pagos', desc: 'Tarjeta, Nequi, PSE' },
-                { icon: 'Truck' as const, title: 'Envío gratis', desc: 'A todo Colombia' },
-              ].map(f => (
-                <div key={f.title} style={{ padding: 12, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--section-border)', textAlign: 'center' }}>
-                  <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><Icon type={f.icon} size={20} strokeWidth={1.6} /></div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{f.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{f.desc}</div>
-                </div>
-              ))}
-            </div>
-
-            <a href="/shop" onClick={() => setShowCart(false)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', textDecoration: 'none' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-              Ir a la tienda
-            </a>
-          </div>
-        </div>
-      )}
+      {/* Order Tracking Modal — seguimiento post-compra */}
+      <OrderTrackingModal isOpen={showOrderTracking} onClose={() => setShowOrderTracking(false)} />
 
       {/* Found Requests Panel */}
       {showFoundPanel && (

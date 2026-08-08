@@ -23,14 +23,25 @@ class VehicleCreate(BaseModel):
     @classmethod
     def validate_plate(cls, v: str) -> str:
         v = v.upper().strip()
-        # Carro: 3 letras + 3 números (ABC-123). Moto: 3 letras + 2 números +
-        # 1 letra (ABC-12D) — nomenclatura RUNT real, distinta a la de carro.
-        # frontend/src/lib/plate.ts ya distinguía ambos formatos; este
-        # validador solo aceptaba el de carro, así que cualquier moto
-        # registrada con su placa real quedaba bloqueada acá con un 422
-        # (2026-08-07, encontrado al agregar sugerencias de moto al registro).
-        if not re.match(r'^[A-Z]{3}-\d{3}$', v) and not re.match(r'^[A-Z]{3}-\d{2}[A-Z]$', v):
-            raise ValueError('Placa debe tener formato ABC-123 (carro) o ABC-12D (moto)')
+        # Nomenclatura RUNT Colombia:
+        # Particular / Público / Clásico: 3 letras + 3 números (ABC-123)
+        # Moto: 3 letras + 2 números + 1 letra (ABC-12D)
+        # Diplomática: 2 letras + 4 números (AB-1234)
+        # Carga: 1 letra (T) + 4 números (T-1234)
+        # Remolque/Semirremolque: 1 letra (R/S) + 5 números (R-12345)
+        patterns = [
+            r'^[A-Z]{3}-\d{3}$',           # particular, publico, clasico
+            r'^[A-Z]{3}-\d{2}[A-Z]$',      # moto
+            r'^[A-Z]{2}-\d{4}$',           # diplomatica
+            r'^[A-Z]-\d{4}$',              # carga
+            r'^[RS]-\d{5}$',               # remolque / semirremolque
+        ]
+        if not any(re.match(p, v) for p in patterns):
+            raise ValueError(
+                'Formato de placa inválido. Ejemplos: ABC-123 (particular), '
+                'ABC-12D (moto), AB-1234 (diplomática), T-1234 (carga), '
+                'R-12345 (remolque)'
+            )
         return v
 
 

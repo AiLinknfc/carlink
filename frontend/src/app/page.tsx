@@ -16,13 +16,13 @@ import { CarLinkMark } from '@/lib/icons_new'
 import Link from 'next/link'
 
 const PLATE_TYPES = [
-  { id: 'particular', name: 'Particular', tag: '' },
-  { id: 'moto', name: 'Moto', tag: '' },
-  { id: 'publico', name: 'Público', tag: 'PÚBLICO' },
-  { id: 'diplomatica', name: 'Diplomática', tag: 'CD' },
-  { id: 'carga', name: 'Carga', tag: 'CARGA' },
-  { id: 'remolque', name: 'Remolque', tag: '' },
-  { id: 'clasico', name: 'Clásico', tag: 'ANTIGUO' },
+  { id: 'particular', name: 'Particular', showLabel: false },
+  { id: 'moto', name: 'Moto', showLabel: false },
+  { id: 'publico', name: 'Público', showLabel: false },
+  { id: 'diplomatica', name: 'Diplomática', showLabel: true },
+  { id: 'carga', name: 'Carga', showLabel: true },
+  { id: 'remolque', name: 'Remolque', showLabel: true },
+  { id: 'clasico', name: 'Clásico', showLabel: false },
 ]
 
 const PLATE_STYLE: Record<string, { bg: string; ink: string; label: string }> = {
@@ -40,7 +40,7 @@ const PLATE_CONFIG: Record<string, { letterLen: number; numLen: number; moto?: b
   moto:        { letterLen: 3, numLen: 3, moto: true },
   publico:     { letterLen: 3, numLen: 3 },
   diplomatica: { letterLen: 2, numLen: 4 },
-  carga:       { letterLen: 3, numLen: 3 },
+  carga:       { letterLen: 1, numLen: 4 },
   remolque:    { letterLen: 1, numLen: 5 },
   clasico:     { letterLen: 3, numLen: 3 },
 }
@@ -50,8 +50,8 @@ const PLATE_DEFAULTS: Record<string, { letters: string; numbers: string }> = {
   moto:        { letters: 'ABC', numbers: '12D' },
   publico:     { letters: 'ABC', numbers: '123' },
   diplomatica: { letters: 'AB',  numbers: '1234' },
-  carga:       { letters: 'ABC', numbers: '123' },
-  remolque:    { letters: 'A',   numbers: '12345' },
+  carga:       { letters: 'T',   numbers: '1234' },
+  remolque:    { letters: 'R',   numbers: '12345' },
   clasico:     { letters: 'ABC', numbers: '123' },
 }
 
@@ -128,7 +128,9 @@ export default function LandingPage() {
   }
 
   const handleLetters = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentPlate({ letters: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, pc.letterLen) })
+    let val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, pc.letterLen)
+    if (type === 'remolque') val = val.replace(/[^RS]/g, '')
+    setCurrentPlate({ letters: val })
   }
 
   const handleNumbers = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,15 +188,6 @@ export default function LandingPage() {
 
         {/* Right actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Cart icon */}
-          <button onClick={() => setCartOpen(true)} title="Carrito" style={{
-            width: 34, height: 34, borderRadius: 9, border: `1px solid ${tk.switchBorder}`,
-            background: 'transparent', color: tk.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s', flexShrink: 0,
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.color = '#F5C518' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = tk.switchBorder; e.currentTarget.style.color = tk.muted }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-          </button>
           <button onClick={openSignupModal} className="header-auth-btn header-register" title="Crear cuenta" style={{
             padding: '6px 12px', borderRadius: 9, border: `1px solid ${tk.switchBorder}`,
             background: 'transparent', color: tk.muted, fontWeight: 600, fontSize: 12,
@@ -229,11 +222,11 @@ export default function LandingPage() {
       </header>
 
       {/* ===== HERO (original single-column layout) ===== */}
-      <section data-r="entrada" style={{
+      <section data-r="entrada" className="hero-section" style={{
         position: 'relative', zIndex: 10,
-        width: '100vw', height: '100vh',
+        width: '100vw', minHeight: '100vh', height: 'auto',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '68px clamp(20px,5vw,64px) 26px', overflowY: 'auto',
+        padding: '68px clamp(20px,5vw,64px) 26px',
       }}>
         <div style={{ textAlign: 'center', zIndex: 16, flex: '0 0 auto' }}>
           <div style={{ fontSize: 12, letterSpacing: '.28em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518', animation: 'fadeUp .7s both' }}>
@@ -254,7 +247,7 @@ export default function LandingPage() {
           }}>
             <Plate3D plate={plateText} city={city}
               bg={ps.bg} inkColor={ps.ink} labelColor={ps.label}
-              tag={PLATE_TYPES.find(t => t.id === type)?.tag} />
+              showLabel={PLATE_TYPES.find(t => t.id === type)?.showLabel ?? false} />
           </div>
 
           <div style={{ width: 'min(720px,96vw)', margin: '0 auto', animation: 'fadeUp .7s .12s both' }}>
@@ -268,7 +261,7 @@ export default function LandingPage() {
             <div style={{ display: 'flex', gap: 7, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
               {types.map((t) => (
                 <button key={t.id} onClick={t.onClick}
-                  style={{ padding: '8px 15px', borderRadius: 999, border: `1px solid ${t.border}`, background: t.bg, color: t.fg, fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>
+                  style={{ padding: '10px 18px', borderRadius: 999, border: `1px solid ${t.border}`, background: t.bg, color: t.fg, fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all .18s' }}>
                   {t.name}
                 </button>
               ))}
@@ -286,12 +279,12 @@ export default function LandingPage() {
                 </label>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
                 <input value={plateLetters} onChange={handleLetters}
-                  maxLength={pc.letterLen} placeholder="ABC"
-                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'right' }} />
+                  maxLength={pc.letterLen} placeholder={'A'.repeat(pc.letterLen)}
+                  style={{ width: Math.max(40, pc.letterLen * 22), border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'right' }} />
                 <span style={{ color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, lineHeight: 1, opacity: 0.5, padding: '0 6px' }}>-</span>
                 <input value={plateNumbers} onChange={handleNumbers}
-                  maxLength={pc.moto ? 3 : pc.numLen} placeholder={pc.moto ? '12D' : '123'}
-                  style={{ width: 52, border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'left' }} />
+                  maxLength={pc.moto ? 3 : pc.numLen} placeholder={pc.moto ? '12D' : '1'.repeat(pc.numLen)}
+                  style={{ width: Math.max(40, (pc.moto ? 3 : pc.numLen) * 22), border: 'none', background: 'transparent', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 26, letterSpacing: '.06em', textTransform: 'uppercase', outline: 'none', padding: '2px 0', textAlign: 'left' }} />
               </div>
               </div>
 

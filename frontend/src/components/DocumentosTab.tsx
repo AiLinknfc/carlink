@@ -586,7 +586,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
 
       {!loading && documents.length === 0 && (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)', fontSize: 14 }}>
-          Crea tus documentos legales desde los botones superiores.
+          Agrega tu primer documento con el botón de arriba.
         </div>
       )}
 
@@ -595,7 +595,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
           CDA, cuando emite tu certificado). Sin crear/editar/borrar: es lo
           que el taller registró, no algo que armes vos.
           docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2. */}
-      {(invoicesLoading || invoices.length > 0) && (
+      {!invoicesLoading && invoices.length > 0 && (
         <div style={{ marginTop: 40, animation: 'textIn .5s .15s both' }}>
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
@@ -609,55 +609,51 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
             </p>
           </div>
 
-          {invoicesLoading ? (
-            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)', fontSize: 13 }}>Cargando…</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
-              {invoices.map(inv => {
-                const locked = inv.is_pre_transfer && !revealedInvoices.has(inv.id)
-                return (
-                  <div key={inv.id} style={{ padding: 18, borderRadius: 16, background: 'var(--surface-2)', border: `1px solid ${locked ? 'rgba(255,138,61,0.35)' : 'var(--border)'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: inv.workshop_is_cda ? '#F5C518' : '#5be89a' }}>
-                          {inv.workshop_is_cda ? 'Certificado CDA' : inv.doc_type}
-                        </div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)', marginTop: 2 }}>{inv.doc_number}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+            {invoices.map(inv => {
+              const locked = inv.is_pre_transfer && !revealedInvoices.has(inv.id)
+              return (
+                <div key={inv.id} style={{ padding: 18, borderRadius: 16, background: 'var(--surface-2)', border: `1px solid ${locked ? 'rgba(255,138,61,0.35)' : 'var(--border)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: inv.workshop_is_cda ? '#F5C518' : '#5be89a' }}>
+                        {inv.workshop_is_cda ? 'Certificado CDA' : inv.doc_type}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{new Date(inv.issue_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)', marginTop: 2 }}>{inv.doc_number}</div>
                     </div>
-                    {locked ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 6px', textAlign: 'center' }}>
-                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        <span style={{ fontSize: 11, color: '#ff8a3d', fontWeight: 600, lineHeight: 1.4 }}>De antes del traslado — puede tener datos del dueño anterior</span>
-                        <button onClick={() => setRevealedInvoices(s => new Set(s).add(inv.id))} style={{
-                          padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(255,138,61,0.5)',
-                          background: 'transparent', color: '#ff8a3d', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-                        }}>Ver de todas formas</button>
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>{inv.workshop_name}</div>
-                        {inv.details && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.details}</div>}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)' }}>{inv.amount != null ? `$${Math.round(inv.amount).toLocaleString('es-CO')}` : '—'}</span>
-                          <button onClick={() => handleDownloadInvoice(inv)} disabled={downloadingInvoiceId === inv.id} style={{
-                            display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none',
-                            background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12, cursor: downloadingInvoiceId === inv.id ? 'default' : 'pointer',
-                            opacity: downloadingInvoiceId === inv.id ? 0.6 : 1,
-                          }}>
-                            {downloadingInvoiceId === inv.id ? 'Generando…' : (
-                              <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>PDF</>
-                            )}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{new Date(inv.issue_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  {locked ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 6px', textAlign: 'center' }}>
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      <span style={{ fontSize: 11, color: '#ff8a3d', fontWeight: 600, lineHeight: 1.4 }}>De antes del traslado — puede tener datos del dueño anterior</span>
+                      <button onClick={() => setRevealedInvoices(s => new Set(s).add(inv.id))} style={{
+                        padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(255,138,61,0.5)',
+                        background: 'transparent', color: '#ff8a3d', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                      }}>Ver de todas formas</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>{inv.workshop_name}</div>
+                      {inv.details && <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.details}</div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)' }}>{inv.amount != null ? `$${Math.round(inv.amount).toLocaleString('es-CO')}` : '—'}</span>
+                        <button onClick={() => handleDownloadInvoice(inv)} disabled={downloadingInvoiceId === inv.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none',
+                          background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12, cursor: downloadingInvoiceId === inv.id ? 'default' : 'pointer',
+                          opacity: downloadingInvoiceId === inv.id ? 0.6 : 1,
+                        }}>
+                          {downloadingInvoiceId === inv.id ? 'Generando…' : (
+                            <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>PDF</>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

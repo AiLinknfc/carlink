@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiPost } from '@/lib/api'
-import { formatPlate } from '@/lib/plate'
+import { formatPlate, getPlateConfig, type PlateType } from '@/lib/plate'
 import { brandsForType, plateTypeFor, VEHICLE_TYPES } from '@/lib/vehicleBrands'
 import ThemedSuggestInput from './ThemedSuggestInput'
 
@@ -38,8 +38,10 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ vehicle: any; gotTrial: boolean } | null>(null)
 
-  const plate = formatPlate(plateLetters, plateNumbers, plateTypeFor(type))
-  const canSubmit = plateLetters.length === 3 && plateNumbers.length === 3 && brand && model.trim() && !saving
+  const plateType: PlateType = plateTypeFor(type)
+  const plateConfig = getPlateConfig(plateType)
+  const plate = formatPlate(plateLetters, plateNumbers, plateType)
+  const canSubmit = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen) && brand && model.trim() && !saving
   const brandOptions = brandsForType(type)
 
   // Si cambian de carrocería y la marca elegida no existe en la lista nueva
@@ -83,11 +85,6 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
             )}
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            {!result.gotTrial && (
-              <a href="/shop" style={{ flex: 1, padding: 12, borderRadius: 11, border: '1px solid rgba(245,197,24,0.4)', background: 'transparent', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                Comprar llavero
-              </a>
-            )}
             <button onClick={() => onCreated(result.vehicle)} style={{ flex: 1, padding: 12, borderRadius: 11, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
               Ver este vehículo
             </button>
@@ -119,11 +116,10 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Placa</label>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
+              <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, plateConfig.letterLen))} maxLength={plateConfig.letterLen} placeholder={'A'.repeat(plateConfig.letterLen)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
               <span style={{ padding: '0 6px', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17 }}>-</span>
-              {/* Moto: 2 números + 1 letra (ABC-12D) — carro: 3 números. */}
-              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(type === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={type === 'Moto' ? '12D' : '123'}
+              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(plateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, plateConfig.moto ? 3 : plateConfig.numLen))} maxLength={plateConfig.moto ? 3 : plateConfig.numLen} placeholder={plateConfig.moto ? '12D' : plateConfig.placeholder.split('-')[1]}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
             </div>
           </div>

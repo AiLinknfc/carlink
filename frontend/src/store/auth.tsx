@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
@@ -29,8 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const fetchedUidRef = useRef<string | null>(null)
 
   const fetchProfile = async (uid: string) => {
+    if (fetchedUidRef.current === uid) return
+    fetchedUidRef.current = uid
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token
       if (!token) return
@@ -46,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* Permite refrescar el perfil tras pedir la verificación, sin recargar. */
   const refreshProfile = async () => {
     const uid = (await supabase.auth.getSession()).data.session?.user?.id
-    if (uid) await fetchProfile(uid)
+    if (uid) {
+      fetchedUidRef.current = null
+      await fetchProfile(uid)
+    }
   }
 
   useEffect(() => {
@@ -65,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null)
         setProfile(null)
+        fetchedUidRef.current = null
       }
     })
 

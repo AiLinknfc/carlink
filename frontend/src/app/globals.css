@@ -188,6 +188,8 @@ select option { background: #141414; color: #f5f3ec; }
 
 /* ── Responsive: Mobile-first breakpoints ── */
 
+.hero-section { height: 100vh; }
+
 @media (max-width: 960px) {
   .fichagrid { grid-template-columns: 1fr !important; }
   /* El margen lo dicta --rail-w, que el Sidebar actualiza según su ancho real. */
@@ -195,15 +197,18 @@ select option { background: #141414; color: #f5f3ec; }
 }
 
 @media (max-width: 860px) {
-  .heroform { flex-direction: column !important; }
-  .heroform .divider { display: none !important; }
-  .storeRow { flex-wrap: wrap !important; }
+  .hero-section { height: auto !important; min-height: 100vh; }
+  .heroform, [data-r="heroform"] { flex-direction: column !important; gap: 8px !important; padding: 14px !important; }
+  .heroform .divider, [data-r="heroform"] [data-r="divider"] { display: none !important; }
+  .heroform > button:last-child, [data-r="heroform"] > button:last-child { width: 100% !important; padding: 14px !important; }
+  .storeRow { flex-wrap: wrap !important; justify-content: center !important; }
+  .storeRow > a { width: 100% !important; max-width: 260px !important; justify-content: center !important; }
   .regGrid { grid-template-columns: 1fr !important; }
   .fichagrid { grid-template-columns: 1fr !important; }
   .grid2 { grid-template-columns: 1fr !important; }
-  .footergrid { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
-  .tablero-grid { grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
-  .service-chips-grid { grid-template-columns: 1fr 1fr !important; }
+  .footergrid { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .tablero-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .service-chips-grid { grid-template-columns: 1fr !important; }
   .topbar-actions { gap: 6px !important; }
 }
 
@@ -261,6 +266,8 @@ select option { background: #141414; color: #f5f3ec; }
    para que sigan cabiendo 3+ marcas por fila sin desbordar. */
 @media (max-width: 480px) {
   .regBrandGrid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)) !important; gap: 7px !important; }
+  [data-r="heroform"] input { font-size: 22px !important; width: 44px !important; }
+  [data-r="heroform"] label { font-size: 9px !important; }
 }
 @media (max-width: 360px) {
   .regBrandGrid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)) !important; }

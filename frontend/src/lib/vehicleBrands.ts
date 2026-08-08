@@ -27,4 +27,4 @@ export const brandsForType = (type: string) => type === 'Moto' ? MOTO_BRANDS : C
 /* La placa colombiana de moto es 3 letras + 2 números + 1 letra (ABC-12D),
    distinta de la de carro (3 letras + 3 números) — @/lib/plate ya soporta
    ambos formatos, solo hace falta avisarle cuál según el tipo elegido. */
-export const plateTypeFor = (type: string): PlateType => type === 'Moto' ? 'moto' : 'car'
+export const plateTypeFor = (type: string): PlateType => type === 'Moto' ? 'moto' : 'particular'
