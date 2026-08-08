@@ -50,6 +50,11 @@ export interface WompiWidgetResult {
 
 const WIDGET_SRC = 'https://checkout.wompi.co/widget.js'
 
+function isLocalOrigin(): boolean {
+  if (typeof window === 'undefined') return false
+  return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)
+}
+
 let loadPromise: Promise<void> | null = null
 
 /** Inyecta <script src="https://checkout.wompi.co/widget.js"> una sola vez,
@@ -107,7 +112,14 @@ export async function openWompiCheckout(opts: {
     reference: opts.reference,
     publicKey,
     signature: { integrity: opts.integritySignature },
-    redirectUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+    // Wompi devuelve 403 (bloqueo de CloudFront) si redirect-url apunta a
+    // localhost/127.0.0.1 — probado directamente contra su API: cualquier
+    // otro dominio funciona, hasta http sin cifrar, solo localhost lo
+    // rechaza. En local no hace falta de todas formas: la confirmación real
+    // pasa por el callback de abajo + POST /shop/orders/{reference}/confirm,
+    // nunca por este redirect. En producción, con un dominio real, esto
+    // deja de aplicar y se manda igual que antes.
+    redirectUrl: isLocalOrigin() ? undefined : window.location.href,
     customerData: opts.customerData,
     shippingAddress: opts.shippingAddress,
   })
