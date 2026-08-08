@@ -681,7 +681,7 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
 
               <div style={{ padding: 12, borderRadius: 12, background: tk.hintBg, border: `1px solid ${tk.hintBg.replace('0.06', '0.2').replace('0.08', '0.2')}`, marginBottom: 14 }}>
                 <div style={{ fontSize: 12, color: tk.hintText, lineHeight: 1.5 }}>
-                  <b>ℹ️ Código único de taller</b> — Al registrarte, se generará automáticamente un código <b>TLR-XXXXX</b> único. Comparte este código con tus clientes para que te encuentren al instante.
+                  <b>Código único de taller</b> — Al registrarte, se generará automáticamente un código <b>TLR-XXXXX</b> único. Comparte este código con tus clientes para que te encuentren al instante.
                 </div>
               </div>
             </>
