@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     ShopOrderDetailOut,
     ShopOrderFulfillmentUpdate,
     ShopOrderOut,
+    ShopOrderStatsOut,
 )
 from app.services import email, wompi
 
@@ -185,6 +186,38 @@ async def list_all_shop_orders(
     todo el mundo, incluidas las de compradores que no iniciaron sesión."""
     result = await db.execute(select(ShopOrder).order_by(ShopOrder.created_at.desc()).limit(200))
     return result.scalars().all()
+
+
+@router.get("/admin/stats", response_model=ShopOrderStatsOut)
+async def shop_order_stats(
+    admin_user_id: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Agregado para la pestaña Dashboard de Admin NFC."""
+    total = await db.scalar(select(func.count()).select_from(ShopOrder)) or 0
+    paid = await db.scalar(select(func.count()).select_from(ShopOrder).where(ShopOrder.status == "approved")) or 0
+    pending_shipment = await db.scalar(
+        select(func.count()).select_from(ShopOrder)
+        .where(ShopOrder.status == "approved", ShopOrder.fulfillment_status == "unfulfilled")
+    ) or 0
+    shipped_count = await db.scalar(
+        select(func.count()).select_from(ShopOrder).where(ShopOrder.fulfillment_status == "shipped")
+    ) or 0
+    delivered_count = await db.scalar(
+        select(func.count()).select_from(ShopOrder).where(ShopOrder.fulfillment_status == "delivered")
+    ) or 0
+    revenue = await db.scalar(
+        select(func.coalesce(func.sum(ShopOrder.amount_in_cents), 0)).where(ShopOrder.status == "approved")
+    ) or 0
+
+    return ShopOrderStatsOut(
+        total_orders=total,
+        paid_orders=paid,
+        pending_shipment=pending_shipment,
+        shipped_count=shipped_count,
+        delivered_count=delivered_count,
+        revenue_in_cents=revenue,
+    )
 
 
 @router.get("/orders/{reference}", response_model=ShopOrderOut)

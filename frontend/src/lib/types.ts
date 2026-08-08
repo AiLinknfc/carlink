@@ -902,3 +902,12 @@ export interface ShopOrderDetail {
   delivered_at: string | null;
   tracking_note: string;
 }
+
+export interface ShopOrderStats {
+  total_orders: number;
+  paid_orders: number;
+  pending_shipment: number;
+  shipped_count: number;
+  delivered_count: number;
+  revenue_in_cents: number;
+}

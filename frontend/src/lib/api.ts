@@ -26,7 +26,7 @@ import type {
   UploadOut,
   NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
-  ShopOrderDetail,
+  ShopOrderDetail, ShopOrderStats,
 } from './types'
 
 async function request<T = unknown>(
@@ -329,6 +329,7 @@ export const adminApi = {
   // Cola de despacho del checkout de Wompi — modo administrador (ve las órdenes
   // de todo el mundo). El modo cliente ("Mis pedidos") usa shopOrderApi.list().
   listAllShopOrders: () => request<ShopOrderDetail[]>('GET', '/shop/admin/orders'),
+  shopOrderStats: () => request<ShopOrderStats>('GET', '/shop/admin/stats'),
   markShopOrderShipped: (reference: string, tracking_note: string) =>
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'shipped', tracking_note }),
   markShopOrderDelivered: (reference: string) =>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { adminApi, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail } from '@/lib/types'
+import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats } from '@/lib/types'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
 
@@ -108,6 +108,7 @@ export default function AdminPage() {
   // Pedidos — cola de despacho del checkout de Wompi (modo administrador,
   // separado a propósito de "Mis pedidos" en modo cliente, que solo lee).
   const [shopOrders, setShopOrders] = useState<ShopOrderDetail[]>([])
+  const [shopStats, setShopStats] = useState<ShopOrderStats | null>(null)
   const [selectedOrderRef, setSelectedOrderRef] = useState<string | null>(null)
   const [trackingNoteDraft, setTrackingNoteDraft] = useState('')
   const [markingOrderRef, setMarkingOrderRef] = useState<string | null>(null)
@@ -156,8 +157,9 @@ export default function AdminPage() {
 
   async function loadStats() {
     setLoading2(true)
-    const s = await adminApi.stats()
+    const [s, shop] = await Promise.all([adminApi.stats(), adminApi.shopOrderStats()])
     if (s) setStats(s)
+    if (shop) setShopStats(shop)
     setLoading2(false)
   }
   async function loadTokens() {
@@ -440,6 +442,28 @@ export default function AdminPage() {
                 <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{item.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Dashboard — checkout del llavero NFC (Wompi) */}
+        {tab === 'dashboard' && shopStats && (
+          <div style={{ marginTop: 28 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>Llavero NFC — tienda</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+              {[
+                { label: 'Pedidos totales', value: shopStats.total_orders },
+                { label: 'Pedidos pagados', value: shopStats.paid_orders },
+                { label: 'Por despachar', value: shopStats.pending_shipment, color: shopStats.pending_shipment > 0 ? '#ff8a3d' : undefined },
+                { label: 'Enviados', value: shopStats.shipped_count },
+                { label: 'Entregados', value: shopStats.delivered_count },
+                { label: 'Ingresos', value: '$' + Math.round(shopStats.revenue_in_cents / 100).toLocaleString('es-CO') },
+              ].map((item, i) => (
+                <div key={i} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: item.color || c.accent }}>{item.value}</div>
+                  <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{item.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

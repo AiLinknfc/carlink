@@ -1398,3 +1398,15 @@ class ShopOrderDetailOut(ShopOrderOut):
 class ShopOrderFulfillmentUpdate(BaseModel):
     status: Literal["shipped", "delivered"]
     tracking_note: str = ""
+
+
+class ShopOrderStatsOut(BaseModel):
+    """Para la pestaña Dashboard de Admin NFC — agregado, no la lista
+    completa (ver GET /shop/admin/orders para eso)."""
+    total_orders: int
+    paid_orders: int
+    pending_shipment: int
+    shipped_count: int
+    delivered_count: int
+    revenue_in_cents: int
+
