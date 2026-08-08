@@ -105,6 +105,11 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const [notes, setNotes] = useState('')
   const [shipCityOpen, setShipCityOpen] = useState(false)
   const [shipCitySelected, setShipCitySelected] = useState(false)
+  // Escape hatch para quien vive en un pueblo que no está en CITIES (esa
+  // lista son ~32 departamentos con sus ciudades principales, no los 1.100+
+  // municipios de Colombia) — sin esto, esa persona no podía terminar la
+  // compra de ninguna manera.
+  const [shipCityFreeform, setShipCityFreeform] = useState(false)
   const cityRef = useRef<HTMLDivElement>(null)
   const shipCityRef = useRef<HTMLDivElement>(null)
   const lettersRef = useRef<HTMLInputElement>(null)
@@ -139,7 +144,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
 
   const isEmailValid = /.+@.+\..+/.test(email)
   const isPhoneValid = /^\d{10}$/.test(phone)
-  const isShipCityOk = shipCitySelected && CITIES.includes(shipCity)
+  const isShipCityOk = (shipCitySelected && CITIES.includes(shipCity)) || (shipCityFreeform && shipCity.trim().length >= 2)
   const canPay = !!name.trim() && isEmailValid && isPhoneValid && address.trim().length >= 5 && isShipCityOk
   const shipCityMatches = shipCity.trim()
     ? CITIES.filter(c => c.toLowerCase().includes(shipCity.trim().toLowerCase()))
@@ -265,7 +270,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setQty(1)
     setName(''); setEmail(''); setPhone(''); setAddress(''); setShipCity(''); setNotes('')
     setOrderId(''); setPayMethod('wompi'); setCityOpen(false)
-    setShipCityOpen(false); setShipCitySelected(false)
+    setShipCityOpen(false); setShipCitySelected(false); setShipCityFreeform(false)
     setPaying(false); setPayError(null)
     setTouched({ letters: false, numbers: false, city: false })
     setShowErrors(false)
@@ -527,15 +532,15 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     <div style={{ position: 'relative' }} ref={shipCityRef}>
                       <div style={fieldLabel}>Ciudad de envío <span style={{ color: GOLD }}>*</span></div>
                       <input value={shipCity} autoComplete="off"
-                        onChange={e => { setShipCity(e.target.value); setShipCitySelected(false); setShipCityOpen(true) }}
+                        onChange={e => { setShipCity(e.target.value); setShipCitySelected(false); setShipCityFreeform(false); setShipCityOpen(true) }}
                         onFocus={() => setShipCityOpen(true)}
-                        placeholder="Escribe tu ciudad..." style={inputStyle} />
+                        placeholder="Escribe tu ciudad o pueblo..." style={inputStyle} />
                       {shipCityOpen && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4, maxHeight: 180, overflowY: 'auto', background: menuBg, border: `1px solid ${menuBorder}`, borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4, maxHeight: 220, overflowY: 'auto', background: menuBg, border: `1px solid ${menuBorder}`, borderRadius: 10, boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}>
                           {shipCityMatches.length === 0 ? (
                             <div style={{ padding: '8px 12px', fontSize: 12, color: muted }}>Sin resultados</div>
                           ) : shipCityMatches.map(c => (
-                            <button key={c} type="button" onClick={() => { setShipCity(c); setShipCitySelected(true); setShipCityOpen(false) }}
+                            <button key={c} type="button" onClick={() => { setShipCity(c); setShipCitySelected(true); setShipCityFreeform(false); setShipCityOpen(false) }}
                               style={{
                                 display: 'block', width: '100%', padding: '8px 12px', border: 'none',
                                 background: shipCity === c ? 'rgba(245,197,24,0.15)' : 'transparent',
@@ -548,9 +553,23 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                               {c}
                             </button>
                           ))}
+                          {/* Escape hatch: pueblos/municipios que no están en la lista curada. */}
+                          <button type="button"
+                            onClick={() => { setShipCityFreeform(true); setShipCitySelected(false); setShipCityOpen(false) }}
+                            disabled={!shipCity.trim()}
+                            style={{
+                              display: 'block', width: '100%', padding: '8px 12px', border: 'none',
+                              borderTop: `1px solid ${subtle}`, background: 'transparent', color: shipCity.trim() ? GOLD : muted,
+                              fontSize: 12, fontWeight: 600, textAlign: 'left', cursor: shipCity.trim() ? 'pointer' : 'default',
+                            }}
+                            onMouseEnter={e => { if (shipCity.trim()) e.currentTarget.style.background = menuHover }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                            {shipCity.trim() ? `Mi ciudad es "${shipCity.trim()}" (no está en la lista)` : 'Escribe el nombre de tu ciudad o pueblo'}
+                          </button>
                         </div>
                       )}
-                      {shipCity && !isShipCityOk && !shipCityOpen && <div style={{ fontSize: 10, color: '#ef4444', marginTop: 2 }}>Selecciona una ciudad de la lista</div>}
+                      {shipCityFreeform && !shipCityOpen && <div style={{ fontSize: 10, color: GOLD, marginTop: 2 }}>Ciudad escrita a mano — verificamos cobertura al coordinar el envío</div>}
+                      {shipCity && !isShipCityOk && !shipCityOpen && <div style={{ fontSize: 10, color: '#ef4444', marginTop: 2 }}>Selecciona una ciudad de la lista o marca &quot;no está en la lista&quot;</div>}
                     </div>
                   </div>
                   <div>
