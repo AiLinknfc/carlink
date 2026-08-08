@@ -202,6 +202,27 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     variables de entorno con la contraseña/clave de DB viejas en ningún ambiente (local, Railway,
     backups). Ver `docs/DEPLOY.md`. **No verificable por un agente** — requiere entrar a los
     dashboards de Railway/Vercel/Supabase con tu cuenta.
+17. **Tres integraciones reales que el usuario confirmó (2026-08-08) que aún le faltan
+    configurar** — reforzado acá aparte para no perderlo entre los demás ítems:
+    - **Correo (SMTP)** — `SMTP_USER`/`SMTP_PASS` vacíos tanto en local como (asumido, no
+      confirmado) en Railway. Sin esto, `app/services/email.py` loguea "skipping" en cada intento
+      y no sale ningún correo real: ni el de pago confirmado/envío del checkout de Wompi (ver
+      ítem 14), ni el de llavero encontrado, ni el de postulaciones. Ver plantilla en
+      `backend/.env.example`.
+    - **`DEEPSEEK_API_KEY` en Railway** — ya es el ítem 1 de esta lista (no duplicado, solo
+      recordado): sin ella, el Diagnóstico IA del taller falla, y también degrada el escaneo OCR
+      de la tarjeta de propiedad en el registro (`handleScanCard` → `POST /ocr/vehicle-card`,
+      mismo servicio).
+    - **"Funcionalidad real de escaneo"** — sin confirmar todavía a cuál de estos dos se refería
+      exactamente (puede ser ambos): (a) el OCR de la tarjeta de propiedad de arriba — verifiqué
+      que `backend/Dockerfile` sí instala `tesseract-ocr`/`tesseract-ocr-spa`, así que en
+      producción (Railway, que usa ese Dockerfile) el binario debería estar; en **este entorno
+      local** (`uvicorn` corriendo fuera de Docker) `tesseract` no está instalado — `which
+      tesseract` no encuentra nada — así que el escaneo OCR falla acá con `OcrUnavailableError`
+      aunque el código esté bien; o (b) el tap físico real de un llavero NFC contra un teléfono (la
+      experiencia de escaneo NFC en sí, `/nfc/[token]/page.tsx`), que **no se puede probar sin un
+      llavero físico provisionado** — un agente no tiene forma de verificar esto, requiere que el
+      usuario lo pruebe con un chip real.
 
 ---
 
