@@ -209,7 +209,7 @@ export function getPendingOrders(): ShopOrder[] {
 /* ─── WhatsApp deep link ─── */
 export function shopWhatsappUrl(order: { id: string; items: CartItem[]; total: number; name: string; phone: string; address: string; city: string }): string {
   const lines = [
-    '¡Hola CarLink! Quiero comprar mi llavero NFC 🔑',
+    '¡Hola CarLink! Quiero comprar mi llavero NFC',
     ...order.items.map(i => `• ${i.productName} (${i.color.name}) x${i.quantity}`),
     `• Total: ${COP(order.total)}`,
     `• Nombre: ${order.name}`,

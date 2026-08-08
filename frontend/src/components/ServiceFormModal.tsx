@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ServiceIcon } from '@/lib/icons_new'
+import { ServiceIcon, Icon } from '@/lib/icons_new'
 
 /* Opciones de frenos: revisar y reemplazar en un mismo control. La última es la
    única que renueva la pieza en Control de partes. */
@@ -695,7 +695,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                                         <div style={{ fontSize: 14, fontWeight: 600, color: '#f5f3ec' }}>{s}</div>
                                         <div style={{ fontSize: 11, color: '#7c786e' }}>{rule.label} · {rule.lifespanKm.toLocaleString()} km / {rule.lifespanMonths} meses</div>
                                       </div>
-                                      <span style={{ fontSize: 11, color: '#F5C518', fontWeight: 700 }}>✓</span>
+                                      <span style={{ display: 'flex', color: '#F5C518' }}><Icon type="Check" size={14} strokeWidth={2.4} /></span>
                                     </button>
                                   )
                                 })}

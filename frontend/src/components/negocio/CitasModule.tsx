@@ -5,6 +5,7 @@ import { useAppointments, useWorkshopNotifications } from '@/lib/hooks'
 import type { Appointment } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, SERVICE_CATEGORIES } from './shared'
+import { Icon } from '@/lib/icons_new'
 
 const STATUS_COLOR: Record<string, string> = {
   'Pendiente': '#8f8a7a', 'Confirmada': '#3aa0ff', 'Completada': '#2ecc71', 'Cancelada': '#ff4d6a',
@@ -108,7 +109,7 @@ export default function CitasModule({ theme, onConverted }: {
                 <span style={{ fontSize: 13, fontWeight: 700, color: t.textPrimary }}>{a.vehicle_model}</span>
               </div>
               <div style={{ fontSize: 12.5, color: t.textSecondary, marginTop: 4 }}>{a.client_name}</div>
-              {a.client_phone && <div style={{ fontSize: 11.5, color: t.textMuted }}>📞 {a.client_phone}</div>}
+              {a.client_phone && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: t.textMuted }}><Icon type="Phone" size={10} strokeWidth={2} /> {a.client_phone}</div>}
             </div>
 
             <div style={{ padding: 10, borderRadius: 10, background: t.subtleBorder }}>

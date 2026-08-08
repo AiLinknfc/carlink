@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { apiUrl } from '@/lib/supabase'
 import type { WorkshopPublic } from '@/lib/types'
+import { RatingStars } from '@/lib/icons_new'
 
 /* Ficha pública del taller — docs/PLAN_MIGRACION_TALLERPRO.md Fase 4.11.
    Server público, sin auth: GET /workshops/{code} ya trae mecánicos activos,
@@ -153,7 +154,7 @@ export default function PublicWorkshopPage() {
               <div key={r.id} style={{ padding: 16, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{r.client_name}{r.is_verified_client && <span style={{ marginLeft: 6, fontSize: 10, color: '#5be89a' }}>· cliente verificado</span>}</div>
-                  <div style={{ color: '#F5C518', fontSize: 13 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
+                  <RatingStars rating={r.rating} size={13} />
                 </div>
                 {r.comment && <p style={{ fontSize: 13.5, color: 'var(--text-2)', margin: '6px 0 0', lineHeight: 1.5 }}>{r.comment}</p>}
                 {r.manager_response && (

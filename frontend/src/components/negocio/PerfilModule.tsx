@@ -5,6 +5,7 @@ import { useMyWorkshop, useWorkshopMechanics, useWorkshopServices, useWorkshopRe
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
+import { RatingStars } from '@/lib/icons_new'
 
 const SECTIONS = [
   { id: 'general', label: 'General' },
@@ -264,7 +265,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
       {section === 'resenas' && (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Reseñas ({workshop.rating.toFixed(1)}★)</div>
+          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Reseñas ({workshop.rating.toFixed(1)})</div>
           <button onClick={() => setReviewModal(true)} style={{ ...ghostBtnStyle(t), padding: '7px 14px', fontSize: 12.5 }}>+ Registrar reseña</button>
         </div>
         <p style={{ fontSize: 11.5, color: t.textMuted, margin: '0 0 10px' }}>
@@ -276,7 +277,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
             <div key={r.id} style={{ padding: '12px 16px', borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5, color: t.textPrimary }}>{r.client_name}</div>
-                <span style={{ color: t.gold, fontSize: 12.5 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                <RatingStars rating={r.rating} size={13} color={t.gold} />
               </div>
               {r.comment && <div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 4 }}>{r.comment}</div>}
               {r.manager_response ? (

@@ -72,8 +72,8 @@ export default function InventarioModule({ theme }: { theme: 'light' | 'dark' })
         </select>
         <select value={stockFilter} onChange={e => setStockFilter(e.target.value)} style={{ ...inputStyle(t), width: 'auto', flex: '0 1 190px' }}>
           <option value="">Todos los niveles de stock</option>
-          <option value="low">⚠️ Alertas de stock bajo</option>
-          <option value="ok">✅ Stock normal</option>
+          <option value="low">Alertas de stock bajo</option>
+          <option value="ok">Stock normal</option>
         </select>
       </div>
 

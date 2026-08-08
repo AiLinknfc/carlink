@@ -7,7 +7,7 @@ import { useTheme } from '@/store/theme'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
-import { CarLinkMark } from '@/lib/icons_new'
+import { CarLinkMark, Icon } from '@/lib/icons_new'
 import { useMaintenance } from '@/lib/hooks'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
@@ -873,7 +873,7 @@ export default function AppPage() {
                         {t.is_active && !urlRecoveryFailed[t.id] && (
                           <button onClick={() => copyTokenUrl(t.id)} disabled={copyingTokenId === t.id}
                             style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(245,197,24,0.35)', background: copiedTokenId === t.id ? 'rgba(46,204,113,0.15)' : 'rgba(245,197,24,0.15)', color: copiedTokenId === t.id ? '#2ecc71' : '#F5C518', fontSize: 11, fontWeight: 600, cursor: copyingTokenId === t.id ? 'default' : 'pointer', transition: 'all .16s' }}>
-                            {copiedTokenId === t.id ? '✓ Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
+                            {copiedTokenId === t.id ? 'Copiado' : copyingTokenId === t.id ? '…' : 'Copiar enlace'}
                           </button>
                         )}
                         {t.is_active && (
@@ -993,13 +993,13 @@ export default function AppPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
               {[
-                { icon: '🎨', title: 'Personaliza', desc: '7 colores disponibles' },
-                { icon: '📝', title: 'Grabado', desc: 'Texto personalizado' },
-                { icon: '💳', title: 'Múltiples pagos', desc: 'Tarjeta, Nequi, PSE' },
-                { icon: '🚚', title: 'Envío gratis', desc: 'A todo Colombia' },
+                { icon: 'Palette' as const, title: 'Personaliza', desc: '7 colores disponibles' },
+                { icon: 'Pencil' as const, title: 'Grabado', desc: 'Texto personalizado' },
+                { icon: 'CreditCard' as const, title: 'Múltiples pagos', desc: 'Tarjeta, Nequi, PSE' },
+                { icon: 'Truck' as const, title: 'Envío gratis', desc: 'A todo Colombia' },
               ].map(f => (
                 <div key={f.title} style={{ padding: 12, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--section-border)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{f.icon}</div>
+                  <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><Icon type={f.icon} size={20} strokeWidth={1.6} /></div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{f.title}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{f.desc}</div>
                 </div>

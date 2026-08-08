@@ -4,7 +4,7 @@ import ShopLayout from '@/components/shop/ShopLayout'
 import ProductCustomizer from '@/components/shop/ProductCustomizer'
 import { SHOP_PRODUCTS, COP, PLATE_COLOR_SCHEMES } from '@/lib/shop'
 import { useTheme } from '@/store/theme'
-import { NfcKeyIcon } from '@/lib/icons_new'
+import { NfcKeyIcon, Icon } from '@/lib/icons_new'
 
 const GOLD = '#F5C518'
 
@@ -51,13 +51,13 @@ function ShopContent() {
         {/* Trust badges */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginTop: 40 }}>
           {[
-            { icon: '🔒', title: 'Pago seguro', desc: 'Stripe o WhatsApp' },
-            { icon: '🚚', title: 'Envío gratis', desc: 'A todo Colombia' },
-            { icon: '⚡', title: 'Express 24h', desc: 'Envío rápido' },
-            { icon: '🎨', title: 'Personalizable', desc: '7 colores + grabado' },
+            { icon: 'Lock' as const, title: 'Pago seguro', desc: 'Stripe o WhatsApp' },
+            { icon: 'Truck' as const, title: 'Envío gratis', desc: 'A todo Colombia' },
+            { icon: 'Zap' as const, title: 'Express 24h', desc: 'Envío rápido' },
+            { icon: 'Palette' as const, title: 'Personalizable', desc: '7 colores + grabado' },
           ].map(b => (
             <div key={b.title} style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, marginBottom: 6 }}>{b.icon}</div>
+              <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'center', color: GOLD }}><Icon type={b.icon} size={24} strokeWidth={1.6} /></div>
               <div style={{ fontSize: 13, fontWeight: 700 }}>{b.title}</div>
               <div style={{ fontSize: 11, color: muted }}>{b.desc}</div>
             </div>

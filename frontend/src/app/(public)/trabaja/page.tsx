@@ -112,7 +112,7 @@ export default function TrabajaPage() {
     // WhatsApp backup notification
     const offerLine = selectedOffer ? `\n• Oferta de interés: ${selectedOffer}` : ''
     const cvLine = cvUrl ? `\n• Hoja de vida: ${cvUrl}` : cvName ? `\n• Hoja de vida adjunta: ${cvName}` : ''
-    const whatsappMsg = `¡Hola CarLink! Quiero hacer parte del equipo 🔧\n• Nombre: ${name}\n• Email: ${email}\n• WhatsApp: ${phone}\n• Área: ${area}${offerLine}${cvLine}${message ? `\n• Mensaje: ${message}` : ''}`
+    const whatsappMsg = `¡Hola CarLink! Quiero hacer parte del equipo\n• Nombre: ${name}\n• Email: ${email}\n• WhatsApp: ${phone}\n• Área: ${area}${offerLine}${cvLine}${message ? `\n• Mensaje: ${message}` : ''}`
     window.open(`https://wa.me/573164976104?text=${encodeURIComponent(whatsappMsg)}`, '_blank')
 
     setSaving(false)

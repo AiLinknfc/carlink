@@ -93,7 +93,7 @@ export default function PqrsAgent({ isOpen, onClose, theme, plate, city, default
       pushBot('¡Gracias! Nos ayuda muchísimo a completar el catálogo. ¿Qué marca y modelo (y año) faltan?')
       setStep('carModel')
     } else {
-      pushBot('Cuéntame con detalle qué pasó o qué mejorarías. Entre más contexto, más rápido lo resolvemos 👇')
+      pushBot('Cuéntame con detalle qué pasó o qué mejorarías. Entre más contexto, más rápido lo resolvemos.')
       setStep('message')
     }
   }
@@ -130,7 +130,7 @@ export default function PqrsAgent({ isOpen, onClose, theme, plate, city, default
       transcript,
     })
     setSaved(entry)
-    pushBot(`¡Gracias! Registré tu ${KIND_LABEL[entry.kind].toLowerCase()} con el radicado ${entry.ticket}. El servicio técnico ya puede verlo dentro de la app y lo resolverá pronto. 🛠️`)
+    pushBot(`¡Gracias! Registré tu ${KIND_LABEL[entry.kind].toLowerCase()} con el radicado ${entry.ticket}. El servicio técnico ya puede verlo dentro de la app y lo resolverá pronto.`)
     setStep('done')
   }
 

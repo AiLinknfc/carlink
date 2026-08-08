@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useWorkshopDashboard, useWorkOrders, useAppointments, useWorkshopInventory, useWorkshopClients, useWorkshopVehicles, useWorkshopMechanics } from '@/lib/hooks'
 import type { WorkOrder } from '@/lib/types'
 import { negocioTokens, money, primaryBtnStyle, ghostBtnStyle } from './shared'
+import { Icon } from '@/lib/icons_new'
 
 /* Réplica de la distribución de tallerpro/src/components/DashboardOverview.tsx
    (docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase C.1): banner con 2 accesos rápidos,
@@ -162,7 +163,7 @@ export default function ResumenModule({ theme, onNavigateTab, onOpenNewWorkOrder
                         <div style={{ fontSize: 12.5, color: t.textSecondary, marginTop: 3 }}>
                           {vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehículo'} — {client?.name || 'Cliente'}
                         </div>
-                        {o.symptoms && <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 420 }}>🔧 {o.symptoms}</div>}
+                        {o.symptoms && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: t.textMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 420 }}><Icon type="Wrench" size={11} strokeWidth={2} /> {o.symptoms}</div>}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 13.5, fontWeight: 800, color: t.textPrimary }}>{money(o.final_total)}</div>

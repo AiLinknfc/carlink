@@ -11,10 +11,14 @@ from app.services.crypto import encrypt_url
 # label or types it in by hand.
 _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-# Free 7-day public-ficha trial — taller/empresa only. Persona never gets a
-# free ficha; it always requires a claimed (token_type='personal') keychain.
+# Free 7-day public-ficha trial — taller only. Persona never gets a free
+# ficha; it always requires a claimed (token_type='personal') keychain.
+# Note: 'empresa'/'business' are UI-only pre-signup labels (LoginModal.tsx) —
+# profiles.account_type has a DB CHECK constraint that only allows 'persona'
+# or 'taller' (003_multi_tenant.sql), so those two values can never actually
+# occur here. Kept out of this set on purpose; see docs/PENDIENTES.md.
 TRIAL_DAYS = 7
-TRIAL_ACCOUNT_TYPES = {"taller", "empresa", "business"}
+TRIAL_ACCOUNT_TYPES = {"taller"}
 
 
 def generate_human_code(length: int = 10) -> str:

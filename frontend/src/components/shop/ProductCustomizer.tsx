@@ -185,7 +185,7 @@ export default function ProductCustomizer({ product, theme, onAdded }: Props) {
             background: added ? '#2ecc71' : GOLD, color: '#111', fontWeight: 800, fontSize: 14,
             cursor: 'pointer', transition: 'background .2s',
           }}>
-            {added ? '✓ Agregado al carrito' : 'Agregar al carrito'}
+            {added ? 'Agregado al carrito' : 'Agregar al carrito'}
           </motion.button>
         </div>
       </div>

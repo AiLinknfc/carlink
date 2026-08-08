@@ -118,7 +118,7 @@ export default function PqrsInbox({ isOpen, onClose, theme }: Props) {
                       </div>
 
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.categoryLabel}</div>
-                      {e.carModel && <div style={{ fontSize: 12.5, color: GOLD, fontWeight: 600 }}>🚗 {e.carModel}</div>}
+                      {e.carModel && <div style={{ fontSize: 12.5, color: GOLD, fontWeight: 600 }}>{e.carModel}</div>}
                       <p style={{ fontSize: 13, lineHeight: 1.55, color: isDark ? '#cfcabb' : '#3a362e', margin: 0 }}>{e.message}</p>
 
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 11, color: textMuted, marginTop: 2 }}>

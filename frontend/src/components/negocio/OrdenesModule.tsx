@@ -7,6 +7,7 @@ import type { WorkOrder, WorkOrderLaborItemIn, WorkOrderPartIn, WorkOrderStatus 
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
+import { Icon } from '@/lib/icons_new'
 
 const STATUSES: (WorkOrderStatus | string)[] = ['Pendiente', 'En Proceso', 'Diagnosticado', 'Listo para Entrega', 'Entregado', 'Cancelado']
 
@@ -233,7 +234,7 @@ export default function OrdenesModule({ theme, workshop, autoNewSignal, onAutoNe
                         <span style={{ fontSize: 10.5, color: '#8f8a7a' }}>{o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO') : ''}</span>
                       </div>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f5f3ec' }}>{vehicle ? `${vehicle.brand} ${vehicle.model} (${vehicle.license_plate})` : '—'}</div>
-                      <div style={{ fontSize: 11.5, color: '#b6b2a6', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>📋 {o.symptoms || 'Sin síntomas registrados'}</div>
+                      <div style={{ fontSize: 11.5, color: '#b6b2a6', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{o.symptoms || 'Sin síntomas registrados'}</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 10.5, color: '#8f8a7a' }}>
                         <span>Mecánico: {mechanic?.name || 'Sin asignar'}</span>
                         <span style={{ fontWeight: 800, color: t.success }}>{money(o.final_total)}</span>
@@ -371,8 +372,8 @@ function WorkOrderFormModal({ t, theme, workshop, order, onClose, onSaved, onOpe
             <div>
               <div style={{ ...labelStyle(t), marginBottom: 4 }}>Datos del cliente</div>
               <div style={{ fontSize: 13.5, fontWeight: 800, color: t.textPrimary }}>{client?.name || '—'}</div>
-              {client?.phone && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>📞 {client.phone}</div>}
-              {client?.email && <div style={{ fontSize: 12, color: t.textMuted }}>✉️ {client.email}</div>}
+              {client?.phone && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted, marginTop: 2 }}><Icon type="Phone" size={11} strokeWidth={2} /> {client.phone}</div>}
+              {client?.email && <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted }}><Icon type="Mail" size={11} strokeWidth={2} /> {client.email}</div>}
             </div>
           </div>
         )

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP, processPayment, type ShopOrder } from '@/lib/shop'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { getPlateDisplay } from '@/lib/plate'
+import { Icon } from '@/lib/icons_new'
 import { CITIES } from '@/lib/constants'
 
 const GOLD = '#F5C518'
@@ -45,10 +46,10 @@ const PLATE_TAGS: Record<string, string> = {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'card', name: 'Tarjeta de crédito / débito', icon: '💳' },
-  { id: 'nequi', name: 'Nequi', icon: '📱' },
-  { id: 'bancolombia', name: 'Bancolombia', icon: '🏦' },
-  { id: 'whatsapp', name: 'WhatsApp (pago contraentrega)', icon: '💬' },
+  { id: 'card', name: 'Tarjeta de crédito / débito', icon: 'CreditCard' as const },
+  { id: 'nequi', name: 'Nequi', icon: 'Smartphone' as const },
+  { id: 'bancolombia', name: 'Bancolombia', icon: 'Bank' as const },
+  { id: 'whatsapp', name: 'WhatsApp (pago contraentrega)', icon: 'MessageCircle' as const },
 ]
 
 export default function CartModal({ isOpen, onClose, theme, plateText: initialPlateText, plateType: initialPlateType, city: initialCity }: Props) {
@@ -427,7 +428,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {PAYMENT_METHODS.map(pm => (
                       <button key={pm.id} onClick={() => setPayMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontSize: 13, fontWeight: 600, background: payMethod === pm.id ? 'rgba(245,197,24,0.12)' : cardBg, border: `1.5px solid ${payMethod === pm.id ? GOLD : subtle}`, color: payMethod === pm.id ? text : muted, transition: 'all .12s' }}>
-                        <span style={{ fontSize: 18 }}>{pm.icon}</span>
+                        <span style={{ display: 'flex', color: payMethod === pm.id ? GOLD : muted }}><Icon type={pm.icon} size={18} strokeWidth={1.8} /></span>
                         <span style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${payMethod === pm.id ? GOLD : '#6f6a5f'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>{payMethod === pm.id && <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />}</span>
                         {pm.name}
                       </button>

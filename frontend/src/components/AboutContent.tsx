@@ -1,4 +1,4 @@
-import { CarLinkMark } from '@/lib/icons_new'
+import { CarLinkMark, Icon } from '@/lib/icons_new'
 import Link from 'next/link'
 
 const TIMELINE = [
@@ -8,10 +8,10 @@ const TIMELINE = [
 ]
 
 const VALUES = [
-  { icon: '🛡️', title: 'Transparencia', desc: 'Cada dato queda con fecha, taller y kilometraje — nadie lo puede reescribir después.' },
-  { icon: '🤝', title: 'Confianza', desc: 'Los talleres aliados pasan por un proceso de verificación antes de poder actualizar fichas.' },
-  { icon: '🔐', title: 'Privacidad', desc: 'Solo tú decides quién ve tu ficha. La verificación es tuya, no de terceros.' },
-  { icon: '⚡', title: 'Simplicidad', desc: 'Sin apps complicadas. Ingresa tu placa, toca el llavero y tu ficha aparece al instante.' },
+  { icon: 'Shield' as const, title: 'Transparencia', desc: 'Cada dato queda con fecha, taller y kilometraje — nadie lo puede reescribir después.' },
+  { icon: 'Handshake' as const, title: 'Confianza', desc: 'Los talleres aliados pasan por un proceso de verificación antes de poder actualizar fichas.' },
+  { icon: 'Lock' as const, title: 'Privacidad', desc: 'Solo tú decides quién ve tu ficha. La verificación es tuya, no de terceros.' },
+  { icon: 'Zap' as const, title: 'Simplicidad', desc: 'Sin apps complicadas. Ingresa tu placa, toca el llavero y tu ficha aparece al instante.' },
 ]
 
 export default function AboutContent() {
@@ -75,7 +75,7 @@ export default function AboutContent() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
           {VALUES.map(v => (
             <div key={v.title} style={{ padding: 20, borderRadius: 16, background: 'var(--surface-2)', border: '1px solid var(--border)', textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>{v.icon}</div>
+              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center', color: 'var(--accent)' }}><Icon type={v.icon} size={32} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{v.title}</div>
               <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-2)', margin: 0 }}>{v.desc}</p>
             </div>

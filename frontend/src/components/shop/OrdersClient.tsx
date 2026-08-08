@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from '@/store/theme'
 import { loadOrders, COP, getEstimatedDelivery, getShippingProgress, type ShopOrder, type OrderStatus } from '@/lib/shop'
 import { motion } from 'framer-motion'
+import { Icon } from '@/lib/icons_new'
 
 const GOLD = '#F5C518'
 
@@ -14,11 +15,11 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: 'Entregado',
 }
 
-const STATUS_ICONS: Record<OrderStatus, string> = {
-  pending: '⏳',
-  processing: '📦',
-  shipped: '🚚',
-  delivered: '✅',
+const STATUS_ICONS: Record<OrderStatus, Parameters<typeof Icon>[0]['type']> = {
+  pending: 'Hourglass',
+  processing: 'Package',
+  shipped: 'Truck',
+  delivered: 'Check',
 }
 
 export default function OrdersClient() {
@@ -67,8 +68,8 @@ export default function OrdersClient() {
                 width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px',
                 background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
               }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(245,197,24,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>
-                  {STATUS_ICONS[order.status]}
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(245,197,24,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GOLD, flex: '0 0 auto' }}>
+                  <Icon type={STATUS_ICONS[order.status]} size={20} strokeWidth={1.8} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>Pedido #{order.id}</div>

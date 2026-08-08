@@ -55,10 +55,46 @@ const ICON_PATHS: Record<string, ReactNode> = {
   Eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
   Key: <><path d="M14 21V5l-6-6-6 6M21 17v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><circle cx="16" cy="11" r="3"/></>,
   X: <><path d="M18 6L6 18M6 6l12 12"/></>,
+  /* Agregados 2026-08-07 al reemplazar emojis de la UI (docs/DESIGN_GUIDELINES.md) */
+  Lock: <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+  Truck: <><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14v10"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></>,
+  Zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="currentColor" stroke="none" />,
+  Palette: <><circle cx="13.5" cy="6.5" r=".6" fill="currentColor" stroke="none"/><circle cx="17.5" cy="10.5" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="7.5" r=".6" fill="currentColor" stroke="none"/><circle cx="6.5" cy="12.5" r=".6" fill="currentColor" stroke="none"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1a1.6 1.6 0 0 1 1.7-1.7h2c3 0 5.5-2.5 5.5-5.5C22 6 17.5 2 12 2z"/></>,
+  Pencil: <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />,
+  CreditCard: <><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></>,
+  Phone: <path d="M3 5a2 2 0 0 1 2-2h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 5z" />,
+  AlertTriangle: <><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></>,
+  Check: <path d="M20 6 9 17l-5-5" />,
+  Wrench: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />,
+  Shield: <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />,
+  Handshake: <><circle cx="9" cy="12" r="6" /><circle cx="15" cy="12" r="6" /></>,
+  Hourglass: <path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41a2 2 0 0 0-.59 1.42V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2" />,
+  Package: <><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></>,
+  Smartphone: <><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></>,
+  Bank: <><line x1="3" x2="21" y1="22" y2="22" /><line x1="6" x2="6" y1="18" y2="11" /><line x1="10" x2="10" y1="18" y2="11" /><line x1="14" x2="14" y1="18" y2="11" /><line x1="18" x2="18" y1="18" y2="11" /><polygon points="12 2 20 7 4 7" /></>,
+  MessageCircle: <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
 }
 
 export function Icon({ type, size = 18, strokeWidth = 1.7 }: { type: keyof typeof ICON_PATHS; size?: number; strokeWidth?: number }): ReactNode {
   return svgIcon(ICON_PATHS[type], size, strokeWidth)
+}
+
+const STAR_PATH = 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.595-1.16z'
+
+/** Fila de estrellas para calificaciones — reemplaza `'★'.repeat(rating)`. */
+export function RatingStars({ rating, size = 14, color = '#F5C518' }: { rating: number; size?: number; color?: string }): ReactNode {
+  return (
+    <span style={{ display: 'inline-flex', gap: 1, color, verticalAlign: 'middle' }}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <svg key={i} width={size} height={size} viewBox="0 0 24 24"
+          fill={i < Math.round(rating) ? 'currentColor' : 'none'}
+          stroke="currentColor" strokeWidth={i < Math.round(rating) ? 0 : 1.6}
+          strokeLinecap="round" strokeLinejoin="round">
+          <path d={STAR_PATH} />
+        </svg>
+      ))}
+    </span>
+  )
 }
 
 export function CertIcon({ type, size = 20, strokeWidth = 1.7 }: { type?: string; size?: number; strokeWidth?: number }): ReactNode {

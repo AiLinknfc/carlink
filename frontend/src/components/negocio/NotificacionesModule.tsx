@@ -6,11 +6,11 @@ import { workshopApi } from '@/lib/api'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle } from './shared'
 
 const TEMPLATES: { label: string; type: string; build: (name: string, plate: string) => string }[] = [
-  { label: '🔔 Recordatorio Cita', type: 'Recordatorio Cita', build: (n, p) => `Hola ${n}! Te recordamos tu cita agendada en el taller para el vehículo con placa ${p}. ¡Te esperamos! 🔧` },
-  { label: '✅ Vehículo Listo', type: 'Vehículo Listo', build: (n, p) => `Estimado/a ${n}, ¡buenas noticias! 🎉 Tu vehículo (${p}) ya está listo para entrega. Puedes pasar a retirarlo. 🔑` },
-  { label: '🔧 Inicio Mantención', type: 'Inicio Mantenimiento', build: (n, p) => `Hola ${n}, te informamos que hemos iniciado los trabajos en tu vehículo (${p}). Te mantendremos informado del progreso. 🛠️` },
-  { label: '🗓️ Preventivo pendiente', type: 'Mantenimiento Preventivo Pendiente', build: (n, p) => `Hola ${n}! 🗓️ Es momento de agendar el mantenimiento preventivo de tu vehículo (${p}) para proteger su motor. 🚘` },
-  { label: '📋 Presupuesto', type: 'Presupuesto Aprobación', build: (n, p) => `Estimado/a ${n}, hemos completado la revisión técnica de tu vehículo (${p}). Por favor responde para confirmar la autorización del presupuesto. 📋` },
+  { label: 'Recordatorio Cita', type: 'Recordatorio Cita', build: (n, p) => `Hola ${n}! Te recordamos tu cita agendada en el taller para el vehículo con placa ${p}. ¡Te esperamos!` },
+  { label: 'Vehículo Listo', type: 'Vehículo Listo', build: (n, p) => `Estimado/a ${n}, buenas noticias: tu vehículo (${p}) ya está listo para entrega. Puedes pasar a retirarlo.` },
+  { label: 'Inicio Mantención', type: 'Inicio Mantenimiento', build: (n, p) => `Hola ${n}, te informamos que hemos iniciado los trabajos en tu vehículo (${p}). Te mantendremos informado del progreso.` },
+  { label: 'Preventivo pendiente', type: 'Mantenimiento Preventivo Pendiente', build: (n, p) => `Hola ${n}! Es momento de agendar el mantenimiento preventivo de tu vehículo (${p}) para proteger su motor.` },
+  { label: 'Presupuesto', type: 'Presupuesto Aprobación', build: (n, p) => `Estimado/a ${n}, hemos completado la revisión técnica de tu vehículo (${p}). Por favor responde para confirmar la autorización del presupuesto.` },
 ]
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {

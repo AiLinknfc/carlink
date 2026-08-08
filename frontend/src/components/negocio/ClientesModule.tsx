@@ -153,7 +153,7 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
                 <button onClick={() => unlinkVehicle(v.id)} title="Desvincular de la cuenta CarLink" style={{
                   fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
                   background: 'rgba(46,204,113,0.12)', color: t.success, border: 'none',
-                }}>CarLink ✓</button>
+                }}>Vinculado a CarLink</button>
               ) : (
                 <button onClick={() => handleLink(v)} disabled={linkingId === v.id} title="Buscar una cuenta CarLink con esta placa y vincularla" style={{
                   fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: linkingId === v.id ? 'default' : 'pointer',

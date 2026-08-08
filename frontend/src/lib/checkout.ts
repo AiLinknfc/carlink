@@ -64,7 +64,7 @@ export function saveFobOrder(order: FobOrder) {
 
 export function whatsappOrderUrl(order: FobOrder): string {
   const lines = [
-    '¡Hola CarLink! Quiero comprar mi llavero NFC 🔑',
+    '¡Hola CarLink! Quiero comprar mi llavero NFC',
     `• Producto: ${order.productName} (x${order.quantity})`,
     `• Total: ${COP(order.total)}`,
     `• Nombre: ${order.name}`,

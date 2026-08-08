@@ -1,6 +1,13 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-07._
+_Última actualización: 2026-08-07 (segunda pasada — "implementa todo")._
+
+**Ejecutado en la segunda pasada de esta sesión** (commits locales, sin pushear — ver #2): limpieza
+de `TRIAL_ACCOUNT_TYPES`, barrido completo de emojis en la UI (19 archivos), suite `pytest` a 0
+fallos (arreglado `test_admin.py`, agregado `test_workshop_clients.py`), ramas locales obsoletas
+borradas, "Historial de clientes" investigado y cerrado. Detalle de cada uno en su ítem. Lo que
+**no** se tocó y por qué también está explicado en el lugar correspondiente — nada se marcó "hecho"
+sin decirlo explícitamente.
 
 Este es el **único** lugar donde se lleva la lista de qué falta. Antes estaba repartida entre
 este archivo, las secciones "Pendiente" de `CONTEXTO.md`, `DEPLOY.md`, `TESTS_PLAN.md` (ahora
@@ -40,22 +47,25 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    explícitamente**: ¿el vínculo por placa ya es suficiente consentimiento continuo, o cada
    documento/registro debería requerir alguna confirmación del cliente (o al menos ser reversible/
    visible como "pendiente de aceptar")? Ver más contexto en `PLAN_FACTURACION_AUTOMATICA.md` Paso 3.
+   **Deliberadamente no tocado en la segunda pasada** ("implementa todo", 2026-08-07): es
+   comportamiento ya desplegado en producción, no un ítem del backlog — cambiarlo sin que decidas
+   la pregunta de arriba primero sería tomar la decisión de producto por vos.
 
 ## 🟡 Prioridad media
 
-4a. **Barrido de emojis existentes en la UI** — la regla "sin emojis en la interfaz" se agregó a
-   `docs/DESIGN_GUIDELINES.md` el 2026-08-07, pero el código ya tenía ~48 usos repartidos en 19
-   archivos de `frontend/src` (encontrados con un grep de rangos Unicode de emoji, 2026-08-07):
-   `components/negocio/NotificacionesModule.tsx` (12), `app/app/page.tsx` (5),
-   `components/CartModal.tsx` (4), `components/AboutContent.tsx` (4), `app/shop/page.tsx` (4),
-   `components/negocio/PerfilModule.tsx` (3), `components/negocio/OrdenesModule.tsx` (3), y 12
-   archivos más con 1-2 cada uno (`PqrsAgent.tsx`, `InventarioModule.tsx`,
-   `(public)/taller/[code]/page.tsx`, `lib/shop.ts`, `lib/checkout.ts`,
-   `shop/ProductCustomizer.tsx`, `ServiceFormModal.tsx`, `PqrsInbox.tsx`, `ResumenModule.tsx`,
-   `ClientesModule.tsx`, `CitasModule.tsx`, `LandingSections.tsx`, `(public)/trabaja/page.tsx`).
-   No se tocaron en esta sesión (barrido de 19 archivos merece su propia pasada con verificación
-   visual, no un reemplazo a ciegas) — queda como el primer trabajo real a ejecutar bajo la nueva
-   regla.
+4a. **Barrido de emojis existentes en la UI — ✅ hecho (2026-08-07).** Los ~48 usos en 19 archivos
+   listados en la pasada anterior de este documento quedaron reemplazados: 16 por iconos SVG nuevos
+   agregados a `frontend/src/lib/icons_new.tsx` (el sistema de iconos que ya existía en el proyecto
+   — `Lock`, `Truck`, `Zap`, `Palette`, `Pencil`, `CreditCard`, `Phone`, `Shield`, `Handshake`,
+   `Hourglass`, `Package`, `Smartphone`, `Bank`, `MessageCircle`, más un componente `RatingStars`
+   nuevo para las calificaciones con estrellas de reseñas — reemplaza `'★'.repeat(rating)`), y el
+   resto por texto plano donde el emoji era puramente decorativo (checkmarks de "Agregado"/"Copiado"
+   ya comunicados por color, `<option>` de un `<select>` que no admite SVG, mensajes de WhatsApp/chat
+   salientes). `npx tsc --noEmit` limpio y `npx vitest run` sin nuevas fallas (el único test que
+   falla, `plate.test.ts`, ya fallaba antes — no relacionado). **No verificado visualmente en
+   navegador** — ningún entorno de agente tuvo Chromium disponible en esta sesión; los iconos nuevos
+   (sobre todo `Palette` y `Handshake`, los de trazo más complejo) valen una revisión visual tuya
+   antes de darlos por definitivos.
 
 4. **Confirmar el cierre de la caída de producción del 6 de agosto.** El bump del health check a
    `1.0.2` (`88a375e`) fue un marcador para diagnosticarla; ahora mismo `api.carlink.com.co/api/health`
@@ -68,39 +78,59 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    "Emitir documento" de dos pasos con vista previa. Todo esto corre en el navegador
    (`html2canvas`+`jsPDF`) y solo se validó con `tsc --noEmit`, nunca abierto en un navegador real
    (ningún entorno de agente tuvo Chromium disponible en esas sesiones). Ver `PLAN_FACTURACION_AUTOMATICA.md`.
-6. **Fila `empresa` en `nfc_token_limits` — pendiente cerrado por hallazgo de arquitectura, no por
-   trabajo.** Este pendiente se repitió sin resolverse desde 2026-07-27 en al menos 4 documentos.
-   Al revisar el código (2026-08-07) se confirmó que **`'empresa'` nunca puede ser un valor real de
-   `profiles.account_type`** — la tabla tiene `CHECK (account_type IN ('persona', 'taller'))` desde
-   la migración `003_multi_tenant.sql`, nunca alterada. `'empresa'`/`'business'` solo existen como
-   estado transitorio de la UI de registro/login (`LoginModal.tsx`), nunca llegan a la base (ver
-   comentario en `frontend/src/lib/constants.ts:38-41`, que ya lo documentaba). Conclusión: no hay
-   ninguna fila que agregar — el límite de negocio para cuentas de taller **ya se aplica** vía la
-   fila `taller` existente. Lo único real que queda: `TRIAL_ACCOUNT_TYPES = {"taller", "empresa",
-   "business"}` en `backend/app/services/nfc_provisioning.py` tiene 2 de 3 miembros inalcanzables —
-   cosmético, no bloquea nada, pero vale limpiarlo para que el próximo que lo lea no repita este
-   mismo pendiente fantasma una quinta vez.
-7. **"Historial de clientes" de taller/empresa sin el mismo gate de trial que la ficha pública** —
-   el plan de QR/trial (2026-07-29) pedía bloquearlo también cuando el trial de 7 días vence sin
-   llavero reclamado (mismo criterio que `_has_ficha_access`), pero su endpoint nunca se identificó
-   ni se tocó.
+6. **Fila `empresa` en `nfc_token_limits` — cerrado por hallazgo de arquitectura, no por trabajo;
+   la limpieza cosmética se aplicó (2026-08-07).** Este pendiente se repitió sin resolverse desde
+   2026-07-27 en al menos 4 documentos. Al revisar el código se confirmó que **`'empresa'` nunca
+   puede ser un valor real de `profiles.account_type`** — la tabla tiene
+   `CHECK (account_type IN ('persona', 'taller'))` desde la migración `003_multi_tenant.sql`, nunca
+   alterada. `'empresa'`/`'business'` solo existen como estado transitorio de la UI de registro/
+   login (`LoginModal.tsx`), nunca llegan a la base (ver comentario en
+   `frontend/src/lib/constants.ts:38-41`, que ya lo documentaba). No hay ninguna fila que agregar —
+   el límite de negocio para cuentas de taller ya se aplica vía la fila `taller` existente.
+   `TRIAL_ACCOUNT_TYPES` en `backend/app/services/nfc_provisioning.py` se redujo de
+   `{"taller", "empresa", "business"}` a `{"taller"}` (los otros dos nunca podían ocurrir) —
+   sin cambio de comportamiento, comentario agregado explicando por qué.
+7. **"Historial de clientes" de taller/empresa sin el mismo gate de trial — investigado y cerrado
+   (2026-08-07), no era un endpoint sin identificar.** Este pendiente venía del plan de QR/trial de
+   2026-07-29, **anterior** a que existiera el panel `/app/negocio` — en ese momento no había ningún
+   "historial de clientes" del taller como tal. Hoy esa función vive en `ClientesModule.tsx` /
+   `workshop_clients.py`, gateada por `verify_workshop` (autenticación + dueño del taller) — un
+   modelo de datos totalmente distinto al de la ficha pública NFC/QR que protege `_has_ficha_access`
+   (`workshop_clients`/`workshop_vehicles` nunca pasan por ese gate, ni tendría sentido que lo
+   hicieran: no son datos públicos). La protección equivalente ya existe y es más completa de lo que
+   pedía el pendiente original: `/app/negocio` entero (los 10 módulos, incluido Clientes) se bloquea
+   con `SubscriptionExpiredCard` vía `isSubscriptionValid()` cuando el trial vence sin llavero
+   reclamado — verificado en navegador real en la Fase 5 de `PLAN_MIGRACION_TALLERPRO.md`.
 8. **Rol admin sigue siendo un solo UUID hardcodeado** (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`),
-   no un rol basado en `account_type`. No escala a más de un administrador.
+   no un rol basado en `account_type`. No escala a más de un administrador. **No implementado en
+   esta sesión** — es un cambio de modelo de autorización (nueva tabla de roles o columna +
+   migración de todos los checks `user_id != admin_id`), con impacto en seguridad si se hace a las
+   apuradas; mejor con una conversación corta primero sobre cuántos admins reales necesitás y si
+   todos deben tener el mismo nivel de acceso.
 9. **Separación de ambientes** — local/staging/producción comparten la misma instancia de Supabase.
-   Causa raíz documentada de varios bugs de producción pasados (migraciones aplicadas de forma
-   inconsistente, código defensivo agregado para tolerar un esquema desconocido en vez de
-   corregirlo). Ver plan de 3 pasos en `docs/DEPLOY.md` → "Pendiente: separación de ambientes".
-10. **Suite `pytest` formal para los 9 routers nuevos de taller/empresa** (`work_orders.py`,
-    `appointments.py`, `workshop_*.py`) — todo el trabajo se verificó con scripts E2E desechables
-    contra la DB real en su momento, pero esos scripts no quedan corriendo en CI.
-11. **`test_admin.py` — 5 fallos preexistentes**, no relacionados con el trabajo de taller/empresa:
-    los test doubles (`MagicMock`) están mal tipados — `result.scalars()` devuelve una corrutina en
-    vez de un proxy síncrono, y algunos campos `Decimal` llegan como el tipo equivocado a la
-    validación de Pydantic. Es un problema de las pruebas, no del código de producción — nadie lo
-    ha tocado en meses. (Distinto de los 7 fallos de `test_maintenance.py`/`test_nfc.py` que sí se
-    arreglaron en esta sesión — ver `## Hallazgo de esta sesión: deuda de tests` más abajo.)
-12. **Frontend: cero tests más allá de `plate.test.ts`** — ver checklist heredado de
-    `TESTS_PLAN.md` en la sección de abajo.
+   Causa raíz documentada de varios bugs de producción pasados. **No implementado en esta sesión** —
+   requiere crear un proyecto Supabase nuevo, que solo vos podés hacer (acceso a tu cuenta de
+   Supabase); una vez creado, avisame y hago la parte de configurar `local`/`staging` para apuntar
+   ahí. Ver plan de 3 pasos en `docs/DEPLOY.md` → "Pendiente: separación de ambientes".
+10. **Suite `pytest` para los routers nuevos de taller/empresa — arrancada, no completa
+    (2026-08-07).** Se agregó `tests/test_workshop_clients.py` (5 tests) cubriendo el límite de
+    aislamiento más importante — un taller no puede leer ni editar un cliente de otro taller — sobre
+    el router `workshop_clients.py`. **A propósito no se hizo lo mismo para `work_orders.py`**
+    (el más complejo: descuento de stock, numeración de orden con reintento, facturación
+    automática, sync a cuentas de cliente) — mockear esa cadena de pasos a ciegas es exactamente el
+    patrón que causó la deuda de tests de esta misma sesión (ver hallazgo de arquitectura #3 más
+    abajo); mejor seguir con scripts E2E contra DB real para esa lógica, como ya se ha hecho. Quedan
+    sin ningún test unitario: `work_orders.py`, `appointments.py`, `workshop_inventory.py`,
+    `workshop_services.py`, `workshop_mechanics.py`, `workshop_notifications.py`,
+    `workshop_documents.py`, `workshop_reviews.py`, `workshop_ai.py`.
+11. **`test_admin.py` — ✅ arreglado (2026-08-07), ya no preexistente.** Los 5 fallos eran los test
+    doubles mal tipados (`MagicMock` auto-generando corrutinas donde el código real usa métodos
+    síncronos de `Result`) — mismo patrón que los 7 de `test_maintenance.py`/`test_nfc.py`
+    arreglados en la primera pasada de esta sesión. La suite completa de backend queda en
+    **38/38 pasando, 0 fallos**.
+12. **Frontend: cero tests más allá de `plate.test.ts`** — no implementado en esta sesión (fuera del
+    alcance de "implementa todo" dado el tiempo disponible: componentes/hooks/E2E son un esfuerzo
+    grande aparte). Ver checklist heredado de `TESTS_PLAN.md` en la sección de abajo.
 
 ## 🟢 Prioridad baja / opcional
 
@@ -108,15 +138,19 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     `/(public)/taller/[code]/page.tsx` con la distribución completa de `PublicWorkshopCard.tsx` de
     tallerpro (925 líneas, selector de tema + formulario de calificación). Marcada explícitamente
     como opcional/fuera del alcance inmediato — el QR + toggle de publicación de esa misma fase ya
-    se adelantó y está hecho.
+    se adelantó y está hecho. No implementado en esta sesión.
 14. **Carrito "Solicitar llavero NFC"** (`CartModal.tsx`) sigue siendo una maqueta de UI — al pagar
     solo cierra el modal y muestra un toast, sin crear ninguna orden real ni cobrar de verdad.
-    Decidir si se conecta a un backend de pedidos/pagos antes de vender llaveros de verdad.
-15. **Rama `feat/taller-empresa-v2`** ya está completamente contenida en `master` (solo difiere en
-    el número de versión del health check) — se puede borrar sin perder nada.
+    **No implementado en esta sesión** — necesita elegir un proveedor de pagos real (Stripe/Wompi/
+    PSE) antes de que tenga sentido construir el backend de pedidos; es una decisión de negocio, no
+    solo técnica.
+15. **Rama `feat/taller-empresa-v2` — ✅ borrada (2026-08-07)**, junto con `feat/taller-empresa-panel`
+    (ambas locales, nunca llegaron a `origin` — confirmado con `git ls-remote`). Estaban
+    completamente contenidas en `master`, sin nada único que perder.
 16. **Rotación de credenciales tras el incidente de 2026-07-27** — confirmar que no queden
     variables de entorno con la contraseña/clave de DB viejas en ningún ambiente (local, Railway,
-    backups). Ver `docs/DEPLOY.md`.
+    backups). Ver `docs/DEPLOY.md`. **No verificable por un agente** — requiere entrar a los
+    dashboards de Railway/Vercel/Supabase con tu cuenta.
 
 ---
 
@@ -136,8 +170,11 @@ relacionado* agregó campos a los modelos que esos tests mockean:
   "ficha desactivada por el dueño", cambio que el frontend sí tiene aplicado correctamente
   (`nfc/[token]/page.tsx` maneja `410`) pero el test nunca se actualizó.
 
-Los 7 se corrigieron en esta sesión (commit local, sin pushear). Quedan los 5 de `test_admin.py`
-(#11 arriba), que sí son preexistentes y no relacionados.
+Los 7 se corrigieron en la primera pasada de esta sesión. En la segunda pasada se arreglaron
+también los 5 de `test_admin.py` (mismo patrón: `MagicMock` sin `spec=AsyncSession` en sus hijos
+auto-generados, así que un `db.execute(...)` sin mockear a mano devolvía un `result.scalars()`
+async en vez de sync). **La suite completa queda en 38/38, 0 fallos** — todo commiteado localmente,
+sin pushear.
 
 **Por qué importa más allá de estos 7 tests:** esto confirma que el patrón `MagicMock(spec=Model)`
 con cada campo mockeado a mano es frágil ante evolución de schema — revienta en silencio semanas
@@ -209,8 +246,9 @@ terminado"), ya que demostró servir para diagnosticar un problema real de produ
 - [ ] RLS policies, cascade deletes, trigger `on_auth_user_created` — tests contra DB real
 - [ ] Cobertura de los 9 routers nuevos de taller/empresa (ver pendiente #10)
 
-_Ya existen (no repetir):_ `test_maintenance.py`, `test_nfc.py` (recién arreglados), `test_admin.py`
-(preexistente, con fallas — #11), `test_certificates.py`, `test_ocr.py`.
+_Ya existen (no repetir):_ `test_maintenance.py`, `test_nfc.py`, `test_admin.py` (los 3 recién
+arreglados, 0 fallos), `test_certificates.py`, `test_ocr.py`, `test_workshop_clients.py` (nuevo,
+2026-08-07 — aislamiento entre talleres, ver pendiente #10).
 
 ### Frontend (Vitest) — no existen todavía
 - [ ] Componentes: `FichaTab`, `Sidebar`, `ServiceFormModal`, `PartFormModal`

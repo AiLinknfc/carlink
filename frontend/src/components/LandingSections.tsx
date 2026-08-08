@@ -515,7 +515,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             { v: '4.8/5', l: 'Calificación promedio' },
             { v: '23+', l: 'Talleres en red' },
             { v: '10', l: 'Ciudades con cobertura' },
-            { v: '4.9★', l: 'Satisfacción' },
+            { v: '4.9', l: 'Satisfacción' },
             { v: '342', l: 'Llaveros activos' },
           ].map((s, i) => (
             <div key={i} style={{ textAlign: 'center', padding: '8px 0' }}>
