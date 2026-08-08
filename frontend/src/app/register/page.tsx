@@ -6,18 +6,11 @@ import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { CITIES } from '@/lib/constants'
 import { supabase, apiUrl } from '@/lib/supabase'
-import { formatPlate, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
+import { formatPlate, parsePlate, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
 import { scanVehicleCard } from '@/lib/upload'
+import ThemedSuggestInput from '@/components/ThemedSuggestInput'
+import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor } from '@/lib/vehicleBrands'
 
-const BRANDS = [
-  'Chevrolet', 'Renault', 'Mazda', 'Toyota', 'Nissan', 'Kia', 'Hyundai',
-  'Volkswagen', 'Ford', 'Suzuki', 'BMW', 'Mercedes-Benz', 'Audi', 'Mitsubishi',
-]
-
-/* En Colombia "sedán" se reconoce como carrocería, no como tipo de vehículo del
-   día a día, así que la opción se llama "Auto". El resto son las carrocerías
-   comunes del mercado local. */
-const VEHICLE_TYPES = ['Auto', 'SUV', 'Camioneta', 'Moto', 'Deportivo', 'Hatchback', 'Pickup', 'Furgoneta']
 
 /* Modelos/líneas por marca para el mercado colombiano. Cada línea guarda su
    carrocería y el rango aproximado de años en que se vendió [desde, hasta]
@@ -129,6 +122,62 @@ const MODELS_BY_BRAND: Record<string, ModelDef[]> = {
   ],
 }
 
+/* Líneas de moto por marca — mismo criterio que MODELS_BY_BRAND (tipo +
+   rango de años aproximado), todas con tipo 'Moto' para que typeMatches
+   las filtre igual que a las demás carrocerías. */
+const MOTO_MODELS_BY_BRAND: Record<string, ModelDef[]> = {
+  Yamaha: [
+    ['YBR 125', 'Moto', 2005], ['Crypton', 'Moto', 2000, 2015], ['Libero', 'Moto', 1998, 2014], ['Ray ZR', 'Moto', 2016],
+    ['FZ', 'Moto', 2009], ['FZ25', 'Moto', 2019], ['FZS', 'Moto', 2010], ['MT-03', 'Moto', 2020], ['MT-07', 'Moto', 2015], ['MT-09', 'Moto', 2014],
+    ['XTZ 125', 'Moto', 2005], ['XTZ 150', 'Moto', 2017], ['XTZ 250', 'Moto', 2010], ['Tenere 250', 'Moto', 2011],
+    ['R15', 'Moto', 2011], ['R3', 'Moto', 2015], ['NMax', 'Moto', 2016], ['Bws', 'Moto', 2007, 2018],
+  ],
+  Honda: [
+    ['CB1', 'Moto', 2018], ['CB110', 'Moto', 2012, 2019], ['CB125F', 'Moto', 2019], ['CB160F', 'Moto', 2020], ['CB190R', 'Moto', 2015],
+    ['CB500F', 'Moto', 2013], ['CB500X', 'Moto', 2013], ['CBR250R', 'Moto', 2011, 2017], ['CBR500R', 'Moto', 2013], ['CBR600RR', 'Moto', 2003],
+    ['XR150L', 'Moto', 2015], ['XR190L', 'Moto', 2015], ['XR250 Tornado', 'Moto', 1999, 2012], ['XR650L', 'Moto', 1993], ['Africa Twin', 'Moto', 2016],
+    ['Biz 105', 'Moto', 2005], ['Wave 110', 'Moto', 2003], ['Navi', 'Moto', 2021], ['Elite 125', 'Moto', 2010], ['Falcon 400', 'Moto', 2005, 2015], ['CG 125', 'Moto', 1980, 2005],
+  ],
+  AKT: [
+    ['AKT 125', 'Moto', 2010], ['NKD 125', 'Moto', 2013], ['CR4', 'Moto', 2016], ['TT', 'Moto', 2010], ['TTR', 'Moto', 2018], ['Flex', 'Moto', 2015], ['Dynamic', 'Moto', 2012, 2020], ['Evo', 'Moto', 2019], ['CRZ', 'Moto', 2021],
+  ],
+  Bajaj: [
+    ['Pulsar 135', 'Moto', 2009, 2018], ['Pulsar 150', 'Moto', 2004], ['Pulsar 180', 'Moto', 2004, 2019], ['Pulsar 200NS', 'Moto', 2012],
+    ['Pulsar RS200', 'Moto', 2015], ['Pulsar NS200', 'Moto', 2012], ['Pulsar N160', 'Moto', 2023], ['Discover 125', 'Moto', 2008], ['Discover 150', 'Moto', 2011],
+    ['Boxer', 'Moto', 1998], ['Platina', 'Moto', 2006, 2018], ['CT100', 'Moto', 2005, 2020], ['Avenger 220', 'Moto', 2007], ['Dominar 400', 'Moto', 2017],
+  ],
+  Suzuki: [
+    ['AX100', 'Moto', 1996], ['GN125', 'Moto', 1994, 2016], ['Best 125', 'Moto', 2010], ['Gixxer', 'Moto', 2015], ['Gixxer SF', 'Moto', 2017],
+    ['GS500', 'Moto', 1989, 2010], ['Boulevard', 'Moto', 2005], ['DR650', 'Moto', 1990], ['V-Strom 250', 'Moto', 2017], ['V-Strom 650', 'Moto', 2004],
+  ],
+  TVS: [
+    ['Apache RTR 160', 'Moto', 2007], ['Apache RTR 200', 'Moto', 2016], ['Apache RTR 310', 'Moto', 2023], ['Sport 100', 'Moto', 2010], ['Stryker', 'Moto', 2011, 2018], ['XL100', 'Moto', 2000], ['Ntorq 125', 'Moto', 2018],
+  ],
+  Kawasaki: [
+    ['Ninja 300', 'Moto', 2013], ['Ninja 400', 'Moto', 2018], ['Ninja 650', 'Moto', 2006], ['Z400', 'Moto', 2019], ['Z650', 'Moto', 2017], ['Versys 650', 'Moto', 2007], ['KLX150', 'Moto', 2010],
+  ],
+  KTM: [
+    ['Duke 200', 'Moto', 2012], ['Duke 250', 'Moto', 2017], ['Duke 390', 'Moto', 2013], ['RC 200', 'Moto', 2014], ['RC 390', 'Moto', 2014], ['Adventure 390', 'Moto', 2020],
+  ],
+  Hero: [
+    ['Hunk', 'Moto', 2007, 2019], ['Splendor', 'Moto', 1994], ['Ignitor 125', 'Moto', 2012, 2018], ['CBZ', 'Moto', 1999, 2010], ['Xpulse 200', 'Moto', 2019],
+  ],
+  'Royal Enfield': [
+    ['Classic 350', 'Moto', 2008], ['Bullet 350', 'Moto', 1990], ['Himalayan', 'Moto', 2016], ['Meteor 350', 'Moto', 2021], ['Interceptor 650', 'Moto', 2018],
+  ],
+  Victory: [
+    ['XT250', 'Moto', 2015], ['XR250', 'Moto', 2012], ['XR190', 'Moto', 2014], ['Sprint 125', 'Moto', 2016], ['Nake 250', 'Moto', 2018],
+  ],
+}
+
+/* Todas las líneas conocidas, autos + motos — modelSuggestions() filtra por
+   tipo, así que da igual mezclarlas acá; separarlas solo importaba para no
+   duplicar la clave de marca (Suzuki vende ambos). */
+const ALL_MODELS_BY_BRAND: Record<string, ModelDef[]> = { ...MODELS_BY_BRAND }
+for (const [brand, models] of Object.entries(MOTO_MODELS_BY_BRAND)) {
+  ALL_MODELS_BY_BRAND[brand] = [...(ALL_MODELS_BY_BRAND[brand] || []), ...models]
+}
+
 const NOW_YEAR = new Date().getFullYear()
 
 /* En Colombia "camioneta" cubre SUV e incluso pickups, y la gente usa "Auto"
@@ -156,9 +205,9 @@ const inYearRange = (year: number, from: number, to?: number) =>
    en blanco; si aun así no hay nada (p. ej. Moto), devuelve vacío y el usuario
    escribe libremente. Deduplica por nombre para el caso "sin marca". */
 function modelSuggestions(brand: string, selType: string, selYear: number): string[] {
-  const pool: ModelDef[] = brand && MODELS_BY_BRAND[brand]
-    ? MODELS_BY_BRAND[brand]
-    : Object.values(MODELS_BY_BRAND).flat()
+  const pool: ModelDef[] = brand && ALL_MODELS_BY_BRAND[brand]
+    ? ALL_MODELS_BY_BRAND[brand]
+    : Object.values(ALL_MODELS_BY_BRAND).flat()
   let list = pool.filter(([, t, from, to]) => typeMatches(selType, t) && inYearRange(selYear, from, to))
   if (!list.length) list = pool.filter(([, t]) => typeMatches(selType, t))
   const seen = new Set<string>()
@@ -246,18 +295,22 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
     scanHintBorder: isDark ? 'rgba(245,197,24,0.2)' : 'rgba(245,197,24,0.3)',
   }
 
-  const regPlate = formatPlate(regPlateLetters, regPlateNumbers)
-  const wsPlate = formatPlate(wsPlateLetters, wsPlateNumbers)
+  const regPlate = formatPlate(regPlateLetters, regPlateNumbers, plateTypeFor(regType))
+  const wsPlate = formatPlate(wsPlateLetters, wsPlateNumbers, plateTypeFor(wsType))
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedPlate = sessionStorage.getItem('carlink_plate')
       const savedCity = sessionStorage.getItem('carlink_city')
       if (savedPlate) {
-        const parsed = savedPlate.match(/^([A-Z]{3})-?(\d{3})$/i)
+        // parsePlate reconoce carro (ABC-123) y moto (ABC-12D) — antes solo
+        // se restauraba el formato de carro, una placa de moto guardada
+        // desde otra pantalla se perdía silenciosamente acá.
+        const parsed = parsePlate(savedPlate)
         if (parsed) {
-          setRegPlateLetters(parsed[1])
-          setRegPlateNumbers(parsed[2])
+          setRegPlateLetters(parsed.letters)
+          setRegPlateNumbers(parsed.numbers)
+          if (parsed.type === 'moto') setRegType('Moto')
         }
         sessionStorage.removeItem('carlink_plate')
       }
@@ -301,15 +354,42 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
   const regModels = useMemo(() => modelSuggestions(brand, regType, regYear), [brand, regType, regYear])
   const wsModels = useMemo(() => modelSuggestions(wsBrand, wsType, wsYear), [wsBrand, wsType, wsYear])
 
-  const brandTiles = useMemo(() => BRANDS.map(b => ({
+  /* Marcas se filtran por tipo — Moto muestra MOTO_BRANDS, cualquier otra
+     carrocería muestra CAR_BRANDS. Separado en dos memos (persona/empresa)
+     porque cada formulario puede tener un `regType`/`wsType` distinto a la
+     vez, así que no pueden compartir una sola lista de tiles. */
+  const regBrandList = regType === 'Moto' ? MOTO_BRANDS : CAR_BRANDS
+  const wsBrandList = wsType === 'Moto' ? MOTO_BRANDS : CAR_BRANDS
+
+  const regBrandTiles = useMemo(() => regBrandList.map(b => ({
     name: b, initial: b[0],
-    onClick: () => { setBrand(b); setWsBrand(b) },
-    bg: brand === b || wsBrand === b ? 'rgba(245,197,24,0.15)' : 'transparent',
-    border: brand === b || wsBrand === b ? 'rgba(245,197,24,0.4)' : tk.inputBorder,
-    fg: brand === b || wsBrand === b ? tk.accent : tk.muted,
-    badge: brand === b || wsBrand === b ? tk.accent : tk.inputBg,
-    mark: brand === b || wsBrand === b ? '#111' : tk.muted,
-  })), [brand, wsBrand, isDark])
+    onClick: () => setBrand(b),
+    bg: brand === b ? 'rgba(245,197,24,0.15)' : 'transparent',
+    border: brand === b ? 'rgba(245,197,24,0.4)' : tk.inputBorder,
+    fg: brand === b ? tk.accent : tk.muted,
+    badge: brand === b ? tk.accent : tk.inputBg,
+    mark: brand === b ? '#111' : tk.muted,
+  })), [regBrandList, brand, isDark])
+
+  const wsBrandTiles = useMemo(() => wsBrandList.map(b => ({
+    name: b, initial: b[0],
+    onClick: () => setWsBrand(b),
+    bg: wsBrand === b ? 'rgba(245,197,24,0.15)' : 'transparent',
+    border: wsBrand === b ? 'rgba(245,197,24,0.4)' : tk.inputBorder,
+    fg: wsBrand === b ? tk.accent : tk.muted,
+    badge: wsBrand === b ? tk.accent : tk.inputBg,
+    mark: wsBrand === b ? '#111' : tk.muted,
+  })), [wsBrandList, wsBrand, isDark])
+
+  /* Si cambian de carrocería (ej. Auto -> Moto) y la marca elegida no existe
+     en la lista nueva, se limpia marca + modelo en vez de dejar una
+     combinación imposible (Chevrolet con tipo Moto). */
+  useEffect(() => {
+    if (brand && !regBrandList.includes(brand)) { setBrand(''); setRegModel('') }
+  }, [regType]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (wsBrand && !wsBrandList.includes(wsBrand)) { setWsBrand(''); setWsModel('') }
+  }, [wsType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const colorTiles = useMemo(() => COLORS.map(c => ({
     name: c.name, dot: c.hex,
@@ -331,8 +411,16 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
       if (!data) { setScanHint('No pudimos leer la tarjeta. Completa los datos a mano.'); return }
       const filled: string[] = []
       if (data.plate) {
-        const m = data.plate.toUpperCase().match(/([A-Z]{3})-?(\d{3})/)
-        if (m) { setRegPlateLetters(m[1]); setRegPlateNumbers(m[2]); filled.push('placa') }
+        // Reconoce placa de carro (ABC-123) o de moto (ABC-12D) — antes solo
+        // el formato de carro, así que escanear la tarjeta de una moto nunca
+        // completaba la placa.
+        const parsed = parsePlate(data.plate)
+        if (parsed) {
+          setRegPlateLetters(parsed.letters)
+          setRegPlateNumbers(parsed.numbers)
+          if (parsed.type === 'moto') setRegType('Moto')
+          filled.push('placa')
+        }
       }
       if (data.city && CITIES.includes(data.city)) { setRegCity(data.city); filled.push('ciudad') }
       if (data.brand) { setBrand(data.brand); filled.push('marca') }
@@ -354,8 +442,12 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
   /* ── Persona registration ── */
   const doRegisterPersona = async () => {
     setErrorMsg('')
-    const plate = formatPlate(regPlateLetters, regPlateNumbers)
-    if (!plate || !brand || !regModel || !regName || !regDocument.trim()) {
+    const plate = formatPlate(regPlateLetters, regPlateNumbers, plateTypeFor(regType))
+    // El documento de identidad ya NO es obligatorio acá — pedirlo de entrada
+    // es invasivo; si el usuario escanea su tarjeta de propiedad
+    // (handleScanCard) se completa solo, y si no, se puede pedir más
+    // adelante al solicitar la verificación del perfil.
+    if (!plate || !brand || !regModel || !regName) {
       setErrorMsg('Completa todos los campos obligatorios')
       return
     }
@@ -364,11 +456,15 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
     if (!token) { setErrorMsg('Sesión expirada'); setSaving(false); return }
     try {
       /* El documento de identidad queda en el perfil: es el dato que luego se
-         contrasta con la tarjeta de propiedad al pedir la verificación. */
+         contrasta con la tarjeta de propiedad al pedir la verificación. Solo
+         se manda si el usuario lo escribió o vino de escanear la tarjeta —
+         nunca se fuerza a completarlo para poder registrarse. */
+      const profileBody: Record<string, string> = { full_name: regName }
+      if (regDocument.trim()) profileBody.document_number = regDocument.trim()
       await fetch(apiUrl('/auth/me'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ full_name: regName, document_number: regDocument.trim() }),
+        body: JSON.stringify(profileBody),
       }).catch(() => {})
       const res = await fetch(apiUrl('/vehicles'), {
         method: 'POST',
@@ -469,7 +565,7 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
               {/* ── PERSONA MODE: vehicle registration ── */}
               <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, marginBottom: 10 }}>Marca del vehículo</div>
               <div className="regBrandGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(90px,1fr))', gap: 9, marginBottom: 20 }}>
-                {brandTiles.map(b => (
+                {regBrandTiles.map(b => (
                   <button key={b.name} onClick={b.onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '12px 6px', borderRadius: 13, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
                     <span style={{ width: 40, height: 40, borderRadius: 10, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 18, color: b.mark }}>{b.initial}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: b.fg }}>{b.name}</span>
@@ -506,8 +602,11 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                   <input value={regName} onChange={e => setRegName(e.target.value)} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Documento de identidad</label>
-                  <input value={regDocument} onChange={e => setRegDocument(e.target.value.replace(/[^0-9A-Za-z.-]/g, ''))} placeholder="Ej. 1020304050" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
+                  <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                    Documento de identidad <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: tk.sectionTitle }}>(opcional)</span>
+                  </label>
+                  <input value={regDocument} onChange={e => setRegDocument(e.target.value.replace(/[^0-9A-Za-z.-]/g, ''))} placeholder="Se completa solo al escanear tu tarjeta de propiedad" style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
+                  <div style={{ fontSize: 10.5, color: tk.sectionTitle, marginTop: 5, lineHeight: 1.4 }}>No hace falta ahora — se pide más adelante si alguna vez solicitas verificar tu perfil.</div>
                 </div>
                 {/* Tipo → Año → Modelo: primero se acota el vehículo (carrocería y
                     año) y al final se elige la línea, para guiar mejor la búsqueda. */}
@@ -525,10 +624,9 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Modelo / línea</label>
-                  <input value={regModel} onChange={e => setRegModel(e.target.value)} list="regModelList" placeholder={regModels.length ? `Elige o escribe (ej. ${regModels[0]})` : (brand ? 'Escribe el modelo' : 'Selecciona la marca y elige el modelo')} style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
-                  <datalist id="regModelList">
-                    {regModels.map(m => <option key={m} value={m} />)}
-                  </datalist>
+                  <ThemedSuggestInput value={regModel} onChange={setRegModel} suggestions={regModels}
+                    placeholder={regModels.length ? `Elige o escribe (ej. ${regModels[0]})` : (brand ? 'Escribe el modelo' : 'Selecciona la marca y elige el modelo')}
+                    theme={{ inputBg: tk.inputBg, inputBorder: tk.inputBorder, inputText: tk.inputText, accent: tk.accent, muted: tk.muted, panelBg: tk.cardBg }} />
                 </div>
               </div>
 
@@ -554,7 +652,8 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                     <input value={regPlateLetters} onChange={e => setRegPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC" autoFocus
                       style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
                     <span style={{ color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 20 }}>-</span>
-                    <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
+                    {/* Moto: 2 números + 1 letra (ABC-12D) — carro: 3 números. */}
+                    <input value={regPlateNumbers} onChange={e => setRegPlateNumbers(e.target.value.toUpperCase().replace(regType === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={regType === 'Moto' ? '12D' : '123'}
                       style={{ width: 74, height: 46, boxSizing: 'border-box', textAlign: 'center', padding: '0 8px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, caretColor: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: '.06em', outline: 'none' }} />
                   </div>
                 </div>
@@ -632,17 +731,16 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                           <input value={wsPlateLetters} onChange={e => setWsPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
                             style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
                           <span style={{ padding: '0 8px', color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18 }}> - </span>
-                          <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
+                          <input value={wsPlateNumbers} onChange={e => setWsPlateNumbers(e.target.value.toUpperCase().replace(wsType === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={wsType === 'Moto' ? '12D' : '123'}
                             style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.accent, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.03em', outline: 'none' }} />
                         </div>
                       </div>
                       <div>
                         <label style={{ fontSize: 10, color: tk.sectionTitle, fontWeight: 600, display: 'block', marginBottom: 4 }}>Modelo</label>
-                        <input value={wsModel} onChange={e => setWsModel(e.target.value)} list="wsModelList" placeholder={wsModels.length ? `Elige o escribe (ej. ${wsModels[0]})` : (wsBrand ? 'Escribe el modelo' : 'Selecciona la marca')}
-                          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 14, outline: 'none' }} />
-                        <datalist id="wsModelList">
-                          {wsModels.map(m => <option key={m} value={m} />)}
-                        </datalist>
+                        <ThemedSuggestInput value={wsModel} onChange={setWsModel} suggestions={wsModels}
+                          placeholder={wsModels.length ? `Elige o escribe (ej. ${wsModels[0]})` : (wsBrand ? 'Escribe el modelo' : 'Selecciona la marca')}
+                          style={{ padding: '10px 12px', fontSize: 14 }}
+                          theme={{ inputBg: tk.inputBg, inputBorder: tk.inputBorder, inputText: tk.inputText, accent: tk.accent, muted: tk.muted, panelBg: tk.cardBg }} />
                       </div>
                       <div>
                         <label style={{ fontSize: 10, color: tk.sectionTitle, fontWeight: 600, display: 'block', marginBottom: 4 }}>Año</label>
@@ -661,7 +759,7 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
                     <div style={{ marginTop: 10 }}>
                       <label style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Marca</label>
                       <div className="regBrandGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 7 }}>
-                        {brandTiles.map(b => (
+                        {wsBrandTiles.map(b => (
                           <button key={b.name} onClick={() => setWsBrand(b.name)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '8px 4px', borderRadius: 10, cursor: 'pointer', background: b.bg, border: `1.5px solid ${b.border}` }}>
                             <span style={{ width: 30, height: 30, borderRadius: 8, background: b.badge, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 14, color: b.mark }}>{b.initial}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: b.fg }}>{b.name}</span>

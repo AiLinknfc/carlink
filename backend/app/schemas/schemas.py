@@ -23,8 +23,14 @@ class VehicleCreate(BaseModel):
     @classmethod
     def validate_plate(cls, v: str) -> str:
         v = v.upper().strip()
-        if not re.match(r'^[A-Z]{3}-\d{3}$', v):
-            raise ValueError('Placa debe tener formato ABC-123 (3 letras, guión, 3 números)')
+        # Carro: 3 letras + 3 números (ABC-123). Moto: 3 letras + 2 números +
+        # 1 letra (ABC-12D) — nomenclatura RUNT real, distinta a la de carro.
+        # frontend/src/lib/plate.ts ya distinguía ambos formatos; este
+        # validador solo aceptaba el de carro, así que cualquier moto
+        # registrada con su placa real quedaba bloqueada acá con un 422
+        # (2026-08-07, encontrado al agregar sugerencias de moto al registro).
+        if not re.match(r'^[A-Z]{3}-\d{3}$', v) and not re.match(r'^[A-Z]{3}-\d{2}[A-Z]$', v):
+            raise ValueError('Placa debe tener formato ABC-123 (carro) o ABC-12D (moto)')
         return v
 
 

@@ -1,8 +1,17 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-07 (tercera pasada — modelo de cuentas taller/persona)._
+_Última actualización: 2026-08-07 (cuarta pasada — registro de vehículo: motos, placa, documento, tema)._
 
-**Ejecutado en la tercera pasada** (commits locales, sin pushear — ver #2): trial gratis de 7 días
+**Ejecutado en la cuarta pasada** (commits locales, sin pushear — ver #2): el registro de
+vehículo ahora sugiere marca/modelo también para motos (antes solo autos), la placa cambia de
+formato solo con el tipo (carro ABC-123 vs. moto ABC-12D — **el backend rechazaba el formato de
+moto con 422, bug real encontrado y arreglado**), el documento de identidad dejó de ser obligatorio
+al registrarse (solo se completa si escaneas la tarjeta de propiedad, o a mano si querés), y las
+sugerencias de modelo/marca ya no son un `<datalist>` nativo sin tema — hay un componente nuevo
+(`ThemedSuggestInput`) que sí respeta claro/oscuro. Detalle completo en "Registro de vehículo:
+motos, placa y documento" más abajo.
+
+**Ejecutado en la tercera pasada**: trial gratis de 7 días
 ahora solo se otorga al primer vehículo de una cuenta taller/empresa (antes, cada vehículo nuevo
 recibía uno propio sin límite); mensaje explicativo en el registro de taller aclarando que es una
 cuenta exclusiva de negocio; documentos y facturas de antes del último traslado de un vehículo
@@ -311,6 +320,62 @@ tomadas (no solo sugeridas — ya implementadas donde aplicaba código):
   `Certificate`/`CertificadosTab.tsx`** (certificados con costo y fecha, mismo patrón que
   `documents.py`) — no se tocó en esta pasada, mismo mecanismo (`is_pre_transfer`) se podría
   replicar ahí si hace falta.
+
+---
+
+## Registro de vehículo: motos, placa y documento (2026-08-07, cuarta pasada)
+
+Pedido del usuario tras usar el registro: el documento de identidad se pedía de entrada (invasivo),
+no había sugerencias de marca/modelo para moto, la placa no cambiaba de formato con el tipo, y las
+listas de sugerencias no respetaban el tema claro/oscuro.
+
+- [x] **Documento de identidad ya no es obligatorio para registrarse** (`app/register/page.tsx`).
+      Sigue existiendo el campo (por si el usuario prefiere escribirlo, o para cuando `handleScanCard`
+      lo lee de la tarjeta de propiedad escaneada — eso ya existía, no se tocó), pero ya no bloquea el
+      registro y solo se manda al backend si tiene contenido. Label marcado "(opcional)" + texto
+      aclarando que se puede pedir después, al solicitar verificación de perfil.
+- [x] **Sugerencias de marca/modelo para moto** — antes `BRANDS`/`MODELS_BY_BRAND` solo tenían marcas
+      y líneas de carro, así que elegir "Moto" como tipo dejaba ambos campos sin ninguna sugerencia
+      (el propio código lo admitía en un comentario: "si aun así no hay nada (p. ej. Moto), devuelve
+      vacío"). Agregado: `MOTO_BRANDS` (11 marcas — Yamaha, Honda, AKT, Bajaj, Suzuki, TVS, Kawasaki,
+      KTM, Hero, Royal Enfield, Victory) y `MOTO_MODELS_BY_BRAND` (líneas reales por marca, mismo
+      criterio de tipo+rango de años que ya usaban los autos). Marca y modelo ahora cambian solo con
+      el tipo elegido (Auto → marcas de carro, Moto → marcas de moto), y si ya había una marca
+      elegida que no aplica al nuevo tipo, se limpia sola (`useEffect` en `regType`/`wsType`) en vez
+      de dejar una combinación imposible como "Chevrolet, Moto".
+- [x] **Placa se ajusta al tipo — con un bug real de backend encontrado y arreglado en el camino.**
+      `frontend/src/lib/plate.ts` ya sabía distinguir placa de carro (`ABC-123`) de placa de moto
+      (`ABC-12D`, nomenclatura RUNT real), pero `app/register/page.tsx` nunca le pasaba el tipo
+      seleccionado — siempre asumía carro, y el segundo campo de la placa solo aceptaba dígitos, así
+      que era literalmente imposible escribir la letra final de una placa de moto. Corregido: el
+      campo cambia de máscara/placeholder según el tipo, y `formatPlate(...)` recibe el tipo real.
+      **Al probarlo de punta a punta se encontró que el backend igual la habría rechazado**:
+      `VehicleCreate.validate_plate` en `backend/app/schemas/schemas.py` solo aceptaba el regex de
+      carro, así que cualquier placa de moto real habría vuelto un `422` sin importar qué tan bien
+      la armara el frontend. Corregido para aceptar ambos formatos — verificado con los 3 casos
+      (moto válida, carro válido, placa inválida) más la suite completa (41/41 sigue en verde).
+- [x] **`ThemedSuggestInput.tsx` (nuevo componente)** — reemplaza `<input list=".."/><datalist>` para
+      el campo Modelo/línea (persona y taller) y el campo Marca de `AddVehicleModal.tsx`. El
+      `<datalist>` nativo lo pinta el sistema operativo/navegador, no la app, así que en modo oscuro
+      podía salir una lista de sugerencias con fondo claro — un combobox propio, chico y sin
+      dependencias, sí usa los mismos tokens de color (`tk.inputBg`/`tk.inputBorder`/etc. en
+      register, `var(--input-bg)`/etc. en `AddVehicleModal.tsx`) que el resto del formulario. La
+      marca de `register/page.tsx` no necesitó este cambio — ya usaba tiles con estilo propio
+      (`bg`/`border`/`fg` calculados a mano), nunca fue un `<datalist>`.
+- [x] **`lib/vehicleBrands.ts` (nuevo)** — `CAR_BRANDS`/`MOTO_BRANDS`/`VEHICLE_TYPES`/`brandsForType`/
+      `plateTypeFor` centralizados acá, usados tanto por `register/page.tsx` como por
+      `AddVehicleModal.tsx` (la UI de "agregar vehículo" de la pasada anterior tenía exactamente el
+      mismo problema — placa siempre carro, marcas solo de carro, `<datalist>` sin tema — corregido
+      ahí también de una vez para no dejar la misma inconsistencia recién creada).
+- **No verificado en navegador real** — mismo motivo de siempre (sin Chromium en este entorno).
+  `tsc --noEmit`, `vitest run` (sin nuevas fallas) y la suite de backend (41/41) limpios. Vale una
+  pasada visual tuya, en particular: el combobox de sugerencias abierto sobre el formulario, y
+  registrar una moto de punta a punta contra el backend real.
+- **No incluido en esta pasada**: los campos Tipo/Año/Ciudad siguen siendo `<select>` nativos (no
+  `<datalist>`) — un `<select>` respeta razonablemente bien el tema en la mayoría de navegadores y
+  es el patrón esperado para opciones fijas, así que no se tocaron; el pedido de "modales de
+  sugerencia" se interpretó como las listas de autocompletado libre (marca/modelo), no los
+  desplegables de opciones cerradas.
 
 ---
 

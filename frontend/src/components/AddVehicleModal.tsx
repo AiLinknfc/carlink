@@ -1,17 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiPost } from '@/lib/api'
 import { formatPlate } from '@/lib/plate'
+import { brandsForType, plateTypeFor, VEHICLE_TYPES } from '@/lib/vehicleBrands'
+import ThemedSuggestInput from './ThemedSuggestInput'
 
-const BRANDS = [
-  'Chevrolet', 'Renault', 'Mazda', 'Toyota', 'Nissan', 'Kia', 'Hyundai',
-  'Volkswagen', 'Ford', 'Suzuki', 'BMW', 'Mercedes-Benz', 'Audi', 'Mitsubishi',
-]
-
-/* Mismo criterio que app/register/page.tsx: en Colombia "sedán" se reconoce
-   como carrocería, no como tipo de vehículo del día a día. */
-const VEHICLE_TYPES = ['Auto', 'SUV', 'Camioneta', 'Moto', 'Deportivo', 'Hatchback', 'Pickup', 'Furgoneta']
+/* CSS vars (no un objeto de tema en JS como register/page.tsx) porque este
+   modal ya usaba var(--input-bg)/var(--text-1)/etc. en todos sus otros
+   campos — siguen el tema claro/oscuro solas, sin cálculo. */
+const SUGGEST_THEME = { inputBg: 'var(--input-bg)', inputBorder: 'var(--input-border)', inputText: 'var(--text-1)', accent: '#F5C518', muted: 'var(--text-3)', panelBg: 'var(--panel-bg)' }
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR + 1 - i)
@@ -40,8 +38,16 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ vehicle: any; gotTrial: boolean } | null>(null)
 
-  const plate = formatPlate(plateLetters, plateNumbers)
+  const plate = formatPlate(plateLetters, plateNumbers, plateTypeFor(type))
   const canSubmit = plateLetters.length === 3 && plateNumbers.length === 3 && brand && model.trim() && !saving
+  const brandOptions = brandsForType(type)
+
+  // Si cambian de carrocería y la marca elegida no existe en la lista nueva
+  // (ej. Chevrolet con tipo Moto), se limpia en vez de dejar una combinación
+  // imposible.
+  useEffect(() => {
+    if (brand && !brandOptions.includes(brand)) setBrand('')
+  }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -116,7 +122,8 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
               <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder="ABC"
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
               <span style={{ padding: '0 6px', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17 }}>-</span>
-              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder="123"
+              {/* Moto: 2 números + 1 letra (ABC-12D) — carro: 3 números. */}
+              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(type === 'Moto' ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, 3))} maxLength={3} placeholder={type === 'Moto' ? '12D' : '123'}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
             </div>
           </div>
@@ -130,9 +137,8 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Marca</label>
-            <input value={brand} onChange={e => setBrand(e.target.value)} list="addVehicleBrands" placeholder="Elige o escribe"
-              style={{ width: '100%', padding: '11px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-            <datalist id="addVehicleBrands">{BRANDS.map(b => <option key={b} value={b} />)}</datalist>
+            <ThemedSuggestInput value={brand} onChange={setBrand} suggestions={brandOptions} placeholder="Elige o escribe"
+              style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Modelo</label>
