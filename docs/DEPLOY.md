@@ -149,7 +149,22 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/032_diagnostic_cda_fields.sql
 \i supabase/migrations/033_workshop_ficha_public_toggle.sql
 \i supabase/migrations/034_parts_workshop_attribution.sql
+\i supabase/migrations/035_workshop_promotions.sql
+\i supabase/migrations/036_part_category.sql
+\i supabase/migrations/037_profile_verification.sql
 ```
+
+**Nota sobre 035–037 (2026-08-08)**: `backend/migrations/` existía en paralelo a `supabase/migrations/`
+con su propia numeración (002–005), nunca referenciada desde este checklist ni desde ningún otro
+lugar del repo — un segundo historial de migraciones huérfano, con números que además chocan con los
+de `supabase/migrations/002–005` (contenido distinto). Las tres con cambio de esquema real
+(`002_workshop_promotions`, `004_part_category`, `005_profile_verification`) ya estaban aplicadas en
+la base compartida — confirmado por consulta directa a `information_schema.columns` antes de
+reescribirlas acá como 035/036/037 (aditivas, `IF NOT EXISTS`, re-corridas sin efecto para verificar).
+La carpeta `backend/migrations/` se borró. **`003_clean slate.sql` no se migró**: era un `DELETE FROM
+maintenance_records; DELETE FROM parts;` de un solo uso para reiniciar datos de prueba — destructivo y
+no idempotente, no pertenece a un historial de migraciones re-corrible. Se perdió intencionalmente al
+borrar la carpeta (queda en el historial de git si hace falta consultarlo).
 
 **Nota sobre 034 (2026-08-05)**: agrega `parts.workshop_id`/`parts.source_work_order_id` y
 `maintenance_records.source_work_order_id` — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. Cuando un
