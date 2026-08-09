@@ -32,6 +32,7 @@ from app.schemas.schemas import (
     WorkshopSearchResult,
     WorkshopUpdate,
 )
+from app.services.colombian_nit import is_valid_colombian_nit
 
 router = APIRouter(prefix="/workshops", tags=["workshops"])
 
@@ -49,6 +50,19 @@ async def create_workshop(
 ):
     """Register a new workshop (taller). Optionally registers a test vehicle."""
     uid = uuid.UUID(user_id)
+
+    # Cada cuenta taller nueva es candidata automática al trial gratuito de 7
+    # días (nfc_provisioning.TRIAL_ACCOUNT_TYPES) — antes CUALQUIER string
+    # único pasaba como legal_id, sin ninguna fricción real (ver docs/PENDIENTES.md,
+    # "El trial de taller es la mayor grieta real del modelo cerrado").
+    # Exigir un NIT con dígito de verificación matemáticamente correcto no
+    # elimina el abuso, pero sí filtra el caso trivial de "escribir cualquier
+    # cosa única para conseguir otra ficha gratis".
+    if not is_valid_colombian_nit(body.legal_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="NIT inválido — usa el formato con dígito de verificación tal como aparece en tu RUT (ej. 900123456-7)",
+        )
 
     # Ensure profile exists
     p_result = await db.execute(select(Profile).where(Profile.id == uid))

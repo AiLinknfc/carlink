@@ -1,6 +1,17 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-08 (sexta pasada — rol partner escopeado)._
+_Última actualización: 2026-08-09 (séptima pasada — RLS + vulnerabilidad real de transferencias)._
+
+**Ejecutado en la séptima pasada**: cerrando lo que quedó anotado en la sexta pasada — (1) NIT
+colombiano validado de verdad en el registro de taller (dígito de verificación DIAN, no solo
+unicidad) para el hallazgo del trial gratuito, y (2) auditoría real de RLS en Supabase que encontró
+y arregló una vulnerabilidad concreta (no teórica) en `frontend/src/app/api/vehicles/transfers/**`:
+un bug de autorización dejaba que cualquier usuario autenticado aceptara la transferencia pendiente
+de otra persona y se quedara con su vehículo, y además faltaban las políticas RLS que hacían falta
+para que la aceptación legítima funcionara en absoluto. Las dos capas (código + políticas) quedaron
+arregladas y verificadas con simulación de rol real contra la base de producción (transacción
+revertida, sin dejar datos). Detalle completo en `docs/SECURITY.md` → "Hallazgo: vulnerabilidad real
+en transferencia de vehículos" y `supabase/migrations/041_rls_hardening.sql`.
 
 **Ejecutado en la sexta pasada**: a partir de una consulta del usuario sobre si el modelo cerrado
 actual podría abrirse a socios/aliados comerciales sin comprometer seguridad, se construyó un rol
@@ -271,22 +282,30 @@ Revisión pedida explícitamente por el usuario (2026-08-07): "revisa la arquite
 si encuentras algo que no suele funcionar de esa manera, para que me hagas sugerencias — qué quita
 complejidad y qué la aumenta".
 
-### 0. El trial de taller es la mayor grieta real del modelo "cerrado" (2026-08-08)
+### 0. El trial de taller es la mayor grieta real del modelo "cerrado" — ✅ mitigado (2026-08-09)
 
 A raíz de la consulta sobre partners/franquicia (ver `docs/PLAN_PARTNER_MODEL.md`), se revisó si el
 modelo actual (solo se usan enlaces públicos con un llavero físico activado) tiene alguna forma de
-uso sin control. La encontró: **el trial gratuito de taller (punto 1 de abajo) ya genera una ficha
+uso sin control. La encontró: el trial gratuito de taller (punto 1 de abajo) ya genera una ficha
 pública real y funcional — mismo `generate_nfc_token()` que un llavero pagado — sin ningún admin de
-por medio, gratis, en el momento de registrar el primer vehículo.** El único requisito es un
-`legal_id` (NIT) que solo se valida por **unicidad**, no contra ningún registro real — cualquier
-cuenta taller nueva lo consigue sin fricción ni límite de cuántas cuentas puede crear la misma
-persona. Criptográficamente no hay ningún problema (mismo token de 256 bits, no adivinable); el
-riesgo es de negocio: encadenar cuentas taller desechables da fichas públicas indefinidas sin
-comprar nunca un llavero. **No tocado** — es una decisión de producto, no un bug de código. Opciones
-si se quiere cerrar, de menor a mayor fricción: (a) un trial por email/teléfono real en vez de por
-NIT inventado, (b) validar el NIT con el algoritmo público de dígito de verificación colombiano
-(filtra bots, no impostores serios), (c) verificación real de identidad antes de habilitar el trial
-(mata el problema pero le agrega al onboarding la fricción que el trial existe para evitar).
+por medio, gratis, en el momento de registrar el primer vehículo. El único requisito era un
+`legal_id` (NIT) que solo se validaba por **unicidad**, no contra ningún registro real — cualquier
+cuenta taller nueva lo conseguía sin fricción ni límite de cuántas cuentas puede crear la misma
+persona.
+
+**Implementado (opción "b" de las tres que se habían anotado)**: `POST /workshops` ahora exige que
+`legal_id` sea un NIT colombiano válido de verdad — formato con dígito de verificación (ej.
+`900123456-7`, tal como ya sugería el placeholder del campo en el registro) y ese dígito verificado
+con el algoritmo público de la DIAN (módulo 11, pesos `3,7,13,17,19,23,29,37,41,43,47,53,59,67,71`),
+no solo "parece un NIT". Nuevo `app/services/colombian_nit.py` (verificado contra un ejemplo real
+publicado, NIT `800197268-4`, no inventado) + `tests/test_colombian_nit.py` (6 casos). Rechaza con
+400 y mensaje claro si no matchea.
+
+**Qué sigue sin resolver, a propósito** — esto filtra el caso trivial ("escribir cualquier cosa
+única") pero no a alguien decidido que calcule NITs válidos reales o use el de un tercero; las
+opciones (a) trial por email/teléfono verificado y (c) verificación real de identidad siguen
+anotadas como escalón siguiente si hace falta más adelante, no se implementaron — son fricción de
+producto mayor, decisión pendiente del usuario si algún día se vuelve necesario.
 
 ### 1. El trial gratuito de llavero — confirmado: NO quitarlo
 
