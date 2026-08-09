@@ -270,7 +270,30 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       {expanded && !vehicleLoading && vehicle && (
         <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${dividerColor}`, whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: textSecondary, fontWeight: 700 }}>Vehículo</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
+
+          {/* El nombre y el selector eran dos elementos separados (texto fijo
+              arriba, <select> chiquito más abajo) — se funden en uno: el
+              campo inmediatamente debajo de "Vehículo" es ahora el propio
+              selector, con la misma tipografía grande que tenía el nombre
+              (no la del <select> anterior). Si solo hay un vehículo, no hay
+              nada que elegir — se muestra como texto plano, igual que antes. */}
+          {vehicles && vehicles.length > 1 ? (
+            <select
+              value={activeVehicleId || ''}
+              onChange={e => onSwitchVehicle?.(e.target.value)}
+              style={{
+                width: '100%', margin: '4px 0 2px', padding: 0, border: 'none', background: 'transparent',
+                fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', color: textPrimary,
+                cursor: 'pointer', outline: 'none', WebkitAppearance: 'none', appearance: 'none',
+              }}>
+              {vehicles.map(v => (
+                <option key={v.id} value={v.id}>{[v.brand, v.model].filter(Boolean).join(' ') || v.plate || 'Vehículo'}</option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
+          )}
+
           <div style={{ fontSize: 12, color: textMuted }}>{vehicle.anio} · {vehicle.tipo} · {vehicle.color}</div>
           {plateText && (
             <div style={{ width: 134, height: 66, margin: '4px 0 0', position: 'relative', overflow: 'visible', pointerEvents: 'none' }}>
@@ -280,19 +303,22 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             </div>
           )}
 
-          {vehicles && vehicles.length > 1 && (
-            <select
-              value={activeVehicleId || ''}
-              onChange={e => onSwitchVehicle?.(e.target.value)}
-              style={{
-                width: '100%', marginTop: 10, padding: '7px 9px', borderRadius: 8,
-                border: `1px solid ${dividerColor}`, background: 'transparent', color: textPrimary,
-                fontSize: 11.5, fontWeight: 600, cursor: 'pointer', outline: 'none',
-              }}>
-              {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{v.plate} — {[v.brand, v.model].filter(Boolean).join(' ') || 'Vehículo'}</option>
-              ))}
-            </select>
+          {/* Admin NFC ocupa el lugar que tenía el selector — mismo gate que
+              antes (isAdmin && !navItemsSecondary: en /app/negocio ya se
+              agrupa en "Administración", no se duplica acá). */}
+          {isAdmin && !navItemsSecondary && (
+            <a href="/admin" style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%', marginTop: 10,
+              padding: '7px 10px', borderRadius: 9, textDecoration: 'none',
+              border: `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}`,
+              background: 'rgba(245,197,24,0.12)', color: '#F5C518', fontSize: 12, fontWeight: 700, letterSpacing: '.02em',
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Admin NFC
+            </a>
           )}
         </div>
       )}
@@ -307,28 +333,9 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       )}
 
       <nav style={{ flex: 1, overflowY: 'auto', padding: expanded ? '14px 12px' : '14px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'hidden', alignItems: expanded ? 'stretch' : 'center' }}>
-        {/* Standalone solo fuera del contexto de "Administración" (ej. /app
-            persona, que no pasa navItemsSecondary) — dentro de /app/negocio
-            Admin NFC se muestra agrupado en esa sección, más abajo, no acá
-            arriba (evita duplicarlo). */}
-        {isAdmin && !navItemsSecondary && (
-          <a href="/admin" style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
-            padding: expanded ? '12px 14px' : '12px 0', border: 'none', textDecoration: 'none',
-            background: 'rgba(245,197,24,0.12)', color: '#F5C518',
-            cursor: 'pointer', textAlign: expanded ? 'left' : 'center', fontSize: 14, fontWeight: 700,
-            borderRadius: 11, marginBottom: 8, letterSpacing: '.02em',
-          }}>
-            <svg style={{ position: 'relative', zIndex: 1, flex: '0 0 auto' }} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <span style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', display: expanded ? 'inline' : 'none' }}>
-              Admin NFC
-            </span>
-          </a>
-        )}
+        {/* Admin NFC standalone se movió arriba, al bloque "Vehículo" (pedido
+            del usuario) — ya no vive suelto acá. Dentro de /app/negocio sigue
+            agrupado en "Administración" más abajo, sin cambios. */}
         {/* "Administración" va primero — a pedido del usuario, no al final
             como en tallerpro (Navigation.tsx la pone después de los 7 tabs
             principales). "Perfil del taller" salió de acá — ya se accede
