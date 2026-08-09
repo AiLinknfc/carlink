@@ -838,6 +838,7 @@ export interface NfcWhitelistProvisionResult {
   activation_code: string;
   token_url: string;
   qr_url: string;
+  provisioned_by_partner_id: string | null;
 }
 
 // ── NFC Tag Inventory ──

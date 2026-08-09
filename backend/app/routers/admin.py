@@ -303,12 +303,29 @@ async def provision_whitelist_entry(
     """Pre-program a physical keychain before it ships: generates the raw
     token to write onto the chip and a separate activation code to print on
     its packaging. Both are returned ONCE here — only their hashes are
-    stored, so this response cannot be reconstructed later."""
+    stored, so this response cannot be reconstructed later.
+
+    Si body.partner_id viene, el admin está haciendo la gestión previa completa
+    él mismo (escanear, provisionar, diseñar el QR y dejar el token ya
+    asignado a un partner/campaña) sin repartir ninguna api key — mismo cupo
+    y misma trazabilidad que si el partner lo hubiera provisionado con la
+    suya. Ver docs/PLAN_PARTNER_MODEL.md."""
     existing = await db.execute(
         select(NfcTokenWhitelist).where(NfcTokenWhitelist.tag_uid == body.tag_uid)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Este tag UID ya está registrado")
+
+    partner: Partner | None = None
+    if body.partner_id:
+        p_result = await db.execute(select(Partner).where(Partner.id == body.partner_id))
+        partner = p_result.scalar_one_or_none()
+        if not partner:
+            raise HTTPException(status_code=404, detail="Partner no encontrado")
+        if partner.status != "active":
+            raise HTTPException(status_code=400, detail="Este partner está suspendido")
+        if partner.quota_used >= partner.quota_total:
+            raise HTTPException(status_code=400, detail=f"{partner.name} no tiene cupo disponible ({partner.quota_used}/{partner.quota_total})")
 
     generated = generate_nfc_token()
 
@@ -325,8 +342,12 @@ async def provision_whitelist_entry(
         token_url_encrypted=generated.token_url_encrypted,
         qr_slug=generated.qr_slug,
         status="available",
+        provisioned_by_partner_id=partner.id if partner else None,
+        partner_batch_id=uuid.uuid4() if partner else None,
     )
     db.add(entry)
+    if partner:
+        partner.quota_used += 1
     await db.flush()
     await db.refresh(entry)
 
@@ -336,6 +357,7 @@ async def provision_whitelist_entry(
         activation_code=activation_code,
         token_url=generated.token_url,
         qr_url=generated.qr_url,
+        provisioned_by_partner_id=entry.provisioned_by_partner_id,
     )
 
 

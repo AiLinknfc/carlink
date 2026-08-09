@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { adminApi, jobApplicationApi, type JobApplication } from '@/lib/api'
+import { adminApi, adminProvisionWhitelist, jobApplicationApi, type JobApplication } from '@/lib/api'
 import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult } from '@/lib/types'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
@@ -81,13 +81,17 @@ export default function AdminPage() {
   const [showJobsDropdown, setShowJobsDropdown] = useState(false)
   const [loading2, setLoading2] = useState(true)
   const [error, setError] = useState('')
-  const [provisioned, setProvisioned] = useState<{ tag_uid: string; activation_code: string; token_url: string; qr_url: string } | null>(null)
+  const [provisioned, setProvisioned] = useState<{ tag_uid: string; activation_code: string; token_url: string; qr_url: string; provisioned_by_partner_id: string | null } | null>(null)
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const jobsRef = useRef<HTMLDivElement>(null)
 
   const [provisionModal, setProvisionModal] = useState(false)
   const [provisionUid, setProvisionUid] = useState('')
   const [provisionLabel, setProvisionLabel] = useState('')
+  // Gestión previa administrada por admin (docs/PLAN_PARTNER_MODEL.md) —
+  // asignar el llavero a un partner/campaña acá mismo, sin repartir ninguna
+  // api key, con el mismo control de cupo que el autoservicio del partner.
+  const [provisionPartnerId, setProvisionPartnerId] = useState('')
   const [provisionSubmitting, setProvisionSubmitting] = useState(false)
 
   const [addModal, setAddModal] = useState(false)
@@ -333,21 +337,28 @@ export default function AdminPage() {
   function handleProvision() {
     setProvisionUid('')
     setProvisionLabel('')
+    setProvisionPartnerId('')
     setError('')
     setProvisionModal(true)
+    // Silencioso — no usa loading2 para no disparar el banner "Cargando
+    // datos..." sobre la pestaña Whitelist.
+    if (partners.length === 0) adminApi.listPartners().then(p => { if (p) setPartners(p) })
   }
 
   async function submitProvision() {
     if (!provisionUid.trim()) return
     setProvisionSubmitting(true)
-    const result = await adminApi.provisionWhitelist(provisionUid.trim(), provisionLabel.trim())
+    const { data: result, error: provisionError } = await adminProvisionWhitelist(provisionUid.trim(), provisionLabel.trim(), provisionPartnerId || undefined)
     setProvisionSubmitting(false)
     if (result) {
       setProvisioned(result)
       setProvisionModal(false)
       loadWhitelist()
+      // Refresca el cupo mostrado en el selector de partner sin esperar a
+      // que se cambie de pestaña.
+      if (result.provisioned_by_partner_id) adminApi.listPartners().then(p => { if (p) setPartners(p) })
     } else {
-      setError('No se pudo provisionar el llavero (¿el UID ya existe?)')
+      setError(provisionError || 'No se pudo provisionar el llavero.')
       setProvisionModal(false)
     }
   }
@@ -633,6 +644,11 @@ export default function AdminPage() {
                   Código de activación (imprimir en el empaque): <b style={{ fontSize: 16, letterSpacing: '.1em', color: c.text }}>{provisioned.activation_code}</b>
                 </div>
                 <div style={{ fontSize: 12, color: c.muted, marginBottom: 8 }}>URL a grabar en el chip: <code style={{ fontSize: 11 }}>{provisioned.token_url}</code></div>
+                {provisioned.provisioned_by_partner_id && (
+                  <div style={{ fontSize: 12, color: c.accent, marginBottom: 8 }}>
+                    Asignado a: {partners.find(p => p.id === provisioned.provisioned_by_partner_id)?.name || 'partner'}
+                  </div>
+                )}
                 <button onClick={() => setQrModalUrl(provisioned.qr_url)} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Ver QR para imprimir</button>
               </div>
             )}
@@ -693,7 +709,8 @@ export default function AdminPage() {
         {tab === 'inventory' && (
           <div>
             <p style={{ fontSize: 12.5, color: c.muted, margin: '0 0 16px', lineHeight: 1.55, maxWidth: 640 }}>
-              Registro de metadatos leídos con un lector NFC de cada llavero físico — hoy es manual, pensado para automatizarse más adelante. Es independiente de la whitelist de activación.
+              Registro de metadatos leídos con un lector NFC de cada llavero físico — hoy es manual, pensado para automatizarse más adelante.
+              <b style={{ color: isDark ? '#d8c98a' : '#7a5f00' }}> Esto NO genera token ni QR</b> — para eso, andá a la pestaña <b>Whitelist</b> → &quot;+ Provisionar llavero&quot;.
             </p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               <button onClick={handleAddInventory} style={accentBtnStyle}>+ Registrar llavero escaneado</button>
@@ -908,11 +925,14 @@ export default function AdminPage() {
       <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} />
 
       <AdminModal isOpen={provisionModal} onClose={() => setProvisionModal(false)} theme={isDark ? 'dark' : 'light'}
-        title="Provisionar llavero" subtitle="Genera el token y el código de activación para un chip nuevo."
+        title="Provisionar llavero" subtitle="Genera el token, el código de activación y el QR de un chip nuevo — este es el único paso que deja el llavero realmente usable."
         footer={<>
           <button onClick={() => setProvisionModal(false)} style={s.ghostBtn(isDark)}>Cancelar</button>
           <button onClick={submitProvision} disabled={provisionSubmitting || !provisionUid.trim()} style={s.primaryBtn(provisionSubmitting || !provisionUid.trim())}>{provisionSubmitting ? 'Provisionando…' : 'Provisionar'}</button>
         </>}>
+        <div style={{ padding: '9px 11px', borderRadius: 9, background: isDark ? 'rgba(245,197,24,0.06)' : 'rgba(245,197,24,0.08)', border: `1px solid ${isDark ? 'rgba(245,197,24,0.2)' : 'rgba(245,197,24,0.25)'}`, fontSize: 11.5, lineHeight: 1.5, color: isDark ? '#d8c98a' : '#7a5f00' }}>
+          Esto es lo que genera el QR (a diferencia de &quot;+ Agregar UID&quot;, que solo registra el UID sin token, o de Inventario, que solo guarda datos del escaneo). Después de provisionar, el llavero aparece en la tabla de abajo con su botón &quot;Ver QR&quot;.
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           <label style={s.label(isDark)}>UID del chip NFC</label>
           <input autoFocus value={provisionUid} onChange={e => setProvisionUid(e.target.value)}
@@ -924,6 +944,20 @@ export default function AdminPage() {
           <input value={provisionLabel} onChange={e => setProvisionLabel(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !provisionSubmitting) submitProvision() }}
             placeholder="Ej. Lote agosto 2026" style={s.input(isDark)} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Asignar a partner (opcional)</label>
+          <select value={provisionPartnerId} onChange={e => setProvisionPartnerId(e.target.value)} style={s.input(isDark)}>
+            <option value="">Sin asignar — queda del admin</option>
+            {partners.filter(p => p.status === 'active').map(p => (
+              <option key={p.id} value={p.id} disabled={p.quota_used >= p.quota_total}>
+                {p.name} ({p.quota_used}/{p.quota_total} cupo{p.quota_used >= p.quota_total ? ' — agotado' : ''})
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: 11, color: isDark ? '#7c786e' : '#7a756a' }}>
+            Consume el cupo de ese partner — misma trazabilidad que si él lo hubiera provisionado con su propia api key, pero gestionado por vos.
+          </span>
         </div>
       </AdminModal>
 

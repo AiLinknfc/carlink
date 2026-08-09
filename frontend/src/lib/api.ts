@@ -263,6 +263,26 @@ export async function activateNfcCode(activation_code: NfcActivateRequest['activ
   }
 }
 
+// Igual motivo que activateNfcCode — provisionar puede fallar por varias
+// razones distintas ahora que admite asignar a un partner (cupo agotado,
+// partner suspendido, UID duplicado) y el mensaje genérico ya no alcanza.
+export async function adminProvisionWhitelist(tag_uid: string, label: string, partner_id?: string): Promise<{ data: NfcWhitelistProvisionResult | null; error: string | null }> {
+  try {
+    const token = await getAccessToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch('/api/admin/nfc/whitelist/provision', {
+      method: 'POST', headers, body: JSON.stringify({ tag_uid, label, partner_id: partner_id || null }),
+    })
+    const text = await res.text()
+    const body = text ? JSON.parse(text) : {}
+    if (!res.ok) return { data: null, error: body.detail || 'No se pudo provisionar el llavero.' }
+    return { data: body as NfcWhitelistProvisionResult, error: null }
+  } catch {
+    return { data: null, error: 'No se pudo provisionar el llavero. Intenta de nuevo.' }
+  }
+}
+
 export const uploadApi = {
   upload: async (file: File, folder: string): Promise<UploadOut | null> => {
     try {
@@ -322,7 +342,6 @@ export const adminApi = {
   listWhitelist: () => request<NfcWhitelistEntry[]>('GET', '/admin/nfc/whitelist'),
   addToWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistEntry>('POST', '/admin/nfc/whitelist', { tag_uid, label: label || '' }),
   bulkWhitelist: (entries: { tag_uid: string; label?: string }[]) => request<NfcWhitelistEntry[]>('POST', '/admin/nfc/whitelist/bulk', { entries }),
-  provisionWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistProvisionResult>('POST', '/admin/nfc/whitelist/provision', { tag_uid, label: label || '' }),
   removeFromWhitelist: (id: string) => request('DELETE', `/admin/nfc/whitelist/${id}`),
   listLimits: () => request<NfcTokenLimit[]>('GET', '/admin/nfc/limits'),
   updateLimit: (accountType: string, data: Partial<NfcTokenLimit>) => request<NfcTokenLimit>('PATCH', `/admin/nfc/limits/${accountType}`, data),

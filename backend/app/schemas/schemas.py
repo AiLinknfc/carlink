@@ -1227,6 +1227,12 @@ class NfcWhitelistBulkCreate(BaseModel):
 class NfcWhitelistProvisionCreate(BaseModel):
     tag_uid: str
     label: str = ""
+    # Asignación puramente administrada por admin: si viene, este llavero
+    # queda atribuido a ese partner (misma trazabilidad que si el partner lo
+    # hubiera provisionado él mismo con su api key) y consume su cupo — el
+    # admin nunca tiene que repartir una api key si prefiere manejarlo todo
+    # él mismo. Ver docs/PLAN_PARTNER_MODEL.md.
+    partner_id: UUID | None = None
 
 
 class NfcWhitelistProvisionOut(BaseModel):
@@ -1240,6 +1246,7 @@ class NfcWhitelistProvisionOut(BaseModel):
     activation_code: str
     token_url: str
     qr_url: str
+    provisioned_by_partner_id: UUID | None = None
 
 
 class PartnerCreate(BaseModel):

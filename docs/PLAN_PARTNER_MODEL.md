@@ -145,3 +145,32 @@ modo persona, a control exclusivo de admin/partner.
   `GET /admin/nfc/whitelist` muestra esas mismas filas con `partner_name` correcto. Limpiado
   después.
 - `npx tsc --noEmit`, `npx vitest run` (29/29) y `pytest` (47/47) sin regresiones.
+
+## Ampliación: gestión previa 100% administrada por admin (2026-08-09, misma tarde)
+
+El usuario aclaró que quiere poder hacer toda la gestión previa a un evento (escanear, provisionar,
+diseñar/descargar el QR, y dejar el token ya asignado a una campaña) **sin tener que repartir
+ninguna api key de partner** — solo desde Admin NFC.
+
+- `POST /admin/nfc/whitelist/provision` acepta un `partner_id` opcional. Si viene: valida que el
+  partner exista, esté `active` y tenga cupo (`quota_used < quota_total`), atribuye el llavero
+  (`provisioned_by_partner_id` + un `partner_batch_id` propio) e incrementa `quota_used` — mismo
+  control de cupo que si el partner lo hubiera provisionado él mismo con su api key, pero el admin
+  nunca tiene que generarla ni compartirla.
+- Modal "Provisionar llavero" (Admin NFC → Whitelist): nuevo selector "Asignar a partner
+  (opcional)" con el cupo restante visible en cada opción (deshabilitada si está agotado). El
+  aviso de "llavero provisionado" muestra a qué partner quedó asignado.
+- Se agregaron avisos explícitos para evitar la confusión reportada por el usuario entre las tres
+  acciones de la pestaña Whitelist/Inventario que se parecen pero hacen cosas distintas:
+  **"+ Provisionar llavero"** (genera token + QR — el único que deja el llavero usable),
+  **"+ Agregar UID (sin token)"** (solo registra el UID, no genera nada usable), e
+  **Inventario → "Registrar llavero escaneado"** (solo guarda metadata del escaneo, tampoco genera
+  token/QR — ya lo aclaraba el subtítulo, se hizo más explícito).
+
+### Verificación
+- Probado contra la DB real: partner con cupo 1 → provisionar asignado a él (queda 1/1) →
+  segundo intento sobre el mismo partner devuelve 400 "no tiene cupo disponible" → confirmado en
+  `GET /admin/nfc/partners` que `quota_used` quedó en 1 → confirmado en `GET /admin/nfc/whitelist`
+  que la fila aparece con el `partner_name` correcto → suspender el partner y confirmar 400 →
+  partner inexistente confirma 404. Limpiado después.
+- `npx tsc --noEmit`, `npx vitest run` (29/29) y `pytest` (47/47) sin regresiones.
