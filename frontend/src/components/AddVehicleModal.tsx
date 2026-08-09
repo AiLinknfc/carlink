@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { apiPost } from '@/lib/api'
 import { formatPlate, getPlateConfig, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
-import { brandsForType, plateTypeFor, VEHICLE_TYPES, modelSuggestions } from '@/lib/vehicleBrands'
+import { brandsForType, plateTypeFor, VEHICLE_TYPES, modelSuggestions, COLORS } from '@/lib/vehicleBrands'
 import { CITIES } from '@/lib/constants'
 import ThemedSuggestInput from './ThemedSuggestInput'
 
@@ -44,7 +44,9 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const plateConfig = getPlateConfig(plateType)
   const plate = formatPlate(plateLetters, plateNumbers, plateType)
   const plateComplete = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen)
-  const canSubmit = plateComplete && brand && model.trim() && !saving
+  // Color ahora es obligatorio como el resto de los campos (pedido explícito) —
+  // antes quedaba afuera de esta validación, se podía agregar el vehículo sin elegirlo.
+  const canSubmit = plateComplete && brand && model.trim() && color && !saving
   const brandOptions = brandsForType(type)
   // Mismas sugerencias de modelo que app/register/page.tsx (@/lib/vehicleBrands,
   // antes vivían solo ahí) — filtradas por marca + tipo + año.
@@ -185,7 +187,7 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Año</label>
             <ThemedSuggestInput value={String(year)} onChange={v => setYear(Number(v) || CURRENT_YEAR)} suggestions={YEAR_OPTIONS} placeholder="Elige o escribe"
@@ -199,10 +201,29 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
               placeholder={modelOptions.length ? `Elige (ej. ${modelOptions[0]})` : (brand ? 'Escribe el modelo' : 'Elige marca primero')}
               style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Color</label>
-            <input value={color} onChange={e => setColor(e.target.value)} placeholder="Blanco"
-              style={{ width: '100%', padding: '11px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Color <span style={{ color: '#F5C518' }}>*</span></label>
+          {/* Paleta propia de la app en vez de texto libre — mismos colores y
+              mismo estilo de pastilla que el registro (@/lib/vehicleBrands
+              COLORS), elegir uno pone su nombre como valor. */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {COLORS.map(c => {
+              const selected = color === c.name
+              return (
+                <button key={c.name} type="button" onClick={() => setColor(c.name)} title={c.name}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999, cursor: 'pointer',
+                    background: selected ? 'rgba(245,197,24,0.15)' : 'transparent',
+                    border: `1.5px solid ${selected ? 'rgba(245,197,24,0.4)' : 'var(--input-border)'}`,
+                    color: selected ? '#F5C518' : 'var(--text-3)', fontSize: 11.5, fontWeight: 600,
+                  }}>
+                  <span style={{ width: 13, height: 13, borderRadius: '50%', background: c.hex, border: '1px solid var(--input-border)', flex: '0 0 auto' }} />
+                  {c.name}
+                </button>
+              )
+            })}
           </div>
         </div>
 

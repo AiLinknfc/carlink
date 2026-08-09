@@ -238,3 +238,14 @@ export function modelSuggestions(brand: string, selType: string, selYear: number
   for (const [n] of list) if (!seen.has(n)) { seen.add(n); out.push(n) }
   return out
 }
+
+/* Paleta de colores de la app — vivía duplicada dentro de app/register/page.tsx
+   (misma historia que modelSuggestions arriba). Se centraliza para que
+   register y AddVehicleModal.tsx usen exactamente la misma paleta. */
+export const COLORS = [
+  { name: 'Blanco', hex: '#ffffff' }, { name: 'Negro', hex: '#111111' },
+  { name: 'Plateado', hex: '#c0c0c0' }, { name: 'Gris', hex: '#6b7280' },
+  { name: 'Rojo', hex: '#dc2626' }, { name: 'Azul', hex: '#2563eb' },
+  { name: 'Verde', hex: '#16a34a' }, { name: 'Dorado', hex: '#ca8a04' },
+  { name: 'Naranja', hex: '#ea580c' }, { name: 'Marrón', hex: '#78350f' },
+]

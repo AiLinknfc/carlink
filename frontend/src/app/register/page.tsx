@@ -9,15 +9,7 @@ import { supabase, apiUrl } from '@/lib/supabase'
 import { formatPlate, parsePlate, getPlateConfig, type PlateType, PLATE_LETTERS, PLATE_NUMBERS } from '@/lib/plate'
 import { scanVehicleCard } from '@/lib/upload'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
-import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor, modelSuggestions } from '@/lib/vehicleBrands'
-
-const COLORS = [
-  { name: 'Blanco', hex: '#ffffff' }, { name: 'Negro', hex: '#111111' },
-  { name: 'Plateado', hex: '#c0c0c0' }, { name: 'Gris', hex: '#6b7280' },
-  { name: 'Rojo', hex: '#dc2626' }, { name: 'Azul', hex: '#2563eb' },
-  { name: 'Verde', hex: '#16a34a' }, { name: 'Dorado', hex: '#ca8a04' },
-  { name: 'Naranja', hex: '#ea580c' }, { name: 'Marrón', hex: '#78350f' },
-]
+import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor, modelSuggestions, COLORS } from '@/lib/vehicleBrands'
 
 function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | 'empresa' }) {
   const router = useRouter()
