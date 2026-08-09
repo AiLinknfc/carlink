@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -8,7 +11,16 @@ export async function GET(request: NextRequest) {
   }
   const token = authHeader.slice(7)
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+  // Antes usaba el cliente singleton de lib/supabase.ts (solo anon key, sin
+  // el JWT del caller) — la query de abajo corría como el rol `anon` sin
+  // auth.uid(), así que la política RLS de vehicle_transfers ("Users can
+  // read own transfers", que exige auth.uid() = from_user_id/to_user_id) la
+  // bloqueaba siempre y esta lista devolvía vacío para cualquiera.
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  })
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }

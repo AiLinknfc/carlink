@@ -169,6 +169,7 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/038_shop_orders.sql
 \i supabase/migrations/039_shop_orders_fulfillment.sql
 \i supabase/migrations/040_partner_program.sql
+\i supabase/migrations/041_rls_hardening.sql
 ```
 
 **Nota sobre 039 (2026-08-08)**: agrega `fulfillment_status`/`shipped_at`/`delivered_at`/

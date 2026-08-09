@@ -28,7 +28,16 @@ export async function GET(
     const isPending = transfer.status === 'pending'
     const isValid = isPending && !isExpired
 
-    } catch (e: any) {
+    // Faltaba este return — la función caía al final sin responder nada
+    // (bug preexistente, encontrado junto con el de accept/route.ts). Forma
+    // plana a propósito: transfer/accept/page.tsx lee `data.vehicle`,
+    // `data.from_user` y `data.expires_at` directo, no anidados.
+    return NextResponse.json({
+      ...transfer,
+      isValid,
+      isExpired,
+    })
+  } catch (e: any) {
     console.error('Validate transfer error:', e)
     return NextResponse.json({ error: e.message || 'Error interno' }, { status: 500 })
   }

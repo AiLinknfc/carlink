@@ -44,11 +44,17 @@ export async function POST(
       return NextResponse.json({ error: 'Transferencia expirada' }, { status: 400 })
     }
 
-    // Verify the current user is the intended recipient
-    if (transfer.to_user_id && transfer.to_user_id !== user.id) {
-      // Allow if email matches
+    // Verify the current user is the intended recipient. BUG FIJADO
+    // (2026-08-09): antes este chequeo estaba dentro de
+    // `if (transfer.to_user_id && ...)` — si to_user_id era null (el caso
+    // normal: se invita por email a alguien que todavía no tiene cuenta, ver
+    // [id]/transfer/route.ts) el chequeo entero se saltaba y CUALQUIER
+    // usuario autenticado que supiera el id de una transferencia pendiente
+    // podía aceptarla y quedarse con el vehículo de otra persona. Ahora se
+    // verifica siempre, sin condición previa.
+    if (transfer.to_user_id !== user.id) {
       const { data: profile } = await supabase.from('profiles').select('email').eq('id', user.id).single()
-      if (profile?.email?.toLowerCase() !== transfer.to_email?.toLowerCase()) {
+      if (!profile?.email || profile.email.toLowerCase() !== transfer.to_email?.toLowerCase()) {
         return NextResponse.json({ error: 'No autorizado para esta transferencia' }, { status: 403 })
       }
     }
