@@ -271,6 +271,23 @@ Revisión pedida explícitamente por el usuario (2026-08-07): "revisa la arquite
 si encuentras algo que no suele funcionar de esa manera, para que me hagas sugerencias — qué quita
 complejidad y qué la aumenta".
 
+### 0. El trial de taller es la mayor grieta real del modelo "cerrado" (2026-08-08)
+
+A raíz de la consulta sobre partners/franquicia (ver `docs/PLAN_PARTNER_MODEL.md`), se revisó si el
+modelo actual (solo se usan enlaces públicos con un llavero físico activado) tiene alguna forma de
+uso sin control. La encontró: **el trial gratuito de taller (punto 1 de abajo) ya genera una ficha
+pública real y funcional — mismo `generate_nfc_token()` que un llavero pagado — sin ningún admin de
+por medio, gratis, en el momento de registrar el primer vehículo.** El único requisito es un
+`legal_id` (NIT) que solo se valida por **unicidad**, no contra ningún registro real — cualquier
+cuenta taller nueva lo consigue sin fricción ni límite de cuántas cuentas puede crear la misma
+persona. Criptográficamente no hay ningún problema (mismo token de 256 bits, no adivinable); el
+riesgo es de negocio: encadenar cuentas taller desechables da fichas públicas indefinidas sin
+comprar nunca un llavero. **No tocado** — es una decisión de producto, no un bug de código. Opciones
+si se quiere cerrar, de menor a mayor fricción: (a) un trial por email/teléfono real en vez de por
+NIT inventado, (b) validar el NIT con el algoritmo público de dígito de verificación colombiano
+(filtra bots, no impostores serios), (c) verificación real de identidad antes de habilitar el trial
+(mata el problema pero le agrega al onboarding la fricción que el trial existe para evitar).
+
 ### 1. El trial gratuito de llavero — confirmado: NO quitarlo
 
 El usuario preguntó si quitar la opción de que taller/empresa consiga un llavero gratis (trial de 7
