@@ -27,7 +27,7 @@ import type {
   NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
-  PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerAdminView, PartnerCreateResult,
+  PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
 } from './types'
 
 async function request<T = unknown>(
@@ -383,4 +383,8 @@ export const partnerApi = {
   provision: (apiKey: string, quantity: number, batch_note: string) =>
     partnerRequest<PartnerProvisionResult>('POST', '/partners/me/provision', apiKey, { quantity, batch_note }),
   batches: (apiKey: string) => partnerRequest<PartnerBatch[]>('GET', '/partners/me/batches', apiKey),
+  // Control estricto por llavero (docs/PLAN_PARTNER_MODEL.md) — qr_url no es
+  // de un solo uso, así que se puede volver a pedir cuando haga falta.
+  tokens: (apiKey: string, batchId?: string) =>
+    partnerRequest<PartnerToken[]>('GET', `/partners/me/tokens${batchId ? `?batch_id=${batchId}` : ''}`, apiKey),
 }

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_partner
 from app.models.models import NfcTokenWhitelist, Partner
@@ -17,6 +18,7 @@ from app.schemas.schemas import (
     PartnerProvisionedItem,
     PartnerProvisionOut,
     PartnerProvisionRequest,
+    PartnerTokenOut,
 )
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
@@ -123,4 +125,34 @@ async def list_partner_batches(
     return [
         PartnerBatchOut(batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total, claimed=row.claimed, note=row.note or "")
         for row in result.all()
+    ]
+
+
+@router.get("/me/tokens", response_model=list[PartnerTokenOut])
+async def list_partner_tokens(
+    partner: Annotated[Partner, Depends(get_current_partner)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    batch_id: uuid.UUID | None = None,
+):
+    """Llaveros propios, uno por fila — a diferencia de /me/batches (que
+    agrega), esto es lo que alimenta "control estricto sobre los QR
+    generados": qr_url no es de un solo uso, así que un partner puede
+    volver a verlo/manipularlo para cualquier llavero suyo cuando quiera,
+    no solo en el momento de aprovisionarlo. Filtrable por lote para manejar
+    una campaña específica."""
+    stmt = select(NfcTokenWhitelist).where(NfcTokenWhitelist.provisioned_by_partner_id == partner.id)
+    if batch_id:
+        stmt = stmt.where(NfcTokenWhitelist.partner_batch_id == batch_id)
+    stmt = stmt.order_by(NfcTokenWhitelist.created_at.desc())
+    result = await db.execute(stmt)
+    entries = result.scalars().all()
+
+    frontend_url = get_settings().frontend_url
+    return [
+        PartnerTokenOut(
+            id=e.id, tag_uid=e.tag_uid, label=e.label, status=e.status,
+            qr_url=f"{frontend_url}/nfc/q/{e.qr_slug}" if e.qr_slug else None,
+            partner_batch_id=e.partner_batch_id, created_at=e.created_at,
+        )
+        for e in entries
     ]

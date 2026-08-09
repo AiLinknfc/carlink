@@ -73,6 +73,9 @@ export default function AdminPage() {
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
   const [whitelist, setWhitelist] = useState<NfcWhitelistEntry[]>([])
+  // Filtro de origen (control estricto por campaña/partner, docs/PLAN_PARTNER_MODEL.md)
+  // — 'all' | 'admin' | id de partner.
+  const [whitelistOriginFilter, setWhitelistOriginFilter] = useState<string>('all')
   const [limits, setLimits] = useState<NfcTokenLimit[]>([])
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([])
   const [showJobsDropdown, setShowJobsDropdown] = useState(false)
@@ -592,12 +595,31 @@ export default function AdminPage() {
         )}
 
         {/* Whitelist */}
-        {tab === 'whitelist' && (
+        {tab === 'whitelist' && (() => {
+          // Origen: control estricto por campaña/partner sobre los llaveros
+          // ya provisionados — ver docs/PLAN_PARTNER_MODEL.md.
+          const partnerOptions = Array.from(
+            new Map(whitelist.filter(w => w.provisioned_by_partner_id).map(w => [w.provisioned_by_partner_id as string, w.partner_name])).entries()
+          )
+          const filteredWhitelist = whitelist.filter(w => {
+            if (whitelistOriginFilter === 'all') return true
+            if (whitelistOriginFilter === 'admin') return !w.provisioned_by_partner_id
+            return w.provisioned_by_partner_id === whitelistOriginFilter
+          })
+          return (
           <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <button onClick={handleProvision} style={accentBtnStyle}>+ Provisionar llavero</button>
               <button onClick={handleAddWhitelist} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>+ Agregar UID (sin token)</button>
               <button onClick={handleBulkWhitelist} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Carga masiva</button>
+              {partnerOptions.length > 0 && (
+                <select value={whitelistOriginFilter} onChange={e => setWhitelistOriginFilter(e.target.value)}
+                  style={{ marginLeft: 'auto', padding: '7px 10px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 12.5 }}>
+                  <option value="all">Origen: todos</option>
+                  <option value="admin">Origen: admin</option>
+                  {partnerOptions.map(([id, name]) => <option key={id} value={id}>Origen: {name}</option>)}
+                </select>
+              )}
             </div>
 
             {provisioned && (
@@ -621,6 +643,7 @@ export default function AdminPage() {
                   <tr style={{ borderBottom: `1px solid ${c.border}` }}>
                     <th style={thStyle}>UID</th>
                     <th style={thStyle}>Etiqueta</th>
+                    <th style={thStyle}>Origen</th>
                     <th style={thStyle}>Status</th>
                     <th style={thStyle}>Reclamado por</th>
                     <th style={thStyle}>Fecha</th>
@@ -628,10 +651,17 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {whitelist.map(w => (
+                  {filteredWhitelist.map(w => (
                     <tr key={w.id} style={{ borderBottom: `1px solid ${c.border}` }}>
                       <td style={tdStyle}><code style={{ fontFamily: 'monospace', fontSize: 12 }}>{w.tag_uid}</code></td>
                       <td style={tdStyle}>{w.label || '—'}</td>
+                      <td style={tdStyle}>
+                        {w.provisioned_by_partner_id ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', color: c.accent }}>{w.partner_name || 'Partner'}</span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: c.muted }}>Admin</span>
+                        )}
+                      </td>
                       <td style={tdStyle}>
                         <span style={{ color: w.status === 'claimed' ? '#2ecc71' : w.status === 'blocked' ? '#ff4d6a' : c.muted, fontWeight: 600 }}>{w.status}</span>
                       </td>
@@ -650,9 +680,14 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
-            {whitelist.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Whitelist vacía</div>}
+            {filteredWhitelist.length === 0 && !loading2 && (
+              <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>
+                {whitelist.length === 0 ? 'Whitelist vacía' : 'Sin llaveros para este origen'}
+              </div>
+            )}
           </div>
-        )}
+          )
+        })()}
 
         {/* Inventory — raw scan metadata per physical keychain, separate from the whitelist/activation flow */}
         {tab === 'inventory' && (

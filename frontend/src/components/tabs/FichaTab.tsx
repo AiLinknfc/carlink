@@ -9,8 +9,7 @@ import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
-import type { Vehicle, MaintenanceRecord, NfcToken } from '@/lib/types'
-import QrCodePanel from '@/components/QrCodePanel'
+import type { Vehicle, MaintenanceRecord } from '@/lib/types'
 
 const TALLER_INFO = {
   name: 'Tecnicentro La 80',
@@ -55,7 +54,6 @@ interface FichaTabProps {
   onOpenTransfer: () => void
   transferLocked?: boolean
   onNavigate: (tab: string) => void
-  nfcTokens: NfcToken[]
   toggleNfcActive: () => void
   refreshKey?: number
   theme: 'light' | 'dark'
@@ -72,7 +70,7 @@ interface FichaTabProps {
   onBuyKeychain?: () => void
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -84,18 +82,6 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const [tellOpen, setTellOpen] = useState<string | null>(null)
   const [citaStep, setCitaStep] = useState<'detail' | 'cita'>('detail')
   const logoInputRef = useRef<HTMLInputElement>(null)
-  const [showQr, setShowQr] = useState(false)
-  const [qrUrl, setQrUrl] = useState<string | null>(null)
-
-  const openQrPanel = async () => {
-    setShowQr(true)
-    if (qrUrl || !nfcTokens.length) return
-    const active = nfcTokens.find(t => t.is_active) || nfcTokens[0]
-    try {
-      const data = await apiGet<{ url: string; qr_url?: string }>(`/nfc/tokens/${active.id}/url`)
-      if (data?.qr_url) setQrUrl(data.qr_url)
-    } catch {}
-  }
 
   /* Taller de confianza: solo se considera vinculado cuando el taller que el cliente
      registró en algún servicio corresponde a un taller dado de alta en modo empresa.
@@ -970,12 +956,10 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             <p style={{ margin: '10px 0 16px', fontSize: 13, color: sMuted, lineHeight: 1.55 }}>Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
             <button onClick={onAddService} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
             <button onClick={onOpenPublicar} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: vehicle?.nfc_active !== false ? '1px solid rgba(46,204,113,0.4)' : '1px solid rgba(245,197,24,0.4)', background: vehicle?.nfc_active !== false ? 'rgba(46,204,113,0.08)' : 'rgba(245,197,24,0.06)', color: vehicle?.nfc_active !== false ? '#2ecc71' : '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>{vehicle?.nfc_active !== false ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>}{vehicle?.nfc_active !== false ? 'Ver ficha pública' : 'Publicar ficha pública'}</button>
-            {nfcTokens.length > 0 && (
-              <button onClick={openQrPanel} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2"/></svg>
-                Ver código QR
-              </button>
-            )}
+            {/* "Ver código QR" se sacó de acá (pedido del usuario) — el QR
+                del llavero ahora se genera/maneja exclusivamente desde
+                Admin NFC o el panel de un partner, no en modo persona. Ver
+                docs/PLAN_PARTNER_MODEL.md. */}
             {onAddVehicle && (() => {
               // Solo se puede agregar otro vehículo si hay un llavero comprado
               // y todavía no activado (docs/PLAN_PARTNER_MODEL.md, gating
@@ -1019,8 +1003,6 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           </div>
         </div>
       </div>
-
-      <QrCodePanel isOpen={showQr} onClose={() => setShowQr(false)} theme={theme} qrUrl={qrUrl} plateText={plateText} />
     </div>
   )
 }

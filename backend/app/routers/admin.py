@@ -244,6 +244,10 @@ async def list_whitelist(
     )
     entries = list(result.scalars().all())
 
+    # Nombres de partner en un solo lookup — evita N+1 por fila.
+    partners_result = await db.execute(select(Partner.id, Partner.name))
+    partner_names = {row.id: row.name for row in partners_result.all()}
+
     frontend_url = get_settings().frontend_url
     out = []
     for e in entries:
@@ -258,6 +262,9 @@ async def list_whitelist(
             claimed_by_email=claimer.email if claimer else "",
             claimed_by_name=claimer.full_name if claimer else "",
             qr_url=f"{frontend_url}/nfc/q/{e.qr_slug}" if e.qr_slug else None,
+            provisioned_by_partner_id=e.provisioned_by_partner_id,
+            partner_batch_id=e.partner_batch_id,
+            partner_name=partner_names.get(e.provisioned_by_partner_id, "") if e.provisioned_by_partner_id else "",
         ))
     return out
 

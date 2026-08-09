@@ -825,6 +825,11 @@ export interface NfcWhitelistEntry {
   claimed_by_email: string;
   claimed_by_name: string;
   qr_url: string | null;
+  // Origen — null si lo aprovisionó el admin directo; si viene de un
+  // partner, permite identificar/filtrar de qué campaña es cada llavero.
+  provisioned_by_partner_id: string | null;
+  partner_batch_id: string | null;
+  partner_name: string;
 }
 
 export interface NfcWhitelistProvisionResult {
@@ -906,6 +911,16 @@ export interface PartnerBatch {
   total: number;
   claimed: number;
   note: string;
+}
+
+export interface PartnerToken {
+  id: string;
+  tag_uid: string;
+  label: string;
+  status: string;
+  qr_url: string | null;
+  partner_batch_id: string | null;
+  created_at: string;
 }
 
 export interface PartnerAdminView {

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from '@/store/theme'
 import { partnerApi } from '@/lib/api'
-import type { PartnerMe, PartnerBatch, PartnerProvisionResult } from '@/lib/types'
+import type { PartnerMe, PartnerBatch, PartnerProvisionResult, PartnerToken } from '@/lib/types'
+import QrCodePanel from '@/components/QrCodePanel'
 
 // Panel de prueba para el rol partner (aprovisionamiento escopeado, ver
 // docs/PLAN_PARTNER_MODEL.md) — separado por completo de /admin: un partner
@@ -23,6 +24,9 @@ export default function PartnerPage() {
   const [keyInput, setKeyInput] = useState('')
   const [me, setMe] = useState<PartnerMe | null>(null)
   const [batches, setBatches] = useState<PartnerBatch[]>([])
+  const [tokens, setTokens] = useState<PartnerToken[]>([])
+  const [tokensBatchFilter, setTokensBatchFilter] = useState<string | null>(null)
+  const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -54,7 +58,7 @@ export default function PartnerPage() {
   async function loadMe(key: string) {
     setLoading(true)
     setError('')
-    const [meRes, batchesRes] = await Promise.all([partnerApi.me(key), partnerApi.batches(key)])
+    const [meRes, batchesRes, tokensRes] = await Promise.all([partnerApi.me(key), partnerApi.batches(key), partnerApi.tokens(key)])
     setLoading(false)
     if (meRes.error) {
       setError(meRes.error)
@@ -65,6 +69,13 @@ export default function PartnerPage() {
     }
     setMe(meRes.data)
     if (batchesRes.data) setBatches(batchesRes.data)
+    if (tokensRes.data) setTokens(tokensRes.data)
+  }
+
+  async function loadTokens(batchId: string | null) {
+    if (!apiKey) return
+    const res = await partnerApi.tokens(apiKey, batchId || undefined)
+    if (res.data) setTokens(res.data)
   }
 
   function connect() {
@@ -197,13 +208,50 @@ export default function PartnerPage() {
 
                 <div style={cardStyle}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Tus lotes</div>
+                  <p style={{ fontSize: 11, color: c.muted, margin: '-6px 0 10px' }}>Tocá un lote para ver y manejar el QR de cada llavero de esa campaña.</p>
                   {batches.length === 0 ? (
                     <div style={{ fontSize: 12, color: c.muted }}>Sin lotes todavía.</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {batches.map(b => (
-                        <div key={b.batch_id} style={{ fontSize: 12.5, color: c.muted, paddingBottom: 8, borderBottom: `1px solid ${c.border}` }}>
+                        <button key={b.batch_id}
+                          onClick={() => { const next = tokensBatchFilter === b.batch_id ? null : b.batch_id; setTokensBatchFilter(next); loadTokens(next) }}
+                          style={{
+                            textAlign: 'left', fontSize: 12.5, padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
+                            border: `1px solid ${tokensBatchFilter === b.batch_id ? c.accent : c.border}`,
+                            background: tokensBatchFilter === b.batch_id ? 'rgba(245,197,24,0.1)' : 'transparent',
+                            color: tokensBatchFilter === b.batch_id ? c.accent : c.text,
+                          }}>
                           {new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} activados{b.note ? ` · ${b.note}` : ''}
+                        </button>
+                      ))}
+                      {tokensBatchFilter && (
+                        <button onClick={() => { setTokensBatchFilter(null); loadTokens(null) }} style={{ alignSelf: 'flex-start', fontSize: 11.5, color: c.muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '2px 0' }}>
+                          Ver todos los lotes
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div style={cardStyle}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Tus llaveros</div>
+                  <p style={{ fontSize: 11, color: c.muted, margin: '0 0 10px' }}>
+                    Control estricto por llavero: generá y descargá el QR (simple, estándar o máxima resistencia) cuando lo necesites para el evento.
+                  </p>
+                  {tokens.length === 0 ? (
+                    <div style={{ fontSize: 12, color: c.muted }}>Sin llaveros todavía.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {tokens.map(t => (
+                        <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', borderRadius: 9, border: `1px solid ${c.border}` }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontFamily: 'monospace', color: c.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.tag_uid}</div>
+                            <div style={{ fontSize: 11, color: t.status === 'available' ? c.muted : '#2ecc71' }}>{t.status === 'available' ? 'Disponible' : 'Activado'}</div>
+                          </div>
+                          {t.qr_url && (
+                            <button onClick={() => setQrModalUrl(t.qr_url)} style={{ flex: '0 0 auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${c.accent}`, background: 'transparent', color: c.accent, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Ver QR</button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -214,6 +262,8 @@ export default function PartnerPage() {
           </div>
         )}
       </div>
+
+      <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} />
     </div>
   )
 }

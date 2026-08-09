@@ -1205,6 +1205,12 @@ class NfcWhitelistOut(BaseModel):
     # Short redirect URL for the printable keychain QR — not a secret, can
     # always be re-shown (unlike the one-time activation code/raw token).
     qr_url: str | None = None
+    # Origen — null si lo aprovisionó el admin directo (comportamiento de
+    # siempre); si viene de un partner, permite identificar/filtrar de qué
+    # campaña es cada llavero en la pestaña Whitelist.
+    provisioned_by_partner_id: UUID | None = None
+    partner_batch_id: UUID | None = None
+    partner_name: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -1308,6 +1314,22 @@ class PartnerBatchOut(BaseModel):
     total: int
     claimed: int
     note: str = ""
+
+
+class PartnerTokenOut(BaseModel):
+    """Un llavero propio del partner, fuera del momento de aprovisionarlo —
+    a propósito NO incluye claimed_by/claimed_by_email/token_hash: un
+    partner ve si su llavero ya se activó, nunca quién lo activó. qr_url no
+    es sensible (no es de un solo uso, ver NfcWhitelistOut), así que puede
+    volver a mostrarse/manipularse cuando el partner quiera — es la base de
+    "control estricto sobre los QR generados" para llaveros de campaña."""
+    id: UUID
+    tag_uid: str
+    label: str
+    status: str
+    qr_url: str | None = None
+    partner_batch_id: UUID | None = None
+    created_at: datetime
 
 
 class NfcStatsOut(BaseModel):

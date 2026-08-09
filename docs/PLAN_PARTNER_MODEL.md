@@ -115,3 +115,33 @@ socio (contrato, límites de negocio, decisión de qué partners existen).
   confirmar que funciona exactamente igual que un llavero aprovisionado por el admin — la ruta
   criptográfica no distingue origen.
 - `npx tsc --noEmit` en frontend antes de cerrar.
+
+## Ampliación: llaveros de campaña + control estricto de QR (2026-08-09)
+
+El usuario aclaró el caso de uso real: crear partners **por campaña** (ej. un evento donde se
+reparten llaveros), reusando el mismo modelo de arriba, pero con **control estricto sobre los
+tokens y los QR generados** — y trasladar la generación de QR, que hoy vivía como autoservicio en
+modo persona, a control exclusivo de admin/partner.
+
+- **`GET /partners/me/tokens`** (nuevo) — llaveros propios del partner, uno por fila (a diferencia
+  de `/me/batches`, que agrega), con `qr_url` de cada uno. Igual que `qr_url` en general, no es de
+  un solo uso — se puede volver a pedir cuando haga falta, filtrable por `batch_id` para manejar
+  una campaña puntual. A propósito no expone `claimed_by`.
+- **`GET /admin/nfc/whitelist`** ahora también devuelve `provisioned_by_partner_id`,
+  `partner_batch_id` y `partner_name` por fila — la pestaña Whitelist (que ya tenía "Ver QR" por
+  fila) ahora también muestra de qué partner/campaña viene cada llavero, con un filtro por origen.
+- **`QrCodePanel.tsx`** — se agregó "Descargar las 3 variantes" (Simple/Estándar/Máxima
+  resistencia, los mismos niveles `M/Q/H` que ya existían) para no tener que reabrir el panel tres
+  veces por token.
+- **El botón "Ver código QR" se sacó por completo del modo persona** (`FichaTab.tsx` y la sección
+  de "Mis llaveros" en `app/app/page.tsx`) — la generación/manipulación de QR ahora es exclusiva
+  de Admin NFC (pestaña Whitelist) y del panel `/partner`. El endpoint `GET /nfc/tokens/{id}/url`
+  que alimentaba esos botones sigue existiendo tal cual (lo sigue usando "Copiar enlace", que no se
+  tocó) — solo se dejó de pedir/usar su campo `qr_url` desde esas dos pantallas.
+
+### Verificación
+- `GET /partners/me/tokens` probado contra la DB real: crear partner → provisionar 2 → confirmar
+  que la lista devuelve ambos con `qr_url` presente y sin `claimed_by`; confirmar que
+  `GET /admin/nfc/whitelist` muestra esas mismas filas con `partner_name` correcto. Limpiado
+  después.
+- `npx tsc --noEmit`, `npx vitest run` (29/29) y `pytest` (47/47) sin regresiones.
