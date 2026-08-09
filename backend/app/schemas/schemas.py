@@ -1236,6 +1236,80 @@ class NfcWhitelistProvisionOut(BaseModel):
     qr_url: str
 
 
+class PartnerCreate(BaseModel):
+    name: str
+    contact_email: str
+    contact_phone: str = ""
+    quota_total: int = 0
+    notes: str = ""
+
+
+class PartnerCreateOut(BaseModel):
+    """Devuelta UNA sola vez al crear el partner — trae la api key cruda
+    (nunca se guarda en texto plano, mismo patrón que activation_code)."""
+    id: UUID
+    name: str
+    api_key: str
+    quota_total: int
+
+
+class PartnerOut(BaseModel):
+    id: UUID
+    name: str
+    contact_email: str
+    contact_phone: str
+    api_key_prefix: str
+    quota_total: int
+    quota_used: int
+    status: str
+    notes: str
+    created_at: datetime
+
+
+class PartnerUpdate(BaseModel):
+    quota_total: int | None = None
+    status: str | None = None
+    notes: str | None = None
+
+
+class PartnerMeOut(BaseModel):
+    name: str
+    status: str
+    quota_total: int
+    quota_used: int
+    quota_remaining: int
+
+
+class PartnerProvisionRequest(BaseModel):
+    quantity: int
+    batch_note: str = ""
+    tag_uids: list[str] | None = None
+
+
+class PartnerProvisionedItem(BaseModel):
+    """Igual forma que NfcWhitelistProvisionOut — el código cae del mismo
+    generate_nfc_token()/generate_human_code(), solo cambia quién lo llamó."""
+    id: UUID
+    tag_uid: str
+    activation_code: str
+    token_url: str
+    qr_url: str
+
+
+class PartnerProvisionOut(BaseModel):
+    batch_id: UUID
+    items: list[PartnerProvisionedItem]
+    quota_remaining: int
+
+
+class PartnerBatchOut(BaseModel):
+    batch_id: UUID
+    created_at: datetime
+    total: int
+    claimed: int
+    note: str = ""
+
+
 class NfcStatsOut(BaseModel):
     total_tokens: int
     active_tokens: int

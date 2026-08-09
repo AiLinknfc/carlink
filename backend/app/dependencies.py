@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import Vehicle, Workshop
+from app.models.models import Partner, Vehicle, Workshop
 from app.services.auth import verify_supabase_jwt
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -52,6 +53,26 @@ async def get_current_admin(
     if user_id != admin_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user_id
+
+
+async def get_current_partner(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    x_partner_api_key: Annotated[str | None, Header()] = None,
+) -> Partner:
+    """Rol de aprovisionamiento escopeado, separado del admin único — ver
+    docs/PLAN_PARTNER_MODEL.md. Falla cerrado igual que get_current_admin:
+    401 sin clave o clave inválida, 403 si el partner está suspendido. Nunca
+    guardamos la clave cruda, solo su hash — misma idea que activation_code."""
+    if not x_partner_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing partner API key")
+    key_hash = hashlib.sha256(x_partner_api_key.encode()).hexdigest()
+    result = await db.execute(select(Partner).where(Partner.api_key_hash == key_hash))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid partner API key")
+    if partner.status != "active":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Partner account suspended")
+    return partner
 
 
 async def verify_vehicle(vehicle_id: UUID, user_id: str, db: AsyncSession) -> Vehicle:

@@ -373,6 +373,37 @@ class NfcTokenWhitelist(Base):
     claimed_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Trazabilidad de origen cuando el lote lo generó un partner (no el admin)
+    # en vez de tag_uid — ver Partner más abajo. NULL = aprovisionado por el
+    # admin, igual que siempre.
+    provisioned_by_partner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("partners.id", ondelete="SET NULL"), nullable=True)
+    partner_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+class Partner(Base):
+    """Rol de aprovisionamiento escopeado, separado del admin único
+    (ADMIN_USER_ID) — ver docs/PLAN_PARTNER_MODEL.md. Un partner solo puede
+    generar llaveros dentro de quota_total, usando la misma ruta
+    criptográfica que ya usa el admin (generate_nfc_token/generate_human_code
+    en nfc_provisioning.py); no ve nada fuera de sus propios lotes."""
+    __tablename__ = "partners"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text)
+    contact_email: Mapped[str] = mapped_column(Text)
+    contact_phone: Mapped[str] = mapped_column(Text, default="")
+    # Igual que activation_code_hash: la clave cruda se muestra una sola vez
+    # al crear el partner (POST /admin/partners), nunca se guarda en texto
+    # plano. api_key_prefix es solo para identificarla en una lista.
+    api_key_hash: Mapped[str] = mapped_column(Text, unique=True)
+    api_key_prefix: Mapped[str] = mapped_column(Text)
+    quota_total: Mapped[int] = mapped_column(Integer, default=0)
+    quota_used: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(Text, default="active")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class NfcTagInventory(Base):

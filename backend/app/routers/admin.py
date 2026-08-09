@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 import uuid
 from datetime import timezone
 from typing import Annotated
@@ -20,6 +21,7 @@ from app.models.models import (
     NfcToken,
     NfcTokenLimit,
     NfcTokenWhitelist,
+    Partner,
     Profile,
     Vehicle,
 )
@@ -40,6 +42,11 @@ from app.schemas.schemas import (
     NfcWhitelistOut,
     NfcWhitelistProvisionCreate,
     NfcWhitelistProvisionOut,
+    PartnerBatchOut,
+    PartnerCreate,
+    PartnerCreateOut,
+    PartnerOut,
+    PartnerUpdate,
 )
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
@@ -451,3 +458,93 @@ async def delete_tag_inventory(
         raise HTTPException(status_code=404, detail="Inventory entry not found")
     await db.delete(entry)
     await db.flush()
+
+
+# ── Partners (rol de aprovisionamiento escopeado, ver docs/PLAN_PARTNER_MODEL.md) ──
+
+@router.post("/partners", response_model=PartnerCreateOut, status_code=status.HTTP_201_CREATED)
+async def create_partner(
+    body: PartnerCreate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Crea un partner y devuelve su api key cruda UNA sola vez — mismo
+    patrón que el activation_code de un llavero: solo se guarda el hash."""
+    api_key = f"pk_partner_{secrets.token_urlsafe(32)}"
+    api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+    partner = Partner(
+        name=body.name,
+        contact_email=body.contact_email,
+        contact_phone=body.contact_phone,
+        api_key_hash=api_key_hash,
+        api_key_prefix=api_key[:20],
+        quota_total=body.quota_total,
+        notes=body.notes,
+        created_by=uuid.UUID(admin),
+    )
+    db.add(partner)
+    await db.flush()
+    await db.refresh(partner)
+
+    return PartnerCreateOut(id=partner.id, name=partner.name, api_key=api_key, quota_total=partner.quota_total)
+
+
+@router.get("/partners", response_model=list[PartnerOut])
+async def list_partners(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(Partner).order_by(Partner.created_at.desc()))
+    return result.scalars().all()
+
+
+@router.patch("/partners/{partner_id}", response_model=PartnerOut)
+async def update_partner(
+    partner_id: UUID,
+    body: PartnerUpdate,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    if body.quota_total is not None:
+        partner.quota_total = body.quota_total
+    if body.status is not None:
+        if body.status not in ("active", "suspended"):
+            raise HTTPException(status_code=400, detail="status debe ser 'active' o 'suspended'")
+        partner.status = body.status
+    if body.notes is not None:
+        partner.notes = body.notes
+    await db.flush()
+    await db.refresh(partner)
+    return partner
+
+
+@router.get("/partners/{partner_id}/batches", response_model=list[PartnerBatchOut])
+async def list_partner_batches_admin(
+    partner_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Trazabilidad completa de los lotes de un partner — a diferencia de
+    GET /partners/me/batches (que un partner solo ve los propios), esto lo
+    ve el admin sobre cualquier partner."""
+    result = await db.execute(
+        select(
+            NfcTokenWhitelist.partner_batch_id,
+            func.min(NfcTokenWhitelist.created_at).label("created_at"),
+            func.min(NfcTokenWhitelist.label).label("note"),
+            func.count().label("total"),
+            func.count().filter(NfcTokenWhitelist.status != "available").label("claimed"),
+        )
+        .where(NfcTokenWhitelist.provisioned_by_partner_id == partner_id)
+        .group_by(NfcTokenWhitelist.partner_batch_id)
+        .order_by(func.min(NfcTokenWhitelist.created_at).desc())
+    )
+    return [
+        PartnerBatchOut(batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total, claimed=row.claimed, note=row.note or "")
+        for row in result.all()
+    ]
