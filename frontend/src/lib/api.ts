@@ -27,6 +27,7 @@ import type {
   NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
+  PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerAdminView, PartnerCreateResult,
 } from './types'
 
 async function request<T = unknown>(
@@ -75,6 +76,9 @@ export const vehicleApi = {
   update: (id: string, data: VehicleUpdate) => request<Vehicle>('PUT', `/vehicles/${id}`, data),
   delete: (id: string) => request('DELETE', `/vehicles/${id}`),
   toggleNfc: (id: string) => request<Vehicle>('PATCH', `/vehicles/${id}/nfc-toggle`, {}),
+  // Cuántos llaveros comprados (shop_orders aprobados) todavía no se usaron
+  // para activar un vehículo — gatea el botón "Agregar vehículo" en FichaTab.
+  keychainAvailability: () => request<{ available: number }>('GET', '/vehicles/keychain-availability'),
 }
 
 export const maintenanceApi = {
@@ -334,10 +338,49 @@ export const adminApi = {
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'shipped', tracking_note }),
   markShopOrderDelivered: (reference: string) =>
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'delivered' }),
+  // Partners (rol de aprovisionamiento escopeado) — el admin real crea/gestiona
+  // partners con su sesión normal; el partner en sí opera aparte con su api
+  // key (ver partnerApi más abajo, sin sesión de Supabase).
+  createPartner: (data: { name: string; contact_email: string; contact_phone?: string; quota_total: number; notes?: string }) =>
+    request<PartnerCreateResult>('POST', '/admin/nfc/partners', data),
+  listPartners: () => request<PartnerAdminView[]>('GET', '/admin/nfc/partners'),
+  updatePartner: (id: string, data: { quota_total?: number; status?: string; notes?: string }) =>
+    request<PartnerAdminView>('PATCH', `/admin/nfc/partners/${id}`, data),
+  partnerBatches: (id: string) => request<PartnerBatch[]>('GET', `/admin/nfc/partners/${id}/batches`),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta
 // (ver adminApi.listAllShopOrders para la cola completa en modo administrador).
 export const shopOrderApi = {
   list: () => request<ShopOrderDetail[]>('GET', '/shop/orders'),
+}
+
+// ── Partner (rol de aprovisionamiento escopeado) ──
+// El panel /partner en sí se autentica con una api key propia (no una
+// sesión de Supabase), así que no usa el helper request() de arriba (que
+// siempre intenta adjuntar el token de sesión) — tiene su propio fetch
+// mínimo con X-Partner-Api-Key.
+async function partnerRequest<T = unknown>(method: string, path: string, apiKey: string, body?: unknown): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const headers: Record<string, string> = { 'X-Partner-Api-Key': apiKey }
+    let fetchBody: BodyInit | undefined
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      fetchBody = JSON.stringify(body)
+    }
+    const res = await fetch(`/api${path}`, { method, headers, body: fetchBody })
+    const text = await res.text()
+    const parsed = text ? JSON.parse(text) : null
+    if (!res.ok) return { data: null, error: (parsed && parsed.detail) || `Error ${res.status}` }
+    return { data: parsed as T, error: null }
+  } catch {
+    return { data: null, error: 'No se pudo conectar con el servidor.' }
+  }
+}
+
+export const partnerApi = {
+  me: (apiKey: string) => partnerRequest<PartnerMe>('GET', '/partners/me', apiKey),
+  provision: (apiKey: string, quantity: number, batch_note: string) =>
+    partnerRequest<PartnerProvisionResult>('POST', '/partners/me/provision', apiKey, { quantity, batch_note }),
+  batches: (apiKey: string) => partnerRequest<PartnerBatch[]>('GET', '/partners/me/batches', apiKey),
 }

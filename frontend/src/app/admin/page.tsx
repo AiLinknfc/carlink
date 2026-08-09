@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { adminApi, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats } from '@/lib/types'
+import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult } from '@/lib/types'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
 
@@ -68,7 +68,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -114,6 +114,21 @@ export default function AdminPage() {
   const [markingOrderRef, setMarkingOrderRef] = useState<string | null>(null)
   const [inventoryBulkSubmitting, setInventoryBulkSubmitting] = useState(false)
 
+  // Partners — rol de aprovisionamiento escopeado, ver docs/PLAN_PARTNER_MODEL.md.
+  // "Listo para cuando el proyecto madure": esto administra partners reales
+  // si algún día existen, pero hoy no hay ninguno creado.
+  const [partners, setPartners] = useState<PartnerAdminView[]>([])
+  const [createPartnerModal, setCreatePartnerModal] = useState(false)
+  const [partnerName, setPartnerName] = useState('')
+  const [partnerEmail, setPartnerEmail] = useState('')
+  const [partnerPhone, setPartnerPhone] = useState('')
+  const [partnerQuota, setPartnerQuota] = useState('20')
+  const [partnerNotes, setPartnerNotes] = useState('')
+  const [partnerSubmitting, setPartnerSubmitting] = useState(false)
+  const [createdPartner, setCreatedPartner] = useState<PartnerCreateResult | null>(null)
+  const [partnerBatchesOpenId, setPartnerBatchesOpenId] = useState<string | null>(null)
+  const [partnerBatches, setPartnerBatches] = useState<PartnerBatch[]>([])
+
   const c = {
     bg: isDark ? '#0a0b0e' : '#f5f3ec',
     card: isDark ? '#111318' : '#fff',
@@ -137,6 +152,7 @@ export default function AdminPage() {
     else if (tab === 'inventory') loadInventory()
     else if (tab === 'limits') loadLimits()
     else if (tab === 'orders') loadShopOrders()
+    else if (tab === 'partners') loadPartners()
   }, [tab])
 
   useEffect(() => {
@@ -210,6 +226,49 @@ export default function AdminPage() {
     const updated = await adminApi.markShopOrderDelivered(reference)
     if (updated) setShopOrders(prev => prev.map(o => o.reference === reference ? updated : o))
     setMarkingOrderRef(null)
+  }
+
+  async function loadPartners() {
+    setLoading2(true)
+    const p = await adminApi.listPartners()
+    if (p) setPartners(p)
+    setLoading2(false)
+  }
+
+  function handleCreatePartner() {
+    setPartnerName(''); setPartnerEmail(''); setPartnerPhone(''); setPartnerQuota('20'); setPartnerNotes('')
+    setError('')
+    setCreatePartnerModal(true)
+  }
+
+  async function submitCreatePartner() {
+    if (!partnerName.trim() || !partnerEmail.trim()) return
+    setPartnerSubmitting(true)
+    const result = await adminApi.createPartner({
+      name: partnerName.trim(), contact_email: partnerEmail.trim(), contact_phone: partnerPhone.trim(),
+      quota_total: Math.max(0, parseInt(partnerQuota, 10) || 0), notes: partnerNotes.trim(),
+    })
+    setPartnerSubmitting(false)
+    if (result) {
+      setCreatedPartner(result)
+      setCreatePartnerModal(false)
+      loadPartners()
+    } else {
+      setError('No se pudo crear el partner.')
+    }
+  }
+
+  async function togglePartnerStatus(p: PartnerAdminView) {
+    const nextStatus = p.status === 'active' ? 'suspended' : 'active'
+    const updated = await adminApi.updatePartner(p.id, { status: nextStatus })
+    if (updated) setPartners(prev => prev.map(x => x.id === p.id ? updated : x))
+  }
+
+  async function toggleBatchesFor(p: PartnerAdminView) {
+    if (partnerBatchesOpenId === p.id) { setPartnerBatchesOpenId(null); return }
+    setPartnerBatchesOpenId(p.id)
+    const b = await adminApi.partnerBatches(p.id)
+    if (b) setPartnerBatches(b)
   }
 
   async function loadJobApplications() {
@@ -357,6 +416,7 @@ export default function AdminPage() {
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
     { key: 'limits', label: 'Límites' },
     { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
+    { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
   ] as const
 
   return (
@@ -734,6 +794,80 @@ export default function AdminPage() {
             {shopOrders.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay pedidos aún</div>}
           </div>
         )}
+
+        {/* Partners — rol de aprovisionamiento escopeado, separado del admin único.
+            Ver docs/PLAN_PARTNER_MODEL.md. No confundir con el panel /partner, que
+            es donde el partner en sí opera con su api key, no con esta sesión. */}
+        {tab === 'partners' && (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={handleCreatePartner} style={accentBtnStyle}>+ Crear partner</button>
+              <span style={{ fontSize: 12, color: c.muted }}>
+                Un partner aprovisiona llaveros dentro de su cupo desde <code>/partner</code>, sin ver nada ajeno a sus propios lotes.
+              </span>
+            </div>
+
+            {createdPartner && (
+              <div style={{ marginBottom: 16, padding: 16, borderRadius: 12, background: c.card, border: `2px solid ${c.accent}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: c.accent }}>Partner creado — guarda esta api key, no se vuelve a mostrar</div>
+                  <button onClick={() => setCreatedPartner(null)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer', fontSize: 16 }}>×</button>
+                </div>
+                <div style={{ fontSize: 12, color: c.muted, marginBottom: 4 }}>{createdPartner.name} · cupo {createdPartner.quota_total}</div>
+                <div style={{ fontSize: 12, color: c.muted }}>
+                  Api key (header <code>X-Partner-Api-Key</code>): <b style={{ fontSize: 13, color: c.text, wordBreak: 'break-all' }}>{createdPartner.api_key}</b>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {partners.map(p => (
+                <div key={p.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>
+                        {p.name} · <span style={{ color: p.status === 'active' ? '#2ecc71' : '#ff4d6a' }}>{p.status === 'active' ? 'Activo' : 'Suspendido'}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{p.contact_email}{p.contact_phone ? ` · ${p.contact_phone}` : ''}</div>
+                      <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>Api key: <code style={{ fontSize: 11 }}>{p.api_key_prefix}…</code></div>
+                      {p.notes && <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{p.notes}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{p.quota_used} / {p.quota_total}</div>
+                      <div style={{ fontSize: 11, color: c.muted }}>cupo usado</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => toggleBatchesFor(p)} style={{ ...accentBtnStyle, padding: '6px 12px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>
+                      {partnerBatchesOpenId === p.id ? 'Ocultar lotes' : 'Ver lotes'}
+                    </button>
+                    <button onClick={() => {
+                      const next = prompt('Nuevo cupo total:', String(p.quota_total))
+                      if (next === null) return
+                      const n = parseInt(next, 10)
+                      if (!isNaN(n) && n >= 0) adminApi.updatePartner(p.id, { quota_total: n }).then(u => { if (u) setPartners(prev => prev.map(x => x.id === p.id ? u : x)) })
+                    }} style={{ ...accentBtnStyle, padding: '6px 12px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Editar cupo</button>
+                    <button onClick={() => togglePartnerStatus(p)} style={p.status === 'active' ? dangerBtnStyle : { ...accentBtnStyle, padding: '6px 12px', fontSize: 12 }}>
+                      {p.status === 'active' ? 'Suspender' : 'Reactivar'}
+                    </button>
+                  </div>
+                  {partnerBatchesOpenId === p.id && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${c.border}` }}>
+                      {partnerBatches.length === 0 ? (
+                        <div style={{ fontSize: 12, color: c.muted }}>Sin lotes todavía.</div>
+                      ) : partnerBatches.map(b => (
+                        <div key={b.batch_id} style={{ fontSize: 12, color: c.muted, padding: '4px 0' }}>
+                          {new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} reclamados{b.note ? ` · ${b.note}` : ''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {partners.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Sin partners todavía</div>}
+            </div>
+          </div>
+        )}
       </div>
 
       <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} />
@@ -787,6 +921,34 @@ export default function AdminPage() {
         <textarea autoFocus rows={8} value={bulkText} onChange={e => setBulkText(e.target.value)}
           placeholder={'04:C9:C8:5C:C1:2A:81\n04:C9:C8:5C:C1:2A:82\n...'}
           style={{ ...s.input(isDark), resize: 'vertical', fontFamily: 'monospace', lineHeight: 1.6 }} />
+      </AdminModal>
+
+      <AdminModal isOpen={createPartnerModal} onClose={() => setCreatePartnerModal(false)} theme={isDark ? 'dark' : 'light'}
+        title="Crear partner" subtitle="Rol de aprovisionamiento escopeado — aprovisiona dentro de su cupo, sin ver nada del resto del sistema."
+        footer={<>
+          <button onClick={() => setCreatePartnerModal(false)} style={s.ghostBtn(isDark)}>Cancelar</button>
+          <button onClick={submitCreatePartner} disabled={partnerSubmitting || !partnerName.trim() || !partnerEmail.trim()} style={s.primaryBtn(partnerSubmitting || !partnerName.trim() || !partnerEmail.trim())}>{partnerSubmitting ? 'Creando…' : 'Crear'}</button>
+        </>}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Nombre</label>
+          <input autoFocus value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Ej. Taller Aliado Medellín" style={s.input(isDark)} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Email de contacto</label>
+          <input value={partnerEmail} onChange={e => setPartnerEmail(e.target.value)} placeholder="contacto@aliado.com" style={s.input(isDark)} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Teléfono (opcional)</label>
+          <input value={partnerPhone} onChange={e => setPartnerPhone(e.target.value)} style={s.input(isDark)} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Cupo de llaveros</label>
+          <input type="number" min={0} value={partnerQuota} onChange={e => setPartnerQuota(e.target.value)} style={s.input(isDark)} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <label style={s.label(isDark)}>Notas (opcional)</label>
+          <input value={partnerNotes} onChange={e => setPartnerNotes(e.target.value)} style={s.input(isDark)} />
+        </div>
       </AdminModal>
 
       <AdminModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} theme={isDark ? 'dark' : 'light'}

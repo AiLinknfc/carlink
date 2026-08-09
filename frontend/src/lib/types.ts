@@ -874,6 +874,60 @@ export interface NfcStats {
   whitelist_count: number;
 }
 
+// ── Partners (rol de aprovisionamiento escopeado, ver docs/PLAN_PARTNER_MODEL.md) ──
+// Un partner nunca usa el token de sesión de Supabase — se autentica con una
+// api key propia (header X-Partner-Api-Key), por eso partnerApi en api.ts no
+// pasa por el helper request() del resto del archivo.
+export interface PartnerMe {
+  name: string;
+  status: 'active' | 'suspended';
+  quota_total: number;
+  quota_used: number;
+  quota_remaining: number;
+}
+
+export interface PartnerProvisionedItem {
+  id: string;
+  tag_uid: string;
+  activation_code: string;
+  token_url: string;
+  qr_url: string;
+}
+
+export interface PartnerProvisionResult {
+  batch_id: string;
+  items: PartnerProvisionedItem[];
+  quota_remaining: number;
+}
+
+export interface PartnerBatch {
+  batch_id: string;
+  created_at: string;
+  total: number;
+  claimed: number;
+  note: string;
+}
+
+export interface PartnerAdminView {
+  id: string;
+  name: string;
+  contact_email: string;
+  contact_phone: string;
+  api_key_prefix: string;
+  quota_total: number;
+  quota_used: number;
+  status: 'active' | 'suspended';
+  notes: string;
+  created_at: string;
+}
+
+export interface PartnerCreateResult {
+  id: string;
+  name: string;
+  api_key: string;
+  quota_total: number;
+}
+
 // Checkout del llavero NFC (CartModal.tsx / OrderTrackingModal.tsx / admin/page.tsx)
 export type ShopOrderPaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error';
 export type ShopOrderFulfillmentStatus = 'unfulfilled' | 'shipped' | 'delivered';
