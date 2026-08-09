@@ -14,6 +14,7 @@ const SUGGEST_THEME = { inputBg: 'var(--input-bg)', inputBorder: 'var(--input-bo
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR + 1 - i)
+const YEAR_OPTIONS = YEARS.map(String)
 
 interface Props {
   onClose: () => void
@@ -153,19 +154,18 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
             {looksLikeMoto && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: '#F5C518', background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', borderRadius: 999, padding: '3px 9px', marginTop: 6, fontWeight: 700 }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                Placa de {PLATE_TYPE_LABELS.moto} detectada — Tipo actualizado
+                Placa de {PLATE_TYPE_LABELS.moto} detectada
               </div>
             )}
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ciudad</label>
             {/* Mismas opciones que app/register/page.tsx (@/lib/constants), no
-                una lista aparte. */}
-            <select value={city} onChange={e => setCity(e.target.value)}
-              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: city ? 'var(--text-1)' : 'var(--text-3)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-              <option value="">Selecciona</option>
-              {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+                una lista aparte — mismo componente que Marca/Modelo en vez del
+                <select> nativo (colores del sistema, esquinas rectas, ese azul
+                que no es el de la app). */}
+            <ThemedSuggestInput value={city} onChange={setCity} suggestions={CITIES} placeholder="Elige o escribe"
+              style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
         </div>
 
@@ -180,20 +180,16 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tipo</label>
-            <select value={type} onChange={e => setType(e.target.value)}
-              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-              {VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <ThemedSuggestInput value={type} onChange={setType} suggestions={VEHICLE_TYPES} placeholder="Elige o escribe"
+              style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Año</label>
-            <select value={year} onChange={e => setYear(Number(e.target.value))}
-              style={{ width: '100%', padding: '11px 8px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <ThemedSuggestInput value={String(year)} onChange={v => setYear(Number(v) || CURRENT_YEAR)} suggestions={YEAR_OPTIONS} placeholder="Elige o escribe"
+              style={{ padding: '11px 12px', fontSize: 14 }} theme={SUGGEST_THEME} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Modelo</label>

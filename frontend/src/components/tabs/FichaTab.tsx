@@ -59,9 +59,13 @@ interface FichaTabProps {
   toggleNfcActive: () => void
   refreshKey?: number
   theme: 'light' | 'dark'
+  /** Antes vivía en Sidebar.tsx, junto al selector de vehículo — se movió acá
+   * (pedido del usuario) para quedar junto a las demás acciones sobre el
+   * vehículo activo (QR, transferir), entre esas dos. */
+  onAddVehicle?: () => void
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme, onAddVehicle }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -963,6 +967,14 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <button onClick={openQrPanel} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2"/></svg>
                 Ver código QR
+              </button>
+            )}
+            {onAddVehicle && (
+              <button onClick={onAddVehicle} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.14)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.06)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                Agregar vehículo
               </button>
             )}
             <button onClick={onOpenTransfer} title={transferLocked ? 'Requiere perfil verificado' : undefined} style={{
