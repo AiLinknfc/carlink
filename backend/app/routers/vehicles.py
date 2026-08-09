@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
-from app.models.models import NfcToken, Vehicle
+from app.models.models import NfcToken, ShopOrder, Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
 from app.services.auth import ensure_profile
 from app.services.cache import (
@@ -77,6 +77,30 @@ async def check_plate(
 
     owned_by_you = bool(user_id) and str(row[0]) == user_id
     return {"exists": True, "owned_by_you": owned_by_you}
+
+
+@router.get("/keychain-availability")
+async def get_keychain_availability(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Cuántos llaveros comprados (shop_orders aprobados) todavía no se usaron
+    para activar un vehículo — señal que gatea el botón "Agregar vehículo" en
+    el frontend. Declarado antes de /{vehicle_id} por el mismo motivo que
+    /plate-check (ver comentario ahí). No cuenta tokens de prueba
+    (token_type='trial') como "usados" — el trial no consume un llavero
+    comprado, son cosas separadas."""
+    purchased = (await db.execute(
+        select(func.coalesce(func.sum(ShopOrder.quantity), 0)).where(
+            ShopOrder.user_id == uuid.UUID(user_id), ShopOrder.status == "approved"
+        )
+    )).scalar() or 0
+    claimed = (await db.execute(
+        select(func.count(NfcToken.id)).where(
+            NfcToken.user_id == uuid.UUID(user_id), NfcToken.token_type == "personal"
+        )
+    )).scalar() or 0
+    return {"available": max(purchased - claimed, 0)}
 
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)

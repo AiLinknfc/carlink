@@ -63,9 +63,16 @@ interface FichaTabProps {
    * (pedido del usuario) para quedar junto a las demás acciones sobre el
    * vehículo activo (QR, transferir), entre esas dos. */
   onAddVehicle?: () => void
+  /** Cuántos llaveros comprados (shop_orders aprobados) todavía no se usaron
+   * para activar un vehículo — GET /vehicles/keychain-availability. `null`
+   * mientras carga: el botón queda deshabilitado por defecto (no se habilita
+   * de más y luego se corrige, que sería peor UX que lo contrario). */
+  keychainAvailable?: number | null
+  /** Abre el checkout del llavero (CartModal) — CTA cuando no hay cupo. */
+  onBuyKeychain?: () => void
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme, onAddVehicle }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, nfcTokens, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -969,14 +976,24 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 Ver código QR
               </button>
             )}
-            {onAddVehicle && (
-              <button onClick={onAddVehicle} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.14)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.06)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                Agregar vehículo
-              </button>
-            )}
+            {onAddVehicle && (() => {
+              // Solo se puede agregar otro vehículo si hay un llavero comprado
+              // y todavía no activado (docs/PLAN_PARTNER_MODEL.md, gating
+              // pedido por el usuario). Mientras se desconoce (null), queda
+              // bloqueado por defecto.
+              const canAdd = (keychainAvailable ?? 0) > 0
+              return (
+                <button
+                  onClick={canAdd ? onAddVehicle : onBuyKeychain}
+                  title={canAdd ? undefined : 'Comprá un llavero NFC para poder agregar otro vehículo'}
+                  style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.06)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s', opacity: canAdd ? 1 : 0.55 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.14)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.06)' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                  {canAdd ? 'Agregar vehículo' : 'Comprar llavero para agregar'}
+                </button>
+              )
+            })()}
             <button onClick={onOpenTransfer} title={transferLocked ? 'Requiere perfil verificado' : undefined} style={{
               position: 'relative', overflow: 'hidden',
               opacity: transferLocked ? 0.55 : 1,

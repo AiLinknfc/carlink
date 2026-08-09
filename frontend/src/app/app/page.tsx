@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleApi } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import { CarLinkMark, Icon } from '@/lib/icons_new'
@@ -57,6 +57,10 @@ export default function AppPage() {
   // ni de agregar uno nuevo.
   const [vehicles, setVehicles] = useState<any[]>([])
   const [showAddVehicle, setShowAddVehicle] = useState(false)
+  // Cuántos llaveros comprados y sin activar todavía — gatea "Agregar
+  // vehículo" en FichaTab (docs/PLAN_PARTNER_MODEL.md). null mientras carga
+  // (el botón queda bloqueado por defecto, no habilitado de más).
+  const [keychainAvailable, setKeychainAvailable] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [editName, setEditName] = useState('')
   const [editModelo, setEditModelo] = useState('')
@@ -359,6 +363,7 @@ export default function AppPage() {
       }
       setVehicleLoading(false)
     })
+    vehicleApi.keychainAvailability().then(r => setKeychainAvailable(r?.available ?? 0))
   }, [user, loading, router])
 
   const switchVehicle = useCallback((id: string) => {
@@ -374,6 +379,7 @@ export default function AppPage() {
     switchVehicle(newVehicle.id)
     setShowAddVehicle(false)
     setRefreshKey(k => k + 1)
+    vehicleApi.keychainAvailability().then(r => setKeychainAvailable(r?.available ?? 0))
     // switchVehicle ya guarda el id en localStorage, pero newVehicle todavía
     // no estaba en `vehicles` cuando se define switchVehicle acá arriba —
     // se setea directo para no depender del orden de renders.
@@ -580,7 +586,7 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -589,7 +595,7 @@ export default function AppPage() {
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} />}
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} nfcTokens={nfcTokens} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} />}
         </div>
 
         {/* Bienvenida */}

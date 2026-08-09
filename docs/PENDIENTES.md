@@ -1,6 +1,15 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-07 (quinta pasada — documento de identidad eliminado del todo)._
+_Última actualización: 2026-08-08 (sexta pasada — rol partner escopeado)._
+
+**Ejecutado en la sexta pasada**: a partir de una consulta del usuario sobre si el modelo cerrado
+actual podría abrirse a socios/aliados comerciales sin comprometer seguridad, se construyó un rol
+**partner** nuevo y separado del admin único (`ADMIN_USER_ID`) — aprovisiona llaveros dentro de un
+cupo asignado, sin visibilidad de nada ajeno a sus propios lotes, reusando exactamente la misma
+ruta criptográfica que ya usaba el admin (`generate_nfc_token`/`generate_human_code`, sin cambios).
+Esto también resuelve el pendiente #8 de abajo. Detalle completo, decisiones y verificación en
+`docs/PLAN_PARTNER_MODEL.md`. Construido "listo para cuando el proyecto madure" — no se creó
+ningún partner real, solo el sistema y un panel `/partner` de prueba.
 
 **Ejecutado en la quinta pasada**: el campo "Documento de identidad" de `app/register/page.tsx`
 **se eliminó por completo** (no solo se hizo opcional, como en la cuarta pasada) — el usuario
@@ -125,11 +134,12 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    con `SubscriptionExpiredCard` vía `isSubscriptionValid()` cuando el trial vence sin llavero
    reclamado — verificado en navegador real en la Fase 5 de `PLAN_MIGRACION_TALLERPRO.md`.
 8. **Rol admin sigue siendo un solo UUID hardcodeado** (`ADMIN_USER_ID` / `NEXT_PUBLIC_ADMIN_USER_ID`),
-   no un rol basado en `account_type`. No escala a más de un administrador. **No implementado en
-   esta sesión** — es un cambio de modelo de autorización (nueva tabla de roles o columna +
-   migración de todos los checks `user_id != admin_id`), con impacto en seguridad si se hace a las
-   apuradas; mejor con una conversación corta primero sobre cuántos admins reales necesitás y si
-   todos deben tener el mismo nivel de acceso.
+   no un rol basado en `account_type`. Sigue siendo así para el admin real — a propósito, no se
+   tocó (seguir usando un único UUID para el dueño de la cuenta es lo correcto, no un gap). **Lo
+   que sí se resolvió (2026-08-08)**: para el caso concreto que motivaba esto — dar acceso de
+   aprovisionamiento a un tercero sin dárselo todo — se agregó un rol **partner** nuevo, separado,
+   con cupo y sin visibilidad cruzada. Ver `docs/PLAN_PARTNER_MODEL.md`. No se creó ningún partner
+   real todavía.
 9. **Separación de ambientes** — local/staging/producción comparten la misma instancia de Supabase.
    Causa raíz documentada de varios bugs de producción pasados. **No implementado en esta sesión** —
    requiere crear un proyecto Supabase nuevo, que solo vos podés hacer (acceso a tu cuenta de
@@ -356,8 +366,17 @@ tomadas (no solo sugeridas — ya implementadas donde aplicaba código):
     prueba gratis (solo el primero de una cuenta taller/empresa) o si hace falta comprar un llavero
     — con un CTA a `/shop` en ese caso.
   - Selector de vehículo activo en `Sidebar.tsx` (`<select>`, solo aparece si la cuenta tiene más de
-    uno) + botón "Agregar vehículo" siempre visible — ambos dentro del bloque "Vehículo" del rail
-    expandido. La selección persiste en `localStorage` (`carlink_active_vehicle_id`) entre recargas.
+    uno) — dentro del bloque "Vehículo" del rail expandido. La selección persiste en `localStorage`
+    (`carlink_active_vehicle_id`) entre recargas. El botón "Agregar vehículo" en sí se movió a
+    `FichaTab.tsx` (ver siguiente ítem) y **ya no está siempre visible** — ver gating de abajo.
+  - **Gating con llavero disponible — ✅ hecho (2026-08-08, sexta pasada).** El botón "Agregar
+    vehículo" solo se habilita si `GET /vehicles/keychain-availability` devuelve `available > 0`
+    (llaveros comprados vía `shop_orders` aprobados, menos los ya activados como `NfcToken
+    token_type='personal'`); si no, queda atenuado y su clic abre el checkout (`CartModal`) en vez
+    de `AddVehicleModal`. Mientras la disponibilidad carga (`null`), el botón queda bloqueado por
+    defecto — nunca se habilita de más para luego corregirse. Verificado el endpoint contra la DB
+    real (devolvió `3` para una cuenta con pedidos aprobados reales). Salió de una consulta más
+    amplia sobre seguridad y un futuro modelo de socios — ver `docs/PLAN_PARTNER_MODEL.md`.
   - `app/app/page.tsx` ya no descarta el resto de los vehículos de la cuenta (`data[0]` a secas) —
     guarda la lista completa y expone el cambio de activo.
   - Solo aplica a cuentas `persona` en la práctica: `/app` ya redirige toda cuenta de negocio a
