@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { apiPost } from '@/lib/api'
-import { formatPlate, getPlateConfig, parsePlate, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
+import { formatPlate, getPlateConfig, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
 import { brandsForType, plateTypeFor, VEHICLE_TYPES, modelSuggestions } from '@/lib/vehicleBrands'
 import { CITIES } from '@/lib/constants'
 import ThemedSuggestInput from './ThemedSuggestInput'
@@ -48,11 +48,10 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   // Mismas sugerencias de modelo que app/register/page.tsx (@/lib/vehicleBrands,
   // antes vivían solo ahí) — filtradas por marca + tipo + año.
   const modelOptions = useMemo(() => modelSuggestions(brand, type, year), [brand, type, year])
-  // Confirmación de qué tipo de placa se reconoció en lo que se escribió —
-  // el campo ya está limitado al formato del Tipo elegido (no se puede escribir
-  // una placa de moto con Tipo=Auto), así que esto siempre coincide; es
-  // feedback para el usuario, no una validación cruzada.
-  const detectedPlateType = plateComplete ? parsePlate(plate)?.type : null
+  // La placa de moto colombiana usa una letra en el 3er carácter del segundo
+  // grupo (ABC-12D) — apenas aparece, es inconfundiblemente una moto sin
+  // esperar a que el resto del campo esté lleno.
+  const looksLikeMoto = /[A-Z]/.test(plateNumbers)
 
   // Si cambian de carrocería y la marca elegida no existe en la lista nueva
   // (ej. Chevrolet con tipo Moto), se limpia en vez de dejar una combinación
@@ -60,6 +59,17 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   useEffect(() => {
     if (brand && !brandOptions.includes(brand)) { setBrand(''); setModel('') }
   }, [type]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La placa manda sobre el Tipo, no al revés — antes era al revés (el campo
+  // de números solo aceptaba letras si Tipo ya era "Moto", así que no se
+  // podía ni escribir una placa de moto sin elegir el tipo primero). Apenas
+  // se detecta una letra en el segundo grupo, cambia solo a Moto; si se borra
+  // esa letra y el campo queda con 3 dígitos completos, vuelve al tipo por
+  // defecto — nunca fuerza nada mientras el campo sigue incompleto y ambiguo.
+  useEffect(() => {
+    if (looksLikeMoto && type !== 'Moto') setType('Moto')
+    else if (!looksLikeMoto && plateNumbers.length === 3 && type === 'Moto') setType(VEHICLE_TYPES[0])
+  }, [plateNumbers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -129,15 +139,21 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
               <input value={plateLetters} onChange={e => setPlateLetters(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, plateConfig.letterLen))} maxLength={plateConfig.letterLen} placeholder={'A'.repeat(plateConfig.letterLen)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
               <span style={{ padding: '0 6px', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17 }}>-</span>
-              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(plateConfig.moto ? /[^0-9A-Z]/g : /[^0-9]/g, '').slice(0, plateConfig.moto ? 3 : plateConfig.numLen))} maxLength={plateConfig.moto ? 3 : plateConfig.numLen} placeholder={plateConfig.moto ? '12D' : plateConfig.placeholder.split('-')[1]}
+              {/* Siempre acepta letras y números acá — antes solo dejaba
+                  escribir una letra si Tipo ya era "Moto", así que era
+                  imposible siquiera escribir una placa de moto sin elegirlo
+                  primero. El límite de 3 caracteres cubre ambos formatos que
+                  este Tipo puede representar (3 dígitos o 2 dígitos + letra). */}
+              <input value={plateNumbers} onChange={e => setPlateNumbers(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 3))} maxLength={3} placeholder={plateConfig.moto ? '12D' : plateConfig.placeholder.split('-')[1]}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: '#F5C518', fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.03em', outline: 'none' }} />
             </div>
-            {/* Confirma qué tipo de placa se reconoció en lo escrito — pedido
-                explícito, aunque hoy siempre coincide con Tipo porque el campo
-                ya está limitado a su formato. */}
-            {detectedPlateType && (
-              <div style={{ fontSize: 10.5, color: '#F5C518', marginTop: 5, fontWeight: 600 }}>
-                Placa de {PLATE_TYPE_LABELS[detectedPlateType]}
+            {/* Se resalta apenas se reconoce una placa de moto — el Tipo ya
+                se actualizó solo (ver el useEffect de arriba), esto es la
+                confirmación visible de que pasó. */}
+            {looksLikeMoto && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: '#F5C518', background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', borderRadius: 999, padding: '3px 9px', marginTop: 6, fontWeight: 700 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                Placa de {PLATE_TYPE_LABELS.moto} detectada — Tipo actualizado
               </div>
             )}
           </div>
