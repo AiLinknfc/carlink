@@ -1,6 +1,6 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-08-07._
+_Última actualización: 2026-08-09._
 
 ## Estado actual
 
@@ -31,7 +31,7 @@ pendiente (variable de entorno de IA sin confirmar, verificación visual de PDFs
 `docs/PENDIENTES.md` — **ese es el único lugar donde se lleva la lista de pendientes**, no lo
 repitas acá.
 
-## Arquitectura del llavero NFC (rediseñada 2026-07-27)
+## Arquitectura del llavero NFC (rediseñada 2026-07-27; rol partner agregado 2026-08-08)
 
 Antes, cualquier usuario autenticado podía autogenerar un token NFC por software (`POST /nfc/tokens`, retirado) sin relación con ningún llavero físico real. El modelo actual:
 
@@ -45,8 +45,33 @@ Migración `019_nfc_activation_codes.sql` agrega las columnas de provisión a `n
 
 **Confirmado funcionando en producción de punta a punta** (provisión → activación → ficha pública) al cierre de esta sesión.
 
+**Rol partner (2026-08-08, migraciones `040`/`041`)** — aprovisionamiento escopeado para llaveros de
+campaña/evento, separado del admin único: tabla `partners` (cupo, api key propia hasheada, status),
+`nfc_token_whitelist.provisioned_by_partner_id`/`partner_batch_id` para atribución. Un partner
+(`GET/POST /partners/me/*`, header `X-Partner-Api-Key`) solo ve y aprovisiona dentro de su propio
+cupo, nunca nada de otro partner ni del admin; el admin también puede asignar un llavero a un
+partner directo desde `/admin` sin repartirle ninguna api key. La ruta criptográfica (arriba) no
+cambia — reusa exactamente `generate_nfc_token`/`generate_human_code`. La generación/descarga de QR
+(`QrCodePanel.tsx`, niveles Simple/Estándar/Máxima resistencia) vive solo en Admin NFC → Whitelist y
+en `/partner` — se sacó por completo del modo persona (`FichaTab.tsx`, `app/app/page.tsx`).
+Detalle completo, decisiones y verificación: `docs/PLAN_PARTNER_MODEL.md`.
+
 ### Pendiente sobre el llavero NFC
 Lista completa y actualizada en `docs/PENDIENTES.md` (única fuente de verdad de pendientes).
+
+## Checkout de llavero NFC (Wompi, 2026-08-08, EN PRODUCCIÓN)
+
+`CartModal.tsx` (landing pública y `/app`) cobra un llavero nuevo con Wompi (sandbox activo,
+credenciales de producción listas pero comentadas en `backend/.env`, ver `docs/SECURITY.md`).
+`backend/app/routers/shop_orders.py` + `app/services/wompi.py`: el monto siempre se calcula
+server-side (`PRODUCT_PRICE_COP`, nunca se confía en lo que mande el cliente), la confirmación
+(`POST /shop/orders/{reference}/confirm` y el webhook) siempre re-verifica `reference` y
+`amount_in_cents` contra la respuesta real de la API de Wompi antes de aceptar un cambio de estado.
+"Mis pedidos" (cliente, siempre de solo lectura, siempre las órdenes propias) vive separado de la
+cola de despacho ("Pedidos" dentro de Admin NFC, que ve todo y tiene los botones de
+marcar enviado/entregado) — nunca se gestiona desde el modo cliente aunque quien mire sea la cuenta
+admin. Correo real (pago confirmado, enviado, notificación al admin) implementado pero **sin salir
+todavía** — `SMTP_USER`/`SMTP_PASS` vacíos, ver `docs/PENDIENTES.md`.
 
 ## Servidores locales
 
@@ -65,26 +90,43 @@ Lista completa y actualizada en `docs/PENDIENTES.md` (única fuente de verdad de
 
 ## Vehicle Transfers
 
-- Migración `011_vehicle_transfers.sql` — tabla `vehicle_transfers`, campos en `vehicles`, RPCs `complete_vehicle_transfer` / `cancel_vehicle_transfer`
-- API: POST/GET transfer, validate, accept, cancel
-- Frontend: `TransferVehicleModal` (vendedor), `/transfer/accept` (comprador)
-- Seguridad: solo owner inicia, email verificado, expiración 7d, cancelación vendedor, RLS
+- Migración `011_vehicle_transfers.sql` — tabla `vehicle_transfers`, campos en `vehicles`.
+- API: `frontend/src/app/api/vehicles/transfers/**` + `[id]/transfer` — la **única** parte de
+  CarLink que llama a Supabase directo con `@supabase/supabase-js` en vez de pasar por el backend
+  de FastAPI (que conecta como `postgres` y por lo tanto nunca depende de RLS). Por eso acá, a
+  diferencia del resto del proyecto, **RLS es el límite de seguridad real**, no algo secundario —
+  cualquier cambio en este subsistema debe re-verificarse con simulación de rol real (ver
+  `docs/SECURITY.md`), no solo con revisión de código.
+- Frontend: `TransferVehicleModal` (vendedor), `/transfer/accept` (comprador).
+- **2026-08-09 — auditado y con una vulnerabilidad real encontrada y corregida** (no teórica: un bug
+  de autorización dejaba que cualquier usuario aceptara la transferencia pendiente de otro y se
+  quedara con su vehículo; además faltaban las políticas RLS que hacían falta para que la
+  aceptación legítima funcionara en absoluto). `vehicle_transfers` tenía 0 filas en producción al
+  momento de la auditoría — no hay evidencia de explotación. Detalle completo, root cause y
+  verificación: `docs/SECURITY.md` → "Hallazgo: vulnerabilidad real en transferencia de vehículos",
+  `supabase/migrations/041_rls_hardening.sql`.
 
 ## Archivos clave
 
 ### Frontend
 - `src/app/app/page.tsx` — panel principal del usuario (Ficha, Historial, Partes, NFC/activación, Cart, Found)
-- `src/app/admin/page.tsx` — panel admin NFC (tokens, whitelist/provisión, alertas, límites)
+- `src/app/admin/page.tsx` — panel admin NFC (tokens, whitelist/provisión, alertas, límites, Pedidos, Partners)
+- `src/app/partner/page.tsx` — panel de prueba del rol partner (api key propia, sin sesión de Supabase)
 - `src/app/nfc/[token]/page.tsx` — ficha pública NFC
-- `src/lib/api.ts` — wrappers de API (apiGet/Post/Put/Patch/Delete, `activateNfcCode`)
+- `src/components/QrCodePanel.tsx` — generación/descarga de QR (Simple/Estándar/Máxima resistencia), solo en Admin/`/partner`
+- `src/components/CartModal.tsx` — checkout Wompi del llavero
+- `src/lib/api.ts` — wrappers de API (apiGet/Post/Put/Patch/Delete, `activateNfcCode`, `partnerApi.*`)
 - `next.config.ts` — rewrite `/api/:path*` → backend
 
 ### Backend
 - `app/main.py` — FastAPI app, CORS, routers, `/api/health`
 - `app/routers/nfc.py` — activación, listado/revocación de tokens, ficha pública
-- `app/routers/admin.py` — provisión de llaveros, whitelist, límites, alertas
-- `app/models/models.py` — ORM (Profile, Vehicle, NfcToken, NfcTokenWhitelist, NfcAccessLog, etc.)
+- `app/routers/admin.py` — provisión de llaveros, whitelist, límites, alertas, gestión de partners
+- `app/routers/partners.py` — autoservicio del rol partner (`/partners/me/*`)
+- `app/routers/shop_orders.py` + `app/services/wompi.py` — checkout del llavero
+- `app/models/models.py` — ORM (Profile, Vehicle, NfcToken, NfcTokenWhitelist, NfcAccessLog, Partner, ShopOrder, etc.)
 - `app/services/crypto.py` — cifrado AES-256-GCM de URLs de llaveros (requiere `ENCRYPTION_KEY`)
+- `app/services/colombian_nit.py` — validación real de NIT (dígito de verificación DIAN) al registrar un taller
 
 ## Notas de seguridad
 

@@ -1,6 +1,26 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-09 (séptima pasada — RLS + vulnerabilidad real de transferencias)._
+_Última actualización: 2026-08-09 (octava pasada — llaveros de campaña + control estricto de QR)._
+
+**Ejecutado en la octava pasada**: llaveros de campaña sobre el rol partner de la sexta pasada, a
+pedido explícito del usuario ("quiero poder hacer una gestión previa para descargar el QR, diseñar
+el llavero y ya dejar el token asignado"):
+- `GET /partners/me/tokens` — llaveros propios uno por fila (no agregados), con `qr_url` re-pedible
+  en cualquier momento, filtrable por lote/campaña.
+- `GET /admin/nfc/whitelist` ahora muestra de qué partner/campaña viene cada llavero, con filtro por
+  origen.
+- `QrCodePanel.tsx` — botón "Descargar las 3 variantes" (Simple/Estándar/Máxima resistencia).
+- **"Ver código QR" se sacó por completo del modo persona** (`FichaTab.tsx` y "Mis llaveros" en
+  `app/app/page.tsx`) — la generación/manipulación de QR quedó exclusiva de Admin NFC y `/partner`.
+- **`POST /admin/nfc/whitelist/provision` ahora acepta un `partner_id` opcional** — el admin puede
+  asignar un llavero a un partner directo, sin repartirle ninguna api key, con el mismo control de
+  cupo (validado y verificado contra la DB real: cupo agotado → 400, partner suspendido → 400).
+  Esto resuelve la confusión que reportó el usuario sobre cuáles de los tres botones parecidos
+  ("+ Provisionar llavero" vs. "+ Agregar UID" vs. Inventario → "Registrar llavero escaneado")
+  generan de verdad un token/QR usable — solo el primero lo hace, ahora con avisos explícitos en
+  cada uno para no repetir la confusión.
+
+Detalle completo, decisiones y verificación: `docs/PLAN_PARTNER_MODEL.md` (secciones "Ampliación").
 
 **Ejecutado en la séptima pasada**: cerrando lo que quedó anotado en la sexta pasada — (1) NIT
 colombiano validado de verdad en el registro de taller (dígito de verificación DIAN, no solo
