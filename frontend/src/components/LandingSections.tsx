@@ -749,7 +749,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
       {/* ===== FOOTER ===== */}
       <footer style={{ borderTop: `1px solid ${k.thinBorder}`, padding: '52px clamp(20px,5vw,64px) 28px' }}>
-        <div data-r="footergrid" className="footergrid" style={{ maxWidth: 1160, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr 1.2fr', gap: 28 }}>
+        <div data-r="footergrid" className="footergrid" style={{ maxWidth: 1160, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr 1fr 1fr 1.1fr', gap: 24 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 12 }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: GOLD, color: '#111' }}>
@@ -766,6 +766,15 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <a href="#h-planes" style={{ color: k.muted, textDecoration: 'none' }}>Planes</a>
               <a href="#h-cobertura" style={{ color: k.muted, textDecoration: 'none' }}>Para talleres</a>
               <a href="#h-buyfob" style={{ color: k.muted, textDecoration: 'none' }}>Tienda NFC</a>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Tienda</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
+              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Llavero NFC CarLink</Link>
+              <Link href="/shop#precio" style={{ color: k.muted, textDecoration: 'none' }}>Precios</Link>
+              <Link href="/shop#como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</Link>
+              <Link href="/shop#faq" style={{ color: k.muted, textDecoration: 'none' }}>Preguntas frecuentes</Link>
             </div>
           </div>
           <div>
