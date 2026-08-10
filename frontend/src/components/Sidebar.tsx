@@ -58,7 +58,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'historial', label: 'Historial', icon: <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></> },
   { id: 'partes', label: 'Control de partes', icon: <><path d="M12 14l3.5-3.5"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></> },
   { id: 'galeria', label: 'Galería', icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></> },
-  { id: 'certificados', label: 'Certificados', icon: <><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></> },
+  { id: 'certificados', label: 'Facturas', icon: <><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></> },
   { id: 'documentos', label: 'Documentos', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></> },
 ]
 
@@ -303,22 +303,11 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             </div>
           )}
 
-          {/* Admin NFC ocupa el lugar que tenía el selector — mismo gate que
-              antes (isAdmin && !navItemsSecondary: en /app/negocio ya se
-              agrupa en "Administración", no se duplica acá). */}
+          {/* Admin NFC — usa renderNavItem para tamaño/idéntico al resto */}
           {isAdmin && !navItemsSecondary && (
-            <a href="/admin" style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%', marginTop: 10,
-              padding: '7px 10px', borderRadius: 9, textDecoration: 'none',
-              border: `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}`,
-              background: 'rgba(245,197,24,0.12)', color: '#F5C518', fontSize: 12, fontWeight: 700, letterSpacing: '.02em',
-            }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}>
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              Admin NFC
-            </a>
+            <div style={{ marginTop: 10 }}>
+              {renderNavItem(ADMIN_NFC_ITEM)}
+            </div>
           )}
         </div>
       )}

@@ -73,6 +73,22 @@ marcar enviado/entregado) — nunca se gestiona desde el modo cliente aunque qui
 admin. Correo real (pago confirmado, enviado, notificación al admin) implementado pero **sin salir
 todavía** — `SMTP_USER`/`SMTP_PASS` vacíos, ver `docs/PENDIENTES.md`.
 
+## Sistema de gastos y escaneo de recibos (2026-08-10)
+
+Tabla `vehicle_expenses` (migración `042`) con RLS por `owner_id`. CRUD completo vía
+`backend/app/routers/expenses.py`. Campos específicos para combustible (litros, precio/litro,
+tipo, kilometraje).
+
+**OCR: DeepSeek como proveedor único (decisión 2026-08-10).** No se usa ningún otro proveedor de IA
+para escaneo de recibos. La pipeline es:
+
+1. **RapidOCR** (gratis, local, `rapidocr-onnxruntime`) → extrae texto crudo de la imagen
+2. **DeepSeek API** (`deepseek-chat`, ~$0.002/recibo) → estructura el texto en campos tipados
+
+Razones: DeepSeek maneja bien contextos en español, precios colombianos, nombres de estaciones
+de servicio. Tesseract/RapidOCR solo extraen texto plano sin entender semántica. No se justifica
+agregar otro proveedor de IA para esta功能. El endpoint es `POST /api/expenses/scan`.
+
 ## Servidores locales
 
 - **Frontend**: `localhost:3000` (`npm run dev`)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useMaintenance, useWorkshops, useParts } from '@/lib/hooks'
 import { apiGet, apiPut, expensesApi } from '@/lib/api'
@@ -9,7 +9,8 @@ import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
-import type { Vehicle, MaintenanceRecord, FuelSummary } from '@/lib/types'
+import { isPdf, proxyUrl } from '@/lib/upload'
+import type { Vehicle, MaintenanceRecord, FuelSummary, VehicleExpense } from '@/lib/types'
 
 const TALLER_INFO = {
   name: 'Tecnicentro La 80',
@@ -83,6 +84,9 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const [citaStep, setCitaStep] = useState<'detail' | 'cita'>('detail')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [fuelSummary, setFuelSummary] = useState<FuelSummary | null>(null)
+  const [expenses, setExpenses] = useState<VehicleExpense[]>([])
+  const [showExpensesModal, setShowExpensesModal] = useState(false)
+  const [expensesLoading, setExpensesLoading] = useState(false)
 
   // Load fuel summary from scanned receipts
   useEffect(() => {
@@ -91,6 +95,20 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
       if (data) setFuelSummary(data)
     }).catch(() => {})
   }, [vehicle?.id, refreshKey])
+
+  // Load expenses for the modal
+  const loadExpenses = useCallback(async () => {
+    if (!vehicle?.id) return
+    setExpensesLoading(true)
+    const data = await expensesApi.listByVehicle(vehicle.id)
+    setExpenses(data || [])
+    setExpensesLoading(false)
+  }, [vehicle?.id])
+
+  const openExpensesModal = useCallback(() => {
+    loadExpenses()
+    setShowExpensesModal(true)
+  }, [loadExpenses])
 
   /* Taller de confianza: solo se considera vinculado cuando el taller que el cliente
      registró en algún servicio corresponde a un taller dado de alta en modo empresa.
@@ -552,7 +570,9 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, lineHeight: 1, color: statCardText }}>{replacedPartsCount}</div>
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>partes reemplazadas</div>
               </div>
-              <div style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: '1px solid rgba(245,197,24,0.22)' }}>
+              <div onClick={openExpensesModal} style={{ flex: 1, maxWidth: 108, padding: '7px 6px', borderRadius: 11, background: statCardBg, border: '1px solid rgba(245,197,24,0.22)', cursor: 'pointer', transition: 'all .18s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#F5C518'; e.currentTarget.style.background = 'rgba(245,197,24,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.22)'; e.currentTarget.style.background = statCardBg }}>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, lineHeight: 1, color: '#F5C518' }}>{investFmt}</div>
                 <div style={{ fontSize: 8.5, color: odometerLabel, letterSpacing: '.05em' }}>en gastos</div>
               </div>
@@ -1014,6 +1034,135 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           </div>
         </div>
       </div>
+
+      {/* Expenses Modal */}
+      {showExpensesModal && createPortal(
+        <div onClick={() => setShowExpensesModal(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(4,4,4,0.82)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
+            width: 520, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto',
+            background: 'var(--panel-bg)', border: '1px solid var(--panel-border)',
+            borderRadius: 20, padding: 24, boxShadow: '0 30px 80px rgba(0,0,0,.55)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: 'rgba(245,197,24,0.14)', border: '1px solid #F5C518',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>
+                    Control de gastos
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                    {investFmt} invertidos en mantenimiento
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowExpensesModal(false)} style={{
+                width: 34, height: 34, borderRadius: 9,
+                border: '1px solid var(--btn-ghost-border)',
+                background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            {expensesLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(245,197,24,0.2)', borderTopColor: '#F5C518', animation: 'spin .7s linear infinite' }} />
+              </div>
+            ) : expenses.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {expenses.map(exp => (
+                  <div key={exp.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 14px', borderRadius: 12,
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    transition: 'border-color .18s',
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(245,197,24,0.4)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)' }}
+                  >
+                    {/* Category icon */}
+                    <span style={{
+                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: exp.category === 'fuel' ? 'rgba(245,197,24,0.12)' :
+                        exp.category === 'parts' ? 'rgba(46,204,113,0.12)' :
+                        exp.category === 'service' ? 'rgba(96,165,250,0.12)' :
+                        exp.category === 'insurance' ? 'rgba(167,139,250,0.12)' :
+                        'rgba(154,150,138,0.12)',
+                      color: exp.category === 'fuel' ? '#F5C518' :
+                        exp.category === 'parts' ? '#2ecc71' :
+                        exp.category === 'service' ? '#60a5fa' :
+                        exp.category === 'insurance' ? '#a78bfa' :
+                        '#9a968a',
+                    }}>
+                      {exp.category === 'fuel' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/><path d="M14 8.4l3 2.6v6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/></svg> :
+                        exp.category === 'parts' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> :
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>}
+                    </span>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.3 }}>{exp.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                        {exp.vendor && <span>{exp.vendor} · </span>}
+                        {exp.issue_date && <span>{new Date(exp.issue_date + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</span>}
+                      </div>
+                    </div>
+
+                    {/* Cost + view receipt */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: '#F5C518' }}>
+                        {exp.cost != null ? `$${Math.round(exp.cost).toLocaleString('es-CO')}` : '—'}
+                      </span>
+                      {exp.file_url && (
+                        <a href={proxyUrl(exp.file_url)} target="_blank" rel="noopener noreferrer" title="Ver recibo"
+                          style={{
+                            width: 30, height: 30, borderRadius: 8,
+                            border: '1px solid var(--border-2)', background: 'var(--surface-2)',
+                            color: 'var(--text-2)', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            textDecoration: 'none',
+                          }}>
+                          {isPdf(exp.file_url) ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                          )}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center', padding: 40,
+                border: '2px dashed var(--border)', borderRadius: 16,
+                color: 'var(--text-3)', fontSize: 13,
+              }}>
+                <div style={{ marginBottom: 8, color: 'var(--text-2)', fontWeight: 600 }}>Sin gastos registrados</div>
+                <div style={{ fontSize: 12 }}>Registra recibos desde la seccion de Documentos</div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

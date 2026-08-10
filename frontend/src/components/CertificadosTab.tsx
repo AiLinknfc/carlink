@@ -7,7 +7,6 @@ import { uploadFile, isPdf, downloadFile, fileExtension } from '@/lib/upload'
 import { CertIcon } from '@/lib/icons_new'
 import CameraCapture from './CameraCapture'
 import FileCard from './FileCard'
-import ExpenseScanModal from './ExpenseScanModal'
 import type { Certificate } from '@/lib/types'
 
 function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
@@ -71,7 +70,6 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
   const [createFile, setCreateFile] = useState<File | null>(null)
   const [createSaving, setCreateSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Certificate | null>(null)
-  const [showExpenseScan, setShowExpenseScan] = useState(false)
   const addBtnRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
 
@@ -262,8 +260,8 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
         document.body
       )}
 
-      {/* Delete confirmation */}
-      {deleteTarget && (
+      {/* Delete confirmation — portaled above the edit modal */}
+      {deleteTarget && createPortal(
         <div onClick={() => setDeleteTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', background: 'var(--panel-bg)', color: 'var(--text-1)', border: '1px solid rgba(255,77,106,0.35)', borderRadius: 20, padding: 24, boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 12 }}>
@@ -280,7 +278,8 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
               <button onClick={confirmDelete} style={{ flex: 1, padding: 12, borderRadius: 11, border: 'none', background: '#ff4d6a', color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Eliminar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal crear certificado */}
@@ -408,58 +407,42 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
         document.body
       )}
 
-      {/* Header + Agregar */}
-      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Respaldo de compras</div>
-          <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>Certificados y facturas</h1>
-          <p style={{ color: 'var(--text-2)', margin: 0 }}>Agrega las facturas o documentos que quieras conservar. Toca una tarjeta para subir su archivo o editar vencimientos.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flex: '0 0 auto' }}>
-          <button onClick={() => setShowExpenseScan(true)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
-            border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(245,197,24,0.06)',
-            color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-              <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-              <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-              <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-              <line x1="7" y1="12" x2="17" y2="12"/>
-            </svg>
-            Escanear recibo
-          </button>
-          <div style={{ position: 'relative', flex: '0 0 auto' }}>
-          <button ref={addBtnRef} onClick={() => {
-            if (addBtnRef.current) {
-              const r = addBtnRef.current.getBoundingClientRect()
-              setMenuPos({ top: r.bottom + 8, right: window.innerWidth - r.right })
-            }
-            setShowAddMenu(m => !m)
-          }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            Agregar factura
-          </button>
-          </div>
-          {showAddMenu && createPortal(
-            <>
-              <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setShowAddMenu(false)} />
-              <div style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 301, width: 260, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 8, boxShadow: '0 20px 50px rgba(0,0,0,.25)' }}>
-                <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, padding: '6px 10px 8px' }}>Ejemplos</div>
-                {CERTIFICATE_TYPES.map(ct => (
-                  <button key={ct.type} onClick={() => openCreateModal(ct.name)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 10px', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <span style={{ color: '#F5C518', display: 'flex', flex: '0 0 auto' }}><CertIcon type={ct.type} size={18} /></span>
-                    {ct.name}
-                  </button>
-                ))}
-              </div>
-            </>,
-            document.body
-          )}
-        </div>
+      {/* Header */}
+      <div style={{ marginBottom: 16, animation: 'textIn .5s .04s both' }}>
+        <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>Respaldo de compras</div>
+        <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>Facturas</h1>
+        <p style={{ color: 'var(--text-2)', margin: 0 }}>Agrega las facturas o certificados que quieras conservar.</p>
+      </div>
+
+      {/* Agregar factura */}
+      <div style={{ position: 'relative', marginBottom: 16, animation: 'textIn .5s .08s both' }}>
+        <button ref={addBtnRef} onClick={() => {
+          if (addBtnRef.current) {
+            const r = addBtnRef.current.getBoundingClientRect()
+            setMenuPos({ top: r.bottom + 8, right: window.innerWidth - r.right })
+          }
+          setShowAddMenu(m => !m)
+        }} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar factura
+        </button>
+        {showAddMenu && createPortal(
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setShowAddMenu(false)} />
+            <div style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 301, width: 260, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 8, boxShadow: '0 20px 50px rgba(0,0,0,.25)' }}>
+              <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, padding: '6px 10px 8px' }}>Ejemplos</div>
+              {CERTIFICATE_TYPES.map(ct => (
+                <button key={ct.type} onClick={() => openCreateModal(ct.name)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 10px', borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <span style={{ color: '#F5C518', display: 'flex', flex: '0 0 auto' }}><CertIcon type={ct.type} size={18} /></span>
+                  {ct.name}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
+        )}
       </div>
 
       {uploading && (
@@ -491,28 +474,35 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
         </div>
       )}
 
-      {/* Client certificates */}
-      {!isEmpty && (
-        <div className="cert-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, animation: 'textIn .5s .1s both' }}>
-          {certificates.map((cert: Certificate) => (
-            <FileCard key={cert.id} title={cert.name} item={cert} status={determineStatus(cert)}
-              emptyLabel="Sin archivo adjunto" createLabel="+ Crear certificado"
-              onCreate={() => openCreateModal()} onEdit={openEdit}
+      {/* Certificate cards — always show CERTIFICATE_TYPES as fixed slots, like DocumentosTab */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, animation: 'textIn .5s .1s both' }}>
+        {CERTIFICATE_TYPES.map(ct => {
+          const cert = certificates.find((c: Certificate) => {
+            const name = (c.name || '').toLowerCase()
+            return name.includes(ct.type) || name.includes(ct.name.toLowerCase().split(' ')[0])
+          }) || null
+          return (
+            <FileCard key={ct.type} title={ct.name} item={cert} status={cert ? determineStatus(cert) : 'pendiente'}
+              emptyLabel="Sin archivo adjunto" createLabel=""
+              onCreate={() => openCreateModal(ct.name)} onEdit={openEdit}
               onPreview={setLightboxUrl} onDownload={handleDownload}
-              onScan={setScanTarget} onUpload={handleUpload} />
-          ))}
-        </div>
-      )}
+              onScan={() => {}} onUpload={() => {}} />
+          )
+        })}
 
-      {/* Expense scan modal */}
-      {showExpenseScan && vehicleId && (
-        <ExpenseScanModal
-          vehicleId={vehicleId}
-          onClose={() => setShowExpenseScan(false)}
-          onSuccess={flash}
-          onSaved={() => { setShowExpenseScan(false); flash('Recibo guardado correctamente') }}
-        />
-      )}
+        {/* Extra user-created certificates not matching any type */}
+        {certificates.filter(c => !CERTIFICATE_TYPES.some(ct => {
+          const name = (c.name || '').toLowerCase()
+          return name.includes(ct.type) || name.includes(ct.name.toLowerCase().split(' ')[0])
+        })).map((cert: Certificate) => (
+          <FileCard key={cert.id} title={cert.name} item={cert} status={determineStatus(cert)}
+            emptyLabel="Sin archivo adjunto" createLabel=""
+            onCreate={() => openCreateModal()} onEdit={openEdit}
+            onPreview={setLightboxUrl} onDownload={handleDownload}
+            onScan={() => {}} onUpload={() => {}} />
+        ))}
+      </div>
+
     </div>
   )
 }

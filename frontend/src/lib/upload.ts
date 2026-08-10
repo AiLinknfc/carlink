@@ -1,5 +1,21 @@
 import { supabase } from './supabase'
 
+const R2_PUBLIC_PREFIX = 'https://pub-55bd6d44de784bbb941be717d9645305.r2.dev/'
+
+/** Convert any URL (old R2 direct or proxy) to the backend proxy URL. */
+export function proxyUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('/api/upload/files/')) return url
+  if (url.startsWith(R2_PUBLIC_PREFIX)) {
+    return `/api/upload/files/${url.slice(R2_PUBLIC_PREFIX.length)}`
+  }
+  return url
+}
+
+/* En local el rewrite proxy de Next.js no streams multipart correctamente.
+   Llamamos al backend directamente cuando NEXT_PUBLIC_API_URL está seteado. */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
 export async function uploadFile(file: File, folder: string = 'general'): Promise<string | null> {
   try {
     const token = (await supabase.auth.getSession()).data.session?.access_token
@@ -8,7 +24,7 @@ export async function uploadFile(file: File, folder: string = 'general'): Promis
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('/api/upload', {
+    const res = await fetch(`${API_BASE}/api/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -44,7 +60,7 @@ export async function scanDocument(file: File): Promise<OcrExtractResult | null>
     const formData = new FormData()
     formData.append('file', file)
 
-    const res = await fetch('/api/ocr/scan', {
+    const res = await fetch(`${API_BASE}/api/ocr/scan`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -65,7 +81,7 @@ export async function downloadFile(path: string, filename: string): Promise<bool
     const token = (await supabase.auth.getSession()).data.session?.access_token
     if (!token) return false
 
-    const res = await fetch(`/api${path}`, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } })
     if (!res.ok) return false
 
     const blob = await res.blob()
@@ -111,7 +127,7 @@ export async function deleteUploadedFile(key: string): Promise<boolean> {
   try {
     const token = (await supabase.auth.getSession()).data.session?.access_token
     if (!token) return false
-    const res = await fetch(`/api/upload/${key}`, {
+    const res = await fetch(`${API_BASE}/api/upload/${key}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -141,7 +157,7 @@ export async function scanVehicleCard(file: File): Promise<VehicleCardScan | nul
     if (!token) return null
     const formData = new FormData()
     formData.append('file', file)
-    const res = await fetch('/api/ocr/vehicle-card', {
+    const res = await fetch(`${API_BASE}/api/ocr/vehicle-card`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: formData,

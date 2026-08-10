@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { isPdf } from '@/lib/upload'
+import { isPdf, proxyUrl } from '@/lib/upload'
 import type { VehicleExpense } from '@/lib/types'
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: ReactNode }> = {
@@ -130,7 +130,7 @@ export default function ExpenseCard({ expense, onPreview, onDelete }: Props) {
         <div style={{ display: 'flex', gap: 6 }}>
           {hasFile && (
             <button
-              onClick={() => onPreview?.(expense.file_url)}
+              onClick={() => onPreview?.(proxyUrl(expense.file_url))}
               style={{
                 width: 28, height: 28, borderRadius: 7,
                 border: '1px solid var(--border-2)', background: 'var(--surface-2)',

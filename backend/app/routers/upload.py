@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import uuid
 from typing import Annotated
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.background import BackgroundTask
 
 from app.dependencies import get_current_user
-from app.services.storage import delete_file, upload_file
+from app.services.storage import delete_file, upload_file, get_file
 from app.utils import validate_upload_file
 
 router = APIRouter(prefix="/upload", tags=["upload"])
+
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 @router.post("")
@@ -36,3 +40,19 @@ async def delete_file_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to delete this file")
     await delete_file(key)
     return JSONResponse({"ok": True})
+
+
+@router.get("/files/{key:path}")
+async def serve_file(key: str):
+    """Proxy endpoint: sirve archivos desde R2 con credenciales privadas.
+    Las URLs públicas de R2 pueden fallar (403) si el bucket no tiene
+    acceso público habilitado. Este endpoint siempre funciona."""
+    try:
+        file_bytes, content_type = await get_file(key)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )

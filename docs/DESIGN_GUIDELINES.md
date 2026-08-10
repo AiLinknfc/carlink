@@ -108,6 +108,39 @@ donde emojis como ✅/❌/🔴 ya se usan como notación de estado en tablas y c
 - Gap: 8px (tight), 12px (normal), 16px (comfortable), 22px (section)
 - Padding: 12px (compact), 16px (normal), 20-24px (cards)
 
+## Select / Dropdown Styling
+
+All `<select>` elements MUST use CSS variable fallbacks for theme support. No hardcoded colors.
+
+**Standard form select (full-width in modals/forms):**
+```css
+width: 100%
+padding: 11px 13px
+borderRadius: 10
+border: 1px solid var(--input-border, rgba(255,255,255,0.14))
+background: var(--input-bg, rgba(255,255,255,0.04))
+color: var(--text-2, #f5f3ec)
+fontSize: 14
+outline: none
+cursor: pointer
+```
+
+**Compact filter select (toolbar/header filters):**
+```css
+padding: 8px 12px
+borderRadius: 10
+fontSize: 12
+fontWeight: 600
+border: 1px solid var(--border)
+background: var(--surface-2)
+color: var(--text-2)
+cursor: pointer
+outline: none
+```
+
+Always include fallback values after CSS variables (e.g., `var(--input-border, rgba(255,255,255,0.14))`).
+Use `var(--text-2)` for text color (not `--text-1`).
+
 ## Shadows
 
 - Card: `0 20px 50px rgba(0,0,0,0.5)` (dark) / `0 20px 50px rgba(0,0,0,0.12)` (light)
@@ -123,3 +156,16 @@ donde emojis como ✅/❌/🔴 ya se usan como notación de estado en tablas y c
 - `spin` — Loading spinner
 
 All cubic-bezier(0.22, 1, 0.36, 1) easing.
+
+## Modal Z-Index Stacking
+
+When multiple modals can be open simultaneously, each MUST be portaled to `document.body`
+and use ascending z-index values to ensure correct stacking:
+
+- Base modal: z-index 200
+- Confirmation/dialog on top of modal: z-index 210
+- Toast: z-index 60
+- Lightbox: z-index 999
+
+Never render a modal inside another modal's DOM tree without portaling — it will get
+trapped in the parent's stacking context.

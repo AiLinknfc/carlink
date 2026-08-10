@@ -3,8 +3,8 @@
 /* Card compartida por Documentos y Certificados: una sola definición garantiza
    que ambas secciones tengan exactamente la misma estructura y dimensiones. */
 
-import { useState } from 'react'
-import { isPdf } from '@/lib/upload'
+import { useState, useRef } from 'react'
+import { isPdf, proxyUrl } from '@/lib/upload'
 
 export function getStatusColor(status: string): string {
   switch (status) {
@@ -32,22 +32,19 @@ const iconBtn: React.CSSProperties = {
   alignItems: 'center', justifyContent: 'center', transition: 'all .18s',
 }
 
-/* Alto fijo de la card. Todo lo demás dentro es de alto fijo salvo el slot del
-   archivo, que lleva flex:1 — así el contenido se adapta (título de 1 o 2 líneas,
-   con archivo o sin él) sin que la card cambie nunca de tamaño. */
+/* Alto fijo de la card. */
 const CARD_H = 250
 
-/* Con descargar movido al encabezado quedan 2 acciones, así que caben en fila
-   (icono + texto) en vez de apiladas: se lee mejor y ocupa 4px menos de alto. */
-const cardActionBtn: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-  padding: '6px 4px', borderRadius: 10, height: 40, boxSizing: 'border-box',
-  border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: 'var(--text-2)',
-  fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'all .18s',
+/* Botón pequeño dentro del overlay de preview. */
+const previewActionBtn: React.CSSProperties = {
+  width: 32, height: 32, borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.5)',
+  color: '#fff', cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', transition: 'all .18s',
+  backdropFilter: 'blur(4px)',
 }
 
-/* Icono del estado — el check verde es el de "vigente"; los demás estados usan
-   su propio glifo para que el botón siga informando en los 27px. */
+/* Icono del estado */
 function StatusIcon({ status }: { status: string }) {
   const common = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (status === 'vigente') return <svg {...common} strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
@@ -58,10 +55,8 @@ function StatusIcon({ status }: { status: string }) {
 
 export interface FileCardProps {
   title: string
-  /* null = el registro aún no existe; la card mantiene su tamaño igual. */
   item: any | null
   status: string
-  /* Textos que cambian entre documentos y certificados. */
   emptyLabel: string
   createLabel: string
   onCreate: () => void
@@ -79,14 +74,12 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
   const isPdfFile = hasFile && isPdf(doc.file_url)
   const idleBorder = hasFile ? 'rgba(245,197,24,0.22)' : 'var(--border)'
 
-  /* Documento de antes del último traslado del vehículo — puede traer datos
-     personales del dueño anterior (tarjeta de propiedad, facturas). No se
-     oculta el archivo (a veces sí hace falta, ej. para gestionar el
-     traspaso legal), pero requiere un clic explícito para verlo en vez de
-     mostrarlo directo. Ver docs/PENDIENTES.md. */
   const isPreTransfer = Boolean(doc?.is_pre_transfer)
   const [revealed, setRevealed] = useState(false)
   const showLockedState = isPreTransfer && hasFile && !revealed
+
+  const [showActions, setShowActions] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
 
   return (
@@ -100,14 +93,13 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
       onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = idleBorder}>
 
-      {/* Título + controles en una sola fila, los 3 botones alineados a la derecha */}
+      {/* Título + controles */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: '0 0 auto' }}>
         <div title={title} style={{
           flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 700, lineHeight: 1.25,
           overflowWrap: 'break-word',
           display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden',
         }}>{title}</div>
-        {/* Estado — mismo tamaño que los otros dos; el texto sale al pasar el mouse */}
         <span title={statusLabel} style={{
           ...iconBtn, cursor: 'default',
           color: statusColor, borderColor: statusColor,
@@ -136,7 +128,7 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
         )}
       </div>
 
-      {/* Slot del archivo — único bloque elástico de la card */}
+      {/* Slot del archivo */}
       <div style={{ flex: 1, minHeight: 0, borderRadius: 11, overflow: 'hidden' }}>
         {showLockedState ? (
           <div style={{
@@ -154,7 +146,12 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
             }}>Ver de todas formas</button>
           </div>
         ) : hasFile ? (
-          <div onClick={() => onPreview(doc.file_url)} style={{ position: 'relative', height: '100%', cursor: 'pointer', borderRadius: 11, overflow: 'hidden' }}>
+          <div
+            onClick={() => onPreview(proxyUrl(doc.file_url))}
+            onMouseEnter={() => setShowActions(true)}
+            onMouseLeave={() => setShowActions(false)}
+            style={{ position: 'relative', height: '100%', cursor: 'pointer', borderRadius: 11, overflow: 'hidden' }}
+          >
             {isPdfFile ? (
               <div style={{
                 height: '100%', display: 'flex', flexDirection: 'column',
@@ -168,64 +165,88 @@ export default function FileCard({ title, item: doc, status, emptyLabel, createL
                 <span style={{ fontSize: 11, color: '#F5C518', fontWeight: 600 }}>Ver PDF</span>
               </div>
             ) : (
-              <img src={doc.file_url} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={proxyUrl(doc.file_url)} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             )}
+            {/* Overlay con acciones */}
             <div style={{
-              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', opacity: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              color: '#fff', fontSize: 12, fontWeight: 700, transition: 'opacity .18s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '0'}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
-              Ampliar
+              position: 'absolute', inset: 0,
+              background: showActions ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.4)',
+              opacity: showActions ? 1 : 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'opacity .18s',
+            }}>
+              {/* Fila de iconos: ampliar + escanear + subir */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div title="Ampliar" style={previewActionBtn}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
+                </div>
+                <div title="Escanear con la cámara" style={previewActionBtn}
+                  onClick={e => { e.stopPropagation(); if (doc) onScan(doc.id) }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+                <label title="Subir archivo o foto" style={{ ...previewActionBtn, cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
+                  <input type="file" accept="image/*,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f && doc) onUpload(f, doc.id) }} style={{ display: 'none' }} />
+                </label>
+              </div>
+              <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Ampliar</span>
             </div>
           </div>
         ) : (
-          <div style={{
-            height: '100%', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 6,
-            borderRadius: 11, border: '1px dashed var(--border-2)',
-            color: 'var(--text-3)', fontSize: 11, textAlign: 'center', padding: '0 10px',
-          }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            {doc ? 'Sin archivo adjunto' : emptyLabel}
+          /* Empty state — toca para elegir: escanear o subir */
+          <div style={{ position: 'relative', height: '100%' }}>
+            <button
+              onClick={() => setShowActions(v => !v)}
+              style={{
+                height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                borderRadius: 11, border: '2px dashed rgba(245,197,24,0.35)',
+                background: 'rgba(245,197,24,0.04)', color: '#F5C518',
+                fontSize: 12, fontWeight: 600, textAlign: 'center', padding: '0 10px',
+                cursor: 'pointer', transition: 'all .18s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span>{doc ? 'Toca para subir o escanear' : 'Subir o escanear'}</span>
+            </button>
+            {showActions && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setShowActions(false)} />
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                  marginBottom: 6, zIndex: 301, width: 180,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.3)',
+                  animation: 'fadeUp .15s ease-out',
+                }}>
+                  <button onClick={() => { setShowActions(false); if (doc) onScan(doc.id) }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Escanear
+                  </button>
+                  <button onClick={() => { setShowActions(false); fileInputRef.current?.click() }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
+                    Subir foto o PDF
+                  </button>
+                </div>
+              </>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f && doc) onUpload(f, doc.id) }} style={{ display: 'none' }} />
           </div>
         )}
       </div>
-
-      {/* Acciones — misma altura exista o no el documento.
-          Sin .regGrid a propósito: esa clase apila a 1 columna bajo 860px y
-          desbordaría la card de alto fijo. La card ya es full-width en móvil. */}
-      {doc ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: '0 0 auto' }}>
-          <button onClick={() => onScan(doc.id)} title="Escanear con la cámara" style={cardActionBtn}
-            onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Escanear
-          </button>
-          <label title="Subir archivo o foto" style={cardActionBtn}
-            onMouseEnter={e => { e.currentTarget.style.color = '#F5C518' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
-            Subir
-            <input type="file" accept="image/*,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f, doc.id) }} style={{ display: 'none' }} />
-          </label>
-        </div>
-      ) : (
-        <button onClick={onCreate}
-          style={{
-            width: '100%', height: 44, boxSizing: 'border-box', borderRadius: 10,
-            border: '1px dashed rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.04)',
-            color: '#F5C518', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-            transition: 'all .18s', flex: '0 0 auto',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = '#F5C518' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
-          {createLabel}
-        </button>
-      )}
     </div>
   )
 }

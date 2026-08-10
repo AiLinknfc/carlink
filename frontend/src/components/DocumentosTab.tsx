@@ -3,13 +3,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { uploadFile, isPdf, downloadFile, fileExtension } from '@/lib/upload'
-import { apiGet, apiPost, apiPut, apiDelete, vehicleInvoicesApi, expensesApi } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiDelete, vehicleInvoicesApi } from '@/lib/api'
 import { downloadInvoicePdf } from '@/lib/invoicePdf'
 import CameraCapture from './CameraCapture'
 import FileCard, { getStatusColor, getStatusLabel } from './FileCard'
-import ExpenseCard from './ExpenseCard'
-import ExpenseScanModal from './ExpenseScanModal'
-import type { Document, VehicleInvoice, VehicleExpense } from '@/lib/types'
+import type { Document, VehicleInvoice } from '@/lib/types'
 
 function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   return createPortal(
@@ -83,11 +81,8 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
   // por defecto hasta un clic explícito, misma idea que FileCard.
   const [revealedInvoices, setRevealedInvoices] = useState<Set<string>>(new Set())
 
-  // Recibos escaneados (gastos del vehículo)
-  const [expenses, setExpenses] = useState<VehicleExpense[]>([])
-  const [expensesLoading, setExpensesLoading] = useState(true)
-  const [showExpenseScan, setShowExpenseScan] = useState(false)
-  const [expenseCategory, setExpenseCategory] = useState<string | undefined>(undefined)
+  // Filter for invoices
+  const [invoiceFilter, setInvoiceFilter] = useState<string>('')
 
   const flash = useCallback((msg: string) => {
     setToast(msg)
@@ -130,25 +125,6 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
   }, [vehicleId])
 
   useEffect(() => { loadInvoices() }, [loadInvoices, refreshKey])
-
-  const loadExpenses = useCallback(async () => {
-    if (!vehicleId) { setExpensesLoading(false); return }
-    setExpensesLoading(true)
-    const data = await expensesApi.listByVehicle(vehicleId, expenseCategory)
-    setExpenses(data || [])
-    setExpensesLoading(false)
-  }, [vehicleId, expenseCategory])
-
-  useEffect(() => { loadExpenses() }, [loadExpenses, refreshKey])
-
-  const handleDeleteExpense = useCallback(async (id: string) => {
-    if (!confirm('Eliminar este recibo?')) return
-    const result = await expensesApi.delete(id)
-    if (result !== undefined) {
-      flash('Recibo eliminado')
-      loadExpenses()
-    }
-  }, [flash, loadExpenses])
 
   const handleDownloadInvoice = useCallback(async (inv: VehicleInvoice) => {
     setDownloadingInvoiceId(inv.id)
@@ -369,8 +345,8 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
         document.body
       )}
 
-      {/* Delete confirmation */}
-      {deleteTarget && (
+      {/* Delete confirmation — must be portaled above the edit modal */}
+      {deleteTarget && createPortal(
         <div onClick={() => setDeleteTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} className="modal-panel" style={{ width: 480, maxWidth: '94vw', background: 'var(--panel-bg)', color: 'var(--text-1)', border: '1px solid rgba(255,77,106,0.35)', borderRadius: 20, padding: 24, boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 12 }}>
@@ -387,7 +363,8 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
               <button onClick={confirmDelete} style={{ flex: 1, padding: 12, borderRadius: 11, border: 'none', background: '#ff4d6a', color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Eliminar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal crear documento */}
@@ -624,20 +601,34 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
           docs/PLAN_FACTURACION_AUTOMATICA.md Paso 2. */}
       {!invoicesLoading && invoices.length > 0 && (
         <div style={{ marginTop: 40, animation: 'textIn .5s .15s both' }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
-              Registrado por tus talleres
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
+                Registrado por tus talleres
+              </div>
+              <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(20px,2.2vw,26px)', fontWeight: 800, letterSpacing: '-.02em', margin: '2px 0 4px' }}>
+                Facturas y certificados
+              </h2>
+              <p style={{ color: 'var(--text-2)', margin: 0, fontSize: 13.5 }}>
+                Se registran solos cuando un taller entrega y cobra tu vehículo — no podés editarlos, son su registro.
+              </p>
             </div>
-            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(20px,2.2vw,26px)', fontWeight: 800, letterSpacing: '-.02em', margin: '2px 0 4px' }}>
-              Facturas y certificados
-            </h2>
-            <p style={{ color: 'var(--text-2)', margin: 0, fontSize: 13.5 }}>
-              Se registran solos cuando un taller entrega y cobra tu vehículo — no podés editarlos, son su registro.
-            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select value={invoiceFilter} onChange={e => setInvoiceFilter(e.target.value)}
+                style={{
+                  padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                  border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)',
+                  cursor: 'pointer', outline: 'none',
+                }}>
+                <option value="">Todos</option>
+                <option value="factura">Facturas</option>
+                <option value="certificado">Certificados</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
-            {invoices.map(inv => {
+            {invoices.filter(inv => !invoiceFilter || (invoiceFilter === 'certificado' ? inv.workshop_is_cda : !inv.workshop_is_cda)).map(inv => {
               const locked = inv.is_pre_transfer && !revealedInvoices.has(inv.id)
               return (
                 <div key={inv.id} style={{ padding: 18, borderRadius: 16, background: 'var(--surface-2)', border: `1px solid ${locked ? 'rgba(255,138,61,0.35)' : 'var(--border)'}` }}>
@@ -682,90 +673,6 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
             })}
           </div>
         </div>
-      )}
-
-      {/* Recibos escaneados — gastos del vehículo (gasolina, repuestos, etc.) */}
-      <div style={{ marginTop: 40, animation: 'textIn .5s .2s both' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
-              Gastos del vehiculo
-            </div>
-            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(20px,2.2vw,26px)', fontWeight: 800, letterSpacing: '-.02em', margin: '2px 0 4px' }}>
-              Recibos escaneados
-            </h2>
-            <p style={{ color: 'var(--text-2)', margin: 0, fontSize: 13.5 }}>
-              Escanea recibos de gasolina, repuestos, facturas de taller y otros gastos.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Category filter */}
-            <select value={expenseCategory || ''} onChange={e => setExpenseCategory(e.target.value || undefined)}
-              style={{
-                padding: '8px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)',
-                cursor: 'pointer', outline: 'none',
-              }}>
-              <option value="">Todos</option>
-              <option value="fuel">Combustible</option>
-              <option value="parts">Repuestos</option>
-              <option value="service">Servicios</option>
-              <option value="insurance">Seguros</option>
-              <option value="other">Otros</option>
-            </select>
-            <button onClick={() => setShowExpenseScan(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 16px', borderRadius: 12, border: 'none',
-              background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13,
-              cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-                <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-                <line x1="7" y1="12" x2="17" y2="12"/>
-              </svg>
-              Escanear recibo
-            </button>
-          </div>
-        </div>
-
-        {expensesLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 30 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(245,197,24,0.2)', borderTopColor: '#F5C518', animation: 'spin .7s linear infinite' }} />
-          </div>
-        ) : expenses.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
-            {expenses.map(exp => (
-              <ExpenseCard
-                key={exp.id}
-                expense={exp}
-                onPreview={setLightboxUrl}
-                onDelete={handleDeleteExpense}
-              />
-            ))}
-          </div>
-        ) : (
-          <div style={{
-            textAlign: 'center', padding: 40,
-            border: '2px dashed var(--border)', borderRadius: 16,
-            color: 'var(--text-3)', fontSize: 13,
-          }}>
-            <div style={{ marginBottom: 8, color: 'var(--text-2)', fontWeight: 600 }}>Sin recibos registrados</div>
-            <div style={{ fontSize: 12 }}>Escanea tu primer recibo con el boton de arriba</div>
-          </div>
-        )}
-      </div>
-
-      {/* Expense scan modal */}
-      {showExpenseScan && vehicleId && (
-        <ExpenseScanModal
-          vehicleId={vehicleId}
-          onClose={() => setShowExpenseScan(false)}
-          onSuccess={flash}
-          onSaved={loadExpenses}
-        />
       )}
     </div>
   )

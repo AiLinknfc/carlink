@@ -86,7 +86,7 @@ async def download_document(
     if not key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this document")
 
-    contents, content_type = await run_in_threadpool(get_file, key)
+    contents, content_type = await get_file(key)
     ext = key.rsplit(".", 1)[-1] if "." in key else "bin"
     safe_name = "".join(c for c in doc.name if c.isalnum() or c in " -_") or "documento"
     return Response(

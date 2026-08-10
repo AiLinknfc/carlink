@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useGallery } from '@/lib/hooks'
-import { uploadFile } from '@/lib/upload'
+import { uploadFile, proxyUrl } from '@/lib/upload'
 import type { GalleryImage } from '@/lib/types'
 
 const SUGGESTED_CATEGORIES = [
@@ -110,6 +110,64 @@ function EditableCaption({
   )
 }
 
+function GalleryEmptyState({ caption, onFilePick }: { caption: string; onFilePick: (e: React.ChangeEvent<HTMLInputElement>, caption: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 8,
+          color: '#F5C518', fontSize: 12, fontWeight: 600,
+          background: 'rgba(245,197,24,0.04)',
+          border: '2px dashed rgba(245,197,24,0.3)', borderRadius: 0,
+          cursor: 'pointer', transition: 'all .18s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.3)' }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span>Toca para subir o escanear</span>
+      </button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+            marginBottom: 6, zIndex: 301, width: 180,
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.3)',
+            animation: 'fadeUp .15s ease-out',
+          }}>
+            <button onClick={() => { setOpen(false); cameraRef.current?.click() }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Tomar foto
+            </button>
+            <button onClick={() => { setOpen(false); fileRef.current?.click() }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Subir de galería
+            </button>
+          </div>
+        </>
+      )}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
+      <input ref={fileRef} type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
+    </div>
+  )
+}
+
 function GalleryCard({
   caption,
   image,
@@ -143,108 +201,44 @@ function GalleryCard({
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = image ? 'rgba(245,197,24,0.22)' : 'var(--border)' }}
     >
-      <label
-        style={{
-          display: 'block',
-          position: 'relative',
-          width: '100%',
-          aspectRatio: '4/3',
-          cursor: 'pointer',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
-      >
-        {image ? (
-          <>
+      {image ? (
+        <>
+          {/* Click en la foto → lightbox */}
+          <div
+            onClick={() => onLightbox(image)}
+            style={{
+              display: 'block', position: 'relative', width: '100%',
+              aspectRatio: '4/3', cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
+            }}
+          >
             <img
-              src={image.image_url}
+              src={proxyUrl(image.image_url)}
               alt={caption}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
-            {/* Desktop hover overlay */}
             <div
               style={{
                 position: 'absolute', inset: 0,
-                background: 'rgba(0,0,0,0.4)',
-                opacity: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.4)', opacity: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'opacity .18s',
               }}
               onMouseEnter={e => e.currentTarget.style.opacity = '1'}
               onMouseLeave={e => e.currentTarget.style.opacity = '0'}
             >
-              <span
-                onClick={e => { e.preventDefault(); e.stopPropagation(); onLightbox(image) }}
-                style={{
-                  padding: '8px 14px', borderRadius: 8,
-                  background: 'rgba(0,0,0,0.6)', color: '#fff',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 4 }}>
-                  <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/>
-                </svg>
+              <span style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
                 Ampliar
               </span>
             </div>
-            {/* Borrar la foto (deja el espacio vacío) — papelera para no
-                confundirse con la × de quitar el espacio, a su derecha. */}
-            <button
-              onClick={e => { e.preventDefault(); e.stopPropagation(); onDelete(image.id, caption) }}
-              title="Borrar la foto"
-              style={{
-                position: 'absolute', top: 6, right: 44,
-                width: 32, height: 32,
-                borderRadius: '50%', border: 'none',
-                background: 'rgba(0,0,0,0.55)',
-                color: '#fff', fontSize: 14, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                zIndex: 2,
-                backdropFilter: 'blur(4px)',
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-            </button>
-          </>
-        ) : (
-          <div
-            style={{
-              width: '100%', height: '100%',
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
-              gap: 8, color: 'var(--text-3)', fontSize: 12, fontWeight: 600,
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <span>{caption}</span>
           </div>
-        )}
-        {/* Quitar el espacio — esquina superior derecha, exista o no la foto */}
-        <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); onRemoveSpace() }}
-          title="Quitar este espacio de la galería"
-          style={{
-            position: 'absolute', top: 6, right: 6,
-            width: 32, height: 32,
-            borderRadius: '50%', border: 'none',
-            background: 'rgba(0,0,0,0.55)',
-            color: '#fff', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 3, backdropFilter: 'blur(4px)', transition: 'all .18s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#ff4d6a' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <input type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
-      </label>
+        </>
+      ) : (
+        /* Sin foto — toca para elegir: cámara o galería */
+        <GalleryEmptyState caption={caption} onFilePick={onFilePick} />
+      )}
 
-      {/* Footer with editable caption */}
+      {/* Footer */}
       <div
         style={{
           padding: '10px 12px',
@@ -266,31 +260,57 @@ function GalleryCard({
         ) : (
           <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{caption}</span>
         )}
-        {/* Touch target: lightbox button always visible on mobile */}
-        {image && (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {/* Reemplazar foto */}
+          {image && (
+            <label
+              title="Reemplazar foto"
+              style={{
+                width: 34, height: 34, borderRadius: 8,
+                border: '1px solid rgba(245,197,24,0.25)',
+                background: 'rgba(245,197,24,0.08)',
+                color: '#F5C518', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <input type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
+            </label>
+          )}
+          {/* Borrar foto (solo si hay foto) */}
+          {image && (
+            <button
+              onClick={() => onDelete(image.id, caption)}
+              title="Quitar foto"
+              style={{
+                width: 34, height: 34, borderRadius: 8,
+                border: '1px solid rgba(255,77,106,0.25)',
+                background: 'rgba(255,77,106,0.08)',
+                color: '#ff4d6a', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              </button>
+          )}
+          {/* Quitar espacio — solo visible en hover del footer */}
           <button
-            onClick={() => onLightbox(image)}
+            onClick={onRemoveSpace}
+            title="Quitar este espacio"
             style={{
-              flexShrink: 0,
-              width: 34, height: 34,
-              borderRadius: 8,
-              border: '1px solid rgba(245,197,24,0.25)',
-              background: 'rgba(245,197,24,0.08)',
-              color: '#F5C518',
-              fontSize: 16,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
+              width: 34, height: 34, borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'transparent',
+              color: 'var(--text-3)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+              transition: 'all .18s',
             }}
-            title="Ampliar"
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,77,106,0.4)'; e.currentTarget.style.color = '#ff4d6a' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'var(--text-3)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/>
-            </svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -338,12 +358,31 @@ export default function GaleriaTab({ vehicleId }: Props) {
     flash('Título actualizado')
   }, [updateImage, flash])
 
+  const imageMap = new Map<string, GalleryImage>()
+  images.forEach(img => {
+    const key = img.caption || 'sin-titulo'
+    if (!imageMap.has(key)) imageMap.set(key, img)
+  })
+
   /* Un espacio activo puede venir de una categoría sugerida o de uno propio;
      el chip los trata igual y sólo se diferencian al quitarlos. */
-  const activeSpaces = [
+  const allCategoriesActive = SUGGESTED_CATEGORIES.every(c => activeCategories.includes(c))
+
+  const activeSpacesRaw = [
     ...activeCategories.map(c => ({ key: `cat-${c}`, caption: c, isCategory: true })),
     ...extraSlots.map(sl => ({ key: sl.id, caption: sl.caption, isCategory: false })),
   ]
+
+  /* Si no todos los sugeridos están activos, reordenar: los que tienen foto
+     primero, para que la galería se vea más completa de entrada. Cuando todos
+     están activos, se mantiene el orden propuesto. */
+  const activeSpaces = allCategoriesActive
+    ? activeSpacesRaw
+    : [...activeSpacesRaw].sort((a, b) => {
+        const aHas = imageMap.has(a.caption) ? 0 : 1
+        const bHas = imageMap.has(b.caption) ? 0 : 1
+        return aHas - bHas
+      })
 
   /* Sugerencias que aún no están activas — son las que ofrece el desplegable. */
   const availableCategories = SUGGESTED_CATEGORIES.filter(c => !activeCategories.includes(c))
@@ -369,12 +408,6 @@ export default function GaleriaTab({ vehicleId }: Props) {
   }, [slotName, activeCategories, flash])
 
   useEffect(() => { if (vehicleId) reload() }, [vehicleId, reload])
-
-  const imageMap = new Map<string, GalleryImage>()
-  images.forEach(img => {
-    const key = img.caption || 'sin-titulo'
-    if (!imageMap.has(key)) imageMap.set(key, img)
-  })
 
   return (
     <div style={{ animation: 'sectionIn .55s cubic-bezier(0.22,1,0.36,1) both', maxWidth: 960 }}>
@@ -409,7 +442,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
           alignItems: 'center', justifyContent: 'center',
           padding: 24, cursor: 'zoom-out',
         }}>
-          <img src={lightbox.image_url} alt={lightbox.caption}
+          <img src={proxyUrl(lightbox.image_url)} alt={lightbox.caption}
             style={{
               maxWidth: '94vw', maxHeight: '82vh', borderRadius: 20,
               boxShadow: '0 30px 90px rgba(0,0,0,.7)',
@@ -468,10 +501,10 @@ export default function GaleriaTab({ vehicleId }: Props) {
                 disabled={availableCategories.length === 0}
                 style={{
                   width: '100%', padding: '11px 13px', borderRadius: 10,
-                  border: '1px solid var(--input-border)', background: 'var(--input-bg)',
-                  color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                  cursor: availableCategories.length ? 'pointer' : 'default',
-                  opacity: availableCategories.length ? 1 : 0.5,
+                  border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
+                  background: 'var(--input-bg, rgba(255,255,255,0.04))',
+                  color: 'var(--text-2, #f5f3ec)',
+                  fontSize: 14, outline: 'none', cursor: 'pointer',
                 }}>
                 <option value="">{availableCategories.length ? 'Elige uno de la lista…' : 'Ya agregaste todos los sugeridos'}</option>
                 {availableCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}

@@ -80,7 +80,7 @@ async def download_certificate(
     if not key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached to this certificate")
 
-    contents, content_type = await run_in_threadpool(get_file, key)
+    contents, content_type = await get_file(key)
     ext = key.rsplit(".", 1)[-1] if "." in key else "bin"
     safe_name = "".join(c for c in cert.name if c.isalnum() or c in " -_") or "certificado"
     return Response(

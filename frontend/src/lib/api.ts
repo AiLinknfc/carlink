@@ -296,6 +296,8 @@ export async function adminProvisionWhitelist(tag_uid: string, label: string, pa
   }
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
 export const uploadApi = {
   upload: async (file: File, folder: string): Promise<UploadOut | null> => {
     try {
@@ -305,7 +307,7 @@ export const uploadApi = {
       formData.append('folder', folder)
       const headers: Record<string, string> = {}
       if (token) headers.Authorization = `Bearer ${token}`
-      const res = await fetch('/api/upload', { method: 'POST', headers, body: formData })
+      const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', headers, body: formData })
       if (!res.ok) return null
       return res.json()
     } catch {
