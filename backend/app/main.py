@@ -14,6 +14,7 @@ from app.routers import (
     certificates,
     diagnostics,
     documents,
+    expenses,
     found_requests,
     gallery,
     job_applications,
@@ -88,6 +89,7 @@ app.include_router(service_logs.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(workshops.router, prefix="/api")
 app.include_router(ocr.router, prefix="/api")
+app.include_router(expenses.router, prefix="/api")
 app.include_router(found_requests.router, prefix="/api")
 app.include_router(job_applications.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")

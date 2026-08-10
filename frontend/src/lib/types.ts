@@ -981,3 +981,80 @@ export interface ShopOrderStats {
   delivered_count: number;
   revenue_in_cents: number;
 }
+
+// =========== Vehicle Expenses ===========
+export interface VehicleExpense {
+  id: string;
+  vehicle_id: string;
+  category: 'fuel' | 'parts' | 'service' | 'insurance' | 'other';
+  title: string;
+  vendor: string;
+  issue_date: string | null;
+  cost: number | null;
+  currency: string;
+  fuel_type: string;
+  fuel_liters: number | null;
+  price_per_liter: number | null;
+  mileage_at_purchase: number | null;
+  items: ExpenseItem[] | null;
+  file_url: string;
+  ocr_raw: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface ExpenseItem {
+  name: string;
+  brand: string;
+  quantity: number;
+  unit_price: number | null;
+}
+
+export interface ExpenseScanResult {
+  category: string | null;
+  title: string | null;
+  vendor: string | null;
+  issue_date: string | null;
+  cost: number | null;
+  currency: string | null;
+  fuel_type: string | null;
+  fuel_liters: number | null;
+  price_per_liter: number | null;
+  mileage: number | null;
+  items: ExpenseItem[] | null;
+  raw_text: string;
+}
+
+export type ExpenseCreate = {
+  vehicle_id: string;
+  category?: string;
+  title: string;
+  vendor?: string;
+  issue_date?: string | null;
+  cost?: number | null;
+  currency?: string;
+  fuel_type?: string;
+  fuel_liters?: number | null;
+  price_per_liter?: number | null;
+  mileage_at_purchase?: number | null;
+  items?: ExpenseItem[];
+  file_url?: string;
+  ocr_raw?: string;
+  notes?: string;
+};
+
+export type ExpenseUpdate = Partial<Omit<ExpenseCreate, 'vehicle_id'>>;
+
+export interface FuelSummary {
+  has_data: boolean;
+  latest_date?: string;
+  latest_mileage?: number;
+  latest_fuel_type?: string;
+  latest_liters?: number;
+  latest_cost?: number;
+  latest_price_per_liter?: number;
+  total_liters_20?: number;
+  total_cost_20?: number;
+  avg_price_per_liter?: number;
+  record_count?: number;
+}

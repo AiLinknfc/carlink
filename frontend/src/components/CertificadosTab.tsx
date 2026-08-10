@@ -7,6 +7,7 @@ import { uploadFile, isPdf, downloadFile, fileExtension } from '@/lib/upload'
 import { CertIcon } from '@/lib/icons_new'
 import CameraCapture from './CameraCapture'
 import FileCard from './FileCard'
+import ExpenseScanModal from './ExpenseScanModal'
 import type { Certificate } from '@/lib/types'
 
 function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
@@ -70,6 +71,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
   const [createFile, setCreateFile] = useState<File | null>(null)
   const [createSaving, setCreateSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Certificate | null>(null)
+  const [showExpenseScan, setShowExpenseScan] = useState(false)
   const addBtnRef = useRef<HTMLButtonElement>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
 
@@ -413,7 +415,22 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
           <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(24px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', lineHeight: 1.15, margin: '2px 0 4px' }}>Certificados y facturas</h1>
           <p style={{ color: 'var(--text-2)', margin: 0 }}>Agrega las facturas o documentos que quieras conservar. Toca una tarjeta para subir su archivo o editar vencimientos.</p>
         </div>
-        <div style={{ position: 'relative', flex: '0 0 auto' }}>
+        <div style={{ display: 'flex', gap: 8, flex: '0 0 auto' }}>
+          <button onClick={() => setShowExpenseScan(true)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
+            border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(245,197,24,0.06)',
+            color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+              <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+              <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+              <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+              <line x1="7" y1="12" x2="17" y2="12"/>
+            </svg>
+            Escanear recibo
+          </button>
+          <div style={{ position: 'relative', flex: '0 0 auto' }}>
           <button ref={addBtnRef} onClick={() => {
             if (addBtnRef.current) {
               const r = addBtnRef.current.getBoundingClientRect()
@@ -424,6 +441,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             Agregar factura
           </button>
+          </div>
           {showAddMenu && createPortal(
             <>
               <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setShowAddMenu(false)} />
@@ -484,6 +502,16 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
               onScan={setScanTarget} onUpload={handleUpload} />
           ))}
         </div>
+      )}
+
+      {/* Expense scan modal */}
+      {showExpenseScan && vehicleId && (
+        <ExpenseScanModal
+          vehicleId={vehicleId}
+          onClose={() => setShowExpenseScan(false)}
+          onSuccess={flash}
+          onSaved={() => { setShowExpenseScan(false); flash('Recibo guardado correctamente') }}
+        />
       )}
     </div>
   )

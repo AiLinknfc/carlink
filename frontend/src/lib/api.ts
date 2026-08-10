@@ -28,6 +28,7 @@ import type {
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
+  VehicleExpense, ExpenseCreate, ExpenseUpdate, FuelSummary,
 } from './types'
 
 async function request<T = unknown>(
@@ -112,6 +113,18 @@ export const documentsApi = {
 
 export const vehicleInvoicesApi = {
   listByVehicle: (vehicleId: string) => request<VehicleInvoice[]>('GET', `/invoices/vehicle/${vehicleId}`),
+}
+
+export const expensesApi = {
+  listByVehicle: (vehicleId: string, category?: string) => {
+    const params = category ? `?category=${category}` : ''
+    return request<VehicleExpense[]>('GET', `/expenses/vehicle/${vehicleId}${params}`)
+  },
+  get: (id: string) => request<VehicleExpense>('GET', `/expenses/${id}`),
+  create: (data: ExpenseCreate) => request<VehicleExpense>('POST', '/expenses', data),
+  update: (id: string, data: ExpenseUpdate) => request<VehicleExpense>('PUT', `/expenses/${id}`, data),
+  delete: (id: string) => request('DELETE', `/expenses/${id}`),
+  fuelSummary: (vehicleId: string) => request<FuelSummary>('GET', `/expenses/vehicle/${vehicleId}/fuel-summary`),
 }
 
 export const galleryApi = {

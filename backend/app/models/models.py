@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DECIMAL, Boolean, Date, DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import DECIMAL, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -95,6 +95,7 @@ class Vehicle(Base):
     gallery_images = relationship("GalleryImage", back_populates="vehicle", cascade="all, delete-orphan")
     diagnostics = relationship("Diagnostic", back_populates="vehicle", cascade="all, delete-orphan")
     service_logs = relationship("ServiceLog", back_populates="vehicle", cascade="all, delete-orphan")
+    expenses = relationship("VehicleExpense", back_populates="vehicle", cascade="all, delete-orphan")
 
 
 class MaintenanceRecord(Base):
@@ -179,6 +180,33 @@ class Document(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     vehicle = relationship("Vehicle", back_populates="documents")
+
+
+class VehicleExpense(Base):
+    __tablename__ = "vehicle_expenses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    category: Mapped[str] = mapped_column(Text)  # fuel, parts, service, insurance, other
+    title: Mapped[str] = mapped_column(Text)
+    vendor: Mapped[str] = mapped_column(Text, default="")
+    issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cost: Mapped[Decimal | None] = mapped_column(DECIMAL(12, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(Text, default="COP")
+    # Fuel-specific
+    fuel_type: Mapped[str] = mapped_column(Text, default="")
+    fuel_liters: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    price_per_liter: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    mileage_at_purchase: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Parts list (JSONB)
+    items: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    # File
+    file_url: Mapped[str] = mapped_column(Text, default="")
+    ocr_raw: Mapped[str] = mapped_column(Text, default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    vehicle = relationship("Vehicle", back_populates="expenses")
 
 
 class GalleryImage(Base):

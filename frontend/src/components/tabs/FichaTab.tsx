@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useMaintenance, useWorkshops, useParts } from '@/lib/hooks'
-import { apiGet, apiPut } from '@/lib/api'
+import { apiGet, apiPut, expensesApi } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
-import type { Vehicle, MaintenanceRecord } from '@/lib/types'
+import type { Vehicle, MaintenanceRecord, FuelSummary } from '@/lib/types'
 
 const TALLER_INFO = {
   name: 'Tecnicentro La 80',
@@ -82,6 +82,15 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const [tellOpen, setTellOpen] = useState<string | null>(null)
   const [citaStep, setCitaStep] = useState<'detail' | 'cita'>('detail')
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [fuelSummary, setFuelSummary] = useState<FuelSummary | null>(null)
+
+  // Load fuel summary from scanned receipts
+  useEffect(() => {
+    if (!vehicle?.id) return
+    expensesApi.fuelSummary(vehicle.id).then(data => {
+      if (data) setFuelSummary(data)
+    }).catch(() => {})
+  }, [vehicle?.id, refreshKey])
 
   /* Taller de confianza: solo se considera vinculado cuando el taller que el cliente
      registró en algún servicio corresponde a un taller dado de alta en modo empresa.
@@ -317,9 +326,10 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     : battPct <= 0.50 ? '#ffb020'
     : '#2ecc71'
 
-  /* Combustible: pendiente de alimentarse con el escaneo de recibos de recarga.
-     Hasta entonces se muestra en naranja dentro del odómetro, sin dato real. */
-  const FUEL_PENDING_COLOR = '#ffb020'
+  /* Combustible: muestra datos reales si hay recibos escaneados, sino placeholder naranja. */
+  const fuelHasData = Boolean(fuelSummary?.has_data)
+  const fuelColor = fuelHasData ? '#2ecc71' : '#ffb020'
+  const fuelBarPct = fuelHasData ? 0.65 : 0.45 // TODO: calculate from tank capacity when available
 
   // --- Telltale definitions ---
   interface TellDef { label: string; color: string; critical: boolean; pct: number; iconKey: string; remVal: number | string; unit: string; tracked: boolean; part?: string }
@@ -510,18 +520,19 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
               {/* Combustible — a la altura del kilometraje, en el hueco libre del
                   dial a la derecha; no desplaza aguja, pivote ni lectura central.
-                  Naranja fijo: aún no tiene dato real. */}
-              <div title="Funcionalidad de combustible pronto"
-                style={{ position: 'absolute', right: 22, top: '64%', display: 'flex', alignItems: 'center', gap: 6, opacity: 0.75 }}>
-                {/* Icono 40% más grande (20 -> 28px) para que se lea bien */}
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={FUEL_PENDING_COLOR} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  Verde con datos reales de recibos escaneados, naranja si pendiente. */}
+              <div title={fuelHasData ? `Ultimo llenado: ${fuelSummary?.latest_liters || '?'}L - ${fuelSummary?.latest_date || ''}` : 'Funcionalidad de combustible pronto'}
+                style={{ position: 'absolute', right: 22, top: '64%', display: 'flex', alignItems: 'center', gap: 6, opacity: fuelHasData ? 1 : 0.75 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={fuelColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/>
-                  <path d="M12 8.4l3 2.6v6.6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/>
+                  <path d="M14 8.4l3 2.6v6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/>
                 </svg>
-                {/* Barra vertical: se llena desde abajo, como un aforo real */}
                 <div style={{ width: 5, height: 28, borderRadius: 3, background: tDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
-                  <div style={{ width: '100%', height: '45%', background: FUEL_PENDING_COLOR, borderRadius: 3 }} />
+                  <div style={{ width: '100%', height: `${fuelBarPct * 100}%`, background: fuelColor, borderRadius: 3, transition: 'height .4s, background .4s' }} />
                 </div>
+                {fuelHasData && fuelSummary?.latest_liters && (
+                  <span style={{ fontSize: 8, color: fuelColor, fontWeight: 700, letterSpacing: '.04em' }}>{fuelSummary.latest_liters}L</span>
+                )}
               </div>
 
               {/* Center readout */}

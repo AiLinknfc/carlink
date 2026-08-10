@@ -274,6 +274,86 @@ class OcrExtractResult(BaseModel):
     raw_text: str
 
 
+# =========== Vehicle Expenses ===========
+class ExpenseItem(BaseModel):
+    name: str = ""
+    brand: str = ""
+    quantity: int = 1
+    unit_price: Decimal | None = None
+
+
+class ExpenseScanResult(BaseModel):
+    """Resultado del OCR de un recibo — campos extraídos + pendientes."""
+    category: str | None = None  # fuel, parts, service, insurance, other
+    title: str | None = None
+    vendor: str | None = None
+    issue_date: str | None = None
+    cost: Decimal | None = None
+    currency: str | None = None
+    fuel_type: str | None = None
+    fuel_liters: Decimal | None = None
+    price_per_liter: Decimal | None = None
+    mileage: int | None = None
+    items: list[dict] | None = None
+    raw_text: str
+
+
+class ExpenseCreate(BaseModel):
+    vehicle_id: UUID
+    category: str = "other"
+    title: str
+    vendor: str = ""
+    issue_date: str | None = None
+    cost: Decimal | None = None
+    currency: str = "COP"
+    fuel_type: str = ""
+    fuel_liters: Decimal | None = None
+    price_per_liter: Decimal | None = None
+    mileage_at_purchase: int | None = None
+    items: list[dict] = []
+    file_url: str = ""
+    ocr_raw: str = ""
+    notes: str = ""
+
+
+class ExpenseUpdate(BaseModel):
+    category: str | None = None
+    title: str | None = None
+    vendor: str | None = None
+    issue_date: str | None = None
+    cost: Decimal | None = None
+    currency: str | None = None
+    fuel_type: str | None = None
+    fuel_liters: Decimal | None = None
+    price_per_liter: Decimal | None = None
+    mileage_at_purchase: int | None = None
+    items: list[dict] | None = None
+    file_url: str | None = None
+    notes: str | None = None
+
+
+class ExpenseOut(BaseModel):
+    id: UUID
+    vehicle_id: UUID
+    category: str
+    title: str
+    vendor: str
+    issue_date: date | None = None
+    cost: Decimal | None = None
+    currency: str
+    fuel_type: str
+    fuel_liters: Decimal | None = None
+    price_per_liter: Decimal | None = None
+    mileage_at_purchase: int | None = None
+    items: list[dict] | None = None
+    file_url: str
+    ocr_raw: str
+    notes: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # =========== Gallery ===========
 class GalleryCreate(BaseModel):
     vehicle_id: UUID
