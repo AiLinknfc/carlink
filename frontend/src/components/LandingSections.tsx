@@ -141,7 +141,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       {/* ===== CÓMO FUNCIONA ===== */}
       <style>{`
         @keyframes comoRipplePulse { 0%,100%{transform:translate(-50%,-50%) scale(.85);opacity:.35} 50%{transform:translate(-50%,-50%) scale(1.15);opacity:.85} }
-        @keyframes comoPlateFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes comoPlateApproach { 0%,10%{transform:translateX(-140px) rotate(-10deg)} 50%{transform:translateX(-12px) rotate(-2deg)} 90%,100%{transform:translateX(-140px) rotate(-10deg)} }
         @keyframes comoGaugeBreathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.025)} }
         @keyframes sponsorScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         @media(max-width:860px){ #h-como{margin-top:0 !important;padding-top:40px !important} [data-r="nfcScenes"]{grid-template-columns:1fr !important} [data-r="nfcScenes"]>div{padding:10px 0 !important} [data-r="nfcScenes"]>div>div:first-child{min-height:190px !important} [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} }
@@ -173,12 +173,10 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   {/* ping — pulso ambiental permanente, nunca llega a opacidad 0 */}
                   <div style={{ position: 'absolute', left: 5, top: '50%', width: 24, height: 24, borderRadius: '50%', border: '2px solid #F5C518', transform: 'translate(-50%,-50%)', animation: 'comoRipplePulse 2.4s ease-in-out infinite' }} />
                 </div>
-                {/* plate — siempre visible junto al teléfono, con un flotado suave */}
-                <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-150px,54px) rotate(-8deg)' }}>
-                  <div style={{ width: 90, height: 48, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateFloat 4s ease-in-out infinite' }}>
-                    <span style={{ fontSize: '6.5px', fontWeight: 800, letterSpacing: '.16em', color: '#3a3a1e' }}>COLOMBIA</span>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.03em', lineHeight: 1 }}>ABC 123</span>
-                  </div>
+                {/* plate — se acerca al teléfono y se retira, en bucle continuo; siempre a opacidad 1, nunca desaparece */}
+                <div style={{ position: 'absolute', left: '50%', top: '50%', width: 90, height: 48, marginLeft: -84, marginTop: -24, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateApproach 3.2s cubic-bezier(.22,1,.36,1) infinite' }}>
+                  <span style={{ fontSize: '6.5px', fontWeight: 800, letterSpacing: '.16em', color: '#3a3a1e' }}>COLOMBIA</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.03em', lineHeight: 1 }}>ABC 123</span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, ...stepPill(0) }}>
