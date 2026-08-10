@@ -22,8 +22,25 @@ const ARROW = (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 )
 
-const EYEBROW: React.CSSProperties = { fontSize: 12, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }
-const H2: React.CSSProperties = { fontFamily: 'var(--font-display)', fontSize: 'clamp(28px,3.6vw,46px)', lineHeight: 1.08, margin: '14px 0 0', textTransform: 'uppercase' as const }
+// Wordmark idéntico al de la nav (page.tsx) y el footer (LandingSections.tsx) —
+// mismo markup, sin mayúsculas forzadas, para que el logo se vea igual en
+// cualquier parte del sitio.
+function CarLinkWordmark({ fontSize, iconSize, badgeSize, badgeRadius }: { fontSize: number; iconSize: number; badgeSize: number; badgeRadius: number }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: badgeSize > 22 ? 10 : 8, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: '#f5f3ec' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: badgeSize, height: badgeSize, borderRadius: badgeRadius, background: GOLD, color: '#111' }}>
+        <CarLinkMark size={iconSize} />
+      </span>
+      <span>Car<span style={{ color: GOLD }}>Link</span></span>
+    </span>
+  )
+}
+
+// Mismo EYEBROW/H2 que LandingSections.tsx — en TODO el sitio real, Anton en
+// mayúsculas se usa solo para el H1 del hero (uno por página); cada <h2> de
+// sección usa la tipografía de cuerpo (Inter), peso 400, sin mayúsculas.
+const EYEBROW: React.CSSProperties = { fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }
+const H2: React.CSSProperties = { fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0', color: '#f5f3ec' }
 const SECTION: React.CSSProperties = { maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }
 const CARD_STYLE: React.CSSProperties = { padding: 28, borderRadius: 18, background: CARD, border: `1px solid ${BORDER}` }
 const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
@@ -99,15 +116,28 @@ export default function ShopPage() {
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
           [data-r="shopCompare"]{grid-template-columns:1fr !important}
         }
+        @media(max-width:720px){
+          [data-r="shopNavLinks"]{display:none !important}
+          [data-r="shopBackLabel"]{display:none !important}
+        }
       `}</style>
 
-      {/* NAV */}
+      {/* NAV — el logo ya vuelve al inicio, pero se agrega un link explícito
+          porque en una landing de campaña no todos lo dan por hecho. */}
       <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px clamp(20px,5vw,64px)', background: 'rgba(8,8,10,0.82)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,197,24,0.14)' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11, fontFamily: 'var(--font-display)', fontSize: 22, color: '#f5f3ec', textDecoration: 'none', textTransform: 'uppercase' as const }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9, background: GOLD, color: '#111' }}><CarLinkMark size={19} /></span>
-          Car<span style={{ color: GOLD }}>Link</span>
-        </Link>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 6, color: MUTED, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+            onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
+            onMouseLeave={e => { e.currentTarget.style.color = MUTED }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            <span data-r="shopBackLabel">Volver a la app</span>
+          </Link>
+          <span style={{ width: 1, height: 22, background: BORDER }} />
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <CarLinkWordmark fontSize={18} iconSize={14} badgeSize={26} badgeRadius={7} />
+          </Link>
+        </div>
+        <nav data-r="shopNavLinks" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
           <a href="#problema" style={{ color: 'inherit', textDecoration: 'none' }}>El problema</a>
           <a href="#como" style={{ color: 'inherit', textDecoration: 'none' }}>Cómo funciona</a>
           <a href="#precio" style={{ color: 'inherit', textDecoration: 'none' }}>Precio</a>
@@ -144,10 +174,7 @@ export default function ShopPage() {
           <div style={{ position: 'relative', width: 250, height: 430, borderRadius: 34, background: 'linear-gradient(165deg,#1a1a1f,#0e0e12)', border: '8px solid #17171c', boxShadow: '0 40px 90px rgba(0,0,0,.7),0 0 60px rgba(245,197,24,.12)', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 88, height: 20, background: '#17171c', borderRadius: '0 0 12px 12px', zIndex: 3 }} />
             <div style={{ padding: '36px 18px 18px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-display)', fontSize: 15, textTransform: 'uppercase' as const }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: 6, background: GOLD, color: '#111' }}><CarLinkMark size={12} /></span>
-                Car<span style={{ color: GOLD }}>Link</span>
-              </div>
+              <CarLinkWordmark fontSize={13} iconSize={11} badgeSize={20} badgeRadius={6} />
               <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(158deg,#1c1a12,#141418)', border: '1px solid rgba(245,197,24,0.3)' }}>
                 <div style={{ fontSize: 8.5, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: MUTED, fontWeight: 700 }}>Kilometraje</div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD, lineHeight: 1, marginTop: 3 }}>48.250<span style={{ fontSize: 12, color: MUTED, fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span></div>
@@ -339,7 +366,7 @@ export default function ShopPage() {
       {/* CTA FINAL */}
       <section style={{ background: 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)', borderTop: '1px solid rgba(245,197,24,0.16)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(56px,7vw,96px) clamp(20px,5vw,64px)', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px,4.6vw,60px)', lineHeight: 1.04, margin: 0, textTransform: 'uppercase' as const }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
+          <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
           <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
             <Link href="/#h-buyfob" style={CTA_BTN}>Quiero mi CarLink — $49.900{ARROW}</Link>
@@ -351,9 +378,8 @@ export default function ShopPage() {
       {/* FOOTER */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 11, fontFamily: 'var(--font-display)', fontSize: 21, color: '#f5f3ec', textDecoration: 'none', textTransform: 'uppercase' as const }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: GOLD, color: '#111' }}><CarLinkMark size={17} /></span>
-            Car<span style={{ color: GOLD }}>Link</span>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <CarLinkWordmark fontSize={20} iconSize={15} badgeSize={26} badgeRadius={7} />
           </Link>
           <div style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
         </div>
