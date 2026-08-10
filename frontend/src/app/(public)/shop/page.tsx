@@ -67,8 +67,14 @@ const STEPS = [
   { n: '4', title: 'Escanea', desc: 'Acerca el llavero al teléfono y ya tienes tu historial vivo.' },
 ]
 const INCLUDES = ['Llavero personalizado', 'Perfil del vehículo', 'Historial de mantenimiento', 'Recordatorios', 'Fotos', 'Facturas', 'Kilometraje', 'Cambios de aceite', 'Llantas', 'Frenos', 'Documentación']
-const WITHOUT = ['Pierdes facturas', 'No recuerdas mantenimientos', 'Baja confianza al vender', 'Todo está disperso']
-const WITH_CL = ['Todo organizado', 'Fácil de vender', 'Recordatorios automáticos', 'Historial completo']
+const COMPARISON = [
+  { feature: 'Organización del historial', without: 'Papeles arrugados, térmicos borrados en la guantera', withCl: 'Bitácora digital en la nube accesible en 1 segundo' },
+  { feature: 'Proceso para ver información', without: 'Revolver facturas y adivinar kilometrajes antiguos', withCl: 'Acercar tu celular al llavero NFC sin abrir aplicaciones' },
+  { feature: 'Confianza del comprador', without: 'Sospechas de kilometraje y pedido de rebajas del 15%', withCl: 'Transparencia verificada que defiende el precio de venta' },
+  { feature: 'Aviso de mantenimiento', without: 'Depender de stickers borrosos en el panorámico', withCl: 'Alertas digitales inteligentes de aceite, frenos y SOAT' },
+  { feature: 'Resistencia del formato', without: 'Se rompe, se moja, se extravía en lavaderos', withCl: 'Resina IP68 impermeable e indestructible en tu llavero' },
+  { feature: 'Costo mensual de almacenamiento', without: 'N/A', withCl: '$0 COP — pago único de por vida' },
+]
 
 // Precios y features iguales a los de la sección "Planes" (h-planes) y "Compra tu llavero"
 // (h-buyfob) del home — no inventar números nuevos aquí.
@@ -114,11 +120,11 @@ export default function ShopPage() {
           [data-r="shopHero"]{grid-template-columns:1fr !important}
           [data-r="shopPrecio"]{grid-template-columns:1fr !important}
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
-          [data-r="shopCompare"]{grid-template-columns:1fr !important}
         }
         @media(max-width:720px){
           [data-r="shopNavLinks"]{display:none !important}
           [data-r="shopBackLabel"]{display:none !important}
+          [data-r="shopScrollHint"]{display:flex !important}
         }
       `}</style>
 
@@ -287,31 +293,53 @@ export default function ShopPage() {
 
       {/* COMPARACIÓN */}
       <section style={SECTION}>
-        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
+        <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 40px' }}>
           <div style={EYEBROW}>La diferencia</div>
-          <h2 style={H2}>Antes y después de CarLink</h2>
+          <h2 style={H2}>¿Realmente necesitas CarLink?</h2>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '48ch' }}>Mira la diferencia entre seguir con el método antiguo de carpetas vs pasar al control digital inteligente en tu bolsillo.</p>
         </div>
-        <div data-r="shopCompare" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-          <div style={{ padding: 34, borderRadius: 22, background: CARD, border: '1px solid rgba(255,77,106,0.24)' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#ff4d6a', marginBottom: 24 }}>Sin CarLink</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {WITHOUT.map(w => (
-                <div key={w} style={{ display: 'flex', gap: 13, alignItems: 'flex-start', fontSize: 16, color: MUTED, lineHeight: 1.45 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M18 6L6 18M6 6l12 12" /></svg>{w}
-                </div>
+
+        {/* La columna "Con CarLink" es lo importante — en mobile queda fuera de
+            vista sin este aviso, ya que la tabla completa no cabe en pantalla. */}
+        <div data-r="shopScrollHint" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10, fontSize: 12.5, fontWeight: 600, color: GOLD }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          Desliza para ver la comparación completa
+        </div>
+        <div style={{ overflowX: 'auto', borderRadius: 20, border: `1px solid ${BORDER}` }}>
+          <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: MUTED, background: CARD, borderBottom: `1px solid ${BORDER}` }}>Característica</th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: '#ff4d6a', background: CARD, borderBottom: '1px solid rgba(255,77,106,0.24)' }}>Sin CarLink</th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD, background: 'linear-gradient(160deg,#1a180f,#141418)', borderBottom: '1px solid rgba(245,197,24,0.42)' }}>Con CarLink</th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON.map((row, i) => (
+                <tr key={row.feature} style={{ background: i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                  <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: '#f5f3ec', borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
+                  <td style={{ padding: '18px 20px', fontSize: 14, color: MUTED, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 3 }}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                      {row.without}
+                    </div>
+                  </td>
+                  <td style={{ padding: '18px 20px', fontSize: 14, color: '#f5f3ec', fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
+                    <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                      {CHECK(GOLD, 15)}
+                      {row.withCl}
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-          <div style={{ padding: 34, borderRadius: 22, background: 'linear-gradient(160deg,#1a180f,#121216)', border: `1px solid rgba(245,197,24,0.42)` }}>
-            <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 24 }}>Con CarLink</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {WITH_CL.map(c => (
-                <div key={c} style={{ display: 'flex', gap: 13, alignItems: 'flex-start', fontSize: 16, color: '#f5f3ec', lineHeight: 1.45, fontWeight: 500 }}>
-                  {CHECK(GOLD, 17)}{c}
-                </div>
-              ))}
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 44 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#f5f3ec' }}>Toma el control del historial de tu carro hoy</div>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '10px auto 26px', maxWidth: '48ch' }}>Haz tu pedido ahora y recibe el kit completo por $49.900 COP con envío gratis.</p>
+          <Link href="/#h-buyfob" style={CTA_BTN}>Comprar Llavero CarLink{ARROW}</Link>
         </div>
       </section>
 
