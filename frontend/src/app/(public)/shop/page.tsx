@@ -67,6 +67,28 @@ const STEPS = [
   { n: '4', title: 'Escanea', desc: 'Acerca el llavero al teléfono y ya tienes tu historial vivo.' },
 ]
 const INCLUDES = ['Llavero personalizado', 'Perfil del vehículo', 'Historial de mantenimiento', 'Recordatorios', 'Fotos', 'Facturas', 'Kilometraje', 'Cambios de aceite', 'Llantas', 'Frenos', 'Documentación']
+const BOX_ITEMS = [
+  {
+    title: '1x Llavero NFC CarLink de Alta Resistencia',
+    desc: 'Polímero IP68 impermeable a prueba de caídas, gasolina, grasa y roce continuo con otras llaves.',
+    icon: <><rect x="3" y="3" width="11" height="18" rx="5.5" /><circle cx="8.5" cy="7.8" r="1.5" /><path d="M17.2 9.2a4.6 4.6 0 0 1 0 5.6" /><path d="M20 6.6a8.4 8.4 0 0 1 0 10.8" /></>,
+  },
+  {
+    title: '1x Sticker QR de Respaldo para Parabrisas o Guantera',
+    desc: 'Sticker adhesivo térmico de alta durabilidad para escanear con cámara en caso de que alguien no use NFC.',
+    icon: <><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" /></>,
+  },
+  {
+    title: 'Acceso VITALICIO e Ilimitado a la Plataforma CarLink',
+    desc: 'Almacenamiento seguro en la nube de todos tus registros, fotos y facturas sin cuotas ni suscripciones.',
+    icon: <><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></>,
+  },
+  {
+    title: 'Guía de Inicio Rápido + Soporte Prioritario WhatsApp',
+    desc: 'Paso a paso de 1 minuto e integración personalizada para resolver cualquier duda al instante.',
+    icon: <><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></>,
+  },
+]
 const COMPARISON = [
   { feature: 'Organización del historial', without: 'Papeles arrugados, térmicos borrados en la guantera', withCl: 'Bitácora digital en la nube accesible en 1 segundo' },
   { feature: 'Proceso para ver información', without: 'Revolver facturas y adivinar kilometrajes antiguos', withCl: 'Acercar tu celular al llavero NFC sin abrir aplicaciones' },
@@ -288,6 +310,31 @@ export default function ShopPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* TRANSPARENCIA TOTAL */}
+      <section style={SECTION}>
+        <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
+          <div style={EYEBROW}>Transparencia total</div>
+          <h2 style={H2}>¿Qué llega exactamente en tu caja?</h2>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $49.900 COP recibes la experiencia completa lista para usar.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16, maxWidth: 1080, margin: '0 auto' }}>
+          {BOX_ITEMS.map(item => (
+            <div key={item.title} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
+              <span style={{ width: 40, height: 40, flex: '0 0 auto', borderRadius: 12, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
+              </span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 7, lineHeight: 1.35 }}>{item.title}</div>
+                <div style={{ fontSize: 14, color: MUTED, lineHeight: 1.5 }}>{item.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 38 }}>
+          <Link href="/#h-buyfob" style={CTA_BTN}>Recibir todo el kit por $49.900 COP{ARROW}</Link>
         </div>
       </section>
 
