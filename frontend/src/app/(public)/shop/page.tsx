@@ -142,6 +142,7 @@ export default function ShopPage() {
           [data-r="shopHero"]{grid-template-columns:1fr !important}
           [data-r="shopPrecio"]{grid-template-columns:1fr !important}
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
+          [data-r="shopBox"]{grid-template-columns:1fr !important}
         }
         @media(max-width:720px){
           [data-r="shopNavLinks"]{display:none !important}
@@ -320,19 +321,55 @@ export default function ShopPage() {
           <h2 style={H2}>¿Qué llega exactamente en tu caja?</h2>
           <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $49.900 COP recibes la experiencia completa lista para usar.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16, maxWidth: 1080, margin: '0 auto' }}>
-          {BOX_ITEMS.map(item => (
-            <div key={item.title} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
-              <span style={{ width: 40, height: 40, flex: '0 0 auto', borderRadius: 12, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
-              </span>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 7, lineHeight: 1.35 }}>{item.title}</div>
-                <div style={{ fontSize: 14, color: MUTED, lineHeight: 1.5 }}>{item.desc}</div>
+
+        <div data-r="shopBox" style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 48, alignItems: 'center', maxWidth: 1080, margin: '0 auto' }}>
+          {/* Ilustración — misma familia visual que la escena del hero (caja +
+              llavero + sticker QR), sin foto real de producto. */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: 380, margin: '0 auto' }}>
+            <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 280, height: 280, background: 'radial-gradient(circle,rgba(245,197,24,.16),transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', borderRadius: 28, padding: '52px 30px 34px', background: 'linear-gradient(160deg,#191710,#121216 62%)', border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 30px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              {/* cinta de la caja */}
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 46, height: 96, background: 'linear-gradient(180deg,#FFD84D,#E7B412)', clipPath: 'polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)' }} />
+
+              {/* llavero NFC */}
+              <div style={{ position: 'relative', width: 168, height: 108, margin: '0 auto', borderRadius: 18, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '5px solid #0c0c0e', boxShadow: '0 20px 40px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'shopFloatY 3.6s ease-in-out infinite' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#111116' }}><NfcKeyIcon size={22} strokeWidth={2} /></span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.01em', marginTop: 4 }}>CarLink</span>
+              </div>
+
+              {/* sticker QR, superpuesto */}
+              <div style={{ position: 'absolute', right: 28, bottom: 66, width: 62, height: 62, borderRadius: 12, background: '#f5f3ec', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5)', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)', gap: 3, padding: 8, transform: 'rotate(8deg)' }}>
+                {[0, 1, 2, 4, 6, 8].map(i => <span key={i} style={{ background: '#0c0c0e', borderRadius: 1 }} />)}
+              </div>
+
+              {/* badges de servicio */}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 26 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11, fontWeight: 700, color: GOLD }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg>Acceso vitalicio
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11, fontWeight: 700, color: GOLD }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>Soporte
+                </span>
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* Lista de lo que incluye */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {BOX_ITEMS.map(item => (
+              <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '18px 20px', borderRadius: 16, background: CARD, border: `1px solid ${BORDER}` }}>
+                <span style={{ width: 36, height: 36, flex: '0 0 auto', borderRadius: 11, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
+                </span>
+                <div>
+                  <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 5, lineHeight: 1.35 }}>{item.title}</div>
+                  <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
         <div style={{ textAlign: 'center', marginTop: 38 }}>
           <Link href="/#h-buyfob" style={CTA_BTN}>Recibir todo el kit por $49.900 COP{ARROW}</Link>
         </div>
