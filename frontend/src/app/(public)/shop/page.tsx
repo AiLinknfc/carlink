@@ -162,8 +162,9 @@ const FAQS = [
   { q: '¿Necesita batería?', a: 'No. El llavero NFC funciona sin batería y sin mantenimiento — dura toda la vida del vehículo.' },
   { q: '¿Necesita Internet?', a: 'Solo para consultar la información. El escaneo del llavero es instantáneo; la ficha se carga desde la nube.' },
   { q: '¿Qué pasa si pierdo el llavero?', a: 'Puedes desactivarlo desde la app en segundos y asociar uno nuevo. Tu historial nunca se pierde: vive en tu cuenta, no en el llavero.' },
-  { q: '¿Funciona en Android?', a: 'Sí. Todos los Android con NFC (la gran mayoría desde 2015) lo leen sin instalar nada.' },
-  { q: '¿Funciona en iPhone?', a: 'Sí. Desde el iPhone 7 en adelante, con solo acercar el teléfono al llavero.' },
+  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — el llavero simplemente registra la nueva visita con el nombre del taller que te atendió.' },
+  { q: '¿El llavero reemplaza el SOAT o la tecnomecánica?', a: 'No — los complementa. CarLink es tu ficha de mantenimiento; SOAT y RTM siguen siendo trámites oficiales, aunque también puedes guardarlos en tu sección de Documentos.' },
+  { q: '¿El llavero es resistente al agua, caídas y roces de llaves?', a: 'Totalmente. CarLink está encapsulado en resina polimérica industrial IP68 impermeable, resistente a caídas de más de 3 metros, salpicaduras de gasolina, aceite y el friccionamiento continuo con otras llaves metálicas.' },
 ]
 
 export default function ShopPage() {
@@ -205,11 +206,58 @@ export default function ShopPage() {
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
           [data-r="shopBox"]{grid-template-columns:1fr !important}
           [data-r="shopLeadGuia"]{grid-template-columns:1fr !important}
+          [data-r="shopCaptureLeads"]{grid-template-columns:1fr !important}
+          [data-r="shopLlaveroGrid"]{grid-template-columns:1fr !important}
         }
         @media(max-width:720px){
           [data-r="shopNavLinks"]{display:none !important}
           [data-r="shopBackLabel"]{display:none !important}
           [data-r="shopScrollHint"]{display:flex !important}
+          [data-r="shopNavCta"]{padding:10px 16px !important;font-size:13px !important}
+          [data-r="shopHeroScene"]{min-height:360px !important}
+          [data-r="shopHeroPhone"]{width:200px !important;height:370px !important}
+          [data-r="shopHeroNfc"]{width:110px !important;height:92px !important;right:-2px !important;bottom:20px !important}
+          [data-r="shopDimensions"]{flex-direction:column !important}
+          [data-r="shopDimensionDivider"]{width:36px !important;margin:8px auto !important}
+          [data-r="shopLlaveroFeatures"]{gap:24px !important}
+          [data-r="shopLlaveroFeature"]{flex-direction:column !important;text-align:center !important}
+          [data-r="shopLlaveroDots"]{flex-direction:row !important;justify-content:center !important;margin-top:8px !important}
+          [data-r="shopLlaveroDotsLine"]{display:none !important}
+          [data-r="shopPricingBadge"]{position:static !important;margin-bottom:8px !important;display:inline-block !important}
+          [data-r="shopCaptureInput"]{flex-direction:column !important}
+          [data-r="shopCaptureBtn"]{width:100% !important}
+        }
+        @media(max-width:480px){
+          [data-r="shopHeroPhone"]{width:170px !important;height:320px !important;border-width:6px !important;border-radius:26px !important}
+          [data-r="shopHeroNfc"]{width:90px !important;height:76px !important}
+          [data-r="shopComo"]{grid-template-columns:1fr !important}
+          [data-r="shopStepCard"]{padding:20px 18px !important}
+          [data-r="shopStepNum"]{width:40px !important;height:40px !important;font-size:20px !important}
+          [data-r="shopPrecio"]{gap:14px !important}
+          [data-r="shopPlanCard"]{padding:24px 18px !important}
+          [data-r="shopPlanPrice"]{font-size:36px !important}
+          [data-r="shopTestimonials"]{gap:0 !important}
+          [data-r="shopTestimonialCard"]{padding:18px !important}
+          [data-r="shopFaqBtn"]{padding:16px 18px !important;font-size:15px !important}
+          [data-r="shopLeadGuia"]{padding:18px !important}
+          [data-r="shopCtaBtn"]{padding:14px 22px !important;font-size:14px !important}
+          [data-r="shopCtaSecondary"]{padding:14px 22px !important;font-size:14px !important}
+          [data-r="shopSolutionTag"]{padding:10px 18px !important;font-size:14px !important}
+          [data-r="shopProblemCard"]{padding:20px !important}
+          [data-r="shopProblemIcon"]{width:36px !important;height:36px !important;font-size:18px !important}
+          [data-r="shopBenefitCard"]{padding:18px !important}
+          [data-r="shopIncludeItem"]{padding:'12px 14px' !important}
+          [data-r="shopBoxItem"]{padding:'14px 16px' !important}
+          [data-r="shopBoxItemTitle"]{fontSize:14px !important}
+          [data-r="shopBoxItemDesc"]{fontSize:12px !important}
+          [data-r="shopFooter"]{flex-direction:column !important;text-align:center !important}
+          [data-r="shopFooterText"]{font-size:12px !important}
+        }
+        @media(max-width:380px){
+          [data-r="shopHeroPhone"]{width:150px !important;height:290px !important}
+          [data-r="shopHeroNfc"]{width:80px !important;height:68px !important}
+          [data-r="shopPlanPrice"]{font-size:30px !important}
+          [data-r="shopScoreNum"]{font-size:24px !important}
         }
         .no-scrollbar::-webkit-scrollbar{display:none}
         .no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
@@ -252,7 +300,7 @@ export default function ShopPage() {
           <a href="#precio" style={{ color: 'inherit', textDecoration: 'none' }}>Precio</a>
           <a href="#faq" style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</a>
         </nav>
-        <Link href="/#h-buyfob" style={{ padding: '11px 22px', borderRadius: 999, background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap', textDecoration: 'none' }}>Quiero mi CarLink</Link>
+        <Link href="/#h-buyfob" data-r="shopNavCta" style={{ padding: '11px 22px', borderRadius: 999, background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap', textDecoration: 'none' }}>Quiero mi CarLink</Link>
       </header>
 
       {/* HERO */}
@@ -265,7 +313,7 @@ export default function ShopPage() {
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(38px,5.4vw,72px)', lineHeight: 1.02, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
           <p style={{ fontSize: 'clamp(17px,1.7vw,21px)', lineHeight: 1.55, color: MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" style={CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
+            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
             <div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$49.900</div>
               <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>pago único · envío incluido</div>
@@ -279,8 +327,8 @@ export default function ShopPage() {
         </div>
 
         {/* Escena: teléfono con fichas dashboard + llavero */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 500, animation: 'shopFadeUp .7s .14s both' }}>
-          <div style={{ position: 'relative', width: 260, height: 480, borderRadius: 34, background: 'linear-gradient(165deg,#1a1a1f,#0e0e12)', border: '8px solid #17171c', boxShadow: '0 40px 90px rgba(0,0,0,.7),0 0 60px rgba(245,197,24,.12)', overflow: 'hidden' }}>
+        <div data-r="shopHeroScene" style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 500, animation: 'shopFadeUp .7s .14s both' }}>
+          <div data-r="shopHeroPhone" style={{ position: 'relative', width: 260, height: 480, borderRadius: 34, background: 'linear-gradient(165deg,#1a1a1f,#0e0e12)', border: '8px solid #17171c', boxShadow: '0 40px 90px rgba(0,0,0,.7),0 0 60px rgba(245,197,24,.12)', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 88, height: 20, background: '#17171c', borderRadius: '0 0 12px 12px', zIndex: 3 }} />
             {/* scroll fade top */}
             <div style={{ position: 'absolute', top: 30, left: 0, right: 0, height: 30, background: 'linear-gradient(180deg,#1a1a1f,transparent)', zIndex: 2, pointerEvents: 'none' }} />
@@ -416,7 +464,7 @@ export default function ShopPage() {
             </div>
           </div>
           {/* carpeta NFC */}
-          <div onClick={() => { if (activeCard < 0) setActiveCard(0) }} style={{ position: 'absolute', right: -6, bottom: 40, width: 148, height: 121, animation: 'shopFloatY 3.4s ease-in-out infinite', cursor: 'pointer' }}>
+          <div data-r="shopHeroNfc" onClick={() => { if (activeCard < 0) setActiveCard(0) }} style={{ position: 'absolute', right: -6, bottom: 40, width: 148, height: 121, animation: 'shopFloatY 3.4s ease-in-out infinite', cursor: 'pointer' }}>
             {/* sombra dorada */}
             <div style={{ position: 'absolute', inset: '22% 6% -4%', borderRadius: 30, background: 'radial-gradient(closest-side,rgba(245,197,24,0.22),rgba(245,197,24,0) 72%)', filter: 'blur(16px)' }} />
             {/* tab carpeta */}
@@ -451,8 +499,8 @@ export default function ShopPage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
           {PROBLEMS.map(p => (
-            <div key={p} style={CARD_STYLE}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,77,106,0.12)', color: '#ff4d6a', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, fontSize: 22, fontWeight: 800 }}>?</div>
+            <div key={p} data-r="shopProblemCard" style={CARD_STYLE}>
+              <div data-r="shopProblemIcon" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,77,106,0.12)', color: '#ff4d6a', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, fontSize: 22, fontWeight: 800 }}>?</div>
               <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: '#f5f3ec' }}>{p}</div>
             </div>
           ))}
@@ -466,7 +514,7 @@ export default function ShopPage() {
           <h2 style={{ ...H2, margin: '14px auto 0', maxWidth: '20ch' }}>Escaneas. Y ves <span style={{ color: GOLD }}>absolutamente todo</span>.</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 11, marginTop: 38 }}>
             {SOLUTION_TAGS.map(t => (
-              <span key={t} style={{ padding: '12px 24px', borderRadius: 999, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.32)', color: GOLD, fontSize: 16, fontWeight: 600 }}>{t}</span>
+              <span key={t} data-r="shopSolutionTag" style={{ padding: '12px 24px', borderRadius: 999, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.32)', color: GOLD, fontSize: 16, fontWeight: 600 }}>{t}</span>
             ))}
           </div>
           <Link href="/#h-buyfob" style={{ ...CTA_BTN, marginTop: 42 }}>Quiero mi CarLink{ARROW}</Link>
@@ -481,7 +529,7 @@ export default function ShopPage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
           {BENEFITS.map(b => (
-            <div key={b.title} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
+            <div key={b.title} data-r="shopBenefitCard" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
               <span style={{ width: 34, height: 34, flex: '0 0 auto', borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{CHECK(GOLD, 18)}</span>
               <div><div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 7 }}>{b.title}</div><div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{b.desc}</div></div>
             </div>
@@ -497,15 +545,15 @@ export default function ShopPage() {
         </div>
         <div data-r="shopComo" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {STEPS.map(st => (
-            <div key={st.n} style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: 'linear-gradient(160deg,#17160f,#121216)', border: '1px solid rgba(245,197,24,0.2)' }}>
-              <div style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
+            <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: 'linear-gradient(160deg,#17160f,#121216)', border: '1px solid rgba(245,197,24,0.2)' }}>
+              <div data-r="shopStepNum" style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
               <div style={{ fontSize: 19, fontWeight: 700, margin: '20px 0 9px' }}>{st.title}</div>
               <div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
             </div>
           ))}
         </div>
         <div style={{ textAlign: 'center', marginTop: 38 }}>
-          <Link href="/#h-buyfob" style={CTA_BTN}>Quiero mi CarLink{ARROW}</Link>
+          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink{ARROW}</Link>
         </div>
       </section>
 
@@ -518,7 +566,7 @@ export default function ShopPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 11, maxWidth: 1040, margin: '0 auto' }}>
             {INCLUDES.map(inc => (
-              <div key={inc} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
+              <div key={inc} data-r="shopIncludeItem" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
                 {CHECK(GOLD, 16)}
                 <span style={{ fontSize: 14.5, fontWeight: 500, color: '#d8d4c8' }}>{inc}</span>
               </div>
@@ -546,13 +594,13 @@ export default function ShopPage() {
           {/* Lista de lo que incluye */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {BOX_ITEMS.map(item => (
-              <div key={item.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '18px 20px', borderRadius: 16, background: CARD, border: `1px solid ${BORDER}` }}>
+              <div key={item.title} data-r="shopBoxItem" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '18px 20px', borderRadius: 16, background: CARD, border: `1px solid ${BORDER}` }}>
                 <span style={{ width: 36, height: 36, flex: '0 0 auto', borderRadius: 11, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{item.icon}</svg>
                 </span>
                 <div>
-                  <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 5, lineHeight: 1.35 }}>{item.title}</div>
-                  <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.5 }}>{item.desc}</div>
+                  <div data-r="shopBoxItemTitle" style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 5, lineHeight: 1.35 }}>{item.title}</div>
+                  <div data-r="shopBoxItemDesc" style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.5 }}>{item.desc}</div>
                 </div>
               </div>
             ))}
@@ -560,7 +608,7 @@ export default function ShopPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 38 }}>
-          <Link href="/#h-buyfob" style={CTA_BTN}>Recibir todo el kit por $49.900 COP{ARROW}</Link>
+          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Recibir todo el kit por $49.900 COP{ARROW}</Link>
         </div>
       </section>
 
@@ -612,7 +660,7 @@ export default function ShopPage() {
         <div style={{ textAlign: 'center', marginTop: 44 }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#f5f3ec' }}>Toma el control del historial de tu carro hoy</div>
           <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '10px auto 26px', maxWidth: '48ch' }}>Haz tu pedido ahora y recibe el kit completo por $49.900 COP con envío gratis.</p>
-          <Link href="/#h-buyfob" style={CTA_BTN}>Comprar Llavero CarLink{ARROW}</Link>
+          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Comprar Llavero CarLink{ARROW}</Link>
         </div>
       </section>
 
@@ -625,22 +673,22 @@ export default function ShopPage() {
             <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Cuerpo en PLA impreso en 3D, sellado con una capa de resina. Personalizado con la placa que elijas: al acercarlo a un teléfono abre tu perfil de vehículo.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', alignItems: 'center', gap: 'clamp(28px,4vw,56px)', maxWidth: 1200, margin: '0 auto' }}>
+          <div data-r="shopLlaveroGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', alignItems: 'center', gap: 'clamp(28px,4vw,56px)', maxWidth: 1200, margin: '0 auto' }}>
             {/* Columna izquierda — 3 features */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+            <div data-r="shopLlaveroFeatures" style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               {[
                 { num: '01', label: 'Cuerpo', title: 'Impresión 3D en PLA', desc: 'Estructura rígida y ligera impresa capa por capa, con el relieve de la placa en alto contraste.' },
                 { num: '02', label: 'Acabado', title: 'Capa de resina', desc: 'Recubrimiento transparente que sella la superficie: brillo permanente y resistencia a rayones.' },
                 { num: '03', label: 'Resistencia', title: 'Impactos y lluvia', desc: 'La resina hace el cuerpo impermeable y absorbe golpes del uso diario en el llavero.' },
               ].map(f => (
-                <div key={f.num} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div key={f.num} data-r="shopLlaveroFeature" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                     <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
                     <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
                   </div>
-                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0 }}>
-                    <div style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
+                  <div data-r="shopLlaveroDots" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0 }}>
+                    <div data-r="shopLlaveroDotsLine" style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 10px ${GOLD}` }} />
                   </div>
                 </div>
@@ -673,20 +721,20 @@ export default function ShopPage() {
             </div>
 
             {/* Columna derecha — 3 features */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+            <div data-r="shopLlaveroFeatures" style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               {[
                 { num: '04', label: 'Interior', title: 'Chip NFC embebido', desc: 'Antena rectangular sellada dentro del cuerpo. Sin batería y sin partes móviles.' },
                 { num: '05', label: 'Personalización', title: 'Tu placa grabada', desc: 'Eliges la matrícula y la ciudad: cada llavero se imprime a la medida de tu vehículo.' },
                 { num: '06', label: 'Sujeción', title: 'Argolla de acero', desc: 'Anillo inoxidable con eslabón giratorio en la esquina superior derecha.' },
               ].map(f => (
-                <div key={f.num} style={{ display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse' }}>
+                <div key={f.num} data-r="shopLlaveroFeature" style={{ display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse' }}>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                     <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
                     <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
                   </div>
-                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0, flexDirection: 'row-reverse' }}>
-                    <div style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
+                  <div data-r="shopLlaveroDots" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0, flexDirection: 'row-reverse' }}>
+                    <div data-r="shopLlaveroDotsLine" style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 10px ${GOLD}` }} />
                   </div>
                 </div>
@@ -697,14 +745,14 @@ export default function ShopPage() {
           {/* Dimensiones */}
           <div style={{ maxWidth: 700, margin: '56px auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 11, letterSpacing: '.34em', textTransform: 'uppercase', color: MUTED }}>Dimensiones</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <div data-r="shopDimensions" style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
               {[
                 { val: '62 mm', label: 'Largo' },
                 { val: '39 mm', label: 'Ancho' },
                 { val: '6 mm', label: 'Alto' },
               ].map((d, i) => (
                 <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  {i > 0 && <div style={{ width: 1, height: 36, background: BORDER, margin: '0 20px' }} />}
+                  {i > 0 && <div data-r="shopDimensionDivider" style={{ width: 1, height: 36, background: BORDER, margin: '0 20px' }} />}
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontWeight: 700, color: '#f5f3ec', letterSpacing: '-.01em' }}>{d.val}</div>
                     <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: MUTED, marginTop: 2 }}>{d.label}</div>
@@ -726,13 +774,13 @@ export default function ShopPage() {
           </div>
           <div data-r="shopPrecio" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, maxWidth: 1080, margin: '0 auto' }}>
             {PLANS.map(pl => (
-              <div key={pl.name} style={{ position: 'relative', padding: '36px 30px', borderRadius: 22, background: pl.bg ?? CARD, border: pl.border, display: 'flex', flexDirection: 'column' }}>
-                {pl.tag && <span style={{ position: 'absolute', top: -13, left: 30, background: GOLD, color: '#111', fontSize: 11.5, fontWeight: 800, padding: '6px 16px', borderRadius: 999, letterSpacing: '.08em' }}>{pl.tag}</span>}
+              <div key={pl.name} data-r="shopPlanCard" style={{ position: 'relative', padding: '36px 30px', borderRadius: 22, background: pl.bg ?? CARD, border: pl.border, display: 'flex', flexDirection: 'column' }}>
+                {pl.tag && <span data-r="shopPricingBadge" style={{ position: 'absolute', top: -13, left: 30, background: GOLD, color: '#111', fontSize: 11.5, fontWeight: 800, padding: '6px 16px', borderRadius: 999, letterSpacing: '.08em' }}>{pl.tag}</span>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: pl.priceColor === GOLD ? GOLD : MUTED }}>
                   {pl.name.includes('Llavero') && <NfcKeyIcon size={15} />}
                   {pl.name}
                 </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 46, color: pl.priceColor, lineHeight: 1, margin: '16px 0 5px' }}>{pl.price}</div>
+                <div data-r="shopPlanPrice" style={{ fontFamily: 'var(--font-display)', fontSize: 46, color: pl.priceColor, lineHeight: 1, margin: '16px 0 5px' }}>{pl.price}</div>
                 <div style={{ fontSize: 14, color: MUTED }}>{pl.period}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '28px 0 26px', flex: 1 }}>
                   {pl.features.map(f => (
@@ -759,7 +807,7 @@ export default function ShopPage() {
 
         <div data-r="shopTestimonials">
           {TESTIMONIALS.map(t => (
-            <div key={t.id} style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+            <div key={t.id} data-r="shopTestimonialCard" style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', gap: 2, color: GOLD }}>
@@ -790,7 +838,7 @@ export default function ShopPage() {
 
         <div style={{ marginTop: 32, padding: '22px clamp(20px,4vw,32px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, maxWidth: 720, margin: '32px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 20, flexWrap: 'wrap', textAlign: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD }}>4.9 / 5.0</div>
+            <div data-r="shopScoreNum" style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD }}>4.9 / 5.0</div>
             <div style={{ fontSize: 12, color: MUTED, textAlign: 'left' }}>
               <div style={{ color: '#f5f3ec', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' as const }}>Promedio de satisfacción</div>
               Basado en 380+ calificaciones en Colombia
@@ -813,7 +861,7 @@ export default function ShopPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           {FAQS.map((fq, i) => (
             <div key={fq.q} style={{ borderRadius: 15, background: CARD, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-              <button onClick={() => setFaqOpen(faqOpen === i ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '19px 24px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: '#f5f3ec', fontSize: 16, fontWeight: 600, fontFamily: 'inherit' }}>
+              <button data-r="shopFaqBtn" onClick={() => setFaqOpen(faqOpen === i ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '19px 24px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: '#f5f3ec', fontSize: 16, fontWeight: 600, fontFamily: 'inherit' }}>
                 {fq.q}
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .22s' }}><path d="M6 9l6 6 6-6" /></svg>
               </button>
@@ -857,7 +905,7 @@ export default function ShopPage() {
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
                   onBlur={e => { e.currentTarget.style.borderColor = BORDER }}
                 />
-                <button type="submit" disabled={leadStatus === 'loading'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
+                <button type="submit" disabled={leadStatus === 'loading'} data-r="shopCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
                   {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
                 </button>
@@ -874,24 +922,24 @@ export default function ShopPage() {
           <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
           <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" style={CTA_BTN}>Quiero mi CarLink — $49.900{ARROW}</Link>
-            <Link href="/register" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
+            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $49.900{ARROW}</Link>
+            <Link href="/register" data-r="shopCtaSecondary" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
       </section>
 
       {/* CAPTURA DE LEADS */}
       <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}` }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
+        <div data-r="shopCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?</div>
             <h2 style={{ ...H2, margin: '12px 0 12px' }}>Te avisamos cuando salga el próximo lote</h2>
             <p style={{ fontSize: 15.5, color: MUTED, lineHeight: 1.6, margin: 0 }}>Déjanos tu correo y te escribimos con el descuento de lanzamiento. Sin spam, solo cuando haya novedades.</p>
           </div>
           <div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div data-r="shopCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
-              <button style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
+              <button data-r="shopCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
             </div>
             <div style={{ fontSize: 12.5, color: '#6f6a5f', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
           </div>
@@ -900,11 +948,11 @@ export default function ShopPage() {
 
       {/* FOOTER */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
+        <div data-r="shopFooter" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
             <CarLinkWordmark fontSize={20} iconSize={15} badgeSize={26} badgeRadius={7} />
           </Link>
-          <div style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
+          <div data-r="shopFooterText" style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
         </div>
       </footer>
     </div>

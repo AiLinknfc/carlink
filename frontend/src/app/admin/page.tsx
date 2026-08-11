@@ -83,6 +83,7 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [provisioned, setProvisioned] = useState<{ tag_uid: string; activation_code: string; token_url: string; qr_url: string; provisioned_by_partner_id: string | null } | null>(null)
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
+  const [qrLabel, setQrLabel] = useState('')
   const jobsRef = useRef<HTMLDivElement>(null)
 
   const [provisionModal, setProvisionModal] = useState(false)
@@ -649,7 +650,7 @@ export default function AdminPage() {
                     Asignado a: {partners.find(p => p.id === provisioned.provisioned_by_partner_id)?.name || 'partner'}
                   </div>
                 )}
-                <button onClick={() => setQrModalUrl(provisioned.qr_url)} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Ver QR para imprimir</button>
+                <button onClick={() => { setQrModalUrl(provisioned.qr_url); setQrLabel(provisioned.tag_uid) }} style={{ ...accentBtnStyle, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Ver QR para imprimir</button>
               </div>
             )}
 
@@ -685,7 +686,7 @@ export default function AdminPage() {
                       <td style={tdStyle}>{new Date(w.created_at).toLocaleDateString()}</td>
                       <td style={{ ...tdStyle, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {w.qr_url && (
-                          <button onClick={() => setQrModalUrl(w.qr_url)} style={{ ...accentBtnStyle, padding: '5px 10px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Ver QR</button>
+                          <button onClick={() => { setQrModalUrl(w.qr_url); setQrLabel(w.label) }} style={{ ...accentBtnStyle, padding: '5px 10px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Ver QR</button>
                         )}
                         {w.status !== 'claimed' && (
                           <button onClick={() => handleRemoveWhitelist(w.id, w.tag_uid)} style={dangerBtnStyle}>Eliminar</button>
@@ -922,7 +923,7 @@ export default function AdminPage() {
         )}
       </div>
 
-      <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} />
+      <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} plateText={qrLabel} />
 
       <AdminModal isOpen={provisionModal} onClose={() => setProvisionModal(false)} theme={isDark ? 'dark' : 'light'}
         title="Provisionar llavero" subtitle="Genera el token, el código de activación y el QR de un chip nuevo — este es el único paso que deja el llavero realmente usable."

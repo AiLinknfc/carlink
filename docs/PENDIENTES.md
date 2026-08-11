@@ -1,8 +1,28 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-09 (octava pasada — llaveros de campaña + control estricto de QR)._
+_Última actualización: 2026-08-11 (responsive shop + landing overlap fix)._
 
-**Ejecutado en la octava pasada**: llaveros de campaña sobre el rol partner de la sexta pasada, a
+**Ejecutado en la novena pasada**: responsive completo de la sección `/shop` y fix de overlap
+hero/Wallet/"Cómo funciona" en pantallas medianas:
+
+- **`shop/page.tsx`**: 4 breakpoints responsive nuevos (`@media` en `<style>` inline) para
+  860px, 720px, 480px, 380px — cubren hero phone/NFC scaling, nav CTA, "Cómo funciona"
+  grid, pricing cards, testimonials, FAQ, lead capture, dimensions, footer. 43 `data-r`
+  attributes únicos para targeting CSS.
+- **`CartDrawer.tsx`**: `className="cart-drawer"` + header/footer class hooks para responsive
+  CSS (full-width en ≤480px, safe-area iOS).
+- **`CheckoutClient.tsx`**: `className="shop-checkout"` + steps class hook (tighter padding
+  en phones).
+- **`OrdersClient.tsx`**: `className="shop-orders"` (tighter padding en phones).
+- **`globals.css`**: reglas responsive nuevas para `.cart-drawer`, `.shop-checkout`,
+  `.shop-orders`, `.grid2`, `.shop-cta-row` (stacking en ≤380px).
+- **`LandingSections.tsx`**: fix de overlap `#h-como` — height-based media queries
+  `@media(max-height:800px)` y `@media(max-height:680px)` que reducen el `marginTop: -115`
+  en viewports medianos (ej. 1366x768).
+- **Documentación**: `DESIGN_GUIDELINES.md` → "Responsive Design Patterns" (patrón `data-r`,
+  height-based queries, CSS class hooks). `CONTEXTO.md` → sección Responsive actualizada.
+- **Skill creada**: `.claude/skills/capture-thinking/SKILL.md` (referenciada en CLAUDE.md pero
+  inexistente).
 pedido explícito del usuario ("quiero poder hacer una gestión previa para descargar el QR, diseñar
 el llavero y ya dejar el token asignado"):
 - `GET /partners/me/tokens` — llaveros propios uno por fila (no agregados), con `qr_url` re-pedible

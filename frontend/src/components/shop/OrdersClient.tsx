@@ -54,7 +54,7 @@ export default function OrdersClient() {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px clamp(16px,4vw,40px)' }}>
+    <div className="shop-orders" style={{ maxWidth: 600, margin: '0 auto', padding: '24px clamp(16px,4vw,40px)' }}>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Mis pedidos</div>
       <div style={{ fontSize: 13, color: muted, marginBottom: 24 }}>Seguimiento de tus llaveros NFC</div>
 

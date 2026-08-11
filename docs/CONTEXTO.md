@@ -1,6 +1,6 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-08-09._
+_Última actualización: 2026-08-11._
 
 ## Estado actual
 
@@ -103,6 +103,13 @@ agregar otro proveedor de IA para esta功能. El endpoint es `POST /api/expenses
 - Tablero vehicular: grid 3→1 col, gauges reducidos (140px)
 - Panels (profile, NFC, modales): full-width en móvil
 - Touch: hover effects siempre visibles
+- **Shop `/shop`**: landing autocontenida con `data-r` attributes para responsive via
+  `<style>` inline — breakpoints en 860px (grids → 1-col), 720px (nav shrinks, phone mockup
+  scales), 480px (1-col everything, tighter padding), 380px (tiny phones). Ver
+  `docs/DESIGN_GUIDELINES.md` → "Responsive Design Patterns" para el patrón `data-r`.
+- **Height-based responsive**: el hero landing (`page.tsx`) y "Cómo funciona"
+  (`LandingSections.tsx`) usan `@media(max-height)` además de width para evitar overlap en
+  viewports medianos (ej. 1366x768). Patrón documentado en `DESIGN_GUIDELINES.md`.
 
 ## Vehicle Transfers
 
@@ -126,11 +133,18 @@ agregar otro proveedor de IA para esta功能. El endpoint es `POST /api/expenses
 
 ### Frontend
 - `src/app/app/page.tsx` — panel principal del usuario (Ficha, Historial, Partes, NFC/activación, Cart, Found)
+- `src/app/(public)/shop/page.tsx` — landing de venta del llavero NFC (siempre oscura, autocontenida, 960+ líneas)
 - `src/app/admin/page.tsx` — panel admin NFC (tokens, whitelist/provisión, alertas, límites, Pedidos, Partners)
 - `src/app/partner/page.tsx` — panel de prueba del rol partner (api key propia, sin sesión de Supabase)
 - `src/app/nfc/[token]/page.tsx` — ficha pública NFC
-- `src/components/QrCodePanel.tsx` — generación/descarga de QR (Simple/Estándar/Máxima resistencia), solo en Admin/`/partner`
-- `src/components/CartModal.tsx` — checkout Wompi del llavero
+- `src/components/shop/CartDrawer.tsx` — drawer lateral del carrito (framer-motion, slide-in)
+- `src/components/shop/CheckoutClient.tsx` — checkout multi-paso (datos → pago → confirmación)
+- `src/components/shop/OrdersClient.tsx` — "Mis pedidos" (solo lectura, polling cada 3s)
+- `src/components/shop/ProductCustomizer.tsx` — configurador de llavero (color, placa, grabado, cantidad)
+- `src/components/QrCodePanel.tsx` — generación/descarga de QR (Simple/Estándar/Máxima resistencia), solo en Admin NFC y `/partner`
+- `src/components/CartModal.tsx` — checkout Wompi del llavero (versión modal, usada en landing principal)
+- `src/lib/shop.ts` — tipos, catálogo, carrito (localStorage), formatter COP, progreso de envío
+- `src/lib/shop-cart-context.tsx` — React Context + Provider del carrito de compras
 - `src/lib/api.ts` — wrappers de API (apiGet/Post/Put/Patch/Delete, `activateNfcCode`, `partnerApi.*`)
 - `next.config.ts` — rewrite `/api/:path*` → backend
 

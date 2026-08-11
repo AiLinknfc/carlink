@@ -72,9 +72,10 @@ const COVERAGE = [
 ]
 
 const FAQS = [
-  { q: '¿CarLink reemplaza al SOAT o la tecnomecánica?', a: 'No — los complementa. CarLink es tu ficha de mantenimiento; SOAT y RTM siguen siendo trámites oficiales, aunque también puedes guardarlos en tu sección de Documentos.' },
+  { q: '¿Qué incluye cada servicio del taller?', a: 'Cada visita queda registrada con fecha, kilometraje, tall mecánico, los repuestos cambiados y una foto del comprobante. El historial es inmutable y verificable.' },
   { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — cada visita nueva simplemente se agrega con el nombre de quien te atendió.' },
-  { q: '¿Necesito el llavero NFC para usar la app?', a: 'No es obligatorio. Puedes ver y compartir tu ficha desde el navegador; el llavero solo hace la verificación en el taller más rápida.' },
+  { q: '¿Cómo verifico que el historial no esté adulterado?', a: 'Cada registro tiene un hash de integridad y la ubicación GPS del taller. Si alguien intenta editar un servicio pasado, la app marca la inconsistencia.' },
+  { q: '¿Necesito descargar alguna aplicación?', a: 'No. CarLink funciona con la tecnología NFC nativa de todos los smartphones (iPhone y Android). Al acercar tu celular al llavero, se abre automáticamente tu navegador seguro con la bitácora digital de tu vehículo.' },
   { q: '¿Mis datos son públicos?', a: 'No. Tu ficha solo es visible para quien tú compartas el enlace o acerque el llavero — no aparece en buscadores ni se comparte con terceros.' },
   { q: '¿Cuánto cuesta para un conductor?', a: 'Nada. Crear tu ficha, ver tu historial y descargar tu pase de Wallet es gratis para siempre.' },
 ]
@@ -145,6 +146,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         @keyframes sponsorScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         @media(max-width:860px){ #h-como{margin-top:0 !important;padding-top:40px !important} [data-r="nfcScenes"]{grid-template-columns:1fr !important} [data-r="nfcScenes"]>div{padding:10px 0 !important} [data-r="nfcScenes"]>div>div:first-child{min-height:190px !important} [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} }
         @media(max-width:1024px){ [data-r="footergrid"]{grid-template-columns:1fr 1fr !important} }
+        @media(max-height:800px){ #h-como{margin-top:-40px !important} }
+        @media(max-height:680px){ #h-como{margin-top:0 !important;padding-top:24px !important} }
       `}</style>
       <section id="h-como" style={{ ...SECTION_MAX, marginTop: -115, padding: '0 clamp(20px,5vw,64px) 64px' }}>
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
@@ -274,27 +277,35 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             </div>
 
             {(() => {
+              // Cada servicio tiene una curva con personalidad distinta:
+              // - Revisión general: caída inicial rápida (asentamiento), luego meseta
+              // - Llantas: desgaste acelerado al final (pierde gripe)
+              // - Frenos: decaimiento exponencial (pierde eficiencia más rápido)
+              // - Aceite: patrón sinusoidal amortiguado (se degrada y se recupera al cambiar)
               const services = [
-                { date: '05 dic 2025', event: 'Revisión general + afinación', km: '1.200 km', tall: 'Taller AutoPlus', pts: [95, 88, 80, 72, 65, 58, 50] },
-                { date: '12 feb 2026', event: 'Cambio de llantas Michelin', km: '3.800 km', tall: 'Taller Express', pts: [90, 82, 74, 66, 58, 50, 42] },
-                { date: '28 abr 2026', event: 'Revisión de frenos delanteros', km: '6.200 km', tall: 'CDA Medellín', pts: [85, 76, 67, 58, 49, 40, 32] },
-                { date: '14 jun 2026', event: 'Cambio de aceite synthetic 5W-30', km: '8.400 km', tall: 'Taller AutoPlus', pts: [78, 70, 62, 53, 44, 35, 28] },
+                { date: '05 dic 2025', event: 'Revisión general + afinación', km: '1.200 km', tall: 'Taller AutoPlus', pts: [98, 82, 74, 70, 68, 66, 65, 64, 63, 62], scale: [0, 100] },
+                { date: '12 feb 2026', event: 'Cambio de llantas Michelin', km: '3.800 km', tall: 'Taller Express', pts: [100, 88, 80, 73, 65, 56, 46, 35, 23, 10], scale: [0, 100] },
+                { date: '28 abr 2026', event: 'Revisión de frenos delanteros', km: '6.200 km', tall: 'CDA Medellín', pts: [95, 90, 82, 70, 55, 38, 22, 12, 6, 2], scale: [0, 100] },
+                { date: '14 jun 2026', event: 'Cambio de aceite synthetic 5W-30', km: '8.400 km', tall: 'Taller AutoPlus', pts: [100, 85, 72, 62, 55, 50, 47, 45, 44, 43], scale: [0, 100] },
               ]
-              // Las cuatro curvas son decrecientes (desgaste/vida útil tras cada
-              // servicio): se muestran todas al tiempo, no una reemplazando a la
-              // otra — el hover (en la fila o directo sobre la línea) solo resalta.
               const [hovered, setHovered] = React.useState<number>(0)
               const active = services[hovered]
-              const stepX = 300 / (active.pts.length - 1)
-              // El valor representa % de vida útil restante: a mayor valor, más
-              // "sano". El eje Y de SVG crece hacia abajo, así que hay que
-              // invertirlo (100 - valor) para que un valor que baja con el
-              // tiempo se vea bajando en pantalla, no subiendo.
-              const toY = (v: number) => 100 - v
-              const pointsFor = (pts: number[]): Array<[number, number]> => pts.map((v, i) => [i * stepX, toY(v)])
-              // Catmull-Rom → Bézier cúbica: pasa por todos los puntos reales
-              // pero con curvas suaves en vez de tramos rectos entre ellos.
-              const smoothPath = (pts: Array<[number, number]>) => {
+              const chartW = 300
+              const chartH = 100
+              const padL = 28
+              const padR = 8
+              const padT = 6
+              const padB = 14
+              const innerW = chartW - padL - padR
+              const innerH = chartH - padT - padB
+              const stepX = innerW / (active.pts.length - 1)
+              // Cada servicio tiene su propia escala Y — el rango visible varía
+              const [yMin, yMax] = active.scale
+              const toY = (v: number) => padT + innerH * (1 - (v - yMin) / (yMax - yMin))
+              const toX = (i: number) => padL + i * stepX
+              const pointsFor = (pts: number[]): Array<[number, number]> => pts.map((v, i) => [toX(i), toY(v)])
+              // Catmull-Rom → Bézier cúbica con tensión ajustable
+              const smoothPath = (pts: Array<[number, number]>, tension = 0.5) => {
                 if (pts.length < 2) return ''
                 let d = `M${pts[0][0]},${pts[0][1]}`
                 for (let i = 0; i < pts.length - 1; i++) {
@@ -302,41 +313,46 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   const p1 = pts[i]
                   const p2 = pts[i + 1]
                   const p3 = pts[i + 2] ?? p2
-                  const c1x = p1[0] + (p2[0] - p0[0]) / 6
-                  const c1y = p1[1] + (p2[1] - p0[1]) / 6
-                  const c2x = p2[0] - (p3[0] - p1[0]) / 6
-                  const c2y = p2[1] - (p3[1] - p1[1]) / 6
+                  const c1x = p1[0] + (p2[0] - p0[0]) / 6 * tension * 2
+                  const c1y = p1[1] + (p2[1] - p0[1]) / 6 * tension * 2
+                  const c2x = p2[0] - (p3[0] - p1[0]) / 6 * tension * 2
+                  const c2y = p2[1] - (p3[1] - p1[1]) / 6 * tension * 2
                   d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`
                 }
                 return d
               }
               const pathFor = (pts: number[]) => smoothPath(pointsFor(pts))
-              const areaPath = `${pathFor(active.pts)} L300,100 L0,100 Z`
+              const areaPath = `${pathFor(active.pts)} L${toX(active.pts.length - 1)},${chartH} L${padL},${chartH} Z`
+              // Tick labels del eje Y según la escala del servicio activo
+              const yTicks = [yMin, Math.round((yMax - yMin) * 0.5 + yMin), yMax]
 
               return (
                 <>
-                  {/* Ficha activa — texto completo, en flujo (nunca se corta ni se superpone) */}
+                  {/* Ficha activa — texto completo */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, lineHeight: 1.35 }}>{active.event}</span>
                     <span style={{ fontSize: 10.5, color: k.muted, whiteSpace: 'nowrap', flex: '0 0 auto' }}>{active.date}</span>
                   </div>
 
-                  {/* Chart — las 4 curvas visibles simultáneamente, interactivas cada una */}
-                  <div style={{ position: 'relative', height: 160, borderRadius: 14, background: k.bubbleBg, border: `1px solid ${k.thinBorder}`, overflow: 'visible', padding: 12 }}>
-                    <svg viewBox="0 0 300 100" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                  {/* Chart */}
+                  <div style={{ position: 'relative', height: 160, borderRadius: 14, background: k.bubbleBg, border: `1px solid ${k.thinBorder}`, overflow: 'visible', padding: '8px 4px 4px 0' }}>
+                    <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
                       <defs>
                         <linearGradient id="hChartGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={GOLD} stopOpacity="0.35" />
+                          <stop offset="0%" stopColor={GOLD} stopOpacity="0.30" />
                           <stop offset="100%" stopColor={GOLD} stopOpacity="0.02" />
                         </linearGradient>
                       </defs>
-                      {/* Grid */}
-                      {[25, 50, 75].map(y => (
-                        <line key={y} x1="0" y1={y} x2="300" y2={y} stroke={k.muted} strokeWidth="0.3" opacity="0.3" />
+                      {/* Grid horizontal — ticks del eje Y */}
+                      {yTicks.map((tick, i) => (
+                        <g key={i}>
+                          <line x1={padL} y1={toY(tick)} x2={chartW - padR} y2={toY(tick)} stroke={k.muted} strokeWidth="0.3" opacity="0.25" />
+                          <text x={padL - 3} y={toY(tick) + 3} textAnchor="end" fill={k.muted} fontSize="6" fontFamily="var(--font-ui)">{tick}%</text>
+                        </g>
                       ))}
-                      {/* Area — solo bajo la curva activa, para no ensuciar la lectura */}
+                      {/* Area */}
                       <path d={areaPath} fill="url(#hChartGrad)">
-                        <animate attributeName="d" dur="0.4s" fill="freeze" from="M0,100 L300,100 L300,100 L0,100 Z" to={areaPath} />
+                        <animate attributeName="d" dur="0.4s" fill="freeze" from={`M${padL},${chartH} L${chartW - padR},${chartH} L${chartW - padR},${chartH} L${padL},${chartH} Z`} to={areaPath} />
                       </path>
                       {/* Las 4 líneas, siempre presentes */}
                       {services.map((s, i) => {
@@ -344,27 +360,26 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                         return (
                           <g key={i}>
                             <path d={pathFor(s.pts)} fill="none" stroke={GOLD} strokeLinecap="round" strokeLinejoin="round"
-                              strokeWidth={isActive ? 2.5 : 1.3} opacity={isActive ? 1 : 0.3}
+                              strokeWidth={isActive ? 2.5 : 1.3} opacity={isActive ? 1 : 0.25}
                               style={{ transition: 'opacity .25s ease, stroke-width .25s ease' }} />
-                            {/* Trazo invisible más grueso: permite pasar el cursor directo sobre la gráfica */}
                             <path d={pathFor(s.pts)} fill="none" stroke="transparent" strokeWidth="14"
                               style={{ cursor: 'pointer' }} pointerEvents="stroke"
                               onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(0)} />
                             {isActive && s.pts.map((y, p) => (
-                              <circle key={p} cx={p * stepX} cy={toY(y)} r="3" fill={GOLD} stroke={theme === 'dark' ? '#0a0a0a' : '#fff'} strokeWidth="1.5" />
+                              <circle key={p} cx={toX(p)} cy={toY(y)} r="2.8" fill={GOLD} stroke={theme === 'dark' ? '#0a0a0a' : '#fff'} strokeWidth="1.2" />
                             ))}
                           </g>
                         )
                       })}
-                      {/* Highlight pulsante en el primer punto de la curva activa */}
-                      <circle cx={0} cy={toY(active.pts[0])} r="5" fill={GOLD} opacity="0.25">
-                        <animate attributeName="r" dur="1.5s" repeatCount="indefinite" values="5;9;5" />
+                      {/* Highlight pulsante en el primer punto */}
+                      <circle cx={toX(0)} cy={toY(active.pts[0])} r="4" fill={GOLD} opacity="0.25">
+                        <animate attributeName="r" dur="1.5s" repeatCount="indefinite" values="4;7;4" />
                       </circle>
                     </svg>
-                    <div style={{ position: 'absolute', bottom: 6, left: 12, fontSize: 9, color: k.muted }}>dic</div>
-                    <div style={{ position: 'absolute', bottom: 6, left: '33%', fontSize: 9, color: k.muted }}>feb</div>
-                    <div style={{ position: 'absolute', bottom: 6, left: '66%', fontSize: 9, color: k.muted }}>abr</div>
-                    <div style={{ position: 'absolute', bottom: 6, right: 12, fontSize: 9, color: k.muted }}>jun</div>
+                    <div style={{ position: 'absolute', bottom: 4, left: 28, fontSize: 8.5, color: k.muted }}>dic</div>
+                    <div style={{ position: 'absolute', bottom: 4, left: '38%', fontSize: 8.5, color: k.muted }}>feb</div>
+                    <div style={{ position: 'absolute', bottom: 4, left: '62%', fontSize: 8.5, color: k.muted }}>abr</div>
+                    <div style={{ position: 'absolute', bottom: 4, right: 8, fontSize: 8.5, color: k.muted }}>jun</div>
                   </div>
 
                   {/* History rows */}

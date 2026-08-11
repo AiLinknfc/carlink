@@ -216,7 +216,19 @@ function FichaQr({ code }: { code: string }) {
     return () => { cancelled = true }
   }, [code])
 
-  const handleDownload = () => qrRef.current?.download({ name: `ficha-${code}`, extension: 'png' })
+  const handleDownloadPng = () => qrRef.current?.download({ name: `ficha-${code}`, extension: 'png' })
+
+  const handleDownloadSvg = async () => {
+    if (!qrRef.current) return
+    const blob = await qrRef.current.getRawData('svg')
+    if (!blob || !(blob instanceof Blob)) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ficha-${code}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div style={{
@@ -231,13 +243,23 @@ function FichaQr({ code }: { code: string }) {
         <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 12px', lineHeight: 1.6 }}>
           Escanéalo o compártelo para que cualquiera llegue directo a esta ficha pública — en tarjetas, redes o en el mostrador del taller.
         </p>
-        <button onClick={handleDownload} disabled={!ready} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, border: 'none',
-          background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12.5, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : 0.5,
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-          Descargar PNG
-        </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+          <button onClick={handleDownloadPng} disabled={!ready} style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, border: 'none',
+            background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12.5, cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : 0.5,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+            PNG
+          </button>
+          <button onClick={handleDownloadSvg} disabled={!ready} style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10,
+            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-1)', fontWeight: 700, fontSize: 12.5,
+            cursor: ready ? 'pointer' : 'default', opacity: ready ? 1 : 0.5,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+            SVG
+          </button>
+        </div>
       </div>
     </div>
   )

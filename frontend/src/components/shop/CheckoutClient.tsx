@@ -125,12 +125,12 @@ export default function CheckoutClient() {
   }
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '24px clamp(16px,4vw,40px)' }}>
+    <div className="shop-checkout" style={{ maxWidth: 700, margin: '0 auto', padding: '24px clamp(16px,4vw,40px)' }}>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Checkout</div>
       <div style={{ fontSize: 13, color: muted, marginBottom: 24 }}>Completa tus datos para recibir tu llavero</div>
 
       {/* Steps */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+      <div className="shop-checkout-steps" style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
         {[['1', 'Datos'], ['2', 'Pago'], ['3', 'Listo']].map(([n, l], i) => (
           <div key={n} style={{ flex: 1, textAlign: 'center', padding: 10, borderRadius: 12, background: i <= (step === 'form' ? 0 : 1) ? 'rgba(245,197,24,0.12)' : cardBg, border: `1px solid ${i <= (step === 'form' ? 0 : 1) ? GOLD : subtle}` }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: i <= (step === 'form' ? 0 : 1) ? GOLD : muted }}>{n}</div>

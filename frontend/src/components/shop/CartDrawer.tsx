@@ -33,10 +33,11 @@ export default function CartDrawer({ isOpen, onClose, theme }: Props) {
           <motion.div
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+            className="cart-drawer"
             style={{ position: 'relative', width: '100%', maxWidth: 420, height: '100%', background: bg, borderLeft: `1px solid ${border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
           >
             {/* Header */}
-            <div style={{ padding: '18px 20px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="cart-drawer-header" style={{ padding: '18px 20px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
@@ -96,7 +97,7 @@ export default function CartDrawer({ isOpen, onClose, theme }: Props) {
 
             {/* Footer */}
             {cart.items.length > 0 && (
-              <div style={{ padding: '14px 20px', borderTop: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="cart-drawer-footer" style={{ padding: '14px 20px', borderTop: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: GOLD }}>{COP(cart.total)}</span>

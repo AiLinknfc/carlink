@@ -169,3 +169,78 @@ and use ascending z-index values to ensure correct stacking:
 
 Never render a modal inside another modal's DOM tree without portaling — it will get
 trapped in the parent's stacking context.
+
+## Responsive Design Patterns (2026-08-11)
+
+### Breakpoints
+
+The project uses **mobile-first** CSS media queries in `globals.css`:
+- `≤960px` — ficha grid collapses
+- `≤860px` — hero form stacks, shop grids collapse, sidebar overlay
+- `≤720px` — nav links hide, shop nav shrinks
+- `≤600px` — shop layout bottom padding, checkout grid
+- `≤480px` — cart drawer full-width, hero phone shrinks further
+- `≤380px` — smallest phones, plan prices shrink
+
+### Pattern: `data-r` attributes for inline-styled components
+
+This project uses **inline `style` objects** (not Tailwind/CSS modules). To target elements
+for responsive CSS overrides, use `data-r="elementName"` attributes:
+
+```tsx
+// Component
+<div data-r="shopHero" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+
+// CSS override
+@media(max-width:860px) {
+  [data-r="shopHero"] { grid-template-columns: 1fr !important }
+}
+```
+
+This avoids the specificity war between inline styles and CSS classes. Always use `!important`
+to override inline styles.
+
+### Pattern: Height-based media queries for overlap
+
+Width-only breakpoints miss overlap issues on medium-height viewports (e.g. 1366x768 laptops).
+When sections use negative margins or absolute positioning, add **height-based** queries:
+
+```css
+/* Width-only: misses 768px height on a 1366px-wide screen */
+@media(max-width:860px){ section { margin-top: 0 } }
+
+/* Height-based: catches medium-height viewports */
+@media(max-height:800px){ section { margin-top: -40px } }
+@media(max-height:680px){ section { margin-top: 0 } }
+```
+
+The hero-to-"Cómo funciona" overlap was caused by `marginTop: -115` only being controlled
+by width. Fixed with `@media(max-height:800px)` and `@media(max-height:680px)` tiers.
+
+### Pattern: CSS class hooks on components for responsive rules
+
+When a component uses inline styles but needs CSS responsive overrides, add a `className`
+hook so `globals.css` rules can target it:
+
+```tsx
+// Before: no CSS class, inline styles only
+<div style={{ maxWidth: 420, width: '100%' }}>
+
+// After: CSS class for responsive overrides
+<div className="cart-drawer" style={{ maxWidth: 420, width: '100%' }}>
+```
+
+```css
+/* globals.css */
+@media (max-width: 480px) {
+  .cart-drawer { max-width: 100% !important; border-radius: 0 !important; }
+}
+```
+
+Used by: CartDrawer, CheckoutClient, OrdersClient.
+
+### Anti-pattern: Relying only on width for responsive behavior
+
+**Don't assume that width-based breakpoints cover all viewport shapes.**
+A 1366x768 laptop and a 768x1024 tablet have very different height constraints.
+When vertical overlap or spacing is involved, always check height breakpoints too.

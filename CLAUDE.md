@@ -29,3 +29,11 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
 solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.
+
+## Patrones de diseño responsive
+
+- Usar `data-r="nombre"` para targeting CSS en componentes con inline styles — ver `docs/DESIGN_GUIDELINES.md` → "Responsive Design Patterns"
+- Para overlap entre secciones, usar `@media(max-height)` además de width — el hero landing y
+  "Cómo funciona" ya lo aplican
+- Agregar `className` hooks en componentes que usen inline styles pero necesiten responsive CSS
+  (CartDrawer, CheckoutClient, OrdersClient)

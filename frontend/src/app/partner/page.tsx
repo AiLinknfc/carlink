@@ -27,6 +27,7 @@ export default function PartnerPage() {
   const [tokens, setTokens] = useState<PartnerToken[]>([])
   const [tokensBatchFilter, setTokensBatchFilter] = useState<string | null>(null)
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
+  const [qrLabel, setQrLabel] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -250,7 +251,7 @@ export default function PartnerPage() {
                             <div style={{ fontSize: 11, color: t.status === 'available' ? c.muted : '#2ecc71' }}>{t.status === 'available' ? 'Disponible' : 'Activado'}</div>
                           </div>
                           {t.qr_url && (
-                            <button onClick={() => setQrModalUrl(t.qr_url)} style={{ flex: '0 0 auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${c.accent}`, background: 'transparent', color: c.accent, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Ver QR</button>
+                            <button onClick={() => { setQrModalUrl(t.qr_url); setQrLabel(t.label) }} style={{ flex: '0 0 auto', padding: '6px 12px', borderRadius: 8, border: `1px solid ${c.accent}`, background: 'transparent', color: c.accent, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Ver QR</button>
                           )}
                         </div>
                       ))}
@@ -263,7 +264,7 @@ export default function PartnerPage() {
         )}
       </div>
 
-      <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} />
+      <QrCodePanel isOpen={!!qrModalUrl} onClose={() => setQrModalUrl(null)} theme={isDark ? 'dark' : 'light'} qrUrl={qrModalUrl} plateText={qrLabel} />
     </div>
   )
 }

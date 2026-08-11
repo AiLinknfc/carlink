@@ -85,9 +85,23 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
 
   const [downloadingAll, setDownloadingAll] = useState(false)
 
-  const handleDownload = () => {
+  const fileSlug = (plateText || 'llavero').replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+
+  const handleDownloadPng = () => {
     if (!qrRef.current) return
-    qrRef.current.download({ name: `carlink-qr-${plateText || 'llavero'}`, extension: 'png' })
+    qrRef.current.download({ name: `qr-${fileSlug}`, extension: 'png' })
+  }
+
+  const handleDownloadSvg = async () => {
+    if (!qrRef.current) return
+    const blob = await qrRef.current.getRawData('svg')
+    if (!blob || !(blob instanceof Blob)) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `qr-${fileSlug}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   // Control estricto por llavero (docs/PLAN_PARTNER_MODEL.md): genera y
@@ -110,9 +124,18 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
           backgroundOptions: { color: '#ffffff' },
         })
         const slug = p.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
-        await temp.download({ name: `carlink-qr-${plateText || 'llavero'}-${slug}`, extension: 'png' })
-        // Los navegadores bloquean descargas simultáneas como si fueran
-        // spam — un respiro corto entre cada una evita que se pierda alguna.
+        const baseName = `qr-${fileSlug}-${slug}`
+        await temp.download({ name: baseName, extension: 'png' })
+        await new Promise(r => setTimeout(r, 300))
+        const svgBlob = await temp.getRawData('svg')
+        if (svgBlob && svgBlob instanceof Blob) {
+          const url = URL.createObjectURL(svgBlob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${baseName}.svg`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
         await new Promise(r => setTimeout(r, 400))
       }
     } finally {
@@ -185,10 +208,16 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
                     </div>
                   </div>
 
-                  <button onClick={handleDownload} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13.5, cursor: 'pointer' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                    Descargar PNG para imprimir
-                  </button>
+                  <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button onClick={handleDownloadPng} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                      PNG
+                    </button>
+                    <button onClick={handleDownloadSvg} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 12, border: `1px solid ${subtle}`, background: 'transparent', color: textPrimary, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                      SVG
+                    </button>
+                  </div>
 
                   <button onClick={handleDownloadAllVariants} disabled={downloadingAll} style={{
                     width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 11, borderRadius: 12,
@@ -196,7 +225,7 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
                     cursor: downloadingAll ? 'default' : 'pointer', opacity: downloadingAll ? 0.6 : 1,
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                    {downloadingAll ? 'Generando las 3…' : 'Descargar las 3 variantes (Simple, Estándar, Máxima)'}
+                    {downloadingAll ? 'Generando las 6…' : 'Descargar las 3 variantes (PNG + SVG)'}
                   </button>
                 </>
               )}
