@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
 import { waitlistApi } from '@/lib/api'
@@ -170,6 +170,18 @@ export default function ShopPage() {
   const [faqOpen, setFaqOpen] = useState(-1)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [activeCard, setActiveCard] = useState(-1)
+  const [goneCards, setGoneCards] = useState<number[]>([])
+
+  useEffect(() => {
+    if (activeCard < 0 || activeCard > 6) return
+    const t = setTimeout(() => {
+      setGoneCards(prev => [...prev, activeCard])
+      if (activeCard < 6) setActiveCard(activeCard + 1)
+      else setTimeout(() => { setActiveCard(-1); setGoneCards([]) }, 800)
+    }, 500)
+    return () => clearTimeout(t)
+  }, [activeCard])
 
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -199,6 +211,24 @@ export default function ShopPage() {
           [data-r="shopBackLabel"]{display:none !important}
           [data-r="shopScrollHint"]{display:flex !important}
         }
+        .no-scrollbar::-webkit-scrollbar{display:none}
+        .no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
+        @keyframes shopCardGlow { 0%,100%{box-shadow:0 0 0 rgba(245,197,24,0)} 50%{box-shadow:0 0 18px rgba(245,197,24,.25)} }
+        .dash-card{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease}
+        .dash-card:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 8px 28px rgba(245,197,24,.2)}
+        .dash-card-red:hover{box-shadow:0 8px 28px rgba(255,60,60,.22)}
+        .dash-card-green:hover{box-shadow:0 8px 28px rgba(60,180,80,.22)}
+        .dash-card-yellow:hover{box-shadow:0 8px 28px rgba(200,180,0,.22)}
+        @keyframes nfcWave { 0%,100%{opacity:.22} 50%{opacity:1} }
+        @keyframes cardFlyAway {
+          0%{opacity:1;transform:translate(0,0) scale(1) rotate(0deg)}
+          20%{opacity:1;transform:translate(30px,-40px) scale(1.15) rotate(-2deg)}
+          50%{opacity:1;transform:translate(80px,-20px) scale(.8) rotate(1deg)}
+          80%{opacity:.7;transform:translate(110px,10px) scale(.45) rotate(0deg)}
+          100%{opacity:0;transform:translate(120px,20px) scale(.3) rotate(0deg)}
+        }
+        .card-fly-away{animation:cardFlyAway .48s cubic-bezier(.4,0,.2,1) forwards}
+        .card-gone{display:none !important}
       `}</style>
 
       {/* NAV — el logo ya vuelve al inicio, pero se agrega un link explícito
@@ -248,35 +278,168 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Escena: teléfono + llavero acercándose */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 440, animation: 'shopFadeUp .7s .14s both' }}>
-          <div style={{ position: 'relative', width: 250, height: 430, borderRadius: 34, background: 'linear-gradient(165deg,#1a1a1f,#0e0e12)', border: '8px solid #17171c', boxShadow: '0 40px 90px rgba(0,0,0,.7),0 0 60px rgba(245,197,24,.12)', overflow: 'hidden' }}>
+        {/* Escena: teléfono con fichas dashboard + llavero */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 500, animation: 'shopFadeUp .7s .14s both' }}>
+          <div style={{ position: 'relative', width: 260, height: 480, borderRadius: 34, background: 'linear-gradient(165deg,#1a1a1f,#0e0e12)', border: '8px solid #17171c', boxShadow: '0 40px 90px rgba(0,0,0,.7),0 0 60px rgba(245,197,24,.12)', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 88, height: 20, background: '#17171c', borderRadius: '0 0 12px 12px', zIndex: 3 }} />
-            <div style={{ padding: '36px 18px 18px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CarLinkWordmark fontSize={13} iconSize={11} badgeSize={20} badgeRadius={6} />
-              <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: 'linear-gradient(158deg,#1c1a12,#141418)', border: '1px solid rgba(245,197,24,0.3)' }}>
-                <div style={{ fontSize: 8.5, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: MUTED, fontWeight: 700 }}>Kilometraje</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD, lineHeight: 1, marginTop: 3 }}>48.250<span style={{ fontSize: 12, color: MUTED, fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span></div>
-                <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginTop: 12 }}><div style={{ height: '100%', width: '59%', background: 'linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D)', borderRadius: 4 }} /></div>
-                <div style={{ fontSize: 9, color: '#6f6a5f', marginTop: 7 }}>Próximo servicio · 51.200 km</div>
+            {/* scroll fade top */}
+            <div style={{ position: 'absolute', top: 30, left: 0, right: 0, height: 30, background: 'linear-gradient(180deg,#1a1a1f,transparent)', zIndex: 2, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 40, background: 'linear-gradient(0deg,#0e0e12,transparent)', zIndex: 2, pointerEvents: 'none' }} />
+            <div style={{ padding: '36px 14px 20px', height: '100%', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
+              <div style={{ padding: '0 4px 6px' }}>
+                <CarLinkWordmark fontSize={12} iconSize={10} badgeSize={18} badgeRadius={5} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}><svg width="13" height="13" viewBox="0 0 24 24" fill={GOLD} style={{ flex: '0 0 auto' }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /></svg><span style={{ fontSize: 10.5, color: '#d8d4c8' }}>Aceite · Mobil 1 5W-30</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" style={{ flex: '0 0 auto' }}><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z" /></svg><span style={{ fontSize: 10.5, color: '#d8d4c8' }}>SOAT vigente · 14 Nov</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" style={{ flex: '0 0 auto' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg><span style={{ fontSize: 10.5, color: '#d8d4c8' }}>Tecnicentro La 80 · 4.8★</span></div>
+
+              {/* Ficha 1: Kilometraje — placa amarilla */}
+              <div className={`dash-card${activeCard === 0 ? ' card-fly-away' : goneCards.includes(0) ? ' card-gone' : ''}`} style={{ padding: '14px 14px 12px', borderRadius: 14, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '1px solid #d4a800', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111116" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#3a3a1e', fontWeight: 700 }}>Kilometraje</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#111116', lineHeight: 1 }}>48.250<span style={{ fontSize: 11, color: '#3a3a1e', fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span></div>
+                <div style={{ height: 5, borderRadius: 4, background: 'rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 10 }}><div style={{ height: '100%', width: '59%', background: 'linear-gradient(90deg,#111116,#3a3a1e)', borderRadius: 4 }} /></div>
+                <div style={{ fontSize: 8.5, color: '#3a3a1e', marginTop: 6 }}>Proximo servicio · 51.200 km</div>
+              </div>
+
+              {/* Ficha 2: Presión de aceite — placa amarilla */}
+              <div className={`dash-card${activeCard === 1 ? ' card-fly-away' : goneCards.includes(1) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '1px solid #d4a800', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="16" height="13" viewBox="0 0 520 230" fill="none" stroke="#111116" strokeWidth="29" strokeLinejoin="round" strokeLinecap="round"><path d="M28 14 L130 46 L128 82 L18 48 Z"></path><path d="M152 12 L222 12"></path><path d="M187 20 L187 84"></path><path d="M105 84 L268 84 L296 116 L462 46 L488 74 L382 118 L332 202 L105 202 Z" fill="rgba(0,0,0,0.06)"></path><path d="M500 128 C500 128 486 152 486 164 a14 14 0 0 0 28 0 c0 -12 -14 -36 -14 -36 Z" fill="#111116" strokeWidth="10"></path></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#3a3a1e', fontWeight: 700, flex: 1 }}>Aceite · Mobil 1 5W-30</div>
+                  <svg width="31" height="26" viewBox="0 0 520 230" fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="29" strokeLinejoin="round" strokeLinecap="round"><path d="M28 14 L130 46 L128 82 L18 48 Z"></path><path d="M152 12 L222 12"></path><path d="M187 20 L187 84"></path><path d="M105 84 L268 84 L296 116 L462 46 L488 74 L382 118 L332 202 L105 202 Z" fill="rgba(0,0,0,0.03)"></path><path d="M500 128 C500 128 486 152 486 164 a14 14 0 0 0 28 0 c0 -12 -14 -36 -14 -36 Z" fill="rgba(0,0,0,0.12)" strokeWidth="10"></path></svg>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#111116', lineHeight: 1 }}>82%</div>
+                  <div style={{ fontSize: 8.5, color: '#3a3a1e' }}>vida util</div>
+                </div>
+                <div style={{ height: 5, borderRadius: 4, background: 'rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 10 }}><div style={{ height: '100%', width: '82%', background: 'linear-gradient(90deg,#111116,#3a3a1e)', borderRadius: 4 }} /></div>
+                <div style={{ fontSize: 8.5, color: '#3a3a1e', marginTop: 6 }}>Cambio cada 10.000 km · Faltan 1.750 km</div>
+              </div>
+
+              {/* Ficha 3: Sistema de frenos — placa amarilla */}
+              <div className={`dash-card${activeCard === 2 ? ' card-fly-away' : goneCards.includes(2) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '1px solid #d4a800', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="15" height="15" viewBox="0 0 120 100" fill="none" stroke="#111116" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><circle cx="60" cy="50" r="23"></circle><path d="M60 37v14"></path><circle cx="60" cy="61.5" r="3.5" fill="#111116" stroke="none"></circle><path d="M31 27a34 34 0 0 0 0 46"></path><path d="M89 27a34 34 0 0 1 0 46"></path></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#3a3a1e', fontWeight: 700, flex: 1 }}>Sistema de frenos</div>
+                  <svg width="29" height="23" viewBox="0 0 120 100" fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><circle cx="60" cy="50" r="23"></circle><path d="M60 37v14"></path><circle cx="60" cy="61.5" r="3.5" fill="rgba(0,0,0,0.12)" stroke="none"></circle><path d="M31 27a34 34 0 0 0 0 46"></path><path d="M89 27a34 34 0 0 1 0 46"></path></svg>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#111116', lineHeight: 1 }}>38%</div>
+                  <div style={{ fontSize: 8.5, color: '#3a3a1e' }}>pastillas restantes</div>
+                </div>
+                <div style={{ height: 5, borderRadius: 4, background: 'rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 10 }}><div style={{ height: '100%', width: '38%', background: 'linear-gradient(90deg,#111116,#3a3a1e)', borderRadius: 4 }} /></div>
+                <div style={{ fontSize: 8.5, color: '#3a3a1e', marginTop: 6 }}>Reemplazar pronto · ~8.000 km</div>
+              </div>
+
+              {/* Ficha 4: Bateria / carga — placa amarilla */}
+              <div className={`dash-card${activeCard === 3 ? ' card-fly-away' : goneCards.includes(3) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '1px solid #d4a800', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="15" height="15" viewBox="0 0 120 100" fill="none" stroke="#111116" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><rect x="16" y="30" width="88" height="46" rx="5" fill="rgba(0,0,0,0.06)"></rect><path d="M34 30v-6h14v6"></path><path d="M72 30v-6h14v6"></path><path d="M32 52h16"></path><path d="M80 44v16"></path><path d="M72 52h16"></path></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#3a3a1e', fontWeight: 700, flex: 1 }}>Bateria / carga</div>
+                  <svg width="29" height="23" viewBox="0 0 120 100" fill="none" stroke="rgba(0,0,0,0.18)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><rect x="16" y="30" width="88" height="46" rx="5" fill="rgba(0,0,0,0.03)"></rect><path d="M34 30v-6h14v6"></path><path d="M72 30v-6h14v6"></path><path d="M32 52h16"></path><path d="M80 44v16"></path><path d="M72 52h16"></path></svg>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#111116', lineHeight: 1 }}>91%</div>
+                  <div style={{ fontSize: 8.5, color: '#3a3a1e' }}>carga restante</div>
+                </div>
+                <div style={{ height: 5, borderRadius: 4, background: 'rgba(0,0,0,0.10)', overflow: 'hidden', marginTop: 10 }}><div style={{ height: '100%', width: '91%', background: 'linear-gradient(90deg,#111116,#3a3a1e)', borderRadius: 4 }} /></div>
+                <div style={{ fontSize: 8.5, color: '#3a3a1e', marginTop: 6 }}>Voltaje 12.6V · Alternador OK</div>
+              </div>
+
+              {/* Ficha 5: Factura — certificado blanco */}
+              <div className={`dash-card${activeCard === 4 ? ' card-fly-away' : goneCards.includes(4) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: '#ffffff', border: '1px solid #e0e0e0', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111116" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#111116', fontWeight: 700, flex: 1 }}>Factura · Terpel</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <div style={{ fontSize: 8.5, color: '#555' }}>Galones</div>
+                  <div style={{ fontSize: 9, color: '#111116', fontWeight: 600 }}>12.4</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <div style={{ fontSize: 8.5, color: '#555' }}>Precio / galon</div>
+                  <div style={{ fontSize: 9, color: '#111116', fontWeight: 600 }}>$11.540</div>
+                </div>
+                <div style={{ height: 1, background: '#e0e0e0', margin: '6px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <div style={{ fontSize: 8.5, color: '#555' }}>Subtotal</div>
+                  <div style={{ fontSize: 9, color: '#111116', fontWeight: 600 }}>$143.096</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                  <div style={{ fontSize: 8.5, color: '#555' }}>IVA (19%)</div>
+                  <div style={{ fontSize: 9, color: '#3cb450', fontWeight: 600 }}>Exento</div>
+                </div>
+                <div style={{ height: 1, background: '#e0e0e0', margin: '6px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <div style={{ fontSize: 9, color: '#111116', fontWeight: 700 }}>Total</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: '#111116', fontWeight: 700 }}>$143.096</div>
+                </div>
+                <div style={{ fontSize: 8, color: '#999', marginTop: 6 }}>12 Jun 2026 · Terpel Av. 80</div>
+              </div>
+
+              {/* Ficha 6: Tecnicentro — certificado blanco */}
+              <div className={`dash-card${activeCard === 5 ? ' card-fly-away' : goneCards.includes(5) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: '#ffffff', border: '1px solid #e0e0e0', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#111116" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#111116', fontWeight: 700, flex: 1 }}>Tecnicentro La 80</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#111116', lineHeight: 1 }}>4.8</div>
+                  <div style={{ fontSize: 9, color: '#555' }}>★ · 324 reseñas</div>
+                </div>
+                <div style={{ fontSize: 8.5, color: '#555', marginTop: 8 }}>Ultimo servicio: aceite + filtros · 12 Jun 2026</div>
+              </div>
+
+              {/* Ficha 7: SOAT — certificado blanco */}
+              <div className={`dash-card${activeCard === 6 ? ' card-fly-away' : goneCards.includes(6) ? ' card-gone' : ''}`} style={{ padding: '14px', borderRadius: 14, background: '#ffffff', border: '1px solid #e0e0e0', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="15" height="15" viewBox="0 0 120 100" fill="none" stroke="#111116" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"><circle cx="60" cy="50" r="23"></circle><path d="M31 27a34 34 0 0 0 0 46"></path><path d="M89 27a34 34 0 0 1 0 46"></path><text x="60" y="59" textAnchor="middle" fontFamily="sans-serif" fontSize="20" fontWeight="700" fill="#111116" stroke="none">SOAT</text></svg>
+                  </div>
+                  <div style={{ fontSize: 8, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: '#111116', fontWeight: 700, flex: 1 }}>SOAT vigente</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#111116', lineHeight: 1 }}>14 Nov 2026</div>
+                <div style={{ fontSize: 8.5, color: '#555', marginTop: 8 }}>Faltan 127 dias · Tecnomecánica al día</div>
               </div>
             </div>
           </div>
-          {/* llavero */}
-          <div style={{ position: 'absolute', right: 2, bottom: 52, width: 150, height: 96, borderRadius: 16, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '5px solid #0c0c0e', boxShadow: '0 24px 50px rgba(0,0,0,.65),inset 0 3px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'shopFloatY 3.4s ease-in-out infinite' }}>
-            <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.28em', color: '#141414' }}>COLOMBIA</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: '#111116', lineHeight: 1, marginTop: 2 }}>GHK 472</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, color: '#3a3a1e' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 8.5a6 6 0 0 1 12 0" /><path d="M3.5 11a9 9 0 0 1 17 0" /><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" /></svg><span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.14em' }}>NFC</span></div>
+          {/* carpeta NFC */}
+          <div onClick={() => { if (activeCard < 0) setActiveCard(0) }} style={{ position: 'absolute', right: -6, bottom: 40, width: 148, height: 121, animation: 'shopFloatY 3.4s ease-in-out infinite', cursor: 'pointer' }}>
+            {/* sombra dorada */}
+            <div style={{ position: 'absolute', inset: '22% 6% -4%', borderRadius: 30, background: 'radial-gradient(closest-side,rgba(245,197,24,0.22),rgba(245,197,24,0) 72%)', filter: 'blur(16px)' }} />
+            {/* tab carpeta */}
+            <div style={{ position: 'absolute', left: 1, top: 15, width: '42%', height: '30%', borderRadius: '10px 16px 0 0', background: 'linear-gradient(160deg,rgba(245,197,24,0.18),rgba(245,197,24,0.05))', border: '1px solid rgba(245,197,24,0.16)', borderBottom: 'none', backdropFilter: 'blur(14px) saturate(150%)', WebkitBackdropFilter: 'blur(14px) saturate(150%)', boxShadow: 'inset 0 2px 0 rgba(245,197,24,0.28)' }} />
+            {/* barra decorativa — hoja blanca intenso */}
+            <div style={{ position: 'absolute', left: '4%', right: '4%', top: '21%', height: '5%', borderRadius: 8, background: 'linear-gradient(rgba(255,255,255,0.96),rgba(255,255,255,0.72))', boxShadow: '0 2px 14px rgba(255,255,255,0.40)' }} />
+            {/* body carpeta con NFC */}
+            <div style={{ position: 'absolute', inset: '24% 0 0', borderRadius: 14, background: 'linear-gradient(160deg,rgba(245,197,24,0.16),rgba(245,197,24,0.04))', border: '1px solid rgba(245,197,24,0.16)', backdropFilter: 'blur(14px) saturate(150%)', WebkitBackdropFilter: 'blur(14px) saturate(150%)', boxShadow: 'inset 0 2px 0 rgba(245,197,24,0.30), 0 20px 50px rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 300 140" width="78%" height="auto" fill="none" style={{ position: 'relative', overflow: 'visible' }}>
+                <g transform="translate(12,-16)">
+                  <text x="150" y="110" textAnchor="middle" fontFamily="var(--font-display)" fontSize="68" fontWeight="700" letterSpacing="2" fill="rgba(245,197,24,0.92)">NFC</text>
+                  <g stroke="rgba(245,197,24,0.90)" strokeLinecap="butt" fill="none" strokeWidth="11">
+                    <path d="M226.96 75.4A20 20 0 0 1 226.96 96.6" style={{ animation: 'nfcWave 2.4s ease-in-out 0.8s infinite' }} />
+                    <path d="M242.22 65.86A38 38 0 0 1 242.22 106.14" style={{ animation: 'nfcWave 2.4s ease-in-out 0.4s infinite' }} />
+                    <path d="M257.49 56.32A56 56 0 0 1 257.49 115.68" style={{ animation: 'nfcWave 2.4s ease-in-out 0s infinite' }} />
+                    <path d="M49.04 75.4A20 20 0 0 0 49.04 96.6" style={{ animation: 'nfcWave 2.4s ease-in-out 0.8s infinite' }} />
+                    <path d="M33.78 65.86A38 38 0 0 0 33.78 106.14" style={{ animation: 'nfcWave 2.4s ease-in-out 0.4s infinite' }} />
+                    <path d="M18.51 56.32A56 56 0 0 0 18.51 115.68" style={{ animation: 'nfcWave 2.4s ease-in-out 0s infinite' }} />
+                  </g>
+                </g>
+              </svg>
+            </div>
           </div>
-          {/* ondas NFC */}
-          {[0, 0.66, 1.32].map(delay => (
-            <div key={delay} style={{ position: 'absolute', right: 104, bottom: 96, width: 46, height: 46, borderRadius: '50%', border: '2px solid rgba(245,197,24,.7)', animation: `shopPulseRing 2s ease-out ${delay}s infinite`, pointerEvents: 'none' }} />
-          ))}
         </div>
       </section>
 
