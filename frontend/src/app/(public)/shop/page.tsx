@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
+import { waitlistApi } from '@/lib/api'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Siempre oscura (no sigue el toggle claro/oscuro del resto del sitio): es una página de
@@ -121,6 +122,42 @@ const PLANS = [
   },
 ]
 
+const TESTIMONIALS = [
+  {
+    id: '1',
+    name: 'Andrés Felipe Gómez',
+    city: 'Bogotá',
+    carModel: 'Mazda 3 Touring 2020',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+    rating: 5,
+    title: 'Vendí mi Mazda en 3 días al precio que quería',
+    text: 'El comprador me iba a pedir rebaja diciendo que no confiaba en el kilometraje. Le acerqué el celular al llavero CarLink, vio todas las facturas y mantenimientos organizados por fecha y firmados. Me pagó de contado sin pedir un solo peso de rebaja.',
+    resultMetric: 'Vendió $3.200.000 por encima del promedio',
+  },
+  {
+    id: '2',
+    name: 'María Camila Torres',
+    city: 'Medellín',
+    carModel: 'Kia Sportage 2021',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&q=80',
+    rating: 5,
+    title: 'Chao a la carpeta de papeles arrugados en la guantera',
+    text: 'Antes guardaba recibos térmicos que se borraban con el calor. Ahora cada que salgo del taller en el Poblado, acerco el llavero y guardo el registro con valor y taller. Es facilísimo, no tuve que instalar nada raro.',
+    resultMetric: 'Historial 100% digitalizado sin perder facturas',
+  },
+  {
+    id: '3',
+    name: 'Juan Esteban Prado',
+    city: 'Cali',
+    carModel: 'Renault Duster 4x4',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+    rating: 5,
+    title: 'Ahorré $1.800.000 al evitar cambiar una correa a destiempo',
+    text: 'Casi le hago el cambio de correa antes de tiempo por duda. Toqué el llavero con mi celular y vi que el dueño anterior ya lo había registrado 10.000 km atrás con fecha exacta. Me ahorró un gasto innecesario inmediato.',
+    resultMetric: 'Evitó gasto duplicado de $1.800.000 COP',
+  },
+]
+
 const FAQS = [
   { q: '¿Necesita batería?', a: 'No. El llavero NFC funciona sin batería y sin mantenimiento — dura toda la vida del vehículo.' },
   { q: '¿Necesita Internet?', a: 'Solo para consultar la información. El escaneo del llavero es instantáneo; la ficha se carga desde la nube.' },
@@ -131,6 +168,16 @@ const FAQS = [
 
 export default function ShopPage() {
   const [faqOpen, setFaqOpen] = useState(-1)
+  const [leadContact, setLeadContact] = useState('')
+  const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+
+  const handleLeadSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!leadContact.trim() || leadStatus === 'loading') return
+    setLeadStatus('loading')
+    const res = await waitlistApi.create(leadContact.trim(), 'shop_guia_mantenimiento')
+    setLeadStatus(res ? 'done' : 'error')
+  }
 
   return (
     <div style={{ background: '#08080a', color: '#f5f3ec', fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
@@ -138,11 +185,14 @@ export default function ShopPage() {
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes shopPulseRing { 0%{transform:scale(.7);opacity:.8} 100%{transform:scale(1.7);opacity:0} }
+        [data-r="shopTestimonials"]{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);border-radius:24px;overflow:hidden}
         @media(max-width:860px){
+          [data-r="shopTestimonials"]{grid-template-columns:1fr !important}
           [data-r="shopHero"]{grid-template-columns:1fr !important}
           [data-r="shopPrecio"]{grid-template-columns:1fr !important}
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
           [data-r="shopBox"]{grid-template-columns:1fr !important}
+          [data-r="shopLeadGuia"]{grid-template-columns:1fr !important}
         }
         @media(max-width:720px){
           [data-r="shopNavLinks"]{display:none !important}
@@ -327,31 +377,7 @@ export default function ShopPage() {
               llavero + sticker QR), sin foto real de producto. */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 380, margin: '0 auto' }}>
             <div style={{ position: 'absolute', top: -40, left: '50%', transform: 'translateX(-50%)', width: 280, height: 280, background: 'radial-gradient(circle,rgba(245,197,24,.16),transparent 70%)', pointerEvents: 'none' }} />
-            <div style={{ position: 'relative', borderRadius: 28, padding: '52px 30px 34px', background: 'linear-gradient(160deg,#191710,#121216 62%)', border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 30px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-              {/* cinta de la caja */}
-              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 46, height: 96, background: 'linear-gradient(180deg,#FFD84D,#E7B412)', clipPath: 'polygon(0 0,100% 0,100% 78%,50% 100%,0 78%)' }} />
-
-              {/* llavero NFC */}
-              <div style={{ position: 'relative', width: 168, height: 108, margin: '0 auto', borderRadius: 18, background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '5px solid #0c0c0e', boxShadow: '0 20px 40px rgba(0,0,0,.6),inset 0 3px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'shopFloatY 3.6s ease-in-out infinite' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#111116' }}><NfcKeyIcon size={22} strokeWidth={2} /></span>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.01em', marginTop: 4 }}>CarLink</span>
-              </div>
-
-              {/* sticker QR, superpuesto */}
-              <div style={{ position: 'absolute', right: 28, bottom: 66, width: 62, height: 62, borderRadius: 12, background: '#f5f3ec', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5)', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gridTemplateRows: 'repeat(3,1fr)', gap: 3, padding: 8, transform: 'rotate(8deg)' }}>
-                {[0, 1, 2, 4, 6, 8].map(i => <span key={i} style={{ background: '#0c0c0e', borderRadius: 1 }} />)}
-              </div>
-
-              {/* badges de servicio */}
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 26 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11, fontWeight: 700, color: GOLD }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg>Acceso vitalicio
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11, fontWeight: 700, color: GOLD }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>Soporte
-                </span>
-              </div>
-            </div>
+            <img src="/empaque.png" alt="Caja CarLink" style={{ width: '100%', borderRadius: 20, display: 'block' }} />
           </div>
 
           {/* Lista de lo que incluye */}
@@ -427,6 +453,107 @@ export default function ShopPage() {
         </div>
       </section>
 
+      {/* EL LLAVERO */}
+      <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+        <div style={SECTION}>
+          <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 52px' }}>
+            <div style={EYEBROW}>El llavero CarLink</div>
+            <h2 style={H2}>Impreso en 3D, con un <span style={{ fontWeight: 700 }}>chip NFC adentro</span></h2>
+            <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Cuerpo en PLA impreso en 3D, sellado con una capa de resina. Personalizado con la placa que elijas: al acercarlo a un teléfono abre tu perfil de vehículo.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', alignItems: 'center', gap: 'clamp(28px,4vw,56px)', maxWidth: 1200, margin: '0 auto' }}>
+            {/* Columna izquierda — 3 features */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+              {[
+                { num: '01', label: 'Cuerpo', title: 'Impresión 3D en PLA', desc: 'Estructura rígida y ligera impresa capa por capa, con el relieve de la placa en alto contraste.' },
+                { num: '02', label: 'Acabado', title: 'Capa de resina', desc: 'Recubrimiento transparente que sella la superficie: brillo permanente y resistencia a rayones.' },
+                { num: '03', label: 'Resistencia', title: 'Impactos y lluvia', desc: 'La resina hace el cuerpo impermeable y absorbe golpes del uso diario en el llavero.' },
+              ].map(f => (
+                <div key={f.num} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
+                  </div>
+                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0 }}>
+                    <div style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 10px ${GOLD}` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Centro — ilustración llavero */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+              <div style={{ position: 'absolute', width: '78%', height: '52%', background: `radial-gradient(60% 60% at 50% 50%, rgba(245,197,24,0.12), transparent 70%)`, filter: 'blur(38px)' }} />
+              <div
+                className="shop-keychain-group"
+                style={{ position: 'relative', width: 'min(280px,94%)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', animation: 'shopFloatY 3.6s ease-in-out infinite', cursor: 'pointer' }}
+              >
+                {/* Argolla — anillo hueco de plata pulida */}
+                <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-end', gap: 10, marginRight: 18, marginBottom: -6 }}>
+                  <div style={{
+                    width: 80, height: 80, borderRadius: '50%',
+                    background: 'radial-gradient(circle, transparent 28px, #c8c8c8 30px, #e8e8e8 36px, #b0b0b0 40px)',
+                    boxShadow: '0 0 20px rgba(200,200,200,0.15), 0 16px 32px rgba(0,0,0,0.45)',
+                  }} />
+                </div>
+                {/* Placa — amarillo brillante con inset highlight, misma estética del hero */}
+                <div style={{ position: 'relative', width: 220, aspectRatio: '16/10', borderRadius: 20, padding: 12, boxSizing: 'border-box', background: 'linear-gradient(168deg,#F8D64B,#F2C21A 60%,#E7B412)', border: '5px solid #0c0c0e', boxShadow: '0 24px 50px rgba(0,0,0,.65),inset 0 3px 0 rgba(255,255,255,.5)', transform: 'rotate(-3deg)' }}>
+                  <div style={{ position: 'absolute', inset: 12, borderRadius: 10, border: '2px solid rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 700, letterSpacing: '.04em', color: '#111116', textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}>ABC 123</div>
+                    <div style={{ fontSize: 10, letterSpacing: '.3em', color: '#3a3a1e', fontWeight: 700 }}>CIUDAD</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Columna derecha — 3 features */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+              {[
+                { num: '04', label: 'Interior', title: 'Chip NFC embebido', desc: 'Antena rectangular sellada dentro del cuerpo. Sin batería y sin partes móviles.' },
+                { num: '05', label: 'Personalización', title: 'Tu placa grabada', desc: 'Eliges la matrícula y la ciudad: cada llavero se imprime a la medida de tu vehículo.' },
+                { num: '06', label: 'Sujeción', title: 'Argolla de acero', desc: 'Anillo inoxidable con eslabón giratorio en la esquina superior derecha.' },
+              ].map(f => (
+                <div key={f.num} style={{ display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse' }}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
+                  </div>
+                  <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0, flexDirection: 'row-reverse' }}>
+                    <div style={{ width: 40, borderTop: `1px dashed ${BORDER}` }} />
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD, boxShadow: `0 0 10px ${GOLD}` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dimensiones */}
+          <div style={{ maxWidth: 700, margin: '56px auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontSize: 11, letterSpacing: '.34em', textTransform: 'uppercase', color: MUTED }}>Dimensiones</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              {[
+                { val: '62 mm', label: 'Largo' },
+                { val: '39 mm', label: 'Ancho' },
+                { val: '6 mm', label: 'Alto' },
+              ].map((d, i) => (
+                <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                  {i > 0 && <div style={{ width: 1, height: 36, background: BORDER, margin: '0 20px' }} />}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: '#f5f3ec', letterSpacing: '-.01em' }}>{d.val}</div>
+                    <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: MUTED, marginTop: 2 }}>{d.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: '48ch' }}>Peso 11 g · Sin batería · Toda la vida útil. El chip se alimenta del propio teléfono; quien lo escanea no necesita instalar ninguna app.</div>
+          </div>
+        </div>
+      </section>
+
       {/* PRECIO */}
       <section id="precio" style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <div style={SECTION}>
@@ -456,6 +583,64 @@ export default function ShopPage() {
         </div>
       </section>
 
+      {/* PRUEBA SOCIAL VERIFICADA */}
+      <section style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 46px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 12 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            Prueba social verificada
+          </div>
+          <h2 style={H2}>Conductores en Colombia que ya protegen su vehículo</h2>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Más de 2.400 conductores particulares confían en CarLink para cuidar su patrimonio y defender su valor de reventa.</p>
+        </div>
+
+        <div data-r="shopTestimonials">
+          {TESTIMONIALS.map(t => (
+            <div key={t.id} style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 2, color: GOLD }}>
+                    {Array.from({ length: t.rating }).map((_, i) => (
+                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
+                    ))}
+                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: '#5be89a', background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.3)', padding: '3px 8px', borderRadius: 6 }}>
+                    {CHECK('#5be89a', 11)}Verificado
+                  </span>
+                </div>
+                <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 8, lineHeight: 1.35 }}>"{t.title}"</div>
+                <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{t.text}"</p>
+              </div>
+              <div style={{ paddingTop: 16, borderTop: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'inline-block', padding: '7px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.22)', fontSize: 11, fontWeight: 700, color: GOLD }}>{t.resultMetric}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <img src={t.avatar} alt={t.name} referrerPolicy="no-referrer" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${BORDER}` }} />
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.2 }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{t.carModel} · {t.city}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 32, padding: '22px clamp(20px,4vw,32px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, maxWidth: 720, margin: '32px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 20, flexWrap: 'wrap', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD }}>4.9 / 5.0</div>
+            <div style={{ fontSize: 12, color: MUTED, textAlign: 'left' }}>
+              <div style={{ color: '#f5f3ec', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' as const }}>Promedio de satisfacción</div>
+              Basado en 380+ calificaciones en Colombia
+            </div>
+          </div>
+          <span style={{ width: 1, height: 32, background: BORDER }} />
+          <div style={{ fontSize: 12, color: MUTED }}>
+            <div style={{ color: '#5be89a', fontWeight: 700, fontSize: 14 }}>98.4% recomiendan</div>
+            CarLink a otros conductores en el país
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section id="faq" style={{ maxWidth: 860, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }}>
         <div style={{ textAlign: 'center', marginBottom: 42 }}>
@@ -475,6 +660,51 @@ export default function ShopPage() {
         </div>
       </section>
 
+      {/* LEAD CAPTURE — Guía de Mantenimiento gratis */}
+      <section style={SECTION}>
+        <div data-r="shopLeadGuia" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 28, alignItems: 'center', padding: 'clamp(24px,4vw,36px)', borderRadius: 24, background: 'linear-gradient(160deg,#17160f,#121216)', border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 10 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2 2M8.5 8.5l-2-2m11 11l-2-2M8.5 15.5l-2 2" /><circle cx="12" cy="12" r="3.5" /></svg>
+              Regalo gratis en PDF
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px,3vw,30px)', textTransform: 'uppercase' as const, margin: '0 0 8px', lineHeight: 1.08 }}>
+              ¿Aún lo estás pensando? Recibe gratis la Guía de Mantenimiento
+            </h3>
+            <p style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.55, margin: 0 }}>
+              Descarga sin costo el PDF "Lista de Chequeo para Vender tu Carro al Mayor Precio en Colombia" y recibe un bono de <strong style={{ color: GOLD }}>$5.000 COP de descuento adicional</strong> para tu primer llavero.
+            </p>
+          </div>
+
+          <div>
+            {leadStatus === 'done' ? (
+              <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>¡Guía enviada con éxito!</div>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: MUTED }}>
+                  Revisa tu WhatsApp o correo. Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
+                  placeholder="Tu correo o celular con WhatsApp"
+                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${BORDER}`, background: CARD, color: '#f5f3ec', fontSize: 13.5, outline: 'none' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
+                  onBlur={e => { e.currentTarget.style.borderColor = BORDER }}
+                />
+                <button type="submit" disabled={leadStatus === 'loading'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
+                </button>
+                {leadStatus === 'error' && <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* CTA FINAL */}
       <section style={{ background: 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)', borderTop: '1px solid rgba(245,197,24,0.16)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(56px,7vw,96px) clamp(20px,5vw,64px)', textAlign: 'center' }}>
@@ -483,6 +713,24 @@ export default function ShopPage() {
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
             <Link href="/#h-buyfob" style={CTA_BTN}>Quiero mi CarLink — $49.900{ARROW}</Link>
             <Link href="/register" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CAPTURA DE LEADS */}
+      <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
+          <div>
+            <div style={EYEBROW}>¿Aún lo estás pensando?</div>
+            <h2 style={{ ...H2, margin: '12px 0 12px' }}>Te avisamos cuando salga el próximo lote</h2>
+            <p style={{ fontSize: 15.5, color: MUTED, lineHeight: 1.6, margin: 0 }}>Déjanos tu correo y te escribimos con el descuento de lanzamiento. Sin spam, solo cuando haya novedades.</p>
+          </div>
+          <div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+              <button style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: '#6f6a5f', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
           </div>
         </div>
       </section>

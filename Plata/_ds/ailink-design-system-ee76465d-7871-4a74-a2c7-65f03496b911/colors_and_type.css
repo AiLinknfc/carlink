@@ -1,0 +1,196 @@
+/* =========================================================================
+   Ailink — Design Tokens
+   Tienda de llaveros NFC con IA para marketing y fidelización
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* -----------------------------------------------------------------------
+     COLOR — BASE
+     Ailink lives in two modes. The marketing site uses a clean light mode;
+     the futuristic product surfaces (shader landing, fabrication, AI agent)
+     use a deep dark mode that lets the neon purple sing.
+     ----------------------------------------------------------------------- */
+
+  /* Neutrals — light surfaces (from ailink.com.co inventory) */
+  --ai-white:        #ffffff;
+  --ai-paper:        #f8f9fa;    /* color.background.2 */
+  --ai-ink:          #1a1a1a;    /* color.text.1 */
+  --ai-ink-soft:     #6c757d;    /* color.text.2 */
+  --ai-ink-true:     #000000;    /* color.text.3 */
+
+  /* Neutrals — dark surfaces (futuristic product surfaces) */
+  --ai-void:         #07070d;    /* deepest background */
+  --ai-night:        #0c0c16;    /* primary dark surface */
+  --ai-graphite:     #14141f;    /* elevated panel */
+  --ai-steel:        #1f1f2e;    /* hairline / divider */
+  --ai-fog:          #6a6a85;    /* dim text on dark */
+  --ai-mist:         #b8b8cf;    /* body text on dark */
+
+  /* Brand — Neon */
+  --ai-violet:       #b14fff;    /* color.primary.1  — primary brand */
+  --ai-violet-bright:#c878ff;
+  --ai-violet-deep:  #542aad;    /* color.palette.1  — deep brand */
+  --ai-electric:     #2e2eff;    /* lifted from #0000ee for accessibility */
+  --ai-electric-pure:#0000ee;    /* color.primary.2  — true electric blue */
+  --ai-cyan:         #4cf5ff;    /* paired neon — used on dark only */
+  --ai-magenta:      #ff3df0;    /* shader/accent only */
+
+  /* Metallic ring — the physical keychain has a brushed metal aro */
+  --ai-metal-1:      #d9d9e3;
+  --ai-metal-2:      #9da0b3;
+  --ai-metal-3:      #5a5d72;
+  --ai-metal-shine:  linear-gradient(135deg,#f4f5fa 0%,#bcc0d2 22%,#7d8094 50%,#bcc0d2 78%,#f4f5fa 100%);
+
+  /* Semantic */
+  --ai-success:      #2ecc71;
+  --ai-warn:         #ffb020;
+  --ai-danger:       #ff4d6a;
+  --ai-info:         #4cf5ff;
+
+  /* Gradients — futuristic */
+  --ai-grad-aurora:  linear-gradient(135deg,#542aad 0%,#b14fff 45%,#2e2eff 100%);
+  --ai-grad-pulse:   radial-gradient(circle at 30% 30%,#b14fff 0%,#542aad 40%,#07070d 80%);
+  --ai-grad-edge:    linear-gradient(180deg,rgba(177,79,255,0.0) 0%,rgba(177,79,255,0.35) 100%);
+  --ai-grad-glass:   linear-gradient(180deg,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0.02) 100%);
+
+  /* -----------------------------------------------------------------------
+     SEMANTIC SURFACES — call these in component code, not the base tokens
+     ----------------------------------------------------------------------- */
+  --bg:              var(--ai-night);
+  --bg-elev:         var(--ai-graphite);
+  --bg-elev-2:       #1a1a28;
+  --fg:              #f2f2fa;
+  --fg-muted:        var(--ai-mist);
+  --fg-dim:          var(--ai-fog);
+  --border:          rgba(255,255,255,0.08);
+  --border-strong:   rgba(255,255,255,0.16);
+  --accent:          var(--ai-violet);
+  --accent-2:        var(--ai-electric);
+  --ring:            0 0 0 1px rgba(177,79,255,0.6), 0 0 24px rgba(177,79,255,0.35);
+
+  /* -----------------------------------------------------------------------
+     TYPE
+     Inter is the marketing site's chosen family. We add JetBrains Mono for
+     code/IDs (NFC tag IDs, fabrication coordinates) where needed.
+     ----------------------------------------------------------------------- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Scale — fluid where it makes sense */
+  --fs-display:    clamp(48px, 7vw, 96px);
+  --fs-h1:         clamp(40px, 5vw, 64px);
+  --fs-h2:         clamp(28px, 3.2vw, 40px);
+  --fs-h3:         24px;     /* font.heading.h3 from inventory */
+  --fs-h4:         20px;
+  --fs-body-lg:    18px;
+  --fs-body:       16px;
+  --fs-body-sm:    14px;
+  --fs-caption:    12px;
+  --fs-micro:      11px;
+
+  --lh-tight:      1.05;
+  --lh-snug:       1.2;
+  --lh-body:       1.55;
+  --lh-loose:      1.7;
+
+  --tracking-tight: -0.03em;
+  --tracking-snug:  -0.015em;
+  --tracking-normal:0;
+  --tracking-wide:  0.04em;
+  --tracking-mega:  0.14em;  /* eyebrow labels */
+
+  /* -----------------------------------------------------------------------
+     SPACING — 4px base
+     ----------------------------------------------------------------------- */
+  --sp-0:   0;
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   20px;
+  --sp-6:   24px;
+  --sp-8:   32px;
+  --sp-10:  40px;
+  --sp-12:  48px;
+  --sp-16:  64px;
+  --sp-20:  80px;
+  --sp-24:  96px;
+  --sp-32:  128px;
+
+  /* -----------------------------------------------------------------------
+     RADII — Ailink uses soft pill-like radii; the keychain itself is a perfect circle
+     ----------------------------------------------------------------------- */
+  --r-xs:  6px;
+  --r-sm:  10px;
+  --r-md:  14px;
+  --r-lg:  20px;
+  --r-xl:  28px;
+  --r-2xl: 40px;
+  --r-pill:999px;
+
+  /* -----------------------------------------------------------------------
+     SHADOWS — soft & violet-tinted on dark
+     ----------------------------------------------------------------------- */
+  --sh-sm:    0 1px 2px rgba(0,0,0,0.4);
+  --sh-md:    0 4px 16px rgba(0,0,0,0.45);
+  --sh-lg:    0 16px 48px rgba(0,0,0,0.55);
+  --sh-glow:  0 0 32px rgba(177,79,255,0.45);
+  --sh-glow-soft: 0 0 60px rgba(177,79,255,0.25);
+  --sh-electric: 0 0 28px rgba(46,46,255,0.55);
+  --sh-inset: inset 0 1px 0 rgba(255,255,255,0.06);
+
+  /* -----------------------------------------------------------------------
+     MOTION
+     ----------------------------------------------------------------------- */
+  --ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:     120ms;
+  --dur-base:     220ms;
+  --dur-slow:     420ms;
+  --dur-luxe:     800ms;
+
+  /* -----------------------------------------------------------------------
+     LAYOUT
+     ----------------------------------------------------------------------- */
+  --content-max:  1280px;
+  --gutter:       clamp(20px, 4vw, 64px);
+}
+
+/* =========================================================================
+   ELEMENTAL DEFAULTS — semantic tags map to tokens
+   ========================================================================= */
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, .h1 { font-size: var(--fs-h1); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); font-weight: 700; }
+h2, .h2 { font-size: var(--fs-h2); line-height: var(--lh-snug); letter-spacing: var(--tracking-snug); font-weight: 700; }
+h3, .h3 { font-size: var(--fs-h3); line-height: 31.2px; letter-spacing: var(--tracking-snug); font-weight: 600; } /* matches inventory */
+h4, .h4 { font-size: var(--fs-h4); line-height: var(--lh-snug); font-weight: 600; }
+
+.display      { font-size: var(--fs-display); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); font-weight: 800; }
+.eyebrow      { font-size: var(--fs-caption); letter-spacing: var(--tracking-mega); text-transform: uppercase; font-weight: 600; color: var(--ai-violet-bright); }
+.lead         { font-size: var(--fs-body-lg); line-height: var(--lh-body); color: var(--fg-muted); }
+.caption      { font-size: var(--fs-caption); color: var(--fg-dim); }
+.mono         { font-family: var(--font-mono); }
+
+a { color: var(--ai-violet-bright); text-decoration: none; }
+a:hover { color: var(--ai-violet); }
+
+/* Brand text gradient helper */
+.brand-grad {
+  background: linear-gradient(90deg,#c878ff 0%,#b14fff 50%,#4cf5ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

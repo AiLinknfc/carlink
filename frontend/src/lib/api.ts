@@ -346,6 +346,20 @@ export const jobApplicationApi = {
     request<JobApplication>('PATCH', `/job-applications/${id}`, { status }),
 }
 
+export interface WaitlistLead {
+  id: string
+  contact: string
+  source: string
+  notified: boolean
+  notified_at: string | null
+  created_at: string
+}
+
+export const waitlistApi = {
+  create: (contact: string, source = 'landing') =>
+    request<WaitlistLead>('POST', '/waitlist', { contact, source }),
+}
+
 export const adminApi = {
   stats: () => request<NfcStats>('GET', '/admin/nfc/stats'),
   listTokens: (status?: string) => request<NfcTokenAdmin[]>('GET', `/admin/nfc/tokens${status ? `?status=${status}` : ''}`),

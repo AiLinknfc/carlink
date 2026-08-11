@@ -1455,6 +1455,24 @@ class JobApplicationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# =========== Waitlist (aviso de próximo lote) ===========
+
+class WaitlistLeadCreate(BaseModel):
+    contact: str
+    source: str = "landing"
+
+
+class WaitlistLeadOut(BaseModel):
+    id: UUID
+    contact: str
+    source: str
+    notified: bool
+    notified_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # =========== NFC Tag Inventory ===========
 # Raw metadata scanned off a physical keychain (manual today, meant to be
 # automated later). Fields are free text on purpose — real scans are

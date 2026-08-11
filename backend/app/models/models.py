@@ -479,6 +479,19 @@ class JobApplication(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class WaitlistLead(Base):
+    """Alguien indeciso sobre comprar el llavero NFC deja su contacto para que le
+    avisemos cuando salga el próximo lote (sección 'lote agotado' de la landing)."""
+    __tablename__ = "waitlist_leads"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contact: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text, default="landing")
+    notified: Mapped[bool] = mapped_column(Boolean, default=False)
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Panel de negocio del taller/empresa (migración de tallerpro/)
 # Ver docs/PLAN_MIGRACION_TALLERPRO.md — todo escopeado por workshop_id,

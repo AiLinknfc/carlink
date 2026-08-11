@@ -140,7 +140,6 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
     <div style={{ position: 'relative', zIndex: 10, color: k.text }}>
       {/* ===== CÓMO FUNCIONA ===== */}
       <style>{`
-        @keyframes comoRipplePulse { 0%,100%{transform:translate(-50%,-50%) scale(.85);opacity:.35} 50%{transform:translate(-50%,-50%) scale(1.15);opacity:.85} }
         @keyframes comoPlateApproach { 0%,10%{transform:translateX(-140px) rotate(-10deg)} 50%{transform:translateX(-12px) rotate(-2deg)} 90%,100%{transform:translateX(-140px) rotate(-10deg)} }
         @keyframes comoGaugeBreathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.025)} }
         @keyframes sponsorScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
@@ -170,8 +169,6 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                       <path d="M7 12.5l3 3 7-7" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  {/* ping — pulso ambiental permanente, nunca llega a opacidad 0 */}
-                  <div style={{ position: 'absolute', left: 5, top: '50%', width: 24, height: 24, borderRadius: '50%', border: '2px solid #F5C518', transform: 'translate(-50%,-50%)', animation: 'comoRipplePulse 2.4s ease-in-out infinite' }} />
                 </div>
                 {/* plate — se acerca al teléfono y se retira, en bucle continuo; siempre a opacidad 1, nunca desaparece */}
                 <div style={{ position: 'absolute', left: '50%', top: '50%', width: 90, height: 48, marginLeft: -84, marginTop: -24, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateApproach 3.2s cubic-bezier(.22,1,.36,1) infinite' }}>
@@ -278,49 +275,89 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
             {(() => {
               const services = [
-                { date: '05 dic 2025', event: 'Revisión general + afinación', km: '1.200 km', tall: 'Taller AutoPlus', color: GOLD, pts: [95, 88, 80, 72, 65, 58, 50] },
-                { date: '12 feb 2026', event: 'Cambio de llantas Michelin', km: '3.800 km', tall: 'Taller Express', color: GOLD, pts: [90, 82, 74, 66, 58, 50, 42] },
-                { date: '28 abr 2026', event: 'Revisión de frenos delanteros', km: '6.200 km', tall: 'CDA Medellín', color: GOLD, pts: [85, 76, 67, 58, 49, 40, 32] },
-                { date: '14 jun 2026', event: 'Cambio de aceite synthetic 5W-30', km: '8.400 km', tall: 'Taller AutoPlus', color: GOLD, pts: [78, 70, 62, 53, 44, 35, 28] },
+                { date: '05 dic 2025', event: 'Revisión general + afinación', km: '1.200 km', tall: 'Taller AutoPlus', pts: [95, 88, 80, 72, 65, 58, 50] },
+                { date: '12 feb 2026', event: 'Cambio de llantas Michelin', km: '3.800 km', tall: 'Taller Express', pts: [90, 82, 74, 66, 58, 50, 42] },
+                { date: '28 abr 2026', event: 'Revisión de frenos delanteros', km: '6.200 km', tall: 'CDA Medellín', pts: [85, 76, 67, 58, 49, 40, 32] },
+                { date: '14 jun 2026', event: 'Cambio de aceite synthetic 5W-30', km: '8.400 km', tall: 'Taller AutoPlus', pts: [78, 70, 62, 53, 44, 35, 28] },
               ]
+              // Las cuatro curvas son decrecientes (desgaste/vida útil tras cada
+              // servicio): se muestran todas al tiempo, no una reemplazando a la
+              // otra — el hover (en la fila o directo sobre la línea) solo resalta.
               const [hovered, setHovered] = React.useState<number>(0)
               const active = services[hovered]
-              const maxY = 100
               const stepX = 300 / (active.pts.length - 1)
-              const linePath = active.pts.map((y, i) => `${i === 0 ? 'M' : 'L'}${i * stepX},${y}`).join(' ')
-              const areaPath = `${linePath} L300,100 L0,100 Z`
+              // El valor representa % de vida útil restante: a mayor valor, más
+              // "sano". El eje Y de SVG crece hacia abajo, así que hay que
+              // invertirlo (100 - valor) para que un valor que baja con el
+              // tiempo se vea bajando en pantalla, no subiendo.
+              const toY = (v: number) => 100 - v
+              const pointsFor = (pts: number[]): Array<[number, number]> => pts.map((v, i) => [i * stepX, toY(v)])
+              // Catmull-Rom → Bézier cúbica: pasa por todos los puntos reales
+              // pero con curvas suaves en vez de tramos rectos entre ellos.
+              const smoothPath = (pts: Array<[number, number]>) => {
+                if (pts.length < 2) return ''
+                let d = `M${pts[0][0]},${pts[0][1]}`
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const p0 = pts[i - 1] ?? pts[i]
+                  const p1 = pts[i]
+                  const p2 = pts[i + 1]
+                  const p3 = pts[i + 2] ?? p2
+                  const c1x = p1[0] + (p2[0] - p0[0]) / 6
+                  const c1y = p1[1] + (p2[1] - p0[1]) / 6
+                  const c2x = p2[0] - (p3[0] - p1[0]) / 6
+                  const c2y = p2[1] - (p3[1] - p1[1]) / 6
+                  d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`
+                }
+                return d
+              }
+              const pathFor = (pts: number[]) => smoothPath(pointsFor(pts))
+              const areaPath = `${pathFor(active.pts)} L300,100 L0,100 Z`
 
               return (
                 <>
-                  {/* Chart */}
+                  {/* Ficha activa — texto completo, en flujo (nunca se corta ni se superpone) */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, lineHeight: 1.35 }}>{active.event}</span>
+                    <span style={{ fontSize: 10.5, color: k.muted, whiteSpace: 'nowrap', flex: '0 0 auto' }}>{active.date}</span>
+                  </div>
+
+                  {/* Chart — las 4 curvas visibles simultáneamente, interactivas cada una */}
                   <div style={{ position: 'relative', height: 160, borderRadius: 14, background: k.bubbleBg, border: `1px solid ${k.thinBorder}`, overflow: 'visible', padding: 12 }}>
                     <svg viewBox="0 0 300 100" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
                       <defs>
                         <linearGradient id="hChartGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={active.color} stopOpacity="0.35" />
-                          <stop offset="100%" stopColor={active.color} stopOpacity="0.02" />
+                          <stop offset="0%" stopColor={GOLD} stopOpacity="0.35" />
+                          <stop offset="100%" stopColor={GOLD} stopOpacity="0.02" />
                         </linearGradient>
                       </defs>
                       {/* Grid */}
                       {[25, 50, 75].map(y => (
                         <line key={y} x1="0" y1={y} x2="300" y2={y} stroke={k.muted} strokeWidth="0.3" opacity="0.3" />
                       ))}
-                      {/* Area */}
+                      {/* Area — solo bajo la curva activa, para no ensuciar la lectura */}
                       <path d={areaPath} fill="url(#hChartGrad)">
-                        <animate attributeName="d" dur="0.5s" fill="freeze" from="M0,100 L300,100 L300,100 L0,100 Z" to={areaPath} />
+                        <animate attributeName="d" dur="0.4s" fill="freeze" from="M0,100 L300,100 L300,100 L0,100 Z" to={areaPath} />
                       </path>
-                      {/* Line */}
-                      <path d={linePath} fill="none" stroke={active.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1500" strokeDashoffset="1500">
-                        <animate attributeName="stroke-dashoffset" dur="0.8s" fill="freeze" from="1500" to="0" />
-                      </path>
-                      {/* Dots */}
-                      {active.pts.map((y, i) => (
-                        <circle key={i} cx={i * stepX} cy={y} r="0" fill={active.color} stroke={theme === 'dark' ? '#0a0a0a' : '#fff'} strokeWidth="1.5">
-                          <animate attributeName="r" dur="0.25s" fill="freeze" begin={`${0.06 * i}s`} from="0" to="3" />
-                        </circle>
-                      ))}
-                      {/* Active dot highlight */}
-                      <circle cx={0} cy={active.pts[0]} r="5" fill={active.color} opacity="0.25">
+                      {/* Las 4 líneas, siempre presentes */}
+                      {services.map((s, i) => {
+                        const isActive = hovered === i
+                        return (
+                          <g key={i}>
+                            <path d={pathFor(s.pts)} fill="none" stroke={GOLD} strokeLinecap="round" strokeLinejoin="round"
+                              strokeWidth={isActive ? 2.5 : 1.3} opacity={isActive ? 1 : 0.3}
+                              style={{ transition: 'opacity .25s ease, stroke-width .25s ease' }} />
+                            {/* Trazo invisible más grueso: permite pasar el cursor directo sobre la gráfica */}
+                            <path d={pathFor(s.pts)} fill="none" stroke="transparent" strokeWidth="14"
+                              style={{ cursor: 'pointer' }} pointerEvents="stroke"
+                              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(0)} />
+                            {isActive && s.pts.map((y, p) => (
+                              <circle key={p} cx={p * stepX} cy={toY(y)} r="3" fill={GOLD} stroke={theme === 'dark' ? '#0a0a0a' : '#fff'} strokeWidth="1.5" />
+                            ))}
+                          </g>
+                        )
+                      })}
+                      {/* Highlight pulsante en el primer punto de la curva activa */}
+                      <circle cx={0} cy={toY(active.pts[0])} r="5" fill={GOLD} opacity="0.25">
                         <animate attributeName="r" dur="1.5s" repeatCount="indefinite" values="5;9;5" />
                       </circle>
                     </svg>
@@ -328,10 +365,6 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                     <div style={{ position: 'absolute', bottom: 6, left: '33%', fontSize: 9, color: k.muted }}>feb</div>
                     <div style={{ position: 'absolute', bottom: 6, left: '66%', fontSize: 9, color: k.muted }}>abr</div>
                     <div style={{ position: 'absolute', bottom: 6, right: 12, fontSize: 9, color: k.muted }}>jun</div>
-                    {/* Legend */}
-                    <div style={{ position: 'absolute', top: 8, right: 10, padding: '3px 8px', borderRadius: 6, background: `${active.color}20`, border: `1px solid ${active.color}40` }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: active.color }}>{active.event.split(' ')[0]} {active.event.split(' ')[1]}</span>
-                    </div>
                   </div>
 
                   {/* History rows */}
@@ -340,16 +373,16 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                       onMouseEnter={() => setHovered(i)}
                       onMouseLeave={() => setHovered(0)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-                        background: hovered === i ? `${row.color}12` : k.bubbleBg,
-                        border: `1px solid ${hovered === i ? row.color : k.thinBorder}`,
+                        display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10,
+                        background: hovered === i ? `${GOLD}12` : k.bubbleBg,
+                        border: `1px solid ${hovered === i ? GOLD : k.thinBorder}`,
                         cursor: 'pointer', transition: 'all 0.25s ease',
                         transform: hovered === i ? 'scale(1.01)' : 'scale(1)',
                       }}>
-                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: hovered === i ? row.color : k.muted, flexShrink: 0, transition: 'background 0.25s', boxShadow: hovered === i ? `0 0 8px ${row.color}` : 'none' }} />
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', marginTop: 4, background: hovered === i ? GOLD : k.muted, flexShrink: 0, transition: 'background 0.25s', boxShadow: hovered === i ? `0 0 8px ${GOLD}` : 'none' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: hovered === i ? row.color : k.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.25s' }}>{row.event}</div>
-                        <div style={{ fontSize: 10.5, color: k.muted }}>{row.date} · {row.km} · {row.tall}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: hovered === i ? GOLD : k.text, lineHeight: 1.35, transition: 'color 0.25s' }}>{row.event}</div>
+                        <div style={{ fontSize: 10.5, color: k.muted, marginTop: 1 }}>{row.date} · {row.km} · {row.tall}</div>
                       </div>
                     </div>
                   ))}

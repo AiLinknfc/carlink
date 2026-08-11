@@ -250,7 +250,7 @@ export default function LandingPage() {
               showLabel={PLATE_TYPES.find(t => t.id === type)?.showLabel ?? false} />
           </div>
 
-          <div style={{ width: 'min(720px,96vw)', margin: '0 auto', animation: 'fadeUp .7s .12s both' }}>
+          <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', animation: 'fadeUp .7s .12s both' }}>
             <p style={{
               textAlign: 'center', color: tk.muted, fontSize: 15, maxWidth: '52ch',
               margin: '0 auto 14px', lineHeight: 1.5,

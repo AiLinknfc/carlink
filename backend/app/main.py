@@ -28,6 +28,7 @@ from app.routers import (
     upload,
     vehicle_invoices,
     vehicles,
+    waitlist,
     work_orders,
     workshop_ai,
     workshop_clients,
@@ -95,6 +96,7 @@ app.include_router(job_applications.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")
+app.include_router(waitlist.router, prefix="/api")
 
 # Panel de negocio taller/empresa (migración de tallerpro/, ver
 # docs/PLAN_MIGRACION_TALLERPRO.md) — todos comparten el prefijo /workshops,
