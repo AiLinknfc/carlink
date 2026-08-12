@@ -1162,6 +1162,11 @@ class NfcActivateRequest(BaseModel):
     """A token can only become active by claiming a keychain CarLink already
     provisioned — there is no self-service creation anymore."""
     activation_code: str
+    # Requerido desde el fix de 2026-08-12 — antes el backend adivinaba "el
+    # vehículo más reciente de la cuenta", así que activar un llavero para
+    # un vehículo que no era el último creado lo asociaba silenciosamente al
+    # equivocado. Ver docs/PENDIENTES.md.
+    vehicle_id: UUID
 
 
 class NfcTokenOut(BaseModel):

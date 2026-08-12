@@ -292,12 +292,12 @@ export const nfcApi = {
 // Bypasses the generic `request()` helper because activation failures need
 // to surface the backend's specific reason ("Código inválido o ya
 // utilizado.", rate limit, etc.) instead of a generic null.
-export async function activateNfcCode(activation_code: NfcActivateRequest['activation_code']): Promise<{ data: NfcToken | null; error: string | null }> {
+export async function activateNfcCode(activation_code: NfcActivateRequest['activation_code'], vehicle_id: NfcActivateRequest['vehicle_id']): Promise<{ data: NfcToken | null; error: string | null }> {
   try {
     const token = await getAccessToken()
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (token) headers.Authorization = `Bearer ${token}`
-    const res = await fetch('/api/nfc/activate', { method: 'POST', headers, body: JSON.stringify({ activation_code }) })
+    const res = await fetch('/api/nfc/activate', { method: 'POST', headers, body: JSON.stringify({ activation_code, vehicle_id }) })
     const text = await res.text()
     const body = text ? JSON.parse(text) : {}
     if (!res.ok) return { data: null, error: body.detail || 'No se pudo activar el llavero.' }

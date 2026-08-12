@@ -133,6 +133,30 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    **Deliberadamente no tocado en la segunda pasada** ("implementa todo", 2026-08-07): es
    comportamiento ya desplegado en producción, no un ítem del backlog — cambiarlo sin que decidas
    la pregunta de arriba primero sería tomar la decisión de producto por vos.
+4. **✅ Bug crítico corregido (2026-08-12) — activación de llavero NFC ignoraba el vehículo
+   seleccionado.** `POST /nfc/activate` (y `GET /nfc/limits/me`) resolvían "a qué vehículo" con
+   `ORDER BY created_at DESC LIMIT 1` (el más reciente de la cuenta), sin recibir nunca un
+   `vehicle_id` del cliente — cualquier cuenta con más de un vehículo corría el riesgo de que un
+   llavero nuevo quedara pegado al vehículo equivocado, silenciosamente. Afectó a un usuario real en
+   producción (`andresypm@gmail.com`): activó un llavero para su Bajaj Pulsar y quedó asociado a su
+   AKT NKD 125 en cambio. **Dato de ese usuario ya corregido a mano** (verificado con consulta
+   directa) y **causa raíz corregida en código**: `NfcActivateRequest` ahora exige `vehicle_id`,
+   valida ownership con `verify_vehicle` (`dependencies.py`) en vez de adivinar; `GET /nfc/tokens`
+   admite filtro `vehicle_id` y el panel "Mis llaveros" (`app/page.tsx`) queda scopeado al vehículo
+   seleccionado en la barra lateral — un llavero por vista, se re-consulta al cambiar de vehículo.
+   **Sigue pendiente, fuera de alcance de este fix puntual**: un flujo real de "repuesto/duplicado"
+   — hoy revocar + volver a activar ya es autoservicio sin ninguna marca ni aviso a nadie. Se agregó
+   un mensaje ("¿necesitás un repuesto o duplicado? Contactanos" con link a WhatsApp de soporte,
+   `SUPPORT_WHATSAPP`) cuando el vehículo ya tiene su llavero, pero no hay ningún label
+   `duplicado`/`reposicion` en la base ni notificación automática a soporte — es una decisión de
+   producto aparte (¿label nuevo en `nfc_tokens`? ¿requerir que soporte provisione el repuesto en
+   vez de dejarlo 100% autoservicio?).
+5. **Reseñas: falta el detalle de sección/servicio específico, no solo la categoría** (pedido del
+   usuario, 2026-08-12, mismo mensaje que reportó el bug de arriba) — hoy Admin muestra "Producto"
+   pero no distingue, por ejemplo, "proceso de carrito de compras" de "activación del llavero" o
+   "calidad física". Falta agregar un campo de contexto/sub-etiqueta a `reviews` (y mostrarlo en
+   `AdminReview`/`app/admin/page.tsx` tab "Reseñas") que indique de qué evento/flujo vino cada
+   reseña — no implementado todavía.
 
 ## 🟡 Prioridad media
 
@@ -248,6 +272,12 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     clave para unirlas). Si se quiere que un comprador anónimo pueda ver su pedido iniciando
     sesión después, hace falta diseñar cómo asociarlas (¿por email al hacer login? ¿un link mágico
     en el correo de confirmación?) — no es solo agregar el botón en la landing.
+    **Mismo problema, un caso más (2026-08-11)**: el lead capture "Descargar Guía + Bono $5.000" de
+    `/shop` (`waitlistApi.create(leadContact, 'shop_guia_mantenimiento')`) también es 100% anónimo
+    — se evaluó enganchar ahí un aviso de calificar la plataforma (ver prompts de calificación por
+    evento, `ResenasTab`/`RatingPrompt.tsx`) y se dejó fuera a propósito por la misma razón: no hay
+    cuenta a la cual mostrarle nada en el momento. Si se resuelve la asociación por email de arriba,
+    este caso se resuelve con el mismo mecanismo, no por separado.
     **Aviso del usuario (2026-08-08) — revisar `CITIES` (`lib/constants.ts`)**: hoy "Ciudad de la
     placa" (expedición RUNT) y "Ciudad de envío" (destino del paquete en `CartModal.tsx`) comparten
     la misma lista de ~32 departamentos con sus ciudades principales. Son conceptualmente listas
@@ -302,6 +332,12 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     - **Rate-limit** más allá de `UNIQUE(user_id, target_type)` en `reviews` y el índice único
       parcial `(workshop_id, submitted_by_user_id)` en `workshop_reviews` (que ya evitan spam
       duplicado del mismo usuario, pero no limitan cuentas nuevas creadas en cadena).
+    **Actualización (2026-08-11, misma sesión)**: el pedido de calificar ya no depende solo de
+    entrar a "Calificar" — sale distribuido en 5 eventos reales (`RatingPrompt.tsx`,
+    `useRatingPrompts.ts`): aviso de llavero encontrado leído, milestone de uso (30 días u
+    onboarding), activación de llavero NFC, pedido entregado (modal) y alta de servicio con taller
+    adjunto. Supresión por target (ya calificado o descartado), sin tabla ni notificaciones nuevas
+    en el backend. El caso de la Guía+Bono quedó fuera, ver ítem 14.
 
 ---
 

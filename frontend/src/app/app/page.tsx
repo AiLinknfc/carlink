@@ -9,6 +9,9 @@ import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import { CarLinkMark, Icon } from '@/lib/icons_new'
 import { useMaintenance } from '@/lib/hooks'
+import { useRatingPrompts } from '@/lib/useRatingPrompts'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { RatingPromptBanner } from '@/components/RatingPrompt'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
@@ -105,6 +108,14 @@ export default function AppPage() {
   const pqrsNew = usePqrsCount('nuevo')
   const { records: maintenanceRecords, latest } = useMaintenance(vehicle?.id, refreshKey)
 
+  // Prompts de calificación distribuidos por eventos reales (no un ítem de
+  // menú suelto) — ver docs del plan de este feature. Supresión unificada por
+  // target (ya calificado o descartado), un solo prompt a la vez.
+  const { shouldPrompt: shouldPromptRating, dismiss: dismissRatingPrompt, submitReview: submitRatingPrompt } = useRatingPrompts()
+  const [activePrompt, setActivePrompt] = useState<{
+    targetType: 'platform' | 'product' | 'workshop'; workshopId?: string; workshopName?: string; title: string; hint: string
+  } | null>(null)
+
   // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
   const [notifsStampsRequired, setNotifsStampsRequired] = useState(6)
   const [notifsPromoDesc, setNotifsPromoDesc] = useState('')
@@ -198,19 +209,24 @@ export default function AppPage() {
     flashApp('Solicitud de transferencia enviada')
   }, [flashApp])
 
+  // Scopeado al vehículo seleccionado — antes traía TODOS los llaveros de la
+  // cuenta mezclados, y la activación adivinaba "el vehículo más reciente"
+  // en vez de usar el seleccionado acá. Bug real de producción, ver
+  // docs/PENDIENTES.md. Se re-ejecuta también al cambiar de vehículo en la
+  // barra lateral, no solo al abrir/cerrar el panel.
   useEffect(() => {
-    if (!showNfc || !user) return
+    if (!showNfc || !user || !vehicle?.id) return
     setTokensLoading(true)
     setGeneratedUrl('')
     Promise.all([
-      apiGet('/nfc/tokens'),
-      apiGet<{ max: number; used: number }>('/nfc/limits/me'),
+      apiGet(`/nfc/tokens?vehicle_id=${vehicle.id}`),
+      apiGet<{ max: number; used: number }>(`/nfc/limits/me?vehicle_id=${vehicle.id}`),
     ]).then(([tokens, limits]) => {
       if (tokens) setNfcTokens(tokens)
       if (limits) setTokenLimit(limits)
       setTokensLoading(false)
     })
-  }, [showNfc, user])
+  }, [showNfc, user, vehicle?.id])
 
   useEffect(() => {
     if (!user) return
@@ -222,7 +238,35 @@ export default function AppPage() {
   const markFoundRead = async (id: string) => {
     await apiPatch(`/found-requests/${id}/read`, {})
     setFoundRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'read' } : r))
+    // "Contacto exitoso": en realidad es que el dueño abrió el aviso de que
+    // alguien encontró su vehículo (no hay un estado "contactado" todavía) —
+    // igual es el momento de mayor confianza en la plataforma que existe hoy.
+    if (!activePrompt && shouldPromptRating('platform')) {
+      setActivePrompt({
+        targetType: 'platform',
+        title: '¿Cómo te fue con CarLink?',
+        hint: 'Alguien te ayudó a recuperar el contacto con tu vehículo — contanos qué tal tu experiencia con la plataforma.',
+      })
+    }
   }
+
+  // Milestone de uso: 30 días desde el registro, o ya tiene vehículo + un
+  // servicio registrado (proxy de "onboarding completo" con datos que ya
+  // están en scope en esta pantalla, sin fetch nuevo — nfcTokens no sirve acá
+  // porque solo se carga al abrir el panel NFC, no al entrar a /app).
+  useEffect(() => {
+    if (!profile?.created_at || vehicleLoading || activePrompt) return
+    const daysSinceSignup = (Date.now() - new Date(profile.created_at).getTime()) / 86400000
+    const onboardingComplete = vehicles.length > 0 && maintenanceRecords.length > 0
+    if ((daysSinceSignup >= 30 || onboardingComplete) && shouldPromptRating('platform')) {
+      setActivePrompt({
+        targetType: 'platform',
+        title: '¿Qué tal tu experiencia con CarLink?',
+        hint: 'Ya llevás un tiempo usando la app — tu opinión nos ayuda a mejorarla.',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating])
 
   const openPublicar = useCallback(async () => {
     if (nfcTokens.length > 0) {
@@ -248,9 +292,10 @@ export default function AppPage() {
   const activateNfcToken = async () => {
     const code = activationCode.trim()
     if (!user || !code) return
+    if (!vehicle?.id) { flashApp('Selecciona un vehículo antes de activar el llavero.'); return }
     setNfcLoading(true)
     setGeneratedUrl('')
-    const { data, error } = await activateNfcCode(code)
+    const { data, error } = await activateNfcCode(code, vehicle.id)
     if (data) {
       setNfcTokens(prev => [data, ...prev])
       setActivationCode('')
@@ -264,6 +309,13 @@ export default function AppPage() {
         if (urlData?.url) setGeneratedUrl(urlData.url)
       } catch {}
       flashApp('Llavero activado correctamente')
+      if (!activePrompt && shouldPromptRating('product')) {
+        setActivePrompt({
+          targetType: 'product',
+          title: '¿Qué tal el llavero NFC?',
+          hint: 'Acabás de activarlo — contanos qué te pareció el producto.',
+        })
+      }
     } else {
       flashApp(error || 'No se pudo activar el llavero.')
     }
@@ -334,9 +386,18 @@ export default function AppPage() {
     setEditRecord(null)
   }, [])
 
-  const onSaved = useCallback(() => {
+  const onSaved = useCallback((newWorkshop?: { workshopId: string; workshopName: string }) => {
     setRefreshKey(k => k + 1)
-  }, [])
+    if (newWorkshop && !activePrompt && shouldPromptRating('workshop', newWorkshop.workshopId)) {
+      setActivePrompt({
+        targetType: 'workshop',
+        workshopId: newWorkshop.workshopId,
+        workshopName: newWorkshop.workshopName,
+        title: `¿Cómo te fue en ${newWorkshop.workshopName}?`,
+        hint: 'Acabás de registrar un servicio con este taller — contanos qué tal la atención.',
+      })
+    }
+  }, [activePrompt, shouldPromptRating])
 
   useEffect(() => {
     if (loading) return
@@ -614,6 +675,19 @@ export default function AppPage() {
         </div>
       )}
 
+      {/* Prompt de calificación contextual — uno a la vez, no bloquea nada */}
+        {activePrompt && (
+          <RatingPromptBanner
+            title={activePrompt.title}
+            hint={activePrompt.hint}
+            targetType={activePrompt.targetType}
+            workshopId={activePrompt.workshopId}
+            workshopName={activePrompt.workshopName}
+            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.targetType, rating, comment, workshop_id: activePrompt.workshopId })}
+            onDismiss={() => { dismissRatingPrompt(activePrompt.targetType, activePrompt.workshopId); setActivePrompt(null) }}
+          />
+        )}
+
       {/* App-level toast */}
         {appToast && (
           <div style={{ position: 'fixed', left: '50%', bottom: 34, zIndex: 60, transform: 'translateX(-50%)', animation: 'toastIn .4s both', display: 'flex', gap: 11, alignItems: 'center', padding: '14px 24px', borderRadius: 999, background: 'rgba(16,16,16,0.94)', backdropFilter: 'blur(14px)', border: '1px solid rgba(245,197,24,0.5)', color: '#fff8e6', fontWeight: 600, fontSize: 14 }}>
@@ -878,7 +952,7 @@ export default function AppPage() {
                 Tus llaveros{tokenLimit ? ` (${tokenLimit.used}/${tokenLimit.max})` : ''}
               </div>
 
-              {!(tokenLimit && tokenLimit.used >= tokenLimit.max) && (
+              {!(tokenLimit && tokenLimit.used >= tokenLimit.max) ? (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                   <input value={activationCode} onChange={e => setActivationCode(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !nfcLoading) activateNfcToken() }}
@@ -888,6 +962,12 @@ export default function AppPage() {
                     style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.35)', background: (nfcLoading || !activationCode.trim()) ? 'rgba(245,197,24,0.1)' : 'rgba(245,197,24,0.15)', color: (nfcLoading || !activationCode.trim()) ? '#998a4a' : '#F5C518', fontSize: 12, fontWeight: 700, cursor: (nfcLoading || !activationCode.trim()) ? 'default' : 'pointer', whiteSpace: 'nowrap', transition: 'all .16s' }}>
                     {nfcLoading ? 'Activando…' : 'Activar'}
                   </button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>
+                  Ya tenés un llavero activo para este vehículo. ¿Necesitás un repuesto o duplicado?{' '}
+                  <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`¡Hola CarLink! Necesito un llavero de repuesto/duplicado para mi vehículo ${vehicle?.plate || ''}.`)}`}
+                    target="_blank" rel="noreferrer" style={{ color: '#F5C518', fontWeight: 600 }}>Contactanos</a>.
                 </div>
               )}
 

@@ -646,6 +646,10 @@ export type WorkshopUpdate = Partial<Omit<Workshop, 'id' | 'owner_id' | 'code' |
 
 export type NfcActivateRequest = {
   activation_code: string;
+  /* Requerido desde el fix de 2026-08-12 — el vehículo seleccionado en la
+     barra lateral, no "el más reciente de la cuenta" (bug real de
+     producción, ver docs/PENDIENTES.md). */
+  vehicle_id: string;
 };
 
 export type ProfileUpdate = Partial<Profile>;

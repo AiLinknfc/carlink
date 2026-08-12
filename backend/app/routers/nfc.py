@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import (
     MaintenanceRecord,
     NfcAccessLog,
@@ -130,12 +130,12 @@ async def activate_nfc_token(
         raise HTTPException(status_code=400, detail="Código de activación requerido")
     code_hash = hashlib.sha256(code.encode()).hexdigest()
 
-    v_result = await db.execute(
-        select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
-    )
-    vehicle = v_result.scalar_one_or_none()
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Registra un vehículo antes de activar tu llavero.")
+    # El cliente manda a qué vehículo va (el seleccionado en la barra lateral)
+    # — antes se adivinaba "el más reciente de la cuenta", lo que asociaba
+    # llaveros al vehículo equivocado en cualquier cuenta con más de uno.
+    # verify_vehicle valida ownership real, no confía en que el vehicle_id
+    # mandado sea del usuario autenticado.
+    vehicle = await verify_vehicle(body.vehicle_id, user_id, db)
 
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
@@ -215,18 +215,15 @@ async def activate_nfc_token(
 
 @router.get("/limits/me")
 async def get_my_token_limit(
+    vehicle_id: UUID,
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Return the current user's token limit and usage."""
+    """Return the current user's token limit and usage — para el vehículo
+    pedido explícitamente, no "el más reciente de la cuenta" (mismo fix que
+    POST /nfc/activate, ver comentario ahí)."""
     uid = uuid.UUID(user_id)
-
-    v_result = await db.execute(
-        select(Vehicle).where(Vehicle.owner_id == uid).order_by(Vehicle.created_at.desc()).limit(1)
-    )
-    vehicle = v_result.scalar_one_or_none()
-    if not vehicle:
-        return {"max": 1, "used": 0}
+    vehicle = await verify_vehicle(vehicle_id, user_id, db)
 
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
@@ -253,11 +250,17 @@ async def get_my_token_limit(
 async def list_nfc_tokens(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    vehicle_id: UUID | None = None,
 ):
-    """List all NFC tokens for the authenticated user."""
-    result = await db.execute(
-        select(NfcToken).where(NfcToken.user_id == uuid.UUID(user_id)).order_by(NfcToken.created_at.desc())
-    )
+    """List NFC tokens for the authenticated user — filtrado a un solo
+    vehículo si se manda `vehicle_id` (el uso real: el panel "Mis llaveros"
+    scopeado al vehículo seleccionado, un token por vista). Sin el filtro,
+    devuelve todos — no hay ningún consumidor real de eso hoy, se deja por
+    compatibilidad."""
+    query = select(NfcToken).where(NfcToken.user_id == uuid.UUID(user_id))
+    if vehicle_id:
+        query = query.where(NfcToken.vehicle_id == vehicle_id)
+    result = await db.execute(query.order_by(NfcToken.created_at.desc()))
     tokens = list(result.scalars().all())
 
     has_url_map: dict[str, bool] = {}

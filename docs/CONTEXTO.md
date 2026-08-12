@@ -56,6 +56,16 @@ cambia — reusa exactamente `generate_nfc_token`/`generate_human_code`. La gene
 en `/partner` — se sacó por completo del modo persona (`FichaTab.tsx`, `app/app/page.tsx`).
 Detalle completo, decisiones y verificación: `docs/PLAN_PARTNER_MODEL.md`.
 
+**Un llavero = un vehículo, elegido explícitamente (fix crítico 2026-08-12).** Antes,
+`POST /nfc/activate` y `GET /nfc/limits/me` resolvían el vehículo con "el más reciente de la
+cuenta" (`ORDER BY created_at DESC LIMIT 1`), ignorando cuál estaba seleccionado en la barra
+lateral — cualquier cuenta con más de un vehículo podía terminar con un llavero pegado al vehículo
+equivocado, silenciosamente (pasó de verdad en producción). Ahora `NfcActivateRequest` exige
+`vehicle_id`, validado con `verify_vehicle` (ownership real, no implícito). `GET /nfc/tokens` admite
+filtro `vehicle_id` y el panel "Mis llaveros" queda scopeado al vehículo activo — un llavero por
+vista. Detalle y lo que quedó pendiente (flujo formal de repuesto/duplicado): `docs/PENDIENTES.md`
+ítem 4 de Prioridad alta.
+
 ### Pendiente sobre el llavero NFC
 Lista completa y actualizada en `docs/PENDIENTES.md` (única fuente de verdad de pendientes).
 
@@ -112,6 +122,16 @@ Verificado con un E2E desechable (usuarios reales de Supabase Auth vía Admin AP
 sin mockear) — 26/26 checks OK contra la Supabase real, cero residuo tras la limpieza. Lo que
 quedó fuera de esta v1 (moderación, ligar "producto" a un pedido puntual, notificar al taller,
 rate-limit adicional): `docs/PENDIENTES.md` ítem 18.
+
+**Prompts distribuidos por evento (misma sesión)**: en vez de depender solo del ítem "Calificar"
+del menú, el pedido de calificar sale contextual en 5 eventos reales — aviso de llavero encontrado
+leído y milestone de uso (30 días u onboarding) para plataforma; activación de llavero NFC y pedido
+entregado (único caso con modal, el resto son banners) para producto; alta de un servicio nuevo con
+taller adjunto para taller. Supresión unificada por target (`useRatingPrompts.ts`): ya calificado
+(`GET /reviews?mine=true`) o descartado ("Después", `localStorage`) — sin tabla ni centro de
+notificaciones nuevo en el backend, a propósito (no existe ninguno para cuentas persona hoy). El
+formulario de estrellas+comentario vive una sola vez (`RatingPrompt.tsx`), reusado por `ResenasTab`
+y por los prompts (banner/modal).
 
 ## Servidores locales
 

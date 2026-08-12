@@ -10,6 +10,9 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
   sin emojis en la interfaz**, ver abajo.
 - `docs/DEPLOY.md` — cómo se despliega, gotchas conocidos, cómo confirmar que un deploy aterrizó.
 - `docs/SECURITY.md` — qué no hardcodear, incidente de credenciales de 2026-07-27.
+- `docs/INCIDENT_RESPONSE.md` — protocolo para bugs críticos de producción (datos reales de por
+  medio, objetos físicos irreversibles como llaveros NFC/QR). Leer **antes** de tocar cualquier
+  dato de producción, no después.
 - Los `docs/PLAN_*.md` — historial detallado de features grandes ya construidas (fase por fase, con
   qué se verificó) — leer solo si necesitás el detalle de cómo se construyó algo específico.
 
@@ -26,9 +29,28 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    por confiar en lo que decía la documentación en vez del estado real.
 4. `local`, `staging` y `producción` comparten la misma base de Supabase — no asumas que un cambio
    de esquema es "solo local".
+5. **Bug crítico de producción → seguir `docs/INCIDENT_RESPONSE.md` de punta a punta**, no
+   improvisar el protocolo cada vez. En particular: verificar el fix contra el proceso local ya
+   reiniciado (o el dominio real con `curl`) antes de pedir/dar el push — que compile y pase
+   tsc/vitest no es lo mismo que haber probado el fix en sí.
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
 solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.
+
+### Patrones de razonamiento capturados
+
+#### Protocolo de incidentes antes que velocidad (2026-08-12)
+**Contexto**: autorizó un push de dos fixes críticos (NFC vehicle_id + QR roto) y, ya dado el visto
+bueno, dijo explícitamente que sabía que pushear sin probar en local no era correcto, y que este
+tipo de incidente ("bug crítico en producción, con datos/objetos físicos reales de por medio") va a
+repetirse seguido — pidió establecer de antemano un plan, no resolverlo ad hoc cada vez.
+**Patrón**: cuando el usuario da luz verde bajo presión ("dale, pusheá") pero el tipo de situación
+es repetible, no basta con ejecutar la instrucción puntual — hay que proponer (o ya tener) un
+protocolo reusable para la próxima vez, y aplicarlo *antes* de ejecutar la instrucción actual si
+todavía no se verificó lo suficiente, incluso después de tener el ok.
+**Anti-patrón que previene**: tratar cada incidente crítico como un caso aislado que se resuelve
+con velocidad y buena voluntad, en vez de con un checklist fijo — lleva a saltarse pasos de
+verificación bajo presión de tiempo, justo cuando más importan.
 
 ## Patrones de diseño responsive
 
