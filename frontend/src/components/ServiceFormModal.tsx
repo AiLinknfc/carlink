@@ -260,7 +260,9 @@ interface Props {
   editRecord?: any
   latestMileage?: number
   onClose: () => void
-  onSaved: () => void
+  /** Si el alta (no edición) trae un taller registrado adjunto, se manda esa
+   * info — la usa app/page.tsx para ofrecer calificar ese taller. */
+  onSaved: (newWorkshop?: { workshopId: string; workshopName: string }) => void
 }
 
 export default function ServiceFormModal({ vehicleId, editRecord, latestMileage, onClose, onSaved }: Props) {
@@ -510,7 +512,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
         }
       }
 
-      onSaved()
+      // Prompt de calificación de taller solo en alta nueva (no en ediciones,
+      // para no volver a preguntar cada vez que se retoca el mismo registro).
+      onSaved(!editRecord && workshopId ? { workshopId, workshopName: workshop } : undefined)
       onClose()
     } catch (e: any) {
       setError(e.message || 'Error al guardar')

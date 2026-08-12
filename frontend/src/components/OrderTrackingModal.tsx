@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTheme } from '@/store/theme'
 import { useAuth } from '@/store/auth'
 import { shopOrderApi } from '@/lib/api'
+import { useRatingPrompts } from '@/lib/useRatingPrompts'
+import { RatingPromptModal } from '@/components/RatingPrompt'
 import type { ShopOrderDetail, ShopOrderPaymentStatus } from '@/lib/types'
 
 const GOLD = '#F5C518'
@@ -30,6 +32,8 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
   const [orders, setOrders] = useState<ShopOrderDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
+  const { shouldPrompt, dismiss, submitReview } = useRatingPrompts()
+  const [showDeliveredPrompt, setShowDeliveredPrompt] = useState(false)
 
   const bg = isDark ? 'rgba(14,14,14,0.95)' : 'rgba(255,255,255,0.97)'
   const text = isDark ? '#f5f3ec' : '#17171a'
@@ -42,7 +46,12 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
     const res = await shopOrderApi.list()
     setOrders(res ?? [])
     setLoading(false)
-  }, [])
+    // Sin polling — se revisa cada vez que se abre "Mis pedidos", no en vivo
+    // mientras la app está inactiva (ver plan del feature de prompts).
+    if ((res ?? []).some(o => o.fulfillment_status === 'delivered') && shouldPrompt('product')) {
+      setShowDeliveredPrompt(true)
+    }
+  }, [shouldPrompt])
 
   // Un solo fetch al abrir — datos reales, ya no hay simulación local con
   // setInterval como antes.
@@ -88,6 +97,7 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
   const order = orders.find(o => o.reference === selected) || orders[0]
 
   return (
+    <>
     <div onClick={onClose} style={backdropStyle}>
       <div onClick={e => e.stopPropagation()} className="modal-panel" style={panelStyle}>
         {/* Header */}
@@ -179,5 +189,15 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
         ) : null}
       </div>
     </div>
+    {showDeliveredPrompt && (
+      <RatingPromptModal
+        title="¿Qué tal el llavero NFC?"
+        hint="Tu pedido ya fue entregado — contanos qué te pareció el producto."
+        targetType="product"
+        onSubmit={(rating, comment) => submitReview({ target_type: 'product', rating, comment })}
+        onDismiss={() => { dismiss('product'); setShowDeliveredPrompt(false) }}
+      />
+    )}
+    </>
   )
 }
