@@ -114,6 +114,10 @@ export default function AppPage() {
   const { shouldPrompt: shouldPromptRating, dismiss: dismissRatingPrompt, submitReview: submitRatingPrompt } = useRatingPrompts()
   const [activePrompt, setActivePrompt] = useState<{
     targetType: 'platform' | 'product' | 'workshop'; workshopId?: string; workshopName?: string; title: string; hint: string
+    /* Etiqueta del evento que disparó el prompt, mostrada en Admin junto a la
+       categoría (ej. "Producto · Activación de llavero") — vacía en la
+       calificación general de ResenasTab.tsx. */
+    context: string
   } | null>(null)
 
   // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
@@ -246,6 +250,7 @@ export default function AppPage() {
         targetType: 'platform',
         title: '¿Cómo te fue con CarLink?',
         hint: 'Alguien te ayudó a recuperar el contacto con tu vehículo — contanos qué tal tu experiencia con la plataforma.',
+        context: 'Aviso de llavero encontrado',
       })
     }
   }
@@ -263,6 +268,7 @@ export default function AppPage() {
         targetType: 'platform',
         title: '¿Qué tal tu experiencia con CarLink?',
         hint: 'Ya llevás un tiempo usando la app — tu opinión nos ayuda a mejorarla.',
+        context: 'Milestone de uso',
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -314,6 +320,7 @@ export default function AppPage() {
           targetType: 'product',
           title: '¿Qué tal el llavero NFC?',
           hint: 'Acabás de activarlo — contanos qué te pareció el producto.',
+          context: 'Activación de llavero',
         })
       }
     } else {
@@ -395,6 +402,9 @@ export default function AppPage() {
         workshopName: newWorkshop.workshopName,
         title: `¿Cómo te fue en ${newWorkshop.workshopName}?`,
         hint: 'Acabás de registrar un servicio con este taller — contanos qué tal la atención.',
+        // No aplica para workshop — el detalle específico ya es el nombre
+        // del taller (workshopName), no un context de reviews.
+        context: '',
       })
     }
   }, [activePrompt, shouldPromptRating])
@@ -683,7 +693,7 @@ export default function AppPage() {
             targetType={activePrompt.targetType}
             workshopId={activePrompt.workshopId}
             workshopName={activePrompt.workshopName}
-            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.targetType, rating, comment, workshop_id: activePrompt.workshopId })}
+            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.targetType, rating, comment, workshop_id: activePrompt.workshopId, context: activePrompt.context })}
             onDismiss={() => { dismissRatingPrompt(activePrompt.targetType, activePrompt.workshopId); setActivePrompt(null) }}
           />
         )}

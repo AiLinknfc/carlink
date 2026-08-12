@@ -1005,7 +1005,8 @@ export default function AdminPage() {
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13.5 }}>{r.author}</div>
                       <div style={{ fontSize: 11.5, color: c.muted, marginTop: 1 }}>
-                        {r.target_type === 'platform' ? 'Plataforma' : r.target_type === 'product' ? 'Producto' : `Taller · ${r.target_label}`}
+                        {r.target_type === 'platform' ? 'Plataforma' : r.target_type === 'product' ? 'Producto' : 'Taller'}
+                        {r.target_label ? ` · ${r.target_label}` : ''}
                         {' · '}{new Date(r.created_at).toLocaleDateString()}
                       </div>
                     </div>

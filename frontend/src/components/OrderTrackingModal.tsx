@@ -194,7 +194,7 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
         title="¿Qué tal el llavero NFC?"
         hint="Tu pedido ya fue entregado — contanos qué te pareció el producto."
         targetType="product"
-        onSubmit={(rating, comment) => submitReview({ target_type: 'product', rating, comment })}
+        onSubmit={(rating, comment) => submitReview({ target_type: 'product', rating, comment, context: 'Proceso de compra' })}
         onDismiss={() => { dismiss('product'); setShowDeliveredPrompt(false) }}
       />
     )}

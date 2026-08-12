@@ -133,6 +133,14 @@ notificaciones nuevo en el backend, a propósito (no existe ninguno para cuentas
 formulario de estrellas+comentario vive una sola vez (`RatingPrompt.tsx`), reusado por `ResenasTab`
 y por los prompts (banner/modal).
 
+**Etiquetado de reseñas por servicio específico (2026-08-12, migración `045`)**: Admin ya no
+muestra solo "Producto"/"Plataforma" — reusa `AdminReviewOut.target_label` (antes solo lo tenía
+`workshop`, el nombre del taller) para mostrar también de qué evento vino una reseña de
+plataforma/producto (`reviews.context`, texto libre mandado por cada uno de los 4 disparadores:
+"Aviso de llavero encontrado", "Milestone de uso", "Activación de llavero", "Proceso de compra").
+Reenviar una calificación sin `context` (la general de "Calificar") la deja sin sub-etiqueta —
+refleja el origen del envío más reciente, no un historial acumulado.
+
 ## Servidores locales
 
 - **Frontend**: `localhost:3000` (`npm run dev`)

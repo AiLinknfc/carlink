@@ -1039,6 +1039,11 @@ class ReviewCreate(BaseModel):
     workshop_id: UUID | None = None  # requerido solo si target_type == "workshop"
     rating: int = Field(ge=1, le=5)
     comment: str = ""
+    # Evento/servicio específico que dispara esta reseña (ej. "Activación de
+    # llavero", "Proceso de compra") — vacío si es una calificación general
+    # desde ResenasTab.tsx. Solo aplica a platform/product; se ignora si
+    # target_type == "workshop" (ahí el detalle específico ya es el taller).
+    context: str = ""
 
 
 class ReviewOut(BaseModel):
@@ -1047,6 +1052,7 @@ class ReviewOut(BaseModel):
     target_type: Literal["platform", "product"]
     rating: int
     comment: str
+    context: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -1062,6 +1068,7 @@ class ReviewSubmitOut(BaseModel):
     workshop_id: UUID | None = None
     rating: int
     comment: str
+    context: str = ""
     created_at: datetime
     updated_at: datetime
 
@@ -1078,7 +1085,10 @@ class AdminReviewOut(BaseModel):
 
     id: UUID
     target_type: Literal["platform", "product", "workshop"]
-    target_label: str  # nombre del taller si target_type == "workshop", si no ""
+    # Detalle específico más allá de la categoría: nombre del taller si
+    # target_type == "workshop", o el evento/servicio (reviews.context) si es
+    # platform/product — "" si fue una calificación general sin evento puntual.
+    target_label: str
     author: str
     rating: int
     comment: str

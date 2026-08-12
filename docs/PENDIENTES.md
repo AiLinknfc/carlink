@@ -151,12 +151,16 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    `duplicado`/`reposicion` en la base ni notificación automática a soporte — es una decisión de
    producto aparte (¿label nuevo en `nfc_tokens`? ¿requerir que soporte provisione el repuesto en
    vez de dejarlo 100% autoservicio?).
-5. **Reseñas: falta el detalle de sección/servicio específico, no solo la categoría** (pedido del
-   usuario, 2026-08-12, mismo mensaje que reportó el bug de arriba) — hoy Admin muestra "Producto"
-   pero no distingue, por ejemplo, "proceso de carrito de compras" de "activación del llavero" o
-   "calidad física". Falta agregar un campo de contexto/sub-etiqueta a `reviews` (y mostrarlo en
-   `AdminReview`/`app/admin/page.tsx` tab "Reseñas") que indique de qué evento/flujo vino cada
-   reseña — no implementado todavía.
+5. **✅ Reseñas: etiquetado por servicio/evento específico (2026-08-12).** Migración `045`
+   (`reviews.context`, texto libre) — se reusa `AdminReviewOut.target_label` (antes solo lo tenía
+   `workshop`, ahora también platform/product) en vez de agregar un campo nuevo. Los 4 disparadores
+   de eventos (`app/page.tsx`, `OrderTrackingModal.tsx`) mandan su propio literal: "Aviso de
+   llavero encontrado", "Milestone de uso", "Activación de llavero", "Proceso de compra". La
+   calificación general desde `ResenasTab.tsx` no manda `context` (queda vacío, Admin la muestra
+   sin sub-etiqueta). Como `context` vive en la misma fila con upsert por `(user_id, target_type)`,
+   reenviar sin `context` (ej. editar después desde "Calificar") lo deja vacío — es el
+   comportamiento esperado, no un bug: refleja el origen del envío más reciente, no un historial.
+   Verificado con E2E desechable, 8/8 checks.
 
 ## 🟡 Prioridad media
 

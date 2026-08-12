@@ -772,6 +772,10 @@ class Review(Base):
     target_type: Mapped[str] = mapped_column(Text)  # 'platform' | 'product'
     rating: Mapped[int] = mapped_column(Integer)
     comment: Mapped[str] = mapped_column(Text, default="")
+    # Evento/servicio específico que disparó la reseña (ej. "Activación de
+    # llavero", "Proceso de compra") — vacío si fue una calificación general
+    # desde ResenasTab.tsx, no atada a un evento puntual.
+    context: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

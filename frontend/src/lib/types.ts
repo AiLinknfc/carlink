@@ -446,6 +446,10 @@ export type ReviewCreate = {
   workshop_id?: string;
   rating: number;
   comment?: string;
+  /* Evento/servicio específico que dispara la reseña (ej. "Activación de
+     llavero", "Proceso de compra") — solo aplica a platform/product, se
+     ignora para workshop (ahí el detalle específico ya es el taller). */
+  context?: string;
 };
 
 export interface ReviewSubmit {
@@ -454,6 +458,7 @@ export interface ReviewSubmit {
   workshop_id: string | null;
   rating: number;
   comment: string;
+  context?: string;
   created_at: string;
   updated_at: string;
 }
@@ -464,6 +469,7 @@ export interface Review {
   target_type: 'platform' | 'product';
   rating: number;
   comment: string;
+  context?: string;
   created_at: string;
   updated_at: string;
 }

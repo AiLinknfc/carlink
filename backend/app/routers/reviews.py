@@ -95,9 +95,13 @@ async def submit_review(
     if existing:
         existing.rating = body.rating
         existing.comment = body.comment
+        existing.context = body.context
         review = existing
     else:
-        review = Review(user_id=UUID(user_id), target_type=body.target_type, rating=body.rating, comment=body.comment)
+        review = Review(
+            user_id=UUID(user_id), target_type=body.target_type, rating=body.rating,
+            comment=body.comment, context=body.context,
+        )
         db.add(review)
 
     await db.flush()
@@ -109,6 +113,7 @@ async def submit_review(
         workshop_id=None,
         rating=review.rating,
         comment=review.comment,
+        context=review.context,
         created_at=review.created_at,
         updated_at=review.updated_at,
     )
@@ -139,7 +144,8 @@ async def list_reviews(
         return [
             ReviewSubmitOut(
                 id=r.id, target_type=r.target_type, workshop_id=None,
-                rating=r.rating, comment=r.comment, created_at=r.created_at, updated_at=r.updated_at,
+                rating=r.rating, comment=r.comment, context=r.context,
+                created_at=r.created_at, updated_at=r.updated_at,
             )
             for r in mine_reviews
         ] + [
@@ -202,7 +208,7 @@ async def _fetch_admin_reviews(
         for review, profile in (await db.execute(query)).all():
             items.append(
                 AdminReviewOut(
-                    id=review.id, target_type=review.target_type, target_label="",
+                    id=review.id, target_type=review.target_type, target_label=review.context or "",
                     author=_client_name_for(profile), rating=review.rating, comment=review.comment,
                     created_at=review.created_at,
                 )
