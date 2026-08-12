@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 import Link from 'next/link'
+import { reviewsApi } from '@/lib/api'
+import type { Review } from '@/lib/types'
 
 type Theme = 'light' | 'dark'
 
@@ -108,6 +110,19 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
   const [faqOpen, setFaqOpen] = useState<number>(-1)
   const mapRef = useRef<HTMLIFrameElement>(null)
   const k = tokens(theme)
+
+  // Reseñas reales de plataforma (ver ResenasTab) para "Comunidad CarLink" —
+  // la lectura pública no trae nombre/email del autor (misma reserva de
+  // privacidad que el resto de fichas públicas), así que se muestran
+  // anonimizadas y solo si hay suficientes con comentario; si no, se
+  // mantienen los 3 testimonios curados de abajo como respaldo.
+  const [realTestimonials, setRealTestimonials] = useState<Review[] | null>(null)
+  useEffect(() => {
+    reviewsApi.list({ targetType: 'platform', sort: 'mejores', limit: 6 }).then(list => {
+      const withComment = (list || []).filter(r => r.rating >= 4 && r.comment.trim().length > 0)
+      if (withComment.length >= 3) setRealTestimonials(withComment)
+    })
+  }, [])
 
   // La sección "Cómo funciona" muestra las 3 escenas SIEMPRE completas y
   // visibles — nada se oculta nunca. El único movimiento es un resplandor
@@ -728,17 +743,20 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
         {/* Testimonials */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14, maxWidth: 820, margin: '0 auto 36px' }}>
-          {[
-            { name: 'Andrés M.', city: 'Bogotá', text: 'Con el llavero NFC mis clientes ven el historial completo del carro en segundos. Increíble.' },
-            { name: 'Laura G.', city: 'Medellín', text: 'Mi taller verificó 40 fichas el primer mes. CarLink nos dio credibilidad real.' },
-            { name: 'Carlos R.', city: 'Cali', text: 'Vendí mi carro 3 semanas más rápido porque el comprador confió en la ficha certificada.' },
-          ].map((t, i) => (
-            <div key={i} style={{ padding: 20, borderRadius: 14, background: k.bubbleBg, border: `1px solid ${k.thinBorder}` }}>
+          {(realTestimonials
+            ? realTestimonials.map(r => ({ key: r.id, name: 'Cliente CarLink', city: '', text: r.comment }))
+            : [
+                { key: '1', name: 'Andrés M.', city: 'Bogotá', text: 'Con el llavero NFC mis clientes ven el historial completo del carro en segundos. Increíble.' },
+                { key: '2', name: 'Laura G.', city: 'Medellín', text: 'Mi taller verificó 40 fichas el primer mes. CarLink nos dio credibilidad real.' },
+                { key: '3', name: 'Carlos R.', city: 'Cali', text: 'Vendí mi carro 3 semanas más rápido porque el comprador confió en la ficha certificada.' },
+              ]
+          ).map(t => (
+            <div key={t.key} style={{ padding: 20, borderRadius: 14, background: k.bubbleBg, border: `1px solid ${k.thinBorder}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 15, color: GOLD }}>{t.name[0]}</div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div>
-                  <div style={{ fontSize: 11, color: k.muted }}>{t.city}</div>
+                  {t.city && <div style={{ fontSize: 11, color: k.muted }}>{t.city}</div>}
                 </div>
               </div>
               <p style={{ fontSize: 13, lineHeight: 1.55, color: k.muted, margin: 0 }}>"{t.text}"</p>

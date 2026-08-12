@@ -23,6 +23,7 @@ from app.routers import (
     ocr,
     parts,
     partners,
+    reviews,
     service_logs,
     shop_orders,
     upload,
@@ -97,6 +98,11 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")
+# Reseñas de plataforma/producto/taller enviadas por usuarios autenticados —
+# ver docs/PENDIENTES.md y el plan de este feature. Router propio, no vive bajo
+# /workshops/me porque no está scopeado a una cuenta taller (cualquier usuario).
+app.include_router(reviews.router, prefix="/api")
+app.include_router(reviews.admin_router, prefix="/api")
 
 # Panel de negocio taller/empresa (migración de tallerpro/, ver
 # docs/PLAN_MIGRACION_TALLERPRO.md) — todos comparten el prefijo /workshops,

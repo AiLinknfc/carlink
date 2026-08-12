@@ -1022,8 +1022,68 @@ class WorkshopReviewOut(BaseModel):
     is_verified_client: bool
     manager_response: str
     created_at: datetime
+    # Migración 044 — opcionales para no romper el consumo existente (ficha
+    # pública /taller/{code}) que no manda estos campos.
+    source: str = "manual_taller"
+    submitted_by_user_id: UUID | None = None
 
     model_config = {"from_attributes": True}
+
+
+# =========== Reviews (plataforma / producto / taller) ===========
+# Servicio genérico de reseñas de usuarios autenticados, llamado desde 3 puntos
+# distintos (target_type). La reseña de taller se guarda en workshop_reviews
+# (arriba) en vez de acá — ver docs del plan de este feature.
+class ReviewCreate(BaseModel):
+    target_type: Literal["platform", "product", "workshop"]
+    workshop_id: UUID | None = None  # requerido solo si target_type == "workshop"
+    rating: int = Field(ge=1, le=5)
+    comment: str = ""
+
+
+class ReviewOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    target_type: Literal["platform", "product"]
+    rating: int
+    comment: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ReviewSubmitOut(BaseModel):
+    """Forma unificada que devuelve POST /reviews sin importar el target_type
+    (reviews.workshop_id) es None salvo para target_type == 'workshop'."""
+
+    id: UUID
+    target_type: Literal["platform", "product", "workshop"]
+    workshop_id: UUID | None = None
+    rating: int
+    comment: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReviewSummaryOut(BaseModel):
+    total: int
+    average: float
+    breakdown: dict[str, int]  # "5".."1" -> conteo
+
+
+class AdminReviewOut(BaseModel):
+    """Forma unificada de reviews (platform/product) + workshop_reviews (workshop),
+    usada solo en la vista global de Admin."""
+
+    id: UUID
+    target_type: Literal["platform", "product", "workshop"]
+    target_label: str  # nombre del taller si target_type == "workshop", si no ""
+    author: str
+    rating: int
+    comment: str
+    manager_response: str = ""
+    created_at: datetime
 
 
 # =========== Dashboard ===========

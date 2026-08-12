@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { adminApi, adminProvisionWhitelist, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult } from '@/lib/types'
+import { adminApi, adminProvisionWhitelist, adminReviewsApi, jobApplicationApi, type JobApplication } from '@/lib/api'
+import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult, AdminReview, AdminReviewSummary, ReviewTargetType } from '@/lib/types'
+import { RatingStars } from '@/lib/icons_new'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
 
@@ -68,7 +69,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -137,6 +138,14 @@ export default function AdminPage() {
   const [partnerBatchesOpenId, setPartnerBatchesOpenId] = useState<string | null>(null)
   const [partnerBatches, setPartnerBatches] = useState<PartnerBatch[]>([])
 
+  // Reseñas — vista global de las 3 categorías (plataforma/producto/taller),
+  // ver docs del plan de este feature. min_rating filtra "mejores estrellas".
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [reviewsSummary, setReviewsSummary] = useState<AdminReviewSummary | null>(null)
+  const [reviewsTargetFilter, setReviewsTargetFilter] = useState<ReviewTargetType | 'all'>('all')
+  const [reviewsMinRatingFilter, setReviewsMinRatingFilter] = useState<number>(0)
+  const [reviewsSort, setReviewsSort] = useState<'recientes' | 'mejores' | 'peores'>('recientes')
+
   const c = {
     bg: isDark ? '#0a0b0e' : '#f5f3ec',
     card: isDark ? '#111318' : '#fff',
@@ -161,7 +170,9 @@ export default function AdminPage() {
     else if (tab === 'limits') loadLimits()
     else if (tab === 'orders') loadShopOrders()
     else if (tab === 'partners') loadPartners()
-  }, [tab])
+    else if (tab === 'reviews') loadReviews()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, reviewsTargetFilter, reviewsMinRatingFilter, reviewsSort])
 
   useEffect(() => {
     if (!loading && user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID) {
@@ -240,6 +251,18 @@ export default function AdminPage() {
     setLoading2(true)
     const p = await adminApi.listPartners()
     if (p) setPartners(p)
+    setLoading2(false)
+  }
+
+  async function loadReviews() {
+    setLoading2(true)
+    const targetType = reviewsTargetFilter === 'all' ? undefined : reviewsTargetFilter
+    const [list, sum] = await Promise.all([
+      adminReviewsApi.list({ targetType, minRating: reviewsMinRatingFilter || undefined, sort: reviewsSort }),
+      adminReviewsApi.summary(targetType),
+    ])
+    if (list) setReviews(list)
+    if (sum) setReviewsSummary(sum)
     setLoading2(false)
   }
 
@@ -432,6 +455,7 @@ export default function AdminPage() {
     { key: 'limits', label: 'Límites' },
     { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
     { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
+    { key: 'reviews', label: `Reseñas${reviewsSummary && reviewsSummary.total > 0 ? ` (${reviewsSummary.total})` : ''}` },
   ] as const
 
   return (
@@ -918,6 +942,84 @@ export default function AdminPage() {
                 </div>
               ))}
               {partners.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Sin partners todavía</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Reseñas — plataforma/producto/taller juntas, ver docs del plan de este feature */}
+        {tab === 'reviews' && (
+          <div>
+            {reviewsSummary && (
+              <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: '16px 20px', textAlign: 'center', minWidth: 110 }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: c.accent }}>{reviewsSummary.total}</div>
+                  <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>Total reseñas</div>
+                </div>
+                <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: '16px 20px', textAlign: 'center', minWidth: 110 }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: c.accent }}>{reviewsSummary.average.toFixed(1)}</div>
+                  <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>Promedio</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 220, background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: '14px 18px' }}>
+                  {[5, 4, 3, 2, 1].map(star => {
+                    const count = reviewsSummary.breakdown[String(star)] || 0
+                    const pct = reviewsSummary.total ? Math.round((count / reviewsSummary.total) * 100) : 0
+                    return (
+                      <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: c.muted, marginBottom: 3 }}>
+                        <span style={{ width: 14, textAlign: 'right' }}>{star}</span>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: c.accent, borderRadius: 3 }} />
+                        </div>
+                        <span style={{ width: 26, textAlign: 'right' }}>{count}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select value={reviewsTargetFilter} onChange={e => setReviewsTargetFilter(e.target.value as ReviewTargetType | 'all')}
+                style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 12.5 }}>
+                <option value="all">Todas las categorías</option>
+                <option value="platform">Plataforma</option>
+                <option value="product">Producto</option>
+                <option value="workshop">Taller</option>
+              </select>
+              <select value={reviewsMinRatingFilter} onChange={e => setReviewsMinRatingFilter(Number(e.target.value))}
+                style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 12.5 }}>
+                <option value={0}>Todas las estrellas</option>
+                {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n}+ estrellas</option>)}
+              </select>
+              <select value={reviewsSort} onChange={e => setReviewsSort(e.target.value as 'recientes' | 'mejores' | 'peores')}
+                style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 12.5 }}>
+                <option value="recientes">Más recientes</option>
+                <option value="mejores">Mejor calificadas</option>
+                <option value="peores">Peor calificadas</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {reviews.map(r => (
+                <div key={r.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5 }}>{r.author}</div>
+                      <div style={{ fontSize: 11.5, color: c.muted, marginTop: 1 }}>
+                        {r.target_type === 'platform' ? 'Plataforma' : r.target_type === 'product' ? 'Producto' : `Taller · ${r.target_label}`}
+                        {' · '}{new Date(r.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <RatingStars rating={r.rating} size={14} />
+                  </div>
+                  {r.comment && <p style={{ fontSize: 13, color: c.text, margin: '8px 0 0', lineHeight: 1.5 }}>{r.comment}</p>}
+                  {r.manager_response && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${c.border}`, fontSize: 12, color: c.muted }}>
+                      Respuesta del taller: {r.manager_response}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {reviews.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Sin reseñas todavía</div>}
             </div>
           </div>
         )}

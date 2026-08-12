@@ -89,6 +89,30 @@ Razones: DeepSeek maneja bien contextos en español, precios colombianos, nombre
 de servicio. Tesseract/RapidOCR solo extraen texto plano sin entender semántica. No se justifica
 agregar otro proveedor de IA para esta功能. El endpoint es `POST /api/expenses/scan`.
 
+## Sistema de reseñas: plataforma / producto / taller (2026-08-11, EN PRODUCCIÓN)
+
+Servicio único de reseñas (`backend/app/routers/reviews.py`, migración `044`) llamado desde 3
+puntos de la app con un discriminador `target_type` (`platform`/`product`/`workshop`), en vez de
+triplicar tabla/endpoint. `POST /reviews` hace upsert por usuario+target (reenviar edita, no
+duplica). Plataforma/producto viven en la tabla nueva `reviews`; taller se integra a la
+`workshop_reviews` ya existente (columnas `submitted_by_user_id`/`source`), reusando el mismo
+`workshops.rating` recalculado y la misma ficha pública `/taller/{code}` sin tocar su contrato.
+
+- **Punto de envío**: sección "Calificar" en `/app` (persona y taller — `ResenasTab.tsx` +
+  `StarRatingInput.tsx`), libre en cualquier momento, sin atarlo a un servicio completado.
+- **Exploración/filtrado**: tab "Reseñas" en Admin (`/admin`) — las 3 categorías juntas, totales,
+  promedio, desglose por estrella, filtro por categoría/estrella mínima/taller/orden
+  (`GET /admin/reviews`, `/admin/reviews/summary`).
+- **Prueba social pública**: `shop/page.tsx` y `LandingSections.tsx` muestran reseñas reales
+  (`GET /reviews?target_type=platform|product`) cuando hay al menos 3 con comentario; si no, caen
+  al testimonio estático curado que ya existía (nunca se ven vacías). La lectura pública no expone
+  nombre/email del autor, mismo criterio de privacidad que el resto de fichas públicas.
+
+Verificado con un E2E desechable (usuarios reales de Supabase Auth vía Admin API, `get_db` real
+sin mockear) — 26/26 checks OK contra la Supabase real, cero residuo tras la limpieza. Lo que
+quedó fuera de esta v1 (moderación, ligar "producto" a un pedido puntual, notificar al taller,
+rate-limit adicional): `docs/PENDIENTES.md` ítem 18.
+
 ## Servidores locales
 
 - **Frontend**: `localhost:3000` (`npm run dev`)

@@ -749,8 +749,33 @@ class WorkshopReview(Base):
     is_verified_client: Mapped[bool] = mapped_column(Boolean, default=False)
     manager_response: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Migración 044: además de la carga manual del taller (source='manual_taller',
+    # submitted_by_user_id NULL), un usuario autenticado puede calificar el taller
+    # que lo atendió (source='cliente_autenticado') desde el flujo genérico de reseñas.
+    submitted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    source: Mapped[str] = mapped_column(Text, default="manual_taller")
 
     workshop = relationship("Workshop", back_populates="reviews")
+
+
+class Review(Base):
+    """Reseñas de usuarios autenticados sobre la plataforma o el producto (llavero
+    NFC/CarLink en general) — ver supabase/migrations/044_customer_reviews.sql.
+    Las de taller viven en WorkshopReview (mismo target semántico, distinto source)."""
+
+    __tablename__ = "reviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"))
+    target_type: Mapped[str] = mapped_column(Text)  # 'platform' | 'product'
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class ShopOrder(Base):

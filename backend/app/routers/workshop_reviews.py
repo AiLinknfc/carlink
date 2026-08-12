@@ -11,6 +11,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopReview
 from app.schemas.schemas import WorkshopReviewCreate, WorkshopReviewOut, WorkshopReviewRespond
+from app.services.reviews import recalculate_workshop_rating
 
 router = APIRouter(prefix="/workshops/me/reviews", tags=["workshop-reviews"])
 
@@ -43,11 +44,7 @@ async def create_review(
     await db.refresh(review)
 
     # Recalcula el rating promedio del taller, mostrado en la ficha pública.
-    all_ratings = (
-        await db.execute(select(WorkshopReview.rating).where(WorkshopReview.workshop_id == workshop.id))
-    ).scalars().all()
-    if all_ratings:
-        workshop.rating = round(sum(all_ratings) / len(all_ratings), 1)
+    await recalculate_workshop_rating(workshop, db)
 
     return review
 

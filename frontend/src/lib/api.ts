@@ -29,6 +29,7 @@ import type {
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
   VehicleExpense, ExpenseCreate, ExpenseUpdate, FuelSummary,
+  ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary,
 } from './types'
 
 async function request<T = unknown>(
@@ -250,6 +251,36 @@ export const workshopReviewsApi = {
   list: () => request<WorkshopReview[]>('GET', '/workshops/me/reviews'),
   create: (data: WorkshopReviewCreate) => request<WorkshopReview>('POST', '/workshops/me/reviews', data),
   respond: (id: string, manager_response: string) => request<WorkshopReview>('PUT', `/workshops/me/reviews/${id}/respond`, { manager_response }),
+}
+
+// Servicio único de reseñas (plataforma / producto / taller), llamado desde
+// distintos puntos de la app — ver ResenasTab. mine=true trae las 3 propias del
+// usuario logueado (incluida la de taller, que en el backend vive en workshop_reviews).
+export const reviewsApi = {
+  create: (data: ReviewCreate) => request<ReviewSubmit>('POST', '/reviews', data),
+  mine: () => request<ReviewSubmit[]>('GET', '/reviews?mine=true'),
+  list: (opts: { targetType: ReviewTargetType; minRating?: number; sort?: 'recientes' | 'mejores' | 'peores'; limit?: number }) => {
+    const params = new URLSearchParams({ target_type: opts.targetType })
+    if (opts.minRating) params.set('min_rating', String(opts.minRating))
+    if (opts.sort) params.set('sort', opts.sort)
+    if (opts.limit) params.set('limit', String(opts.limit))
+    return request<Review[]>('GET', `/reviews?${params.toString()}`)
+  },
+  summary: (targetType: ReviewTargetType) => request<ReviewSummary>('GET', `/reviews/summary?target_type=${targetType}`),
+}
+
+export const adminReviewsApi = {
+  list: (opts?: { targetType?: ReviewTargetType; workshopId?: string; minRating?: number; sort?: 'recientes' | 'mejores' | 'peores' }) => {
+    const params = new URLSearchParams()
+    if (opts?.targetType) params.set('target_type', opts.targetType)
+    if (opts?.workshopId) params.set('workshop_id', opts.workshopId)
+    if (opts?.minRating) params.set('min_rating', String(opts.minRating))
+    if (opts?.sort) params.set('sort', opts.sort)
+    const qs = params.toString()
+    return request<AdminReview[]>('GET', `/admin/reviews${qs ? `?${qs}` : ''}`)
+  },
+  summary: (targetType?: ReviewTargetType) =>
+    request<AdminReviewSummary>('GET', `/admin/reviews/summary${targetType ? `?target_type=${targetType}` : ''}`),
 }
 
 export const nfcApi = {

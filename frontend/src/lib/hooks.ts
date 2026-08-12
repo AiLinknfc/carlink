@@ -19,6 +19,8 @@ import {
   workshopNotificationsApi,
   workshopDocumentsApi,
   workshopReviewsApi,
+  reviewsApi,
+  adminReviewsApi,
   nfcApi,
   uploadApi,
   profileApi,
@@ -47,6 +49,10 @@ import type {
   WorkshopDashboard,
   ServiceLog,
   Profile,
+  ReviewSubmit,
+  AdminReview,
+  AdminReviewSummary,
+  ReviewTargetType,
 } from './types'
 
 export function useVehicle(vehicleId: string | undefined) {
@@ -927,6 +933,69 @@ export function useWorkshopReviews() {
   }, [load])
 
   return { reviews, loading, reload: load, addReview, respondReview }
+}
+
+/** "Mis calificaciones" — las 3 propias del usuario logueado (plataforma,
+ * producto, taller si ya calificó alguno), para el estado de ResenasTab. */
+export function useMyReviews() {
+  const [mine, setMine] = useState<ReviewSubmit[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setMine((await reviewsApi.mine()) || [])
+    } catch (e) {
+      console.error('Failed to load my reviews:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const submitReview = useCallback(async (data: Parameters<typeof reviewsApi.create>[0]) => {
+    const result = await reviewsApi.create(data)
+    if (result) await load()
+    return result
+  }, [load])
+
+  const byTarget = useCallback(
+    (targetType: ReviewTargetType, workshopId?: string) =>
+      mine.find(r => r.target_type === targetType && (targetType !== 'workshop' || r.workshop_id === workshopId)),
+    [mine]
+  )
+
+  return { mine, loading, reload: load, submitReview, byTarget }
+}
+
+/** Vista global de Admin — las 3 categorías juntas, filtrable. */
+export function useAdminReviews(filters?: Parameters<typeof adminReviewsApi.list>[0]) {
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [summary, setSummary] = useState<AdminReviewSummary | null>(null)
+  const [loading, setLoading] = useState(true)
+  const filtersKey = JSON.stringify(filters ?? {})
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [list, sum] = await Promise.all([
+        adminReviewsApi.list(filters),
+        adminReviewsApi.summary(filters?.targetType),
+      ])
+      setReviews(list || [])
+      setSummary(sum || null)
+    } catch (e) {
+      console.error('Failed to load admin reviews:', e)
+    } finally {
+      setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey])
+
+  useEffect(() => { load() }, [load])
+
+  return { reviews, summary, loading, reload: load }
 }
 
 export function useUpload() {

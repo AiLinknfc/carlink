@@ -3,7 +3,8 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
-import { waitlistApi } from '@/lib/api'
+import { waitlistApi, reviewsApi } from '@/lib/api'
+import type { Review } from '@/lib/types'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Siempre oscura (no sigue el toggle claro/oscuro del resto del sitio): es una página de
@@ -173,6 +174,19 @@ export default function ShopPage() {
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
+  // Reseñas reales de producto (ver ResenasTab) — la lectura pública no expone
+  // nombre/email del autor (mismo criterio de privacidad que el resto de fichas
+  // públicas de la app), así que solo se muestran si hay suficientes con
+  // comentario para no verse vacías; si no, se mantienen los testimonios
+  // curados de abajo (TESTIMONIALS) como respaldo.
+  const [realReviews, setRealReviews] = useState<Review[] | null>(null)
+
+  useEffect(() => {
+    reviewsApi.list({ targetType: 'product', sort: 'mejores', limit: 6 }).then(list => {
+      const withComment = (list || []).filter(r => r.rating >= 4 && r.comment.trim().length > 0)
+      if (withComment.length >= 3) setRealReviews(withComment)
+    })
+  }, [])
 
   useEffect(() => {
     if (activeCard < 0 || activeCard > 6) return
@@ -806,7 +820,23 @@ export default function ShopPage() {
         </div>
 
         <div data-r="shopTestimonials">
-          {TESTIMONIALS.map(t => (
+          {realReviews ? realReviews.map(r => (
+            <div key={r.id} data-r="shopTestimonialCard" style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 2, color: GOLD }}>
+                    {Array.from({ length: r.rating }).map((_, i) => (
+                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
+                    ))}
+                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: '#5be89a', background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.3)', padding: '3px 8px', borderRadius: 6 }}>
+                    {CHECK('#5be89a', 11)}Cliente CarLink
+                  </span>
+                </div>
+                <p style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{r.comment}"</p>
+              </div>
+            </div>
+          )) : TESTIMONIALS.map(t => (
             <div key={t.id} data-r="shopTestimonialCard" style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>

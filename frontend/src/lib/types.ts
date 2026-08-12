@@ -429,6 +429,67 @@ export interface WorkshopReview {
   is_verified_client: boolean;
   manager_response: string;
   created_at: string;
+  /* 'manual_taller' (carga desde PerfilModule) o 'cliente_autenticado' (enviada
+     desde el flujo genérico de reseñas, ResenasTab). Ver ReviewCreate. */
+  source?: 'manual_taller' | 'cliente_autenticado';
+  submitted_by_user_id?: string;
+}
+
+/* Servicio genérico de reseñas (plataforma / producto / taller), llamado desde
+   3 puntos distintos de la app — ver ResenasTab. La reseña de taller vive en
+   workshop_reviews (arriba), no en esta tabla; POST /reviews devuelve la misma
+   forma (ReviewSubmit) para los 3 casos. */
+export type ReviewTargetType = 'platform' | 'product' | 'workshop';
+
+export type ReviewCreate = {
+  target_type: ReviewTargetType;
+  workshop_id?: string;
+  rating: number;
+  comment?: string;
+};
+
+export interface ReviewSubmit {
+  id: string;
+  target_type: ReviewTargetType;
+  workshop_id: string | null;
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Review {
+  id: string;
+  user_id: string;
+  target_type: 'platform' | 'product';
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewSummary {
+  total: number;
+  average: number;
+  breakdown: Record<string, number>;
+}
+
+export interface AdminReview {
+  id: string;
+  target_type: ReviewTargetType;
+  target_label: string;
+  author: string;
+  rating: number;
+  comment: string;
+  manager_response?: string;
+  created_at: string;
+}
+
+export interface AdminReviewSummary {
+  total: number;
+  average: number;
+  breakdown: Record<string, number>;
+  by_target_type: Record<string, number>;
 }
 
 export interface WorkshopDashboard {

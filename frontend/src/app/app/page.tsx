@@ -24,6 +24,7 @@ import HistorialTab from '@/components/tabs/HistorialTab'
 import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
 import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
+import ResenasTab from '@/components/tabs/ResenasTab'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
 import OrderTrackingModal from '@/components/OrderTrackingModal'
@@ -574,6 +575,7 @@ export default function AppPage() {
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
+           activeTab === 'resenas' ? <ResenasTab /> :
            <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} />}
         </div>
 

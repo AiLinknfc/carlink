@@ -284,6 +284,24 @@ ya no repiten listas de pendientes, solo enlazan aquí.
       experiencia de escaneo NFC en sí, `/nfc/[token]/page.tsx`), que **no se puede probar sin un
       llavero físico provisionado** — un agente no tiene forma de verificar esto, requiere que el
       usuario lo pruebe con un chip real.
+18. **Sistema de reseñas (plataforma/producto/taller) — fuera de alcance de la v1 (2026-08-11)**,
+    servicio único `POST/GET /reviews` (+ `/admin/reviews`) ya en producción, verificado 26/26
+    checks contra la Supabase real (E2E desechable) y con la sección "Calificar" en `/app`
+    (`ResenasTab.tsx`) + tab "Reseñas" en Admin. Quedó fuera a propósito:
+    - **Moderación/aprobación antes de publicar** — hoy una reseña queda visible apenas se envía
+      (upsert directo, sin cola de revisión). Si se quiere un filtro antes de mostrarla en
+      shop/landing o en la ficha pública del taller, hace falta agregar un estado
+      (`pending`/`published`) y una acción de aprobar en Admin.
+    - **Reseña de "producto" ligada a un pedido real** — se decidió que "producto" es singleton
+      (calificás el llavero NFC/CarLink en general, sin `target_id`), no un `ShopOrder` puntual.
+      La tabla `ShopOrder` ya existe si más adelante se quiere pedir la reseña específicamente
+      después de la entrega de un pedido.
+    - **Notificar al taller cuando recibe una reseña nueva** — no se integró con
+      `NotificacionesModule.tsx`/el envío real de email; hoy el taller solo la ve si entra a
+      Perfil → Reseñas.
+    - **Rate-limit** más allá de `UNIQUE(user_id, target_type)` en `reviews` y el índice único
+      parcial `(workshop_id, submitted_by_user_id)` en `workshop_reviews` (que ya evitan spam
+      duplicado del mismo usuario, pero no limitan cuentas nuevas creadas en cadena).
 
 ---
 
