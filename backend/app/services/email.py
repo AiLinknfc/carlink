@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import socket
 import smtplib
+from contextlib import contextmanager
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -17,17 +19,43 @@ _SMTP_TIMEOUT = 15  # segundos — sin esto, un Hostinger lento/caído puede col
 # la conexión indefinidamente (smtplib no tiene timeout por defecto).
 
 
+@contextmanager
+def _force_ipv4():
+    """Fuerza resolución DNS a solo-IPv4 mientras dura la conexión SMTP.
+
+    Visto en producción (Railway, 2026-08-13): smtp.hostinger.com resuelve a
+    IPv6 *y* IPv4, y getaddrinfo() devuelve la IPv6 primero. El contenedor
+    de Railway no tiene salida IPv6, así que ese intento falla con [Errno
+    101] Network is unreachable. socket.create_connection() sí reintenta con
+    la siguiente dirección (la IPv4) — pero si por lo que sea ese segundo
+    intento también falla, Python reporta el error del *primer* intento
+    (la IPv6), no el real. Forzar IPv4 acá elimina la ambigüedad y el salto
+    en falso a IPv6 en un solo paso. Alcance mínimo: solo se activa durante
+    la conexión (smtplib.SMTP/SMTP_SSL __init__), se restaura enseguida."""
+    original = socket.getaddrinfo
+
+    def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        return original(host, port, socket.AF_INET, type, proto, flags)
+
+    socket.getaddrinfo = _ipv4_only
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original
+
+
 def _smtp_client() -> smtplib.SMTP:
     """Conexión SMTP lista para usar con `with`. El puerto 465 (Hostinger) es
     SSL directo desde el saludo inicial — STARTTLS ahí falla porque STARTTLS
     negocia el cifrado DESPUÉS de conectar en texto plano, y un server que
     espera SSL directo corta la conexión antes de llegar a esa negociación.
     Cualquier otro puerto (587 típico) sigue usando STARTTLS como antes."""
-    if SMTP_PORT == 465:
-        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
-    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
-    server.starttls()
-    return server
+    with _force_ipv4():
+        if SMTP_PORT == 465:
+            return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
+        server.starttls()
+        return server
 
 
 def send_found_request_email(
