@@ -49,10 +49,10 @@ const CARD_STYLE: React.CSSProperties = { padding: 28, borderRadius: 18, backgro
 const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
 
 const PROBLEMS = [
-  '¿No recuerdas cuándo cambiaste el aceite?',
-  '¿Perdiste la factura del taller?',
-  '¿Compraste un carro usado y no sabes si le hicieron mantenimiento?',
-  '¿Olvidaste cuándo vence el SOAT?',
+  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /> },
+  { text: '¿Perdiste la factura del taller?', icon: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 12h6M9 16h4" /></> },
+  { text: '¿Compraste un carro usado y no sabes si le hicieron mantenimiento?', icon: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M21 21l-4.35-4.35" /></> },
+  { text: '¿Olvidaste cuándo vence el SOAT?', icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M12 14v3M12 19h.01" /></> },
 ]
 const SOLUTION_TAGS = ['Historial', 'Fotos', 'Facturas', 'Garantías', 'Recordatorios', 'Documentos', 'Kilometraje']
 const BENEFITS = [
@@ -132,9 +132,8 @@ const TESTIMONIALS = [
     carModel: 'Mazda 3 Touring 2020',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
     rating: 5,
-    title: 'Vendí mi Mazda en 3 días al precio que quería',
-    text: 'El comprador me iba a pedir rebaja diciendo que no confiaba en el kilometraje. Le acerqué el celular al llavero CarLink, vio todas las facturas y mantenimientos organizados por fecha y firmados. Me pagó de contado sin pedir un solo peso de rebaja.',
-    resultMetric: 'Vendió $3.200.000 por encima del promedio',
+    title: 'Vendí mi carro sin que me pidieran rebaja',
+    text: 'El comprador quería ver el historial antes de cerrar. Le mostré la ficha del llavero con los mantenimientos al día y no hubo más preguntas.',
   },
   {
     id: '2',
@@ -143,9 +142,8 @@ const TESTIMONIALS = [
     carModel: 'Kia Sportage 2021',
     avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&q=80',
     rating: 5,
-    title: 'Chao a la carpeta de papeles arrugados en la guantera',
-    text: 'Antes guardaba recibos térmicos que se borraban con el calor. Ahora cada que salgo del taller en el Poblado, acerco el llavero y guardo el registro con valor y taller. Es facilísimo, no tuve que instalar nada raro.',
-    resultMetric: 'Historial 100% digitalizado sin perder facturas',
+    title: 'Se acabó buscar papeles en la guantera',
+    text: 'Cada vez que salgo del taller, acerco el llavero y queda el registro guardado. Ya no cargo con recibos que se borran.',
   },
   {
     id: '3',
@@ -154,9 +152,8 @@ const TESTIMONIALS = [
     carModel: 'Renault Duster 4x4',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
     rating: 5,
-    title: 'Ahorré $1.800.000 al evitar cambiar una correa a destiempo',
-    text: 'Casi le hago el cambio de correa antes de tiempo por duda. Toqué el llavero con mi celular y vi que el dueño anterior ya lo había registrado 10.000 km atrás con fecha exacta. Me ahorró un gasto innecesario inmediato.',
-    resultMetric: 'Evitó gasto duplicado de $1.800.000 COP',
+    title: 'Casi repito un cambio que ya estaba hecho',
+    text: 'Iba a cambiar una correa por precaución. El llavero mostró que el dueño anterior ya la había cambiado hacía poco — me ahorré ese gasto.',
   },
 ]
 
@@ -544,9 +541,11 @@ export default function ShopPage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
           {PROBLEMS.map(p => (
-            <div key={p} data-r="shopProblemCard" style={CARD_STYLE}>
-              <div data-r="shopProblemIcon" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,77,106,0.12)', color: '#ff4d6a', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18, fontSize: 22, fontWeight: 800 }}>?</div>
-              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: '#f5f3ec' }}>{p}</div>
+            <div key={p.text} data-r="shopProblemCard" style={CARD_STYLE}>
+              <div data-r="shopProblemIcon" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,176,32,0.12)', color: '#ffb020', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{p.icon}</svg>
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: '#f5f3ec' }}>{p.text}</div>
             </div>
           ))}
         </div>
@@ -860,8 +859,8 @@ export default function ShopPage() {
                       <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
                     ))}
                   </div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: '#5be89a', background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.3)', padding: '3px 8px', borderRadius: 6 }}>
-                    {CHECK('#5be89a', 11)}Cliente CarLink
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: GOLD, background: 'rgba(245,197,24,0.12)', border: `1px solid rgba(245,197,24,0.3)`, padding: '3px 8px', borderRadius: 6 }}>
+                    {CHECK(GOLD, 11)}Cliente CarLink
                   </span>
                 </div>
                 <p style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{r.comment}"</p>
@@ -876,15 +875,14 @@ export default function ShopPage() {
                       <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
                     ))}
                   </div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: '#5be89a', background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.3)', padding: '3px 8px', borderRadius: 6 }}>
-                    {CHECK('#5be89a', 11)}Verificado
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: GOLD, background: 'rgba(245,197,24,0.12)', border: `1px solid rgba(245,197,24,0.3)`, padding: '3px 8px', borderRadius: 6 }}>
+                    {CHECK(GOLD, 11)}Verificado
                   </span>
                 </div>
                 <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 8, lineHeight: 1.35 }}>"{t.title}"</div>
                 <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{t.text}"</p>
               </div>
               <div style={{ paddingTop: 16, borderTop: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'inline-block', padding: '7px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.22)', fontSize: 11, fontWeight: 700, color: GOLD }}>{t.resultMetric}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <img src={t.avatar} alt={t.name} referrerPolicy="no-referrer" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${BORDER}` }} />
                   <div>
@@ -907,7 +905,7 @@ export default function ShopPage() {
           </div>
           <span style={{ width: 1, height: 32, background: BORDER }} />
           <div style={{ fontSize: 12, color: MUTED }}>
-            <div style={{ color: '#5be89a', fontWeight: 700, fontSize: 14 }}>98.4% recomiendan</div>
+            <div style={{ color: GOLD, fontWeight: 700, fontSize: 14 }}>98.4% recomiendan</div>
             CarLink a otros conductores en el país
           </div>
         </div>
