@@ -13,6 +13,10 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "CarLink <noreply@carlink.com>")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
 
+_SMTP_TIMEOUT = 15  # segundos — sin esto, un Hostinger lento/caído puede colgar
+# la conexión indefinidamente (smtplib no tiene timeout por defecto).
+
+
 def _smtp_client() -> smtplib.SMTP:
     """Conexión SMTP lista para usar con `with`. El puerto 465 (Hostinger) es
     SSL directo desde el saludo inicial — STARTTLS ahí falla porque STARTTLS
@@ -20,8 +24,8 @@ def _smtp_client() -> smtplib.SMTP:
     espera SSL directo corta la conexión antes de llegar a esa negociación.
     Cualquier otro puerto (587 típico) sigue usando STARTTLS como antes."""
     if SMTP_PORT == 465:
-        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
-    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
+    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
     server.starttls()
     return server
 

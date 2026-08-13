@@ -5,6 +5,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,11 +45,14 @@ async def create_waitlist_lead(
     await db.refresh(lead)
 
     if body.source == "shop_guia_mantenimiento" and _EMAIL_RE.match(contact):
-        # Best-effort: un fallo de SMTP nunca debe tumbar el guardado del lead.
+        # Best-effort: un fallo de SMTP nunca debe tumbar el guardado del
+        # lead. email.send_guide_email es smtplib bloqueante — sin
+        # run_in_threadpool, un Hostinger lento congela el event loop
+        # entero, no solo este request (visto en vivo: ~2 min de hang).
         try:
             settings = get_settings()
             guide_url = f"{settings.frontend_url}/api/upload/files/{_GUIDE_PDF_KEY}"
-            email.send_guide_email(contact, guide_url)
+            await run_in_threadpool(email.send_guide_email, contact, guide_url)
         except Exception as e:
             logger.error(f"send_guide_email failed for lead {lead.id}: {e}")
 

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -76,15 +77,20 @@ def _apply_transaction_data(order: ShopOrder, txn: dict) -> bool:
     return True
 
 
-def _notify_order_approved(order: ShopOrder) -> None:
+async def _notify_order_approved(order: ShopOrder) -> None:
     """Correo al cliente ("pago confirmado") + al admin ("hay que
     despachar"), disparado una sola vez por orden — el caller solo debe
     llamar esto cuando detecta la transición a 'approved' (was_approved era
     False, ahora order.status == 'approved'), nunca en cada webhook/confirm
     repetido. Best-effort: un fallo de SMTP nunca debe tumbar la
-    confirmación del pago, por eso el try/except acá adentro."""
+    confirmación del pago, por eso el try/except acá adentro.
+
+    email.send_* es smtplib bloqueante (sync) — correrlo directo acá
+    congelaría el event loop entero (no solo este request) si Hostinger
+    tarda o no responde. run_in_threadpool lo saca a un hilo aparte."""
     try:
-        email.send_order_confirmed_email(
+        await run_in_threadpool(
+            email.send_order_confirmed_email,
             customer_email=order.customer_email,
             customer_name=order.customer_name,
             reference=order.reference,
@@ -97,7 +103,8 @@ def _notify_order_approved(order: ShopOrder) -> None:
         logger.error(f"send_order_confirmed_email failed for {order.reference}: {e}")
 
     try:
-        email.send_order_admin_notification_email(
+        await run_in_threadpool(
+            email.send_order_admin_notification_email,
             reference=order.reference,
             plate_text=order.plate_text,
             quantity=order.quantity,
@@ -152,7 +159,8 @@ async def create_shop_order(
         # Best-effort: un fallo de SMTP nunca debe tumbar la creación del
         # pedido — mismo criterio que _notify_order_approved más abajo.
         try:
-            email.send_order_received_email(
+            await run_in_threadpool(
+                email.send_order_received_email,
                 customer_email=order.customer_email,
                 customer_name=order.customer_name,
                 reference=order.reference,
@@ -266,7 +274,7 @@ async def mark_shop_order_paid(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Order status is '{order.status}', not 'pending'")
 
     order.status = "approved"
-    _notify_order_approved(order)
+    await _notify_order_approved(order)
 
     await db.flush()
     await db.refresh(order)
@@ -296,7 +304,8 @@ async def update_shop_order_fulfillment(
     if body.status == "shipped":
         order.shipped_at = now
         try:
-            email.send_order_shipped_email(
+            await run_in_threadpool(
+                email.send_order_shipped_email,
                 customer_email=order.customer_email,
                 customer_name=order.customer_name,
                 reference=order.reference,
@@ -335,7 +344,7 @@ async def confirm_shop_order(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction does not match this order")
 
     if not was_approved and order.status == "approved":
-        _notify_order_approved(order)
+        await _notify_order_approved(order)
 
     await db.flush()
     await db.refresh(order)
@@ -367,6 +376,6 @@ async def wompi_webhook(request: Request, db: Annotated[AsyncSession, Depends(ge
     was_approved = order.status == "approved"
     _apply_transaction_data(order, txn)
     if not was_approved and order.status == "approved":
-        _notify_order_approved(order)
+        await _notify_order_approved(order)
     await db.flush()
     return {"ok": True}
