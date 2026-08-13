@@ -29,6 +29,135 @@ const PROTECTIONS: { id: Protection; label: string; hint: string }[] = [
   { id: 'H', label: 'Máxima resistencia', hint: 'Aguanta rayones y suciedad' },
 ]
 
+/** Dispara la descarga de un Blob SVG con el nombre de archivo dado. */
+function downloadSvgBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Genera SVG con SOLO <rect> y <circle> — nada de <path>/curvas bezier — a
+ * partir de la matriz del QR. Existe aparte de "SVG" (que usa el motor real
+ * de qr-code-styling, con <path> de arcos) porque el importador SVG del
+ * usuario (Blender) no resuelve bien esa versión: qr-code-styling pinta
+ * TODO — fondo, esquinas y área de datos — con la técnica
+ * <rect fill clip-path="url(#...)">, y el área de datos completa queda
+ * comprimida en un único clipPath con ~450 figuras adentro (los 3
+ * detectores de esquina, en cambio, son un clipPath de 1 figura cada uno —
+ * por eso esos sí se reconocen). Esta versión no usa clip-path en absoluto
+ * — cada figura es un <rect>/<circle> con fill directo — así no hay máscara
+ * compuesta que un importador básico pueda descartar.
+ *
+ * Tampoco dibuja fondo blanco (fill de página): así no queda nada que
+ * borrar a mano en Illustrator antes de pasar el archivo a Blender.
+ *
+ * Un <rect>/<circle> por módulo, cada uno con su propio antialiasing, deja
+ * además una costura gris de 1px entre módulos vecinos que en algunos casos
+ * llega a impedir la lectura (verificado render→decode). Para evitarlo y
+ * para que el patrón se vea lo más simple posible, fusiona los módulos
+ * oscuros contiguos en bloques rectangulares — en las dos dimensiones, no
+ * solo por fila — antes de dibujar: mismos píxeles pintados (no cambia qué
+ * queda oscuro), pero muchas menos figuras sueltas.
+ *
+ * Los tres patrones de detección (las esquinas grandes) se dibujan aparte,
+ * siempre como cuadrado nítido — es la combinación con más margen de
+ * lectura (validado: la única 100% confiable en las pruebas; redondearlos,
+ * aunque sea poco, hace fallar la detección con cierta frecuencia). El
+ * resto del patrón sí sigue la forma elegida (Redondeado/Puntos/Clásico).
+ */
+function buildMatrixSvg(matrix: boolean[][], shape: Shape, size: number, marginUnits: number): string {
+  const count = matrix.length
+  const cell = size / (count + marginUnits * 2)
+  const parts: string[] = []
+
+  const finders = [
+    { row: 0, col: 0 },
+    { row: 0, col: count - 7 },
+    { row: count - 7, col: 0 },
+  ]
+  const inFinder = (row: number, col: number) => finders.some(f => row >= f.row && row < f.row + 7 && col >= f.col && col < f.col + 7)
+
+  // El anillo del detector NO se dibuja como cuadrado negro + parche blanco
+  // encima (eso deja un objeto blanco real flotando entre las dos capas
+  // negras al importar en Blender — el "hueco" nunca fue un hueco de
+  // verdad, era pintura blanca tapando). Se arma como una moldura: 4 tiras
+  // rectangulares que forman el marco, dejando el centro genuinamente sin
+  // ninguna figura — vacío de verdad, no pintado de blanco.
+  for (const f of finders) {
+    const ox = (f.col + marginUnits) * cell
+    const oy = (f.row + marginUnits) * cell
+    const band = cell // grosor del marco: 1 módulo
+    const outer = cell * 7
+    const inner = cell * 5 // hueco entre el marco y el cuadrado central
+    parts.push(`<rect x="${ox.toFixed(2)}" y="${oy.toFixed(2)}" width="${outer.toFixed(2)}" height="${band.toFixed(2)}" fill="#111"/>`) // borde superior
+    parts.push(`<rect x="${ox.toFixed(2)}" y="${(oy + outer - band).toFixed(2)}" width="${outer.toFixed(2)}" height="${band.toFixed(2)}" fill="#111"/>`) // borde inferior
+    parts.push(`<rect x="${ox.toFixed(2)}" y="${(oy + band).toFixed(2)}" width="${band.toFixed(2)}" height="${inner.toFixed(2)}" fill="#111"/>`) // borde izquierdo
+    parts.push(`<rect x="${(ox + outer - band).toFixed(2)}" y="${(oy + band).toFixed(2)}" width="${band.toFixed(2)}" height="${inner.toFixed(2)}" fill="#111"/>`) // borde derecho
+    parts.push(`<rect x="${(ox + cell * 2).toFixed(2)}" y="${(oy + cell * 2).toFixed(2)}" width="${(cell * 3).toFixed(2)}" height="${(cell * 3).toFixed(2)}" fill="#111"/>`) // cuadrado central
+  }
+
+  // Fuera de los detectores: agrupa cada módulo oscuro con sus vecinos en
+  // el bloque rectangular más grande posible (extiende la corrida
+  // horizontal hacia abajo mientras la misma corrida siga oscura y libre).
+  const isBlockDark = (row: number, col: number) => matrix[row][col] && !inFinder(row, col)
+  const used: boolean[][] = Array.from({ length: count }, () => new Array(count).fill(false))
+
+  for (let row = 0; row < count; row++) {
+    let col = 0
+    while (col < count) {
+      if (used[row][col] || !isBlockDark(row, col)) { col++; continue }
+
+      let end = col
+      while (end + 1 < count && !used[row][end + 1] && isBlockDark(row, end + 1)) end++
+
+      let bottom = row
+      rowsLoop:
+      while (bottom + 1 < count) {
+        for (let c = col; c <= end; c++) {
+          if (used[bottom + 1][c] || !isBlockDark(bottom + 1, c)) break rowsLoop
+        }
+        bottom++
+      }
+      for (let r = row; r <= bottom; r++) for (let c = col; c <= end; c++) used[r][c] = true
+
+      const runW = end - col + 1
+      const runH = bottom - row + 1
+      const x = (col + marginUnits) * cell
+      const y = (row + marginUnits) * cell
+      const w = runW * cell
+      const h = runH * cell
+
+      if (shape === 'dots') {
+        const isolated = runW === 1 && runH === 1
+        if (isolated) {
+          parts.push(`<circle cx="${(x + cell / 2).toFixed(2)}" cy="${(y + cell / 2).toFixed(2)}" r="${(cell / 2 * 0.88).toFixed(2)}" fill="#111"/>`)
+        } else {
+          const r = Math.min(w, h) / 2
+          parts.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${r.toFixed(2)}" ry="${r.toFixed(2)}" fill="#111"/>`)
+        }
+      } else if (shape === 'rounded' || shape === 'classy') {
+        const r = cell * 0.38
+        parts.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="${r.toFixed(2)}" ry="${r.toFixed(2)}" fill="#111"/>`)
+      } else {
+        parts.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="#111"/>`)
+      }
+      col = end + 1
+    }
+  }
+
+  // Sin <rect> de fondo a propósito: nada de blanco que haya que
+  // seleccionar y borrar antes de llevar el archivo a Blender.
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`,
+    ...parts.map(p => '  ' + p),
+    '</svg>',
+  ].join('\n')
+}
+
 export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }: Props) {
   const [shape, setShape] = useState<Shape>('rounded')
   const [protection, setProtection] = useState<Protection>('H')
@@ -53,10 +182,7 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
 
       if (!qrRef.current) {
         qrRef.current = new QRCodeStyling({
-          width: 220,
-          height: 220,
-          data: qrUrl,
-          margin: 8,
+          width: 220, height: 220, data: qrUrl, margin: 8,
           qrOptions: { errorCorrectionLevel: protection },
           dotsOptions: { type: active.dotsType, color: '#111111' },
           cornersSquareOptions: { type: active.cornerSquare, color: '#111111' },
@@ -83,8 +209,6 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
     if (!isOpen) qrRef.current = null
   }, [isOpen])
 
-  const [downloadingAll, setDownloadingAll] = useState(false)
-
   const fileSlug = (plateText || 'llavero').replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
   const handleDownloadPng = () => {
@@ -96,51 +220,28 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
     if (!qrRef.current) return
     const blob = await qrRef.current.getRawData('svg')
     if (!blob || !(blob instanceof Blob)) return
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `qr-${fileSlug}.svg`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadSvgBlob(blob, `qr-${fileSlug}.svg`)
   }
 
-  // Control estricto por llavero (docs/PLAN_PARTNER_MODEL.md): genera y
-  // descarga las 3 variantes de protección de una sola vez, con la forma
-  // que esté seleccionada — para no tener que volver a abrir el panel tres
-  // veces por cada token de una campaña.
-  const handleDownloadAllVariants = async () => {
-    if (!qrUrl || downloadingAll) return
-    setDownloadingAll(true)
-    try {
-      const { default: QRCodeStyling } = await import('qr-code-styling')
-      const active = SHAPES.find(s => s.id === shape) || SHAPES[1]
-      for (const p of PROTECTIONS) {
-        const temp = new QRCodeStyling({
-          width: 220, height: 220, data: qrUrl, margin: 8,
-          qrOptions: { errorCorrectionLevel: p.id },
-          dotsOptions: { type: active.dotsType, color: '#111111' },
-          cornersSquareOptions: { type: active.cornerSquare, color: '#111111' },
-          cornersDotOptions: { type: active.cornerDot, color: '#111111' },
-          backgroundOptions: { color: '#ffffff' },
-        })
-        const slug = p.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
-        const baseName = `qr-${fileSlug}-${slug}`
-        await temp.download({ name: baseName, extension: 'png' })
-        await new Promise(r => setTimeout(r, 300))
-        const svgBlob = await temp.getRawData('svg')
-        if (svgBlob && svgBlob instanceof Blob) {
-          const url = URL.createObjectURL(svgBlob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `${baseName}.svg`
-          a.click()
-          URL.revokeObjectURL(url)
-        }
-        await new Promise(r => setTimeout(r, 400))
-      }
-    } finally {
-      setDownloadingAll(false)
+  // "Matrix" es un SVG aparte de "SVG" (no el mismo archivo): la máquina de
+  // grabado/corte no soporta curvas, y el render normal de qr-code-styling
+  // usa <path> con arcos para las esquinas redondeadas. Este toma la matriz
+  // de módulos del QR ya renderizado y la reconstruye con buildMatrixSvg
+  // (solo <rect>/<circle>, ver comentario ahí).
+  const handleDownloadMatrix = () => {
+    const qr = qrRef.current?._qr
+    if (!qr) return
+    const active = SHAPES.find(s => s.id === shape) || SHAPES[1]
+    const count = qr.getModuleCount()
+    const marginUnits = 8
+    const matrix: boolean[][] = []
+    for (let row = 0; row < count; row++) {
+      const r: boolean[] = []
+      for (let col = 0; col < count; col++) r.push(qr.isDark(row, col))
+      matrix.push(r)
     }
+    const svgString = buildMatrixSvg(matrix, active.id, 220, marginUnits)
+    downloadSvgBlob(new Blob([svgString], { type: 'image/svg+xml' }), `qr-${fileSlug}-matrix-${protection}.svg`)
   }
 
   return (
@@ -208,7 +309,7 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
                     </div>
                   </div>
 
-                  <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     <button onClick={handleDownloadPng} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
                       PNG
@@ -217,16 +318,11 @@ export default function QrCodePanel({ isOpen, onClose, theme, qrUrl, plateText }
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
                       SVG
                     </button>
+                    <button onClick={handleDownloadMatrix} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 12, border: `1px solid ${subtle}`, background: 'transparent', color: textPrimary, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                      Matrix
+                    </button>
                   </div>
-
-                  <button onClick={handleDownloadAllVariants} disabled={downloadingAll} style={{
-                    width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 11, borderRadius: 12,
-                    border: `1px solid ${subtle}`, background: 'transparent', color: textPrimary, fontWeight: 700, fontSize: 12.5,
-                    cursor: downloadingAll ? 'default' : 'pointer', opacity: downloadingAll ? 0.6 : 1,
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                    {downloadingAll ? 'Generando las 6…' : 'Descargar las 3 variantes (PNG + SVG)'}
-                  </button>
                 </>
               )}
             </div>
