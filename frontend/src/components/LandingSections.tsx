@@ -556,7 +556,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
           {[
             { name: 'Conductor', price: 'Gratis', period: '', tag: '', border: k.cardBorder, features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'], cta: 'Crear mi ficha', btnBg: 'rgba(245,197,24,0.12)', btnColor: k.goldSoft },
-            { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Incluye 1 llavero gratis', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Registrar mi taller', btnBg: GOLD, btnColor: '#111' },
+            { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Pruebalo ya!', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Registrar mi taller', btnBg: GOLD, btnColor: '#111' },
           ].map(pl => (
             <div key={pl.name} style={{ padding: 28, borderRadius: 20, ...card(pl.border), position: 'relative' }}>
               {pl.tag && <span style={{ position: 'absolute', top: -11, right: 24, background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{pl.tag}</span>}
