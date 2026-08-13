@@ -16,18 +16,26 @@ para el detalle completo de investigación/decisiones):
   registrado a mano) y un `VehicleExpense` (recibo escaneado) del mismo evento — si se solapan,
   el total los cuenta dos veces. No hay mecanismo para esto todavía.
 - **Guía de Mantenimiento**: PDF subido a R2, el `.html` se descartó. Correo armado
-  (`send_guide_email`) pero sin verificar un envío real todavía — depende de que el SMTP quede
-  configurado (ver pendiente de abajo).
+  (`send_guide_email`) y **verificado con un envío real en producción** (ver nota SMTP abajo).
 - **Banner de WhatsApp** en `/shop` después del FAQ (la pregunta de agua/caídas ya existía, no
   hubo que agregarla).
 - **SEO/IA**: `robots.txt`, `sitemap.xml`, `llms.txt`, JSON-LD (`Organization`/`Product`/`FAQPage`),
   metadata específica de `/shop` (antes heredaba el title/description genérico de todo el sitio).
 
+**SMTP de Hostinger — configurado y verificado en producción (2026-08-12)**: `SMTP_HOST/PORT/USER/PASS`,
+`FROM_EMAIL`, `ADMIN_EMAIL` seteados en Railway (`smtp.hostinger.com:465`, cuenta
+`business@carlink.com.co`). El código traía STARTTLS sin condicionar por puerto — el 465 es SSL
+directo, no STARTTLS — arreglado con `_smtp_client()` en `email.py` (ver commit "Email: SMTP
+Hostinger"). Primer intento de configuración tuvo un typo en `SMTP_USER`
+(`465ss@carlink.com.co` en vez de `business@carlink.com.co`, mezclado con el valor del puerto al
+escribir) — corregido. Verificado con envío real: log de Railway confirmó
+`[email] Sent guide email to ailink.nfc@gmail.com` contra `POST /api/waitlist`
+(`source=shop_guia_mantenimiento`) en producción. **Pendiente menor**: `FROM_EMAIL` quedó como
+`business@carlink.com.co` pelado — debería ser `CarLink <business@carlink.com.co>` (con nombre de
+marca) para que no le aparezca al destinatario la dirección cruda como remitente; no rompe el
+envío, es solo estético.
+
 **Pendiente — bloqueado en el usuario**:
-- **SMTP**: falta que Andres pase las credenciales del correo de Hostinger (dirección, contraseña,
-  a qué correo llegan los avisos de admin) para setear `SMTP_HOST/PORT/USER/PASS`, `FROM_EMAIL`,
-  `ADMIN_EMAIL` en Railway. Sin esto, todo el correo transaccional (confirmación de pedido, guía
-  PDF, "pedido recibido") sigue sin salir — el código ya está listo, solo falta la configuración.
 - **PostHog**: falta que Andres cree la cuenta y pase el API key para instrumentar frontend
   (`posthog-js`) y backend (`posthog-python`) — nada de esto se construyó todavía.
 - `DEEPSEEK_API_KEY` sigue sin estar en Railway (mencionado en pasadas anteriores) — sin ella, el

@@ -80,8 +80,8 @@ server-side (`PRODUCT_PRICE_COP`, nunca se confía en lo que mande el cliente), 
 "Mis pedidos" (cliente, siempre de solo lectura, siempre las órdenes propias) vive separado de la
 cola de despacho ("Pedidos" dentro de Admin NFC, que ve todo y tiene los botones de
 marcar enviado/entregado) — nunca se gestiona desde el modo cliente aunque quien mire sea la cuenta
-admin. Correo real (pago confirmado, enviado, notificación al admin) implementado pero **sin salir
-todavía** — `SMTP_USER`/`SMTP_PASS` vacíos, ver `docs/PENDIENTES.md`.
+admin. Correo real (pago confirmado, enviado, notificación al admin) — **SMTP configurado y
+verificado en producción desde 2026-08-12** (Hostinger, puerto 465), ver `docs/PENDIENTES.md`.
 
 **Contraentrega (2026-08-12)**: `payment_method` (`wompi`|`cod`, migración `046`) distingue el
 pedido pagado por pasarela del pagado en efectivo al recibir. Antes no existía esa columna, así
