@@ -417,6 +417,11 @@ export const adminApi = {
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'shipped', tracking_note }),
   markShopOrderDelivered: (reference: string) =>
     request<ShopOrderDetail>('PATCH', `/shop/orders/${reference}/fulfillment`, { status: 'delivered' }),
+  // Cierra el ciclo de un pedido contraentrega (payment_method='cod') — el
+  // backend rechaza esto si el pedido es 'wompi' (esos solo los aprueba la
+  // confirmación real de la pasarela).
+  markShopOrderPaid: (reference: string) =>
+    request<ShopOrderDetail>('POST', `/shop/orders/${reference}/mark-paid`),
   // Partners (rol de aprovisionamiento escopeado) — el admin real crea/gestiona
   // partners con su sesión normal; el partner en sí opera aparte con su api
   // key (ver partnerApi más abajo, sin sesión de Supabase).

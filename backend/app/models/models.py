@@ -791,6 +791,10 @@ class ShopOrder(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     reference: Mapped[str] = mapped_column(Text, unique=True)
     status: Mapped[str] = mapped_column(Text, default="pending")
+    # 'wompi' (pasarela real, se aprueba sola vía webhook/confirm) | 'cod'
+    # (contraentrega, requiere POST /shop/orders/{reference}/mark-paid) — ver
+    # supabase/migrations/046_shop_orders_payment_method.sql.
+    payment_method: Mapped[str] = mapped_column(Text, default="wompi")
     plate_text: Mapped[str] = mapped_column(Text)
     plate_type: Mapped[str] = mapped_column(Text)
     plate_city: Mapped[str] = mapped_column(Text)

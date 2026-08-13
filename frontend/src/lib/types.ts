@@ -1018,11 +1018,13 @@ export interface PartnerCreateResult {
 // Checkout del llavero NFC (CartModal.tsx / OrderTrackingModal.tsx / admin/page.tsx)
 export type ShopOrderPaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error';
 export type ShopOrderFulfillmentStatus = 'unfulfilled' | 'shipped' | 'delivered';
+export type ShopOrderPaymentMethod = 'wompi' | 'cod';
 
 export interface ShopOrderDetail {
   id: string;
   reference: string;
   status: ShopOrderPaymentStatus;
+  payment_method: ShopOrderPaymentMethod;
   plate_text: string;
   plate_type: string;
   plate_city: string;

@@ -129,6 +129,7 @@ async def create_shop_order(
     order = ShopOrder(
         reference=reference,
         status="pending",
+        payment_method=body.payment_method,
         plate_text=body.plate_text.strip().upper(),
         plate_type=body.plate_type,
         plate_city=body.plate_city,
@@ -146,6 +147,22 @@ async def create_shop_order(
     db.add(order)
     await db.flush()
     await db.refresh(order)
+
+    if order.payment_method == "cod":
+        # Best-effort: un fallo de SMTP nunca debe tumbar la creación del
+        # pedido — mismo criterio que _notify_order_approved más abajo.
+        try:
+            email.send_order_received_email(
+                customer_email=order.customer_email,
+                customer_name=order.customer_name,
+                reference=order.reference,
+                plate_text=order.plate_text,
+                quantity=order.quantity,
+                amount_in_cents=order.amount_in_cents,
+                currency=order.currency,
+            )
+        except Exception as e:
+            logger.error(f"send_order_received_email failed for {order.reference}: {e}")
 
     signature = wompi.compute_integrity_signature(reference, amount_in_cents, "COP")
 
@@ -223,6 +240,37 @@ async def shop_order_stats(
 @router.get("/orders/{reference}", response_model=ShopOrderOut)
 async def get_shop_order(reference: str, db: Annotated[AsyncSession, Depends(get_db)]):
     return await _get_order_by_reference(reference, db)
+
+
+@router.post("/orders/{reference}/mark-paid", response_model=ShopOrderDetailOut)
+async def mark_shop_order_paid(
+    reference: str,
+    admin_user_id: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Botón admin en el panel (pestaña "Pedidos") para cerrar el ciclo de un
+    pedido contraentrega — hasta ahora un pedido `payment_method='cod'` se
+    quedaba en `status='pending'` para siempre, porque la única otra vía a
+    'approved' es la confirmación real de Wompi (confirm_shop_order /
+    wompi_webhook, más abajo). Rechaza explícitamente los pedidos `wompi`:
+    un pedido con pasarela real NUNCA se debe poder marcar pagado a mano acá
+    — eso sería un bypass del cobro real, la única forma legítima de
+    aprobarlo es que Wompi lo confirme."""
+    order = await _get_order_by_reference(reference, db)
+    if order.payment_method != "cod":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo pedidos contraentrega se pueden marcar pagados manualmente",
+        )
+    if order.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Order status is '{order.status}', not 'pending'")
+
+    order.status = "approved"
+    _notify_order_approved(order)
+
+    await db.flush()
+    await db.refresh(order)
+    return order
 
 
 @router.patch("/orders/{reference}/fulfillment", response_model=ShopOrderDetailOut)

@@ -246,6 +246,12 @@ export default function AdminPage() {
     if (updated) setShopOrders(prev => prev.map(o => o.reference === reference ? updated : o))
     setMarkingOrderRef(null)
   }
+  async function markShopOrderPaid(reference: string) {
+    setMarkingOrderRef(reference)
+    const updated = await adminApi.markShopOrderPaid(reference)
+    if (updated) setShopOrders(prev => prev.map(o => o.reference === reference ? updated : o))
+    setMarkingOrderRef(null)
+  }
 
   async function loadPartners() {
     setLoading2(true)
@@ -813,6 +819,7 @@ export default function AdminPage() {
             {shopOrders.map(o => {
               const canShip = o.status === 'approved' && o.fulfillment_status === 'unfulfilled'
               const canDeliver = o.status === 'approved' && o.fulfillment_status === 'shipped'
+              const canMarkPaid = o.payment_method === 'cod' && o.status === 'pending'
               const paymentColor = o.status === 'approved' ? '#2ecc71' : o.status === 'pending' ? c.accent : '#ff4d6a'
               return (
                 <div key={o.reference} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16 }}>
@@ -820,6 +827,7 @@ export default function AdminPage() {
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 14 }}>
                         {o.reference} · <span style={{ color: paymentColor }}>{o.status === 'approved' ? 'Pagado' : o.status === 'pending' ? 'Pago pendiente' : o.status === 'declined' ? 'Rechazado' : o.status === 'voided' ? 'Anulado' : 'Error'}</span>
+                        {o.payment_method === 'cod' && <span style={{ color: c.muted }}> · Contraentrega</span>}
                         {o.status === 'approved' && (
                           <span style={{ color: o.fulfillment_status === 'delivered' ? '#2ecc71' : o.fulfillment_status === 'shipped' ? c.accent : c.muted }}>
                             {' · '}{o.fulfillment_status === 'delivered' ? 'Entregado' : o.fulfillment_status === 'shipped' ? 'Enviado' : 'Por enviar'}
@@ -839,6 +847,17 @@ export default function AdminPage() {
                       {'$' + Math.round(o.amount_in_cents / 100).toLocaleString('es-CO')}
                     </div>
                   </div>
+
+                  {canMarkPaid && (
+                    <div style={{ display: 'flex', marginTop: 10 }}>
+                      <button onClick={() => markShopOrderPaid(o.reference)}
+                        disabled={markingOrderRef === o.reference}
+                        title="El cliente ya pagó en efectivo al recibir — esto no reemplaza confirmar el pago real"
+                        style={{ ...accentBtnStyle, opacity: markingOrderRef === o.reference ? 0.6 : 1, cursor: markingOrderRef === o.reference ? 'default' : 'pointer' }}>
+                        {markingOrderRef === o.reference ? 'Marcando…' : 'Marcar como pagado (contraentrega)'}
+                      </button>
+                    </div>
+                  )}
 
                   {canShip && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>

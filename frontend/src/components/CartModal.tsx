@@ -218,6 +218,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         plate_text: fullPlate, plate_type: selectedType, plate_city: plateCity, quantity: qty,
         customer_name: name.trim(), customer_email: email.trim(), customer_phone: phone,
         shipping_address: address.trim(), shipping_city: shipCity.trim(), notes: notes.trim(),
+        // Distingue contraentrega de Wompi desde la creación — sin esto el
+        // pedido no tenía forma de salir de 'pending' si el cliente pagaba
+        // contraentrega (ver docs/DEPLOY.md, nota sobre la migración 046).
+        payment_method: payMethod === 'whatsapp' ? 'cod' : 'wompi',
       }), 12000, 'Crear la orden')
       if (!created) throw new Error('No se pudo crear la orden')
 

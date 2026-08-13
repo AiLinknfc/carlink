@@ -1617,6 +1617,7 @@ class ShopOrderCreate(BaseModel):
     shipping_address: str
     shipping_city: str
     notes: str = ""
+    payment_method: Literal["wompi", "cod"] = "wompi"
 
     @field_validator('quantity')
     @classmethod
@@ -1642,6 +1643,7 @@ class ShopOrderOut(BaseModel):
     id: UUID
     reference: str
     status: str
+    payment_method: str
     plate_text: str
     plate_type: str
     plate_city: str
