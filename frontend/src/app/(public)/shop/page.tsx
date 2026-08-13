@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
 import { waitlistApi, reviewsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Siempre oscura (no sigue el toggle claro/oscuro del resto del sitio): es una página de
@@ -116,7 +117,7 @@ const PLANS = [
     cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
   },
   {
-    name: 'Taller aliado', price: '$79.900', period: '/mes · incluye 1 llavero gratis', tag: '',
+    name: 'Taller aliado', price: '$79.900', period: '/mes · Pruebalo ya!', tag: '',
     border: `1px solid rgba(245,197,24,0.28)`, priceColor: '#f5f3ec',
     features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'],
     cta: 'Registrar mi taller', href: '/register?mode=empresa', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
@@ -206,8 +207,37 @@ export default function ShopPage() {
     setLeadStatus(res ? 'done' : 'error')
   }
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Product',
+        name: 'Llavero NFC CarLink',
+        description: 'Llavero NFC/QR para el historial de mantenimiento de tu vehículo — resistente al agua, caídas y roce con otras llaves.',
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'COP',
+          price: '49900',
+          availability: 'https://schema.org/InStock',
+          url: 'https://carlink.com.co/shop',
+        },
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: FAQS.map(f => ({
+          '@type': 'Question',
+          name: f.q,
+          acceptedAnswer: { '@type': 'Answer', text: f.a },
+        })),
+      },
+    ],
+  }
+
   return (
     <div style={{ background: '#08080a', color: '#f5f3ec', fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
+      {/* Datos estructurados: reusa el mismo array FAQS que ya se pinta más
+          abajo, no contenido inventado aparte. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <style>{`
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
@@ -240,6 +270,7 @@ export default function ShopPage() {
           [data-r="shopPricingBadge"]{position:static !important;margin-bottom:8px !important;display:inline-block !important}
           [data-r="shopCaptureInput"]{flex-direction:column !important}
           [data-r="shopCaptureBtn"]{width:100% !important}
+          [data-r="shopWhatsappBanner"]{flex-direction:column !important;text-align:center !important}
         }
         @media(max-width:480px){
           [data-r="shopHeroPhone"]{width:170px !important;height:320px !important;border-width:6px !important;border-radius:26px !important}
@@ -898,6 +929,25 @@ export default function ShopPage() {
               {faqOpen === i && <p style={{ margin: 0, padding: '0 24px 21px', fontSize: 15, lineHeight: 1.6, color: MUTED }}>{fq.a}</p>}
             </div>
           ))}
+        </div>
+
+        {/* Banner de soporte por WhatsApp — mismo número/patrón que el resto
+            del sitio (SUPPORT_WHATSAPP, lib/checkout.ts). Fondo CARD real
+            (no el mismo #08080a de la página, que lo dejaría invisible) y
+            verde de marca de WhatsApp #25D366 (no un verde genérico). */}
+        <div data-r="shopWhatsappBanner" style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 'clamp(20px,3vw,28px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#f5f3ec' }}>¿Tienes alguna otra pregunta antes de pedir?</div>
+            <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en menos de 2 minutos.</p>
+          </div>
+          <a
+            href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
+            target="_blank" rel="noopener noreferrer"
+            style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#062b12', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
+            Hablar por WhatsApp
+          </a>
         </div>
       </section>
 

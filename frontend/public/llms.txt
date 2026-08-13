@@ -1,0 +1,32 @@
+# CarLink
+
+> Plataforma colombiana de historial y mantenimiento vehicular. Cada vehículo tiene una
+> ficha digital pública (accesible por placa o escaneando un llavero NFC/QR físico) con su
+> historial de servicios, kilometraje, partes reemplazadas y documentos — sin depender de
+> facturas físicas que se pierden ni de la memoria del dueño.
+
+CarLink resuelve un problema común en Colombia: al comprar un vehículo usado, no hay forma
+confiable de verificar su historial real de mantenimiento. Con CarLink, el historial vive
+en la nube asociado al vehículo (no al taller ni al dueño anterior), y se consulta
+escaneando un llavero físico con NFC o QR, o buscando la placa.
+
+## Para quién es
+
+- Dueños de vehículo particular: llevan su propio historial de mantenimiento.
+- Talleres mecánicos: registran servicios directamente en la ficha del cliente y ganan
+  visibilidad ante futuros compradores del vehículo.
+- Compradores de vehículos usados: verifican el historial real antes de comprar.
+
+## Páginas clave
+
+- [Comprar el llavero NFC](https://carlink.com.co/shop): producto físico, precio, preguntas
+  frecuentes, cómo funciona.
+- [Registro para talleres](https://carlink.com.co/register): alta de taller/empresa.
+- [Trabaja con nosotros](https://carlink.com.co/trabaja): postulaciones.
+
+## Notas
+
+- El llavero NFC/QR es resistente al agua, caídas y roce con otras llaves (encapsulado en
+  resina polimérica IP68).
+- El historial de mantenimiento queda asociado a la placa del vehículo, no al taller ni al
+  dueño — sobrevive cambios de taller y de propietario.
