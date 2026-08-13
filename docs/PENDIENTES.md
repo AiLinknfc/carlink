@@ -1,6 +1,38 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-11 (responsive shop + landing overlap fix)._
+_Última actualización: 2026-08-12 (contraentrega, indicador de gastos, guía PDF, SEO/IA)._
+
+**Ejecutado en la décima pasada** (plan de 7 puntos, ver `/home/andres/.claude/plans/cuddly-petting-cloud.md`
+para el detalle completo de investigación/decisiones):
+
+- **Contraentrega arreglado**: `payment_method` nuevo en `shop_orders` (migración `046`) + endpoint
+  admin `POST /shop/orders/{reference}/mark-paid` + correo de "pedido recibido". Antes un pedido
+  contraentrega quedaba en `pending` para siempre, sin ningún botón para cerrarlo. Verificado
+  contra la base real (orden de prueba creada y borrada) y contra el backend local corriendo.
+- **Indicador de gastos del tablero conectado**: sumaba solo `maintenance`, nunca `expenses`
+  (recibos escaneados) — y el modal para escanear un recibo (`ExpenseScanModal.tsx`) no estaba
+  conectado a ninguna pantalla. Detalle en `docs/CONTEXTO.md` → "Sistema de gastos...".
+  **Pendiente real, no resuelto**: no hay deduplicación entre un `MaintenanceRecord` (servicio
+  registrado a mano) y un `VehicleExpense` (recibo escaneado) del mismo evento — si se solapan,
+  el total los cuenta dos veces. No hay mecanismo para esto todavía.
+- **Guía de Mantenimiento**: PDF subido a R2, el `.html` se descartó. Correo armado
+  (`send_guide_email`) pero sin verificar un envío real todavía — depende de que el SMTP quede
+  configurado (ver pendiente de abajo).
+- **Banner de WhatsApp** en `/shop` después del FAQ (la pregunta de agua/caídas ya existía, no
+  hubo que agregarla).
+- **SEO/IA**: `robots.txt`, `sitemap.xml`, `llms.txt`, JSON-LD (`Organization`/`Product`/`FAQPage`),
+  metadata específica de `/shop` (antes heredaba el title/description genérico de todo el sitio).
+
+**Pendiente — bloqueado en el usuario**:
+- **SMTP**: falta que Andres pase las credenciales del correo de Hostinger (dirección, contraseña,
+  a qué correo llegan los avisos de admin) para setear `SMTP_HOST/PORT/USER/PASS`, `FROM_EMAIL`,
+  `ADMIN_EMAIL` en Railway. Sin esto, todo el correo transaccional (confirmación de pedido, guía
+  PDF, "pedido recibido") sigue sin salir — el código ya está listo, solo falta la configuración.
+- **PostHog**: falta que Andres cree la cuenta y pase el API key para instrumentar frontend
+  (`posthog-js`) y backend (`posthog-python`) — nada de esto se construyó todavía.
+- `DEEPSEEK_API_KEY` sigue sin estar en Railway (mencionado en pasadas anteriores) — sin ella, el
+  escaneo de gastos funciona pero sin la estructuración automática por IA (degrada a que el usuario
+  llene los campos a mano, no rompe nada).
 
 **Ejecutado en la novena pasada**: responsive completo de la sección `/shop` y fix de overlap
 hero/Wallet/"Cómo funciona" en pantallas medianas:

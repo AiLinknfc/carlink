@@ -83,6 +83,24 @@ marcar enviado/entregado) — nunca se gestiona desde el modo cliente aunque qui
 admin. Correo real (pago confirmado, enviado, notificación al admin) implementado pero **sin salir
 todavía** — `SMTP_USER`/`SMTP_PASS` vacíos, ver `docs/PENDIENTES.md`.
 
+**Contraentrega (2026-08-12)**: `payment_method` (`wompi`|`cod`, migración `046`) distingue el
+pedido pagado por pasarela del pagado en efectivo al recibir. Antes no existía esa columna, así
+que un pedido contraentrega quedaba en `status='pending'` para siempre — no había ninguna ruta que
+lo moviera a `approved` fuera de la confirmación real de Wompi, y el panel admin no tenía ningún
+botón para cerrarlo (`update_shop_order_fulfillment` exige `status='approved'`). Ahora
+`POST /shop/orders/{reference}/mark-paid` (admin-only) lo aprueba a mano — **rechaza explícitamente
+los pedidos `wompi`**, para que nunca se pueda marcar pagado uno con pasarela real sin que Wompi lo
+haya confirmado. Además dispara `send_order_received_email` apenas se crea un pedido `cod` (antes
+no había ninguna señal automática para contraentrega, ni siquiera esa).
+
+**Guía de Mantenimiento (PDF, 2026-08-12)**: vive en R2 con key fija
+`guides/mantenimiento-preventivo-carlink.pdf` (mismo patrón que documentos/certificados/recibos de
+gastos — no en `frontend/public/`, para no acoplar el correo, que lo manda el backend, a una URL
+del frontend). Se linkea desde `send_guide_email` (`backend/app/services/email.py`), disparado por
+`POST /waitlist` cuando `source='shop_guia_mantenimiento'` y el contacto dejado tiene forma de
+correo (ese campo del formulario acepta correo o WhatsApp indistintamente). El `.html` fuente que
+se usó para generar el PDF se descartó — no quedó como página del sitio.
+
 ## Sistema de gastos y escaneo de recibos (2026-08-10)
 
 Tabla `vehicle_expenses` (migración `042`) con RLS por `owner_id`. CRUD completo vía
@@ -97,7 +115,17 @@ para escaneo de recibos. La pipeline es:
 
 Razones: DeepSeek maneja bien contextos en español, precios colombianos, nombres de estaciones
 de servicio. Tesseract/RapidOCR solo extraen texto plano sin entender semántica. No se justifica
-agregar otro proveedor de IA para esta功能. El endpoint es `POST /api/expenses/scan`.
+agregar otro proveedor de IA para esta funcionalidad. El endpoint es `POST /api/expenses/scan`.
+
+**Corregido (2026-08-12): el modal de escaneo (`ExpenseScanModal.tsx`) no estaba conectado a
+ninguna pantalla** — existía el backend, el cliente API y el modal, pero ningún botón real lo
+abría (el propio texto de estado vacío apuntaba a "la sección de Documentos", que tampoco lo
+tenía). Ahora se abre desde "+ Registrar gasto" en el modal "Control de gastos" de
+`FichaTab.tsx`, y el indicador de gastos del tablero ("en gastos") suma `expenses` +
+`maintenance` — antes solo contaba el historial de servicios, nunca los recibos escaneados.
+También se arregló la llamada de escaneo en sí: usaba un `fetch` directo a una ruta que no
+existía en el proxy de Next.js; ahora usa `scanExpense()` en `frontend/src/lib/upload.ts`,
+mismo patrón que `scanDocument`/`scanVehicleCard`.
 
 ## Sistema de reseñas: plataforma / producto / taller (2026-08-11, EN PRODUCCIÓN)
 

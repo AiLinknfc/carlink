@@ -172,7 +172,19 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/041_rls_hardening.sql
 \i supabase/migrations/042_vehicle_expenses.sql
 \i supabase/migrations/043_waitlist_leads.sql
+\i supabase/migrations/044_customer_reviews.sql
+\i supabase/migrations/045_review_context.sql
+\i supabase/migrations/046_shop_orders_payment_method.sql
 ```
+
+**Nota sobre 046 (2026-08-12)**: agrega `payment_method` (`wompi`|`cod`) a `shop_orders` — antes
+no había forma de distinguir un pedido contraentrega de uno pagado con Wompi, así que un pedido
+contraentrega quedaba en `status='pending'` para siempre (sin ninguna ruta que lo moviera a
+`approved` fuera del webhook de Wompi) y el panel admin no tenía ningún botón para cerrarlo. Ahora
+`POST /shop/orders/{reference}/mark-paid` (admin-only) permite aprobar un pedido `cod` a mano —
+rechaza explícitamente los `wompi` para que no se pueda marcar pagado un pedido con pasarela real
+sin que Wompi lo haya confirmado. Aditiva (default `'wompi'` para las 9 órdenes ya existentes),
+aplicada y verificada contra la base real (`information_schema` + conteo de filas).
 
 **Nota sobre 039 (2026-08-08)**: agrega `fulfillment_status`/`shipped_at`/`delivered_at`/
 `tracking_note` a `shop_orders` — estado del *envío*, separado del estado del *pago* (`status`,
