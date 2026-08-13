@@ -6,17 +6,15 @@ import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
 import { waitlistApi, reviewsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { useTheme } from '@/store/theme'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
-// Siempre oscura (no sigue el toggle claro/oscuro del resto del sitio): es una página de
-// venta autocontenida, igual que la sección "Cómo funciona" del home. Los CTA de compra y
-// registro de taller no tienen checkout propio todavía — apuntan a los flujos reales que ya
-// existen (/#h-buyfob en el home, /register) hasta que se conecte el endpoint de producto.
-
+// Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
+// siempre oscura sin importar el toggle, y cambiaba de golpe al entrar acá. GOLD y las
+// piezas del mockup del hero (teléfono + dash-cards doradas, autocontenidas con su propio
+// contraste interno) se quedan fijas; el resto de constantes de estilo se calculan dentro
+// del componente porque dependen de `isDark`.
 const GOLD = '#F5C518'
-const MUTED = '#a8a496'
-const BORDER = 'rgba(255,255,255,0.08)'
-const CARD = '#121216'
 
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
@@ -27,10 +25,13 @@ const ARROW = (
 
 // Wordmark idéntico al de la nav (page.tsx) y el footer (LandingSections.tsx) —
 // mismo markup, sin mayúsculas forzadas, para que el logo se vea igual en
-// cualquier parte del sitio.
-function CarLinkWordmark({ fontSize, iconSize, badgeSize, badgeRadius }: { fontSize: number; iconSize: number; badgeSize: number; badgeRadius: number }) {
+// cualquier parte del sitio. textColor por defecto es el blanco fijo que ya
+// usaba — sigue así para la instancia que vive DENTRO del mockup del teléfono
+// (siempre oscuro), y las 2 instancias de página real (nav/footer) pasan el
+// color que corresponda al tema.
+function CarLinkWordmark({ fontSize, iconSize, badgeSize, badgeRadius, textColor = '#f5f3ec' }: { fontSize: number; iconSize: number; badgeSize: number; badgeRadius: number; textColor?: string }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: badgeSize > 22 ? 10 : 8, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: '#f5f3ec' }}>
+    <span style={{ display: 'flex', alignItems: 'center', gap: badgeSize > 22 ? 10 : 8, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: textColor }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: badgeSize, height: badgeSize, borderRadius: badgeRadius, background: GOLD, color: '#111' }}>
         <CarLinkMark size={iconSize} />
       </span>
@@ -38,15 +39,6 @@ function CarLinkWordmark({ fontSize, iconSize, badgeSize, badgeRadius }: { fontS
     </span>
   )
 }
-
-// Mismo EYEBROW/H2 que LandingSections.tsx — en TODO el sitio real, Anton en
-// mayúsculas se usa solo para el H1 del hero (uno por página); cada <h2> de
-// sección usa la tipografía de cuerpo (Inter), peso 400, sin mayúsculas.
-const EYEBROW: React.CSSProperties = { fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }
-const H2: React.CSSProperties = { fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0', color: '#f5f3ec' }
-const SECTION: React.CSSProperties = { maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }
-const CARD_STYLE: React.CSSProperties = { padding: 28, borderRadius: 18, background: CARD, border: `1px solid ${BORDER}` }
-const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
 
 const PROBLEMS = [
   { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /> },
@@ -102,27 +94,30 @@ const COMPARISON = [
 ]
 
 // Precios y features iguales a los de la sección "Planes" (h-planes) y "Compra tu llavero"
-// (h-buyfob) del home — no inventar números nuevos aquí.
-const PLANS = [
-  {
-    name: 'Conductor', price: 'Gratis', period: 'para siempre', tag: '',
-    border: BORDER, priceColor: '#f5f3ec',
-    features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'],
-    cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-  },
-  {
-    name: 'Llavero NFC CarLink', price: '$49.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
-    border: `2px solid ${GOLD}`, priceColor: GOLD, bg: `linear-gradient(165deg,#241f0c,#141418)`,
-    features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
-    cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
-  },
-  {
-    name: 'Taller aliado', price: '$79.900', period: '/mes · Pruebalo ya!', tag: '',
-    border: `1px solid rgba(245,197,24,0.28)`, priceColor: '#f5f3ec',
-    features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'],
-    cta: 'Registrar mi taller', href: '/register?mode=empresa', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-  },
-]
+// (h-buyfob) del home — no inventar números nuevos aquí. Se arma dentro del componente
+// (buildPlans) porque border/priceColor/bg dependen de isDark.
+function buildPlans(isDark: boolean, border: string, textColor: string) {
+  return [
+    {
+      name: 'Conductor', price: 'Gratis', period: 'para siempre', tag: '',
+      border, priceColor: textColor,
+      features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'],
+      cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
+    },
+    {
+      name: 'Llavero NFC CarLink', price: '$49.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
+      border: `2px solid ${GOLD}`, priceColor: GOLD, bg: isDark ? 'linear-gradient(165deg,#241f0c,#141418)' : 'linear-gradient(165deg,#fff6d9,#fffdf5)',
+      features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
+      cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
+    },
+    {
+      name: 'Taller aliado', price: '$79.900', period: '/mes · Pruebalo ya!', tag: '',
+      border: `1px solid rgba(245,197,24,0.28)`, priceColor: textColor,
+      features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'],
+      cta: 'Registrar mi taller', href: '/register?mode=empresa', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
+    },
+  ]
+}
 
 const TESTIMONIALS = [
   {
@@ -164,6 +159,48 @@ const FAQS = [
 ]
 
 export default function ShopPage() {
+  const { isDark } = useTheme()
+
+  // Antes eran const a nivel de módulo, fijas en oscuro. GOLD no cambia
+  // (mismo valor que --accent en globals.css para ambos temas). El resto sí,
+  // así que se calculan acá — el resto del archivo las sigue usando por
+  // nombre sin tocarse, quedan en el mismo scope de closure.
+  const MUTED = isDark ? '#a8a496' : '#5c584e'
+  const BORDER = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.1)'
+  const CARD = isDark ? '#121216' : '#f7f6f2'
+  const textColor = isDark ? '#f5f3ec' : '#17171a'
+  const pageBg = isDark ? '#08080a' : '#ffffff'
+  // Secciones alternadas usan un fondo levemente distinto al de la página
+  // para separarse visualmente (mismo criterio en ambos temas: un paso muy
+  // sutil desde el fondo de página hacia el de las tarjetas).
+  const sectionAltBg = isDark ? '#0c0c10' : '#f7f6f2'
+  const navBg = isDark ? 'rgba(8,8,10,0.82)' : 'rgba(255,255,255,0.86)'
+  // Tints translúcidos sueltos (franjas cebra de tabla, fondo de badges,
+  // inputs) — blanco translúcido sobre oscuro, negro translúcido sobre
+  // claro, mismo criterio que dividerColor en Sidebar.tsx.
+  const softTint = (alpha: number) => isDark ? `rgba(255,255,255,${alpha})` : `rgba(17,17,17,${alpha})`
+  // Gradientes "tarjeta premium" con matiz dorado — 3 tarjetas puntuales
+  // (paso a paso, guía de mantenimiento, CTA final) más el header de la
+  // tabla comparativa.
+  const goldCardGradient = isDark ? 'linear-gradient(160deg,#17160f,#121216)' : 'linear-gradient(160deg,#fff8e1,#fdfaf2)'
+  const goldTableHeaderGradient = isDark ? 'linear-gradient(160deg,#1a180f,#141418)' : 'linear-gradient(160deg,#fff4d6,#f7f6f2)'
+  const goldCtaGradient = isDark
+    ? 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)'
+    : 'radial-gradient(120% 100% at 50% 100%,#fff3c4 0%,#fbfaf6 58%,#ffffff 100%)'
+  const goldSolutionGradient = isDark
+    ? 'radial-gradient(110% 100% at 50% 0%,#1c1a12 0%,#08080a 62%)'
+    : 'radial-gradient(110% 100% at 50% 0%,#fff3c4 0%,#ffffff 62%)'
+  // Texto "muted claro" (listas de features sobre las tarjetas doradas de
+  // sección) — versión más clara que MUTED, propia de esas dos listas.
+  const mutedLight = isDark ? '#d8d4c8' : '#4a4638'
+
+  const EYEBROW: React.CSSProperties = { fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }
+  const H2: React.CSSProperties = { fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0', color: textColor }
+  const SECTION: React.CSSProperties = { maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }
+  const CARD_STYLE: React.CSSProperties = { padding: 28, borderRadius: 18, background: CARD, border: `1px solid ${BORDER}` }
+  const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
+  const PLANS = buildPlans(isDark, BORDER, textColor)
+
   const [faqOpen, setFaqOpen] = useState(-1)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -228,7 +265,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div style={{ background: '#08080a', color: '#f5f3ec', fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
+    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
       {/* Datos estructurados: reusa el mismo array FAQS que ya se pinta más
           abajo, no contenido inventado aparte. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -236,7 +273,7 @@ export default function ShopPage() {
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes shopPulseRing { 0%{transform:scale(.7);opacity:.8} 100%{transform:scale(1.7);opacity:0} }
-        [data-r="shopTestimonials"]{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);border-radius:24px;overflow:hidden}
+        [data-r="shopTestimonials"]{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:${BORDER};border:1px solid ${BORDER};border-radius:24px;overflow:hidden}
         @media(max-width:860px){
           [data-r="shopTestimonials"]{grid-template-columns:1fr !important}
           [data-r="shopHero"]{grid-template-columns:1fr !important}
@@ -320,7 +357,7 @@ export default function ShopPage() {
 
       {/* NAV — el logo ya vuelve al inicio, pero se agrega un link explícito
           porque en una landing de campaña no todos lo dan por hecho. */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px clamp(20px,5vw,64px)', background: 'rgba(8,8,10,0.82)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,197,24,0.14)' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px clamp(20px,5vw,64px)', background: navBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,197,24,0.14)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 6, color: MUTED, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
             onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
@@ -330,7 +367,7 @@ export default function ShopPage() {
           </Link>
           <span style={{ width: 1, height: 22, background: BORDER }} />
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={18} iconSize={14} badgeSize={26} badgeRadius={7} />
+            <CarLinkWordmark fontSize={18} iconSize={14} badgeSize={26} badgeRadius={7} textColor={textColor} />
           </Link>
         </div>
         <nav data-r="shopNavLinks" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
@@ -542,14 +579,14 @@ export default function ShopPage() {
               <div data-r="shopProblemIcon" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,176,32,0.12)', color: '#ffb020', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{p.icon}</svg>
               </div>
-              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: '#f5f3ec' }}>{p.text}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: textColor }}>{p.text}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* LA SOLUCIÓN */}
-      <section style={{ background: 'radial-gradient(110% 100% at 50% 0%,#1c1a12 0%,#08080a 62%)', borderTop: '1px solid rgba(245,197,24,0.12)', borderBottom: '1px solid rgba(245,197,24,0.12)' }}>
+      <section style={{ background: goldSolutionGradient, borderTop: '1px solid rgba(245,197,24,0.12)', borderBottom: '1px solid rgba(245,197,24,0.12)' }}>
         <div style={{ ...SECTION, textAlign: 'center' }}>
           <div style={EYEBROW}>Nuestra solución</div>
           <h2 style={{ ...H2, margin: '14px auto 0', maxWidth: '20ch' }}>Escaneas. Y ves <span style={{ color: GOLD }}>absolutamente todo</span>.</h2>
@@ -586,7 +623,7 @@ export default function ShopPage() {
         </div>
         <div data-r="shopComo" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
           {STEPS.map(st => (
-            <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: 'linear-gradient(160deg,#17160f,#121216)', border: '1px solid rgba(245,197,24,0.2)' }}>
+            <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.2)' }}>
               <div data-r="shopStepNum" style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
               <div style={{ fontSize: 19, fontWeight: 700, margin: '20px 0 9px' }}>{st.title}</div>
               <div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
@@ -599,7 +636,7 @@ export default function ShopPage() {
       </section>
 
       {/* QUÉ INCLUYE */}
-      <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <div style={SECTION}>
           <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 44px' }}>
             <div style={EYEBROW}>Qué incluye</div>
@@ -609,7 +646,7 @@ export default function ShopPage() {
             {INCLUDES.map(inc => (
               <div key={inc} data-r="shopIncludeItem" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
                 {CHECK(GOLD, 16)}
-                <span style={{ fontSize: 14.5, fontWeight: 500, color: '#d8d4c8' }}>{inc}</span>
+                <span style={{ fontSize: 14.5, fontWeight: 500, color: mutedLight }}>{inc}</span>
               </div>
             ))}
           </div>
@@ -673,20 +710,20 @@ export default function ShopPage() {
               <tr>
                 <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: MUTED, background: CARD, borderBottom: `1px solid ${BORDER}` }}>Característica</th>
                 <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: '#ff4d6a', background: CARD, borderBottom: '1px solid rgba(255,77,106,0.24)' }}>Sin CarLink</th>
-                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD, background: 'linear-gradient(160deg,#1a180f,#141418)', borderBottom: '1px solid rgba(245,197,24,0.42)' }}>Con CarLink</th>
+                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD, background: goldTableHeaderGradient, borderBottom: '1px solid rgba(245,197,24,0.42)' }}>Con CarLink</th>
               </tr>
             </thead>
             <tbody>
               {COMPARISON.map((row, i) => (
-                <tr key={row.feature} style={{ background: i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
-                  <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: '#f5f3ec', borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
+                <tr key={row.feature} style={{ background: i % 2 ? softTint(0.02) : 'transparent' }}>
+                  <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: textColor, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
                   <td style={{ padding: '18px 20px', fontSize: 14, color: MUTED, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 3 }}><path d="M18 6L6 18M6 6l12 12" /></svg>
                       {row.without}
                     </div>
                   </td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: '#f5f3ec', fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
+                  <td style={{ padding: '18px 20px', fontSize: 14, color: textColor, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       {CHECK(GOLD, 15)}
                       {row.withCl}
@@ -699,14 +736,14 @@ export default function ShopPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 44 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#f5f3ec' }}>Toma el control del historial de tu carro hoy</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: textColor }}>Toma el control del historial de tu carro hoy</div>
           <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '10px auto 26px', maxWidth: '48ch' }}>Haz tu pedido ahora y recibe el kit completo por $49.900 COP con envío gratis.</p>
           <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Comprar Llavero CarLink{ARROW}</Link>
         </div>
       </section>
 
       {/* EL LLAVERO */}
-      <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <div style={SECTION}>
           <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 52px' }}>
             <div style={EYEBROW}>El llavero CarLink</div>
@@ -725,7 +762,7 @@ export default function ShopPage() {
                 <div key={f.num} data-r="shopLlaveroFeature" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
                     <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
-                    <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: textColor, marginTop: 4 }}>{f.title}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
                   </div>
                   <div data-r="shopLlaveroDots" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -771,7 +808,7 @@ export default function ShopPage() {
                 <div key={f.num} data-r="shopLlaveroFeature" style={{ display: 'flex', alignItems: 'center', gap: 14, flexDirection: 'row-reverse' }}>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                     <div style={{ fontSize: 10, letterSpacing: '.28em', textTransform: 'uppercase', color: MUTED }}>{f.num} · {f.label}</div>
-                    <div style={{ fontSize: 16, fontWeight: 500, color: '#f5f3ec', marginTop: 4 }}>{f.title}</div>
+                    <div style={{ fontSize: 16, fontWeight: 500, color: textColor, marginTop: 4 }}>{f.title}</div>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: MUTED, marginTop: 4 }}>{f.desc}</div>
                   </div>
                   <div data-r="shopLlaveroDots" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 0, flexDirection: 'row-reverse' }}>
@@ -795,7 +832,7 @@ export default function ShopPage() {
                 <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
                   {i > 0 && <div data-r="shopDimensionDivider" style={{ width: 1, height: 36, background: BORDER, margin: '0 20px' }} />}
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: '#f5f3ec', letterSpacing: '-.01em' }}>{d.val}</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: textColor, letterSpacing: '-.01em' }}>{d.val}</div>
                     <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: MUTED, marginTop: 2 }}>{d.label}</div>
                   </div>
                 </div>
@@ -807,7 +844,7 @@ export default function ShopPage() {
       </section>
 
       {/* PRECIO */}
-      <section id="precio" style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+      <section id="precio" style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
         <div style={SECTION}>
           <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 52px' }}>
             <div style={EYEBROW}>Precio</div>
@@ -825,7 +862,7 @@ export default function ShopPage() {
                 <div style={{ fontSize: 14, color: MUTED }}>{pl.period}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '28px 0 26px', flex: 1 }}>
                   {pl.features.map(f => (
-                    <div key={f} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 14.5, color: '#d8d4c8', lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
+                    <div key={f} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 14.5, color: mutedLight, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
                   ))}
                 </div>
                 <Link href={pl.href} style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 800, fontSize: 15, textAlign: 'center', textDecoration: 'none' }}>{pl.cta}</Link>
@@ -838,7 +875,7 @@ export default function ShopPage() {
       {/* PRUEBA SOCIAL VERIFICADA */}
       <section style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 46px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 12 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: softTint(0.05), border: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 12 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
             Prueba social verificada
           </div>
@@ -848,7 +885,7 @@ export default function ShopPage() {
 
         <div data-r="shopTestimonials">
           {realReviews ? realReviews.map(r => (
-            <div key={r.id} data-r="shopTestimonialCard" style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+            <div key={r.id} data-r="shopTestimonialCard" style={{ background: sectionAltBg, padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', gap: 2, color: GOLD }}>
@@ -864,7 +901,7 @@ export default function ShopPage() {
               </div>
             </div>
           )) : TESTIMONIALS.map(t => (
-            <div key={t.id} data-r="shopTestimonialCard" style={{ background: '#0c0c10', padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+            <div key={t.id} data-r="shopTestimonialCard" style={{ background: sectionAltBg, padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', gap: 2, color: GOLD }}>
@@ -896,7 +933,7 @@ export default function ShopPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div data-r="shopScoreNum" style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD }}>4.9 / 5.0</div>
             <div style={{ fontSize: 12, color: MUTED, textAlign: 'left' }}>
-              <div style={{ color: '#f5f3ec', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' as const }}>Promedio de satisfacción</div>
+              <div style={{ color: textColor, fontWeight: 700, fontSize: 11, textTransform: 'uppercase' as const }}>Promedio de satisfacción</div>
               Basado en 380+ calificaciones en Colombia
             </div>
           </div>
@@ -917,7 +954,7 @@ export default function ShopPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           {FAQS.map((fq, i) => (
             <div key={fq.q} style={{ borderRadius: 15, background: CARD, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-              <button data-r="shopFaqBtn" onClick={() => setFaqOpen(faqOpen === i ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '19px 24px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: '#f5f3ec', fontSize: 16, fontWeight: 600, fontFamily: 'inherit' }}>
+              <button data-r="shopFaqBtn" onClick={() => setFaqOpen(faqOpen === i ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '19px 24px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: textColor, fontSize: 16, fontWeight: 600, fontFamily: 'inherit' }}>
                 {fq.q}
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .22s' }}><path d="M6 9l6 6 6-6" /></svg>
               </button>
@@ -932,7 +969,7 @@ export default function ShopPage() {
             verde de marca de WhatsApp #25D366 (no un verde genérico). */}
         <div data-r="shopWhatsappBanner" style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 'clamp(20px,3vw,28px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#f5f3ec' }}>¿Tienes alguna otra pregunta antes de pedir?</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>¿Tienes alguna otra pregunta antes de pedir?</div>
             <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en menos de 2 minutos.</p>
           </div>
           <a
@@ -948,9 +985,9 @@ export default function ShopPage() {
 
       {/* LEAD CAPTURE — Guía de Mantenimiento gratis */}
       <section style={SECTION}>
-        <div data-r="shopLeadGuia" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 28, alignItems: 'center', padding: 'clamp(24px,4vw,36px)', borderRadius: 24, background: 'linear-gradient(160deg,#17160f,#121216)', border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
+        <div data-r="shopLeadGuia" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 28, alignItems: 'center', padding: 'clamp(24px,4vw,36px)', borderRadius: 24, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 10 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: softTint(0.05), border: `1px solid ${BORDER}`, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 10 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2 2M8.5 8.5l-2-2m11 11l-2-2M8.5 15.5l-2 2" /><circle cx="12" cy="12" r="3.5" /></svg>
               Regalo gratis en PDF
             </div>
@@ -976,7 +1013,7 @@ export default function ShopPage() {
                 <input
                   type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${BORDER}`, background: CARD, color: '#f5f3ec', fontSize: 13.5, outline: 'none' }}
+                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
                   onBlur={e => { e.currentTarget.style.borderColor = BORDER }}
                 />
@@ -992,7 +1029,7 @@ export default function ShopPage() {
       </section>
 
       {/* CTA FINAL */}
-      <section style={{ background: 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)', borderTop: '1px solid rgba(245,197,24,0.16)' }}>
+      <section style={{ background: goldCtaGradient, borderTop: '1px solid rgba(245,197,24,0.16)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(56px,7vw,96px) clamp(20px,5vw,64px)', textAlign: 'center' }}>
           <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
           <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
@@ -1004,7 +1041,7 @@ export default function ShopPage() {
       </section>
 
       {/* CAPTURA DE LEADS */}
-      <section style={{ background: '#0c0c10', borderTop: `1px solid ${BORDER}` }}>
+      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}` }}>
         <div data-r="shopCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?</div>
@@ -1013,10 +1050,10 @@ export default function ShopPage() {
           </div>
           <div>
             <div data-r="shopCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', color: '#f5f3ec', fontSize: 15, outline: 'none' }} />
+              <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: textColor, fontSize: 15, outline: 'none' }} />
               <button data-r="shopCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
             </div>
-            <div style={{ fontSize: 12.5, color: '#6f6a5f', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
+            <div style={{ fontSize: 12.5, color: isDark ? '#6f6a5f' : '#8f8a7a', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
           </div>
         </div>
       </section>
@@ -1025,7 +1062,7 @@ export default function ShopPage() {
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
         <div data-r="shopFooter" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={20} iconSize={15} badgeSize={26} badgeRadius={7} />
+            <CarLinkWordmark fontSize={20} iconSize={15} badgeSize={26} badgeRadius={7} textColor={textColor} />
           </Link>
           <div data-r="shopFooterText" style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
         </div>
