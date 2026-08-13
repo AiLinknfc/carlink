@@ -130,7 +130,6 @@ const TESTIMONIALS = [
     name: 'Andrés Felipe Gómez',
     city: 'Bogotá',
     carModel: 'Mazda 3 Touring 2020',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
     rating: 5,
     title: 'Vendí mi carro sin que me pidieran rebaja',
     text: 'El comprador quería ver el historial antes de cerrar. Le mostré la ficha del llavero con los mantenimientos al día y no hubo más preguntas.',
@@ -140,7 +139,6 @@ const TESTIMONIALS = [
     name: 'María Camila Torres',
     city: 'Medellín',
     carModel: 'Kia Sportage 2021',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&q=80',
     rating: 5,
     title: 'Se acabó buscar papeles en la guantera',
     text: 'Cada vez que salgo del taller, acerco el llavero y queda el registro guardado. Ya no cargo con recibos que se borran.',
@@ -150,7 +148,6 @@ const TESTIMONIALS = [
     name: 'Juan Esteban Prado',
     city: 'Cali',
     carModel: 'Renault Duster 4x4',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
     rating: 5,
     title: 'Casi repito un cambio que ya estaba hecho',
     text: 'Iba a cambiar una correa por precaución. El llavero mostró que el dueño anterior ya la había cambiado hacía poco — me ahorré ese gasto.',
@@ -884,7 +881,7 @@ export default function ShopPage() {
               </div>
               <div style={{ paddingTop: 16, borderTop: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <img src={t.avatar} alt={t.name} referrerPolicy="no-referrer" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${BORDER}` }} />
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 16, color: GOLD, flex: '0 0 auto' }}>{t.name[0]}</div>
                   <div>
                     <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.2 }}>{t.name}</div>
                     <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{t.carModel} · {t.city}</div>

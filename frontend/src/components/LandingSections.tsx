@@ -648,7 +648,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div key={mp.model} style={{ borderRadius: 18, overflow: 'hidden', ...card() }}>
               <div style={{ height: 140, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                 <img src={mp.img} alt={mp.model} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <span style={{ position: 'absolute', top: 9, right: 9, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'rgba(46,204,113,0.16)', border: '1px solid rgba(46,204,113,0.5)', color: '#5be89a', fontSize: 10, fontWeight: 800 }}>Peritaje OK</span>
+                <span style={{ position: 'absolute', top: 9, right: 9, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'rgba(245,197,24,0.16)', border: `1px solid rgba(245,197,24,0.5)`, color: GOLD, fontSize: 10, fontWeight: 800 }}>Peritaje OK</span>
               </div>
               <div style={{ padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
