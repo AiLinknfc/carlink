@@ -737,7 +737,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       <section id="h-comunidad" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 36px' }}>
           <div style={EYEBROW}>Comunidad</div>
-          <h2 style={H2}>Miles de conductores ya confían en CarLink</h2>
+          <h2 style={H2}>Cientos de conductores ya confían en CarLink</h2>
           <p style={lead}>Una red creciente de vehículos certificados, talleres aliados y propietarios responsables.</p>
         </div>
 
