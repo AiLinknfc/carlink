@@ -1544,6 +1544,9 @@ class WaitlistLeadOut(BaseModel):
     notified: bool
     notified_at: datetime | None = None
     created_at: datetime
+    # TEMPORAL — diagnóstico en vivo de por qué el correo de la guía no
+    # llega (2026-08-13), revertir apenas se identifique la causa real.
+    email_debug: str | None = None
 
     model_config = {"from_attributes": True}
 
