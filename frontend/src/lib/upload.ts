@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import type { ExpenseScanResult } from './types'
 
 const R2_PUBLIC_PREFIX = 'https://pub-55bd6d44de784bbb941be717d9645305.r2.dev/'
 
@@ -72,6 +73,35 @@ export async function scanDocument(file: File): Promise<OcrExtractResult | null>
     return res.json()
   } catch (e) {
     console.warn('OCR scan error:', e)
+    return null
+  }
+}
+
+/* Escanea un recibo/factura y devuelve los datos de gasto ya estructurados
+   (OCR + categorización, ver backend/app/routers/expenses.py POST /scan).
+   Mismo patrón que scanDocument/scanVehicleCard — golpea el backend
+   directo cuando NEXT_PUBLIC_API_URL está seteado porque el rewrite de
+   Next.js no streamea multipart bien en local. */
+export async function scanExpense(file: File): Promise<ExpenseScanResult | null> {
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) return null
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${API_BASE}/api/expenses/scan`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (!res.ok) {
+      console.warn('Expense scan failed:', await res.text())
+      return null
+    }
+    return res.json()
+  } catch (e) {
+    console.warn('Expense scan error:', e)
     return null
   }
 }

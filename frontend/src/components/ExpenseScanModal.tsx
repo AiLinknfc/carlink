@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { uploadFile, scanDocument } from '@/lib/upload'
+import { uploadFile, scanExpense } from '@/lib/upload'
 import { expensesApi } from '@/lib/api'
 import CameraCapture from './CameraCapture'
 import type { ExpenseScanResult, ExpenseCreate } from '@/lib/types'
@@ -98,38 +98,9 @@ export default function ExpenseScanModal({ vehicleId, onClose, onSuccess, onSave
     setUploading(false)
 
     setScanning(true)
-    const result = await scanDocument(file)
+    const result = await scanExpense(file)
     if (result) {
-      // scanDocument returns the generic OcrExtractResult, but we need expense-specific
-      // We'll use the raw text and call the expense scan endpoint
-      const formData = new FormData()
-      formData.append('file', file)
-      try {
-        const token = (await import('@/lib/supabase')).supabase.auth.getSession()
-          .then(s => s.data.session?.access_token)
-        if (token) {
-          const res = await fetch('/api/expenses/scan', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${await token}` },
-            body: formData,
-          })
-          if (res.ok) {
-            const expenseResult: ExpenseScanResult = await res.json()
-            applyScanResult(expenseResult)
-          } else {
-            // Fallback: use generic scan result
-            setCategory('other')
-            if (result.title) setTitle(result.title)
-            if (result.vendor) setVendor(result.vendor)
-            if (result.issue_date) setIssueDate(result.issue_date)
-            if (result.cost != null) setCost(String(result.cost))
-            setOcrRaw(result.raw_text || '')
-            setStep('form')
-          }
-        }
-      } catch {
-        setStep('form')
-      }
+      applyScanResult(result)
     } else {
       setStep('form')
     }

@@ -10,6 +10,7 @@ import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 import { isPdf, proxyUrl } from '@/lib/upload'
+import ExpenseScanModal from '@/components/ExpenseScanModal'
 import type { Vehicle, MaintenanceRecord, FuelSummary, VehicleExpense } from '@/lib/types'
 
 const TALLER_INFO = {
@@ -87,6 +88,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const [expenses, setExpenses] = useState<VehicleExpense[]>([])
   const [showExpensesModal, setShowExpensesModal] = useState(false)
   const [expensesLoading, setExpensesLoading] = useState(false)
+  const [showScanModal, setShowScanModal] = useState(false)
+  const [scanMsg, setScanMsg] = useState<string | null>(null)
+
+  const flashScan = useCallback((msg: string) => {
+    setScanMsg(msg)
+    setTimeout(() => setScanMsg(null), 2600)
+  }, [])
 
   // Load fuel summary from scanned receipts
   useEffect(() => {
@@ -104,6 +112,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     setExpenses(data || [])
     setExpensesLoading(false)
   }, [vehicle?.id])
+
+  /* El total "en gastos" del tablero (más abajo, investTotal) necesita esta
+     lista disponible desde que se pinta el tablero, no solo cuando se abre
+     el modal — si no, el indicador nunca refleja los recibos escaneados. */
+  useEffect(() => {
+    loadExpenses()
+  }, [loadExpenses, refreshKey])
 
   const openExpensesModal = useCallback(() => {
     loadExpenses()
@@ -425,7 +440,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
   const dialArc = 'conic-gradient(from 270deg, #2ecc71 0deg 108deg, #ffb020 108deg 144deg, #ff4d6a 144deg 180deg, transparent 180deg 360deg)'
 
+  /* Suma servicios del historial (maintenance) + gastos escaneados
+     (expenses: gasolina, repuestos, seguro, etc. — tabla vehicle_expenses).
+     Son dos bitácoras separadas sin vínculo entre sí hoy: si el usuario
+     escanea el recibo de un servicio que ya había registrado a mano, se
+     cuenta dos veces. No hay deduplicación todavía — ver docs/PENDIENTES.md. */
   const investTotal = maintenance.reduce((sum, r) => sum + (Number(r.cost) || 0), 0)
+    + expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
   const investFmt = investTotal > 0 ? `$${investTotal.toLocaleString()}` : '$0'
 
   const latestDate = latest?.date ? new Date(latest.date).toLocaleDateString() : null
@@ -1064,18 +1085,28 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                     Control de gastos
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-                    {investFmt} invertidos en mantenimiento
+                    {investFmt} invertidos en tu vehículo
                   </div>
                 </div>
               </div>
-              <button onClick={() => setShowExpensesModal(false)} style={{
-                width: 34, height: 34, borderRadius: 9,
-                border: '1px solid var(--btn-ghost-border)',
-                background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => setShowScanModal(true)} title="Registrar gasto escaneando un recibo" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px',
+                  borderRadius: 9, border: '1px solid #F5C518', background: 'rgba(245,197,24,0.12)',
+                  color: '#F5C518', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' as const,
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Registrar gasto
+                </button>
+                <button onClick={() => setShowExpensesModal(false)} style={{
+                  width: 34, height: 34, borderRadius: 9,
+                  border: '1px solid var(--btn-ghost-border)',
+                  background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -1156,10 +1187,33 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 color: 'var(--text-3)', fontSize: 13,
               }}>
                 <div style={{ marginBottom: 8, color: 'var(--text-2)', fontWeight: 600 }}>Sin gastos registrados</div>
-                <div style={{ fontSize: 12 }}>Registra recibos desde la seccion de Documentos</div>
+                <div style={{ fontSize: 12 }}>Toca "Registrar gasto" arriba para escanear tu primer recibo</div>
               </div>
             )}
           </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Escanear recibo → nuevo VehicleExpense (OCR vía backend /expenses/scan) */}
+      {showScanModal && vehicle?.id && createPortal(
+        <ExpenseScanModal
+          vehicleId={vehicle.id}
+          onClose={() => setShowScanModal(false)}
+          onSuccess={flashScan}
+          onSaved={loadExpenses}
+        />,
+        document.body
+      )}
+
+      {scanMsg && createPortal(
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
+          padding: '11px 20px', borderRadius: 12, background: 'var(--panel-bg)',
+          border: '1px solid #F5C518', color: 'var(--text-1)', fontSize: 13, fontWeight: 700,
+          boxShadow: '0 20px 50px rgba(0,0,0,.5)',
+        }}>
+          {scanMsg}
         </div>,
         document.body
       )}
