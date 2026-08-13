@@ -13,6 +13,19 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "CarLink <noreply@carlink.com>")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
 
+def _smtp_client() -> smtplib.SMTP:
+    """Conexión SMTP lista para usar con `with`. El puerto 465 (Hostinger) es
+    SSL directo desde el saludo inicial — STARTTLS ahí falla porque STARTTLS
+    negocia el cifrado DESPUÉS de conectar en texto plano, y un server que
+    espera SSL directo corta la conexión antes de llegar a esa negociación.
+    Cualquier otro puerto (587 típico) sigue usando STARTTLS como antes."""
+    if SMTP_PORT == 465:
+        return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
+    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+    server.starttls()
+    return server
+
+
 def send_found_request_email(
     owner_email: str,
     owner_name: str,
@@ -60,14 +73,64 @@ def send_found_request_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, owner_email, msg.as_string())
         print(f"[email] Sent found-request email to {owner_email}")
         return True
     except Exception as e:
         print(f"[email] Failed to send: {e}")
+        return False
+
+
+def send_guide_email(to_email: str, guide_url: str) -> bool:
+    """Guía de Mantenimiento Preventivo gratis — disparado desde POST
+    /waitlist cuando source='shop_guia_mantenimiento' y el contacto dejado
+    tiene forma de correo (ver app/routers/waitlist.py). El PDF vive en R2
+    (docs/CONTEXTO.md); acá se linkea, no se adjunta — un adjunto de ~1.4MB
+    dispara más filtros de spam y algunos clientes de correo lo recortan."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping guide email")
+        return False
+
+    subject = "CarLink — Tu Guía de Mantenimiento Preventivo"
+    html = f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Acá está tu guía</h2>
+        <p style="font-size: 14px; color: #555; margin: 0 0 20px;">
+          Mantenimiento preventivo, historial documentado y normativa vehicular en Colombia —
+          todo en un PDF corto para tener a mano.
+        </p>
+        <div style="text-align: center;">
+          <a href="{guide_url}" style="display: inline-block; background: #F5C518; color: #111; font-weight: 700; font-size: 14px; text-decoration: none; padding: 13px 26px; border-radius: 10px;">
+            Descargar la guía (PDF)
+          </a>
+        </div>
+      </div>
+      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
+        ¿Preguntas? Responde a este correo o escríbenos por WhatsApp.
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = to_email
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with _smtp_client() as server:
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        print(f"[email] Sent guide email to {to_email}")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send guide email: {e}")
         return False
 
 
@@ -88,8 +151,7 @@ def send_generic_email(to_email: str, subject: str, html_body: str) -> bool:
     msg.attach(MIMEText(html_body, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, to_email, msg.as_string())
         print(f"[email] Sent generic email to {to_email}")
@@ -157,8 +219,7 @@ def send_job_application_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
         print(f"[email] Sent job application email to {ADMIN_EMAIL}")
@@ -187,6 +248,68 @@ def _stage_line(active_step: int) -> str:
         else:
             parts.append(f'<span style="color:#999;">{label}</span>')
     return " &nbsp;&rarr;&nbsp; ".join(parts)
+
+
+def send_order_received_email(
+    customer_email: str,
+    customer_name: str,
+    reference: str,
+    plate_text: str,
+    quantity: int,
+    amount_in_cents: int,
+    currency: str = "COP",
+) -> bool:
+    """Solo para pedidos contraentrega (payment_method='cod'), apenas se crea
+    la orden (antes de pagar) — es la única señal automática que recibe el
+    cliente hasta que un admin la marque pagada (POST
+    /shop/orders/{reference}/mark-paid, ver app/routers/shop_orders.py). Los
+    pedidos Wompi no la reciben: ya les llega send_order_confirmed_email
+    apenas se aprueba el pago, que alcanza como confirmación."""
+    if not SMTP_USER or not SMTP_PASS:
+        print("[email] SMTP not configured — skipping order-received email")
+        return False
+
+    subject = "CarLink — Recibimos tu pedido, coordinamos el pago por WhatsApp"
+    html = f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Gracias, {customer_name}!</h2>
+        <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
+          Registramos tu pedido contraentrega. Nuestro equipo te escribe por WhatsApp para
+          coordinar el pago al recibir el llavero — si ya nos escribiste, te contactamos en breve.
+        </p>
+        <div style="text-align: center; margin-bottom: 16px;">{_stage_line(0)}</div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.8;">
+          <strong>Pedido:</strong> {reference}<br>
+          <strong>Placa:</strong> {plate_text}<br>
+          <strong>Cantidad:</strong> {quantity}<br>
+          <strong>Total (contraentrega):</strong> {_format_cop(amount_in_cents)} {currency}
+        </div>
+      </div>
+      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
+        Te confirmamos por acá apenas quede pagado y en preparación.
+      </p>
+    </div>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = FROM_EMAIL
+    msg["To"] = customer_email
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with _smtp_client() as server:
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
+        print(f"[email] Sent order-received email to {customer_email} ({reference})")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send order-received email: {e}")
+        return False
 
 
 def send_order_confirmed_email(
@@ -237,8 +360,7 @@ def send_order_confirmed_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
         print(f"[email] Sent order-confirmed email to {customer_email} ({reference})")
@@ -288,8 +410,7 @@ def send_order_shipped_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
         print(f"[email] Sent order-shipped email to {customer_email} ({reference})")
@@ -352,8 +473,7 @@ def send_order_admin_notification_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
+        with _smtp_client() as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
         print(f"[email] Sent order admin-notification email to {ADMIN_EMAIL} ({reference})")
