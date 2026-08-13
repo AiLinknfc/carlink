@@ -172,8 +172,11 @@ export default function ExpenseScanModal({ vehicleId, onClose, onSuccess, onSave
     <>
       {showCam && <CameraCapture onCapture={handleCameraCapture} onClose={() => setShowCam(false)} />}
 
+      {/* zIndex 72 quedaba DETRÁS del modal "Control de gastos" que lo abre
+          (FichaTab.tsx, zIndex 200) — este modal se abre encima de ese, no
+          reemplazándolo, así que necesita un zIndex mayor. */}
       <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, zIndex: 72,
+        position: 'fixed', inset: 0, zIndex: 210,
         background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}>

@@ -280,18 +280,29 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
               (no la del <select> anterior). Si solo hay un vehículo, no hay
               nada que elegir — se muestra como texto plano, igual que antes. */}
           {vehicles && vehicles.length > 1 ? (
-            <select
-              value={activeVehicleId || ''}
-              onChange={e => onSwitchVehicle?.(e.target.value)}
-              style={{
-                width: '100%', margin: '4px 0 2px', padding: 0, border: 'none', background: 'transparent',
-                fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', color: textPrimary,
-                cursor: 'pointer', outline: 'none', WebkitAppearance: 'none', appearance: 'none',
-              }}>
-              {vehicles.map(v => (
-                <option key={v.id} value={v.id}>{[v.brand, v.model].filter(Boolean).join(' ') || v.plate || 'Vehículo'}</option>
-              ))}
-            </select>
+            /* appearance:none le saca la flecha nativa del navegador — sin
+               reemplazarla no quedaba ninguna señal visual de que esto abre
+               más opciones. Se agrega un chevron propio (mismo ícono que ya
+               usa el botón de expandir/colapsar más arriba) y el texto pasa
+               a dorado de marca, que antes usaba textPrimary (blanco/negro
+               según tema) igual que cualquier texto plano de la sidebar. */
+            <div style={{ position: 'relative', margin: '4px 0 2px' }}>
+              <select
+                value={activeVehicleId || ''}
+                onChange={e => onSwitchVehicle?.(e.target.value)}
+                style={{
+                  width: '100%', padding: '0 24px 0 0', border: 'none', background: 'transparent',
+                  fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', color: '#F5C518',
+                  cursor: 'pointer', outline: 'none', WebkitAppearance: 'none', appearance: 'none',
+                }}>
+                {vehicles.map(v => (
+                  <option key={v.id} value={v.id}>{[v.brand, v.model].filter(Boolean).join(' ') || v.plate || 'Vehículo'}</option>
+                ))}
+              </select>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
           ) : (
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
           )}
