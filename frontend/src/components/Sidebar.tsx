@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { CarLinkMark, STAR_PATH } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
@@ -78,6 +78,23 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   const [detectedDark, setDetectedDark] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [vehicleMenuOpen, setVehicleMenuOpen] = useState(false)
+  const vehicleMenuRef = useRef<HTMLDivElement>(null)
+
+  /* El <select> nativo no se puede recolorear del todo por CSS — el popup
+     de opciones lo pinta el navegador/SO con sus propios colores (azul de
+     sistema en Chrome/Windows/Linux en la mayoría de los casos), sin
+     importar qué estilos se le pongan al <select> en sí. Por eso seguía
+     viéndose azul pese a que el texto ya estaba en dorado. Se reemplaza por
+     un menú propio (botón + lista flotante) con control total de color. */
+  useEffect(() => {
+    if (!vehicleMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (vehicleMenuRef.current && !vehicleMenuRef.current.contains(e.target as Node)) setVehicleMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [vehicleMenuOpen])
   const navItems = navItemsOverride ?? (accountType === 'taller' ? TALLER_NAV_ITEMS : ALL_NAV_ITEMS)
   const plateShort = plateText ? plateText.split('-')[0] : ''
 
@@ -273,35 +290,59 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${dividerColor}`, whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: textSecondary, fontWeight: 700 }}>Vehículo</div>
 
-          {/* El nombre y el selector eran dos elementos separados (texto fijo
-              arriba, <select> chiquito más abajo) — se funden en uno: el
-              campo inmediatamente debajo de "Vehículo" es ahora el propio
-              selector, con la misma tipografía grande que tenía el nombre
-              (no la del <select> anterior). Si solo hay un vehículo, no hay
-              nada que elegir — se muestra como texto plano, igual que antes. */}
+          {/* Si solo hay un vehículo no hay nada que elegir — texto plano.
+              Con más de uno, el campo debajo de "Vehículo" es el propio
+              selector (menú propio, no <select> nativo — ver el porqué en
+              el useEffect de vehicleMenuOpen más arriba). */}
           {vehicles && vehicles.length > 1 ? (
-            /* appearance:none le saca la flecha nativa del navegador — sin
-               reemplazarla no quedaba ninguna señal visual de que esto abre
-               más opciones. Se agrega un chevron propio (mismo ícono que ya
-               usa el botón de expandir/colapsar más arriba) y el texto pasa
-               a dorado de marca, que antes usaba textPrimary (blanco/negro
-               según tema) igual que cualquier texto plano de la sidebar. */
-            <div style={{ position: 'relative', margin: '4px 0 2px' }}>
-              <select
-                value={activeVehicleId || ''}
-                onChange={e => onSwitchVehicle?.(e.target.value)}
+            <div ref={vehicleMenuRef} style={{ position: 'relative', margin: '4px 0 2px' }}>
+              <button
+                type="button"
+                onClick={() => setVehicleMenuOpen(o => !o)}
                 style={{
-                  width: '100%', padding: '0 24px 0 0', border: 'none', background: 'transparent',
-                  fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', color: '#F5C518',
-                  cursor: 'pointer', outline: 'none', WebkitAppearance: 'none', appearance: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+                  width: '100%', padding: 0, border: 'none', background: 'transparent',
+                  fontFamily: 'var(--font-display)', fontSize: 17, letterSpacing: '.01em', color: '#F5C518',
+                  cursor: 'pointer', textAlign: 'left',
                 }}>
-                {vehicles.map(v => (
-                  <option key={v.id} value={v.id}>{[v.brand, v.model].filter(Boolean).join(' ') || v.plate || 'Vehículo'}</option>
-                ))}
-              </select>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                <path d="M6 9l6 6 6-6" />
-              </svg>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {vehicles.find(v => v.id === activeVehicleId)
+                    ? [vehicles.find(v => v.id === activeVehicleId)?.brand, vehicles.find(v => v.id === activeVehicleId)?.model].filter(Boolean).join(' ') || vehicles.find(v => v.id === activeVehicleId)?.plate
+                    : vehicle.modelo || '—'}
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', transform: vehicleMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+
+              {vehicleMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6, zIndex: 20,
+                  maxWidth: 226, maxHeight: 220, overflowY: 'auto', borderRadius: 10,
+                  background: isDark ? '#141414' : '#fff', border: '1px solid rgba(245,197,24,0.3)',
+                  boxShadow: '0 14px 34px rgba(0,0,0,.4)',
+                }}>
+                  {vehicles.map(v => {
+                    const label = [v.brand, v.model].filter(Boolean).join(' ') || v.plate || 'Vehículo'
+                    const isActive = v.id === activeVehicleId
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => { onSwitchVehicle?.(v.id); setVehicleMenuOpen(false) }}
+                        style={{
+                          display: 'block', width: '100%', padding: '9px 12px', border: 'none',
+                          background: isActive ? 'rgba(245,197,24,0.14)' : 'transparent',
+                          color: isActive ? '#F5C518' : textPrimary, fontSize: 12.5, fontWeight: isActive ? 700 : 500,
+                          textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = isDark ? 'rgba(245,197,24,0.08)' : 'rgba(245,197,24,0.1)' }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                      >{label}</button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
