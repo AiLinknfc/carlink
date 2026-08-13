@@ -206,10 +206,15 @@ export default function NfcPage() {
       )}
 
       {error === 'not_found' && (
-        <div style={{ textAlign: 'center', padding: '40px 32px', borderRadius: 20, background: 'rgba(255,55,55,0.06)', border: '1px solid rgba(255,55,55,0.2)', maxWidth: 380 }}>
-          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#ff6b6b' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/><path d="M2 2l20 20"/></svg></div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Enlace no válido</div>
-          <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5 }}>Este llavero NFC no está vinculado a ningún vehículo o fue revocado. Contacta a tu taller para reprogramarlo.</div>
+        <div style={{ textAlign: 'center', padding: '40px 32px', borderRadius: 20, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)', maxWidth: 380 }}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#F5C518' }}><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h1v1H9zM14 9h1v1h-1zM9 14h1v1H9zM14 14h1v1h-1zM12 9v.01M9 12h.01M14 12h1M12 14v1M12 12h.01"/></svg></div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#F5C518' }}>Este llavero no está vinculado</div>
+          <div style={{ fontSize: 13, color: '#b6b2a6', lineHeight: 1.5, marginBottom: 20 }}>
+            Si acabas de comprarlo, actívalo desde la app con el código impreso en el empaque. Si ya lo tenías activado y ves esto, puede haber sido revocado — contacta a tu taller.
+          </div>
+          <a href="/" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '12px 20px', borderRadius: 12, background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', boxSizing: 'border-box' }}>
+            Ir a CarLink para activarlo
+          </a>
         </div>
       )}
 

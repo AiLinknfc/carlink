@@ -518,6 +518,14 @@ async def access_via_qr(
     the NFC chip by redirecting to /nfc/{token} — all access control
     (trial expiry, revocation, rate limiting) happens there, not here.
     """
+    settings = get_settings()
+    # A dónde manda cualquier fallo de acá para abajo — antes tiraba un 404
+    # JSON crudo (este endpoint es un redirect puro, next.config.ts lo manda
+    # directo al backend sin pasar por ninguna página de Next.js, así que el
+    # usuario veía el {"detail": "..."} pelado en el navegador). No cambia
+    # qué se considera válido, solo dónde aterriza el mensaje cuando no lo es.
+    fallback_url = f"{settings.frontend_url}/nfc/q-invalido"
+
     ip = request.client.host if request.client else "unknown"
     if not await _check_rate(ip):
         raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
@@ -525,7 +533,7 @@ async def access_via_qr(
     result = await db.execute(select(NfcToken).where(NfcToken.qr_slug == slug))
     nfc_token = result.scalar_one_or_none()
     if not nfc_token:
-        raise HTTPException(status_code=404, detail="Código QR no válido")
+        return RedirectResponse(url=fallback_url, status_code=302)
 
     url_result = await db.execute(
         text("SELECT token_url_encrypted FROM nfc_tokens WHERE id = :id"),
@@ -535,7 +543,7 @@ async def access_via_qr(
     encrypted = row[0] if row else None
     url = decrypt_url(encrypted) if encrypted else None
     if not url:
-        raise HTTPException(status_code=404, detail="Código QR no válido")
+        return RedirectResponse(url=fallback_url, status_code=302)
 
     return RedirectResponse(url=url, status_code=302)
 
