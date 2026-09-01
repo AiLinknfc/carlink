@@ -105,6 +105,30 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
     setUploading(false)
   }, [updateCertificate, flash])
 
+  const handleCreateWithFile = useCallback(async (file: File, typeName?: string) => {
+    if (!vehicleId || !typeName) return
+    setUploading(true)
+    const today = new Date().toISOString().split('T')[0]
+    const result = await addCertificate({
+      vehicle_id: vehicleId,
+      name: typeName,
+      issued_by: '',
+      issue_date: today,
+    })
+    if (result) {
+      const url = await uploadFile(file, 'certificates')
+      if (url) {
+        await updateCertificate(result.id, { file_url: url })
+        flash('Factura creada con su archivo')
+      } else {
+        flash('Factura creada — error al subir el archivo')
+      }
+    } else {
+      flash('Error al crear la factura')
+    }
+    setUploading(false)
+  }, [vehicleId, addCertificate, updateCertificate, flash])
+
   const handleScan = useCallback(async (file: File) => {
     const certId = scanTarget
     setScanTarget(null)
@@ -486,7 +510,8 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
               emptyLabel="Sin archivo adjunto" createLabel=""
               onCreate={() => openCreateModal(ct.name)} onEdit={openEdit}
               onPreview={setLightboxUrl} onDownload={handleDownload}
-              onScan={() => {}} onUpload={() => {}} />
+              onScan={setScanTarget} onUpload={handleUpload}
+              onCreateWithFile={(f) => handleCreateWithFile(f, ct.name)} />
           )
         })}
 
@@ -499,7 +524,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
             emptyLabel="Sin archivo adjunto" createLabel=""
             onCreate={() => openCreateModal()} onEdit={openEdit}
             onPreview={setLightboxUrl} onDownload={handleDownload}
-            onScan={() => {}} onUpload={() => {}} />
+            onScan={setScanTarget} onUpload={handleUpload} />
         ))}
       </div>
 

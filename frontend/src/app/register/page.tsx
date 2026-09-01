@@ -129,9 +129,16 @@ function RegisterPage({ initialMode = 'persona' }: { initialMode?: 'persona' | '
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.access_token) return
       fetch(apiUrl('/vehicles'), { headers: { Authorization: `Bearer ${session.access_token}` } })
-        .then(r => { if (r.ok) return r.json() })
+        .then(r => {
+          if (r.ok) return r.json()
+          // Backend devolvió error — mejor dejarlo dentro de la app
+          router.push('/app')
+          return undefined
+        })
         .then(d => { if (d?.length) router.push('/app') })
-        .catch(() => {})
+        .catch(() => {
+          router.push('/app')
+        })
     })
   }, [user, router, mode])
 

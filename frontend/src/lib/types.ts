@@ -16,6 +16,7 @@ export interface Vehicle {
   sell_zip: string;
   sell_phone: string;
   sell_description: string;
+  lost_keychain_enabled: boolean;
   vehicle_condition: string;
   wallet_bg_preset_id: string | null;
   wallet_bg_custom_url: string | null;
@@ -571,6 +572,7 @@ export interface NfcTokenPublicInfo {
   published_at: string | null;
   owner_whatsapp: string;
   owner_name: string;
+  lost_keychain_enabled: boolean;
 }
 
 export type VehicleCreate = Vehicle & { plate: string; city: string };

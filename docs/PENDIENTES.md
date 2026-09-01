@@ -1,6 +1,23 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-12 (contraentrega, indicador de gastos, guía PDF, SEO/IA)._
+_Última actualización: 2026-08-30 (nfc_active default fix, migration 048, Plate3D responsive)._
+
+**Ejecutado en la undécima pasada**:
+
+- **`nfc_active` default cambiado a `False`** (migración `048`): antes, todo vehículo nuevo nacía
+  con `nfc_active=True`, making the "Publicar mi perfil" toggle show as ON even without a keychain.
+  Ahora el default es `False` — el usuario activa explícitamente. La migración también puso
+  `nfc_active=False` en vehículos existentes que tenían `True` pero ningún token activo (AKT SDF-45G,
+  Chevrolet KLM-456, etc.). Vehículos con token activo (Bajaj ZYM-35C, Kia BDT-762) mantuvieron
+  `True`.
+- **Frontend guard `isNfcPublished`**: derivado de `vehicle.nfc_active` + `nfcTokens.some(t =>
+  t.is_active)` — el toggle solo muestra ON si la DB dice True Y hay al menos un token activo.
+  Previene estados stale donde la DB dice True pero no hay llavero.
+- **Plate3D `fontScale` prop**: texto de la placa escala proporcionalmente en pantallas chicas.
+  Calculado desde `window.innerWidth` vs ancho natural (448px). Las esquinas curvas se restauraron
+  quitando `overflow: hidden` del wrapper padre.
+- **Skill `nfc-token-system` actualizada**: sección nueva "UI/UX patterns the user repeatedly
+  requests" captura toggles, colores, reglas de la ficha pública, y consistencia de datos.
 
 **Ejecutado en la décima pasada** (plan de 7 puntos, ver `/home/andres/.claude/plans/cuddly-petting-cloud.md`
 para el detalle completo de investigación/decisiones):
@@ -179,12 +196,15 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    `vehicle_id` del cliente — cualquier cuenta con más de un vehículo corría el riesgo de que un
    llavero nuevo quedara pegado al vehículo equivocado, silenciosamente. Afectó a un usuario real en
    producción (`andresypm@gmail.com`): activó un llavero para su Bajaj Pulsar y quedó asociado a su
-   AKT NKD 125 en cambio. **Dato de ese usuario ya corregido a mano** (verificado con consulta
-   directa) y **causa raíz corregida en código**: `NfcActivateRequest` ahora exige `vehicle_id`,
-   valida ownership con `verify_vehicle` (`dependencies.py`) en vez de adivinar; `GET /nfc/tokens`
-   admite filtro `vehicle_id` y el panel "Mis llaveros" (`app/page.tsx`) queda scopeado al vehículo
-   seleccionado en la barra lateral — un llavero por vista, se re-consulta al cambiar de vehículo.
-   **Sigue pendiente, fuera de alcance de este fix puntual**: un flujo real de "repuesto/duplicado"
+    AKT NKD 125 en cambio. **Dato de ese usuario ya corregido a mano** (verificado con consulta
+    directa) y **causa raíz corregida en código**: `NfcActivateRequest` ahora exige `vehicle_id`,
+    valida ownership con `verify_vehicle` (`dependencies.py`) en vez de adivinar; `GET /nfc/tokens`
+    admite filtro `vehicle_id` y el panel "Mis llaveros" (`app/page.tsx`) queda scopeado al vehículo
+    seleccionado en la barra lateral — un llavero por vista, se re-consulta al cambiar de vehículo.
+    **✅ Seguimiento resuelto (2026-08-30)**: migración `048` puso `nfc_active=False` en vehículos
+    que tenían el flag en True pero sin token activo (AKT, Chevrolet, etc.). El default del modelo
+    también cambió a `False`. Frontend agrega guard `isNfcPublished` que verifica DB + tokens.
+    **Sigue pendiente, fuera de alcance de este fix puntual**: un flujo real de "repuesto/duplicado"
    — hoy revocar + volver a activar ya es autoservicio sin ninguna marca ni aviso a nadie. Se agregó
    un mensaje ("¿necesitás un repuesto o duplicado? Contactanos" con link a WhatsApp de soporte,
    `SUPPORT_WHATSAPP`) cuando el vehículo ya tiene su llavero, pero no hay ningún label
@@ -661,3 +681,36 @@ _Ya existe:_ `plate.test.ts` (único test de frontend en todo el repo).
 cd backend && pytest tests/ -v                 # o --cov=app --cov-report=html
 cd frontend && npx vitest run                  # o --coverage
 ```
+
+---
+
+## Fix: separación local/producción en URLs NFC (2026-08-30)
+
+**Problema**: al hacer clic en "Ver ficha pública" desde el panel local, la app redirigía a
+`https://carlink.com.co` (producción) en vez de mantenerse en `localhost:3000`. Raíz: la DB
+compartida (Supabase Cloud) tiene tokens provisionados con `FRONTEND_URL=https://carlink.com.co`
+grabado en `token_url_encrypted`. El backend local descifraba esa URL y la devolvía tal cual.
+
+**Fix aplicado (Opción C — frontend-aware)**:
+
+1. **`frontend/src/app/app/page.tsx`** — `openPublicar()` y `copyTokenUrl()` ahora reemplazan
+   el dominio de la URL descifrada con `window.location.origin` antes de abrir/copiar:
+   ```typescript
+   const localUrl = data.url.replace(/^https?:\/\/[^/]+/, window.location.origin)
+   ```
+   Esto asegura que tokens provisionados en producción funcionen correctamente en local.
+
+2. **`backend/.env`** — `FRONTEND_URL` cambiado de `https://carlink.com.co` a
+   `http://localhost:3000` para que tokens nuevos provisionados desde local apunten a localhost.
+
+3. **`frontend/.env`** — `NEXT_PUBLIC_SITE_URL` cambiado de `https://carlink.com.co` a
+   `http://localhost:3000` para consistencia con `.env.local`.
+
+**Deuda técnica pendiente (mejora futura)**: la lógica de reescritura de dominio debería vivir en
+el backend, no en el frontend. Opciones:
+- **Opción A**: que `get_token_url` detecte el entorno del request y reescriba el dominio antes
+  de devolver la URL.
+- **Opción B**: que `access_via_qr` recalcule la URL de redirect en tiempo de request en vez de
+  depender de la URL encrypted en la DB.
+Ambas requieren más testing y cambio en el contrato del endpoint. El fix actual es una solución
+temporal segura que no rompe tokens existentes.

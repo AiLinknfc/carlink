@@ -62,6 +62,7 @@ class VehicleUpdate(BaseModel):
     sell_zip: str | None = None
     sell_phone: str | None = None
     sell_description: str | None = None
+    lost_keychain_enabled: bool | None = None
     vehicle_condition: str | None = None
 
     # El validador de placa vivía aquí; se fue con el campo. La validación de
@@ -86,6 +87,7 @@ class VehicleOut(BaseModel):
     sell_zip: str = ""
     sell_phone: str = ""
     sell_description: str = ""
+    lost_keychain_enabled: bool = False
     vehicle_condition: str = "usado"
     created_at: datetime
     updated_at: datetime
@@ -1196,6 +1198,7 @@ class NfcTokenOut(BaseModel):
 class NfcTokenInfoPublic(BaseModel):
     """Public data exposed via NFC chip scan — no owner info."""
     plate: str
+    city: str = ""
     brand: str
     model: str
     year: int
@@ -1223,6 +1226,7 @@ class NfcTokenInfoPublic(BaseModel):
     published_at: str | None = None
     owner_whatsapp: str = ""
     owner_name: str = ""
+    lost_keychain_enabled: bool = False
 
 
 # =========== Upload ===========

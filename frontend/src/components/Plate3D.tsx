@@ -12,8 +12,11 @@ interface Props {
   inkColor?: string
   labelColor?: string
   showLabel?: boolean
+  showCity?: boolean
   size?: PlateSize
   className?: string
+  maxWidth?: string
+  fontScale?: number
 }
 
 const SIZE_CONFIG: Record<PlateSize, { width: number; height: number; fontLabel: number; fontNumber: number; fontCity: number; radius: number; shadow: string }> = {
@@ -22,12 +25,13 @@ const SIZE_CONFIG: Record<PlateSize, { width: number; height: number; fontLabel:
   sm: { width: 80, height: 39, fontLabel: 0, fontNumber: 14, fontCity: 0, radius: 5, shadow: '0 4px 12px rgba(0,0,0,.3)' },
 }
 
-export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '#111', labelColor, showLabel = true, size = 'lg', className }: Props) {
+export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '#111', labelColor, showLabel = true, showCity = true, size = 'lg', className, maxWidth, fontScale = 1 }: Props) {
   const subColor = labelColor || 'rgba(0,0,0,.55)'
   const displayPlate = getPlateDisplay(plate)
   const cfg = SIZE_CONFIG[size]
   const showCol = showLabel && cfg.fontLabel > 0
-  const showCity = city && cfg.fontCity > 0
+  const showCityVal = showCity && city && cfg.fontCity > 0
+  const s = fontScale
 
   return (
     <div
@@ -36,25 +40,25 @@ export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '
         background: bg,
         width: cfg.width,
         height: cfg.height,
-        maxWidth: '92vw',
+        maxWidth: maxWidth || '92vw',
         borderRadius: cfg.radius,
         boxShadow: cfg.shadow,
       }}
     >
       {showCol && (
-        <div className={styles['plate-label']} style={{ color: subColor, fontSize: cfg.fontLabel }}>
+        <div className={styles['plate-label']} style={{ color: subColor, fontSize: cfg.fontLabel * s }}>
           COLOMBIA
         </div>
       )}
-      <div className={styles['plate-number']} style={{ color: inkColor, fontSize: cfg.fontNumber }}>
+      <div className={styles['plate-number']} style={{ color: inkColor, fontSize: cfg.fontNumber * s }}>
         {displayPlate}
       </div>
-      {showCity && (
-        <div className={styles['plate-city']} style={{ color: subColor, fontSize: cfg.fontCity }}>
+      {showCityVal && (
+        <div className={styles['plate-city']} style={{ color: subColor, fontSize: cfg.fontCity * s }}>
           {city}
         </div>
       )}
-      {size === 'lg' && <div className={styles['plate-shine']} />}
+      <div className={styles['plate-shine']} />
     </div>
   )
 }

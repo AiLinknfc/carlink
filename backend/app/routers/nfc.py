@@ -479,6 +479,7 @@ async def my_ficha_preview(
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
+        city=vehicle.city or "",
         brand=vehicle.brand,
         model=vehicle.model,
         year=vehicle.year,
@@ -503,6 +504,7 @@ async def my_ficha_preview(
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
         owner_name=owner_name,
+        lost_keychain_enabled=vehicle.lost_keychain_enabled,
     )
 
 
@@ -648,6 +650,7 @@ async def access_via_nfc(
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
+        city=vehicle.city or "",
         brand=vehicle.brand,
         model=vehicle.model,
         year=vehicle.year,
@@ -675,4 +678,5 @@ async def access_via_nfc(
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
         owner_name=owner_name,
+        lost_keychain_enabled=vehicle.lost_keychain_enabled,
     )

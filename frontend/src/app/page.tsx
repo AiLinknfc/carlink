@@ -72,6 +72,14 @@ export default function LandingPage() {
   const { theme, isDark: dark, toggleTheme } = useTheme()
   const cityRef = useRef<HTMLDivElement>(null)
 
+  // Forzar tema dark en el landing — cuando el usuario navegue a /app,
+  // ThemeProvider restaura el tema guardado en localStorage.
+  useEffect(() => {
+    const prev = document.documentElement.dataset.theme
+    document.documentElement.dataset.theme = 'dark'
+    return () => { if (prev) document.documentElement.dataset.theme = prev }
+  }, [])
+
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (cityRef.current && !cityRef.current.contains(e.target as Node))

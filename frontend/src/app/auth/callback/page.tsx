@@ -49,14 +49,21 @@ function CallbackPageContent() {
             router.push('/app')
             return
           }
+          // Sin vehículos → /register para que registre uno
         } else {
+          // Backend devolvió error (500, timeout, etc.) — mejor dejarlo dentro de /app
           console.warn('[callback] /vehicles returned', res.status)
+          router.push('/app')
+          return
         }
       } catch (e) {
+        // Error de red / proxy — mejor dejarlo dentro de /app
         console.warn('[callback] fetch failed:', e)
+        router.push('/app')
+        return
       }
 
-      // Si venía de un registro de empresa, ir a /register?mode=empresa
+      // Solo llega aquí si la llamada fue ok pero no tiene vehículos
       if (registerMode === 'empresa') {
         router.push('/register?mode=empresa')
       } else {

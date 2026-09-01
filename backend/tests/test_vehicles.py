@@ -44,13 +44,14 @@ async def _refresh(vehicle):
     what a real refresh-after-insert would have populated."""
     if vehicle.id is None:
         vehicle.id = uuid.uuid4()
-    vehicle.nfc_active = True
+    vehicle.nfc_active = False
     vehicle.sell_enabled = False
     vehicle.sell_price = ""
     vehicle.sell_city = ""
     vehicle.sell_zip = ""
     vehicle.sell_phone = ""
     vehicle.sell_description = ""
+    vehicle.lost_keychain_enabled = False
     vehicle.vehicle_condition = "usado"
     vehicle.created_at = datetime.now(timezone.utc)
     vehicle.updated_at = datetime.now(timezone.utc)

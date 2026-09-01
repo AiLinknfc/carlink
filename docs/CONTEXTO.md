@@ -66,6 +66,11 @@ filtro `vehicle_id` y el panel "Mis llaveros" queda scopeado al vehículo activo
 vista. Detalle y lo que quedó pendiente (flujo formal de repuesto/duplicado): `docs/PENDIENTES.md`
 ítem 4 de Prioridad alta.
 
+**`nfc_active` default = `False` (migración `048`, 2026-08-30).** Antes todo vehículo nuevo nacía
+con `nfc_active=True`, haciendo que el toggle "Publicar mi perfil" apareciera ON sin llavero. Ahora
+el default es `False` y la migración corrigió vehículos existentes sin token activo. Frontend agrega
+guard derivado `isNfcPublished` = `nfc_active` DB AND al menos un token activo cargado.
+
 ### Pendiente sobre el llavero NFC
 Lista completa y actualizada en `docs/PENDIENTES.md` (única fuente de verdad de pendientes).
 

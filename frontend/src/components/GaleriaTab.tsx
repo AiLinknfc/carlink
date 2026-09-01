@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useGallery } from '@/lib/hooks'
 import { uploadFile, proxyUrl } from '@/lib/upload'
+import CameraCapture from './CameraCapture'
 import type { GalleryImage } from '@/lib/types'
 
 const SUGGESTED_CATEGORIES = [
@@ -110,62 +111,21 @@ function EditableCaption({
   )
 }
 
-function GalleryEmptyState({ caption, onFilePick }: { caption: string; onFilePick: (e: React.ChangeEvent<HTMLInputElement>, caption: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const cameraRef = useRef<HTMLInputElement>(null)
+/* Botón de icono del encabezado — mismo estilo que FileCard. */
+const iconBtn: React.CSSProperties = {
+  width: 27, height: 27, borderRadius: 8, flex: '0 0 auto',
+  border: '1px solid var(--border-2)', background: 'var(--surface-2)',
+  color: 'var(--text-2)', cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', transition: 'all .18s',
+}
 
-  return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{
-          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 8,
-          color: '#F5C518', fontSize: 12, fontWeight: 600,
-          background: 'rgba(245,197,24,0.04)',
-          border: '2px dashed rgba(245,197,24,0.3)', borderRadius: 0,
-          cursor: 'pointer', transition: 'all .18s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.3)' }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-        <span>Toca para subir o escanear</span>
-      </button>
-      {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onClick={() => setOpen(false)} />
-          <div style={{
-            position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
-            marginBottom: 6, zIndex: 301, width: 180,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.3)',
-            animation: 'fadeUp .15s ease-out',
-          }}>
-            <button onClick={() => { setOpen(false); cameraRef.current?.click() }}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              Tomar foto
-            </button>
-            <button onClick={() => { setOpen(false); fileRef.current?.click() }}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-1)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,197,24,0.1)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              Subir de galería
-            </button>
-          </div>
-        </>
-      )}
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
-      <input ref={fileRef} type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
-    </div>
-  )
+/* Botón pequeño dentro del overlay de preview — mismo que FileCard. */
+const previewActionBtn: React.CSSProperties = {
+  width: 32, height: 32, borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.5)',
+  color: '#fff', cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', transition: 'all .18s',
+  backdropFilter: 'blur(4px)',
 }
 
 function GalleryCard({
@@ -173,6 +133,7 @@ function GalleryCard({
   image,
   uploading,
   onFilePick,
+  onFileSelect,
   onDelete,
   onLightbox,
   onSaveCaption,
@@ -182,137 +143,252 @@ function GalleryCard({
   image: GalleryImage | undefined
   uploading: boolean
   onFilePick: (e: React.ChangeEvent<HTMLInputElement>, caption: string) => void
+  onFileSelect: (file: File, caption: string) => void
   onDelete: (id: string, caption: string) => void
   onLightbox: (img: GalleryImage) => void
   onSaveCaption: (id: string, caption: string) => Promise<void>
   onRemoveSpace: () => void
 }) {
-  return (
-    <div
-      style={{
-        borderRadius: 18,
-        overflow: 'hidden',
-        background: 'var(--surface)',
-        border: `1px solid ${image ? 'rgba(245,197,24,0.22)' : 'var(--border)'}`,
-        transition: 'border-color .18s',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = image ? 'rgba(245,197,24,0.22)' : 'var(--border)' }}
-    >
-      {image ? (
-        <>
-          {/* Click en la foto → lightbox */}
-          <div
-            onClick={() => onLightbox(image)}
-            style={{
-              display: 'block', position: 'relative', width: '100%',
-              aspectRatio: '4/3', cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
-            }}
-          >
-            <img
-              src={proxyUrl(image.image_url)}
-              alt={caption}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-            <div
-              style={{
-                position: 'absolute', inset: 0,
-                background: 'rgba(0,0,0,0.4)', opacity: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'opacity .18s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-            >
-              <span style={{ padding: '8px 14px', borderRadius: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
-                Ampliar
-              </span>
-            </div>
-          </div>
-        </>
-      ) : (
-        /* Sin foto — toca para elegir: cámara o galería */
-        <GalleryEmptyState caption={caption} onFilePick={onFilePick} />
-      )}
+  const [showScanModal, setShowScanModal] = useState(false)
+  const [showCam, setShowCam] = useState(false)
+  const [showActions, setShowActions] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const hasImage = Boolean(image)
+  const idleBorder = hasImage ? 'rgba(245,197,24,0.22)' : 'var(--border)'
 
-      {/* Footer */}
+  const handleCameraCapture = (file: File) => {
+    setShowCam(false)
+    setShowScanModal(false)
+    onFileSelect(file, caption)
+  }
+
+  const handleFilePick = (file: File) => {
+    setShowScanModal(false)
+    onFileSelect(file, caption)
+  }
+
+  return (
+    <>
+      {showCam && <CameraCapture onCapture={handleCameraCapture} onClose={() => setShowCam(false)} />}
+
       <div
         style={{
-          padding: '10px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          minHeight: 44,
+          height: 250, boxSizing: 'border-box',
+          padding: 14, borderRadius: 18, background: 'var(--surface)',
+          border: `1px solid ${idleBorder}`,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)', transition: 'border-color .18s',
+          display: 'flex', flexDirection: 'column', gap: 8,
         }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = idleBorder }}
       >
-        {image ? (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <EditableCaption
-              imageId={image.id}
-              value={image.caption || caption}
-              onSave={onSaveCaption}
-            />
+        {/* Título + controles — cabecera estilo FileCard */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: '0 0 auto' }}>
+          <div title={caption} style={{
+            flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 700, lineHeight: 1.25,
+            overflowWrap: 'break-word',
+            display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden',
+          }}>
+            {image ? (
+              <EditableCaption
+                imageId={image.id}
+                value={image.caption || caption}
+                onSave={onSaveCaption}
+              />
+            ) : caption}
           </div>
-        ) : (
-          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{caption}</span>
-        )}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {/* Reemplazar foto */}
-          {image && (
-            <label
-              title="Reemplazar foto"
-              style={{
-                width: 34, height: 34, borderRadius: 8,
-                border: '1px solid rgba(245,197,24,0.25)',
-                background: 'rgba(245,197,24,0.08)',
-                color: '#F5C518', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <input type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
-            </label>
+          {hasImage && (
+            <span title="Con foto" style={{
+              ...iconBtn, cursor: 'default',
+              color: '#2ecc71', borderColor: '#2ecc71',
+              background: 'rgba(46,204,113,0.08)',
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
           )}
-          {/* Borrar foto (solo si hay foto) */}
-          {image && (
-            <button
-              onClick={() => onDelete(image.id, caption)}
-              title="Quitar foto"
-              style={{
-                width: 34, height: 34, borderRadius: 8,
-                border: '1px solid rgba(255,77,106,0.25)',
-                background: 'rgba(255,77,106,0.08)',
-                color: '#ff4d6a', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          {hasImage && (
+            <>
+              <label title="Reemplazar foto" style={iconBtn}
+                onMouseEnter={e => { e.currentTarget.style.color = '#F5C518'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <input type="file" accept="image/*" onChange={e => onFilePick(e, caption)} style={{ display: 'none' }} />
+              </label>
+              <button onClick={() => onDelete(image!.id, caption)} title="Quitar foto" style={iconBtn}
+                onMouseEnter={e => { e.currentTarget.style.color = '#F5C518'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
               </button>
+            </>
           )}
-          {/* Quitar espacio — solo visible en hover del footer */}
-          <button
-            onClick={onRemoveSpace}
-            title="Quitar este espacio"
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: 'transparent',
-              color: 'var(--text-3)', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-              transition: 'all .18s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,77,106,0.4)'; e.currentTarget.style.color = '#ff4d6a' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'var(--text-3)' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          <button onClick={onRemoveSpace} title="Quitar este espacio" style={iconBtn}
+            onMouseEnter={e => { e.currentTarget.style.color = '#ff4d6a'; e.currentTarget.style.borderColor = 'rgba(255,77,106,0.4)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
+
+        {/* Slot del archivo — imagen o empty state */}
+        <div style={{ flex: 1, minHeight: 0, borderRadius: 11, overflow: 'hidden' }}>
+          {hasImage ? (
+            <div
+              onClick={() => onLightbox(image!)}
+              onMouseEnter={() => setShowActions(true)}
+              onMouseLeave={() => setShowActions(false)}
+              style={{ position: 'relative', height: '100%', cursor: 'pointer', borderRadius: 11, overflow: 'hidden' }}
+            >
+              <img
+                src={proxyUrl(image!.image_url)}
+                alt={caption}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              {/* Overlay con acciones — mismo estilo que FileCard */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: showActions ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.4)',
+                opacity: showActions ? 1 : 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'opacity .18s',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div title="Ampliar" style={previewActionBtn}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
+                  </div>
+                  <label title="Reemplazar foto" style={{ ...previewActionBtn, cursor: 'pointer' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <input type="file" accept="image/*" onChange={e => { e.stopPropagation(); onFilePick(e, caption) }} style={{ display: 'none' }} />
+                  </label>
+                  <div title="Quitar foto" style={previewActionBtn}
+                    onClick={e => { e.stopPropagation(); onDelete(image!.id, caption) }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  </div>
+                </div>
+                <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Ampliar</span>
+              </div>
+            </div>
+          ) : (
+            /* Empty state — estilo idéntico a FileCard */
+            <button
+              onClick={() => setShowScanModal(true)}
+              style={{
+                height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 8,
+                borderRadius: 11, border: '2px dashed rgba(245,197,24,0.35)',
+                background: 'rgba(245,197,24,0.04)', color: '#F5C518',
+                fontSize: 12, fontWeight: 600, textAlign: 'center', padding: '0 10px',
+                cursor: 'pointer', transition: 'all .18s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>Toca para subir o escanear</span>
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Modal de escaneo — estilo idéntico a FileCard */}
+      {showScanModal && createPortal(
+        <div onClick={() => setShowScanModal(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 72,
+          background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} className="modal-panel" style={{
+            width: 480, maxWidth: '94vw',
+            background: 'var(--panel-bg, #141414)', border: '1px solid var(--panel-border, rgba(245,197,24,0.3))', borderRadius: 20,
+            padding: 24, boxShadow: '0 40px 90px rgba(0,0,0,.6)',
+          }}>
+            {/* Header — mismo que FileCard */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: 'rgba(245,197,24,0.14)', border: '1px solid #F5C518',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                    <line x1="7" y1="12" x2="17" y2="12"/>
+                  </svg>
+                </span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>
+                    Subir o escanear
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3, #7c786e)', marginTop: 2 }}>
+                    Captura o sube tu archivo
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowScanModal(false)} style={{
+                width: 34, height: 34, borderRadius: 9,
+                border: '1px solid var(--btn-ghost-border, rgba(255,255,255,0.14))',
+                background: 'var(--btn-ghost-bg, rgba(255,255,255,0.05))', color: 'var(--btn-ghost-color, #b6b2a6)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Botones de acción — mismos que FileCard */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setShowScanModal(false); setShowCam(true) }}
+                style={{
+                  flex: 1.2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '24px 0', borderRadius: 14,
+                  border: '2px dashed rgba(245,197,24,0.5)',
+                  background: 'rgba(245,197,24,0.06)', color: '#F5C518',
+                  cursor: 'pointer', transition: 'all .18s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.12)'; e.currentTarget.style.borderColor = '#F5C518' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.06)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.5)' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>Escanear con cámara</span>
+                <span style={{ fontSize: 11, color: '#9a968a' }}>Captura foto del documento</span>
+              </button>
+              <label
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '24px 0', borderRadius: 14,
+                  border: '2px dashed rgba(245,197,24,0.35)',
+                  background: 'rgba(245,197,24,0.03)', color: '#d8c98a',
+                  cursor: 'pointer', transition: 'all .18s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.08)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.03)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>Subir archivo</span>
+                <span style={{ fontSize: 11, color: '#9a968a' }}>Imagen</span>
+                <input ref={fileInputRef} type="file" accept="image/*"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFilePick(f); e.target.value = '' }}
+                  style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -351,6 +427,10 @@ export default function GaleriaTab({ vehicleId }: Props) {
     if (!file) return
     handleUpload(file, caption)
     e.target.value = ''
+  }, [handleUpload])
+
+  const handleFileSelect = useCallback((file: File, caption: string) => {
+    handleUpload(file, caption)
   }, [handleUpload])
 
   const handleSaveCaption = useCallback(async (id: string, caption: string) => {
@@ -620,7 +700,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
       {/* Gallery grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))',
+        gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))',
         gap: 16,
         animation: 'textIn .5s .1s both',
       }}>
@@ -634,6 +714,7 @@ export default function GaleriaTab({ vehicleId }: Props) {
               image={img}
               uploading={uploading}
               onFilePick={handleFilePick}
+              onFileSelect={handleFileSelect}
               onDelete={handleDelete}
               onLightbox={setLightbox}
               onSaveCaption={handleSaveCaption}

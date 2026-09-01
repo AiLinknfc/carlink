@@ -156,6 +156,32 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
     setUploading(false)
   }, [flash, loadDocs])
 
+  const handleCreateWithFile = useCallback(async (file: File, typeName?: string) => {
+    if (!vehicleId || !typeName) return
+    setUploading(true)
+    const dt = DOCUMENT_TYPES.find(t => t.name === typeName)
+    const notesStr = `status=vigente;type=${dt?.type || 'custom'}`
+    const result = await apiPost('/documents', {
+      vehicle_id: vehicleId,
+      name: typeName,
+      type: dt?.type || 'custom',
+      notes: notesStr,
+    })
+    if (result) {
+      const url = await uploadFile(file, 'documents')
+      if (url) {
+        await apiPut(`/documents/${result.id}`, { file_url: url })
+        flash('Documento creado con su archivo')
+      } else {
+        flash('Documento creado — error al subir el archivo')
+      }
+      loadDocs()
+    } else {
+      flash('Error al crear el documento')
+    }
+    setUploading(false)
+  }, [vehicleId, flash, loadDocs])
+
   const openCreateModal = useCallback((type?: string) => {
     const dt = type ? DOCUMENT_TYPES.find(t => t.type === type) : null
     setCreateType(dt?.type || 'custom')
@@ -574,7 +600,8 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
               emptyLabel="Documento no creado" createLabel="+ Crear documento"
               onCreate={() => openCreateModal(dt.type)} onEdit={openEdit}
               onPreview={setLightboxUrl} onDownload={handleDownload}
-              onScan={setScanTarget} onUpload={handleUpload} />
+              onScan={setScanTarget} onUpload={handleUpload}
+              onCreateWithFile={(f) => handleCreateWithFile(f, dt.name)} />
           )
         })}
 

@@ -271,3 +271,23 @@ async def toggle_nfc_visibility(
     await db.refresh(vehicle)
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
+
+
+@router.patch("/{vehicle_id}/lost-keychain-toggle", response_model=VehicleOut)
+async def toggle_lost_keychain(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    vehicle.lost_keychain_enabled = not vehicle.lost_keychain_enabled
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return vehicle

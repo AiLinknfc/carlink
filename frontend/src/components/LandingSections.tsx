@@ -5,6 +5,7 @@ import { NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
 import Link from 'next/link'
 import { reviewsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
+import Plate3D from '@/components/Plate3D'
 
 type Theme = 'light' | 'dark'
 
@@ -189,9 +190,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   </div>
                 </div>
                 {/* plate — se acerca al teléfono y se retira, en bucle continuo; siempre a opacidad 1, nunca desaparece */}
-                <div style={{ position: 'absolute', left: '50%', top: '50%', width: 90, height: 48, marginLeft: -84, marginTop: -24, borderRadius: 9, background: 'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', border: '3px solid #0c0c0e', boxShadow: '0 14px 26px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'comoPlateApproach 3.2s cubic-bezier(.22,1,.36,1) infinite' }}>
-                  <span style={{ fontSize: '6.5px', fontWeight: 800, letterSpacing: '.16em', color: '#3a3a1e' }}>COLOMBIA</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: '#111116', letterSpacing: '.03em', lineHeight: 1 }}>ABC 123</span>
+                <div style={{ position: 'absolute', left: '50%', top: '50%', marginLeft: -84, marginTop: -24, animation: 'comoPlateApproach 3.2s cubic-bezier(.22,1,.36,1) infinite', border: '3px solid #0c0c0e', borderRadius: 8 }}>
+                  <Plate3D plate="ABC 123" size="sm" showLabel={false} />
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, ...stepPill(0) }}>

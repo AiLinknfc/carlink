@@ -78,10 +78,12 @@ export default function AppPage() {
   const [sellDescription, setSellDescription] = useState('')
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
   const [whatsappNumber, setWhatsappNumber] = useState('')
+  const [lostKeychainEnabled, setLostKeychainEnabled] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editRecord, setEditRecord] = useState<any>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showNfc, setShowNfc] = useState(false)
+  const [showActivateWarning, setShowActivateWarning] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [nfcTokens, setNfcTokens] = useState<Array<any>>([])
   const [nfcLoading, setNfcLoading] = useState(false)
@@ -119,6 +121,12 @@ export default function AppPage() {
        calificación general de ResenasTab.tsx. */
     context: string
   } | null>(null)
+
+  // Derived: is the ficha actually publishable? True only if DB says nfc_active
+  // AND we have loaded tokens and at least one is active. This prevents the
+  // toggle from showing ON for vehicles that have nfc_active=True in the DB
+  // but no actual keychain (leftover from before migration 048).
+  const isNfcPublished = vehicle?.nfc_active !== false && !tokensLoading && nfcTokens.some(t => t.is_active)
 
   // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
   const [notifsStampsRequired, setNotifsStampsRequired] = useState(6)
@@ -203,6 +211,33 @@ export default function AppPage() {
     }
   }, [vehicle?.id, flashApp])
 
+  const toggleLostKeychain = useCallback(async () => {
+    if (!vehicle?.id) return
+    const result = await apiPatch(`/vehicles/${vehicle.id}/lost-keychain-toggle`, {})
+    if (result) {
+      setVehicle((prev: any) => ({ ...prev, lost_keychain_enabled: result.lost_keychain_enabled }))
+      setLostKeychainEnabled(result.lost_keychain_enabled)
+      flashApp(result.lost_keychain_enabled ? 'Sección "Perdí mi llavero" activada' : 'Sección "Perdí mi llavero" desactivada')
+    }
+  }, [vehicle?.id, flashApp])
+
+  const toggleWhatsApp = useCallback(async () => {
+    const next = !whatsappEnabled
+    setWhatsappEnabled(next)
+    await apiPut('/auth/me', { whatsapp_enabled: next, whatsapp_number: whatsappNumber })
+    flashApp(next ? 'Contacto WhatsApp activado' : 'Contacto WhatsApp desactivado')
+  }, [whatsappEnabled, whatsappNumber, flashApp])
+
+  const toggleSell = useCallback(async () => {
+    if (!vehicle?.id) return
+    if (!isVerified) { flashApp('Verifica tu perfil para publicar el vehículo en venta'); return }
+    const next = !sellEnabled
+    setSellEnabled(next)
+    await apiPut(`/vehicles/${vehicle.id}`, { sell_enabled: next })
+    setVehicle((prev: any) => prev ? { ...prev, sell_enabled: next } : prev)
+    flashApp(next ? 'Perfil de venta activado' : 'Perfil de venta desactivado')
+  }, [vehicle?.id, sellEnabled, isVerified, flashApp])
+
   const openTransferModal = useCallback(() => {
     if (!vehicle?.id) return
     setShowTransferModal(true)
@@ -219,7 +254,7 @@ export default function AppPage() {
   // docs/PENDIENTES.md. Se re-ejecuta también al cambiar de vehículo en la
   // barra lateral, no solo al abrir/cerrar el panel.
   useEffect(() => {
-    if (!showNfc || !user || !vehicle?.id) return
+    if (!user || !vehicle?.id) return
     setTokensLoading(true)
     setGeneratedUrl('')
     Promise.all([
@@ -230,7 +265,7 @@ export default function AppPage() {
       if (limits) setTokenLimit(limits)
       setTokensLoading(false)
     })
-  }, [showNfc, user, vehicle?.id])
+  }, [user, vehicle?.id])
 
   useEffect(() => {
     if (!user) return
@@ -275,12 +310,18 @@ export default function AppPage() {
   }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating])
 
   const openPublicar = useCallback(async () => {
+    if (!vehicle) return
+    if (vehicle.nfc_active === false) {
+      setShowActivateWarning(true)
+      return
+    }
     if (nfcTokens.length > 0) {
       const latest = nfcTokens.find(t => t.is_active) || nfcTokens[0]
       try {
         const data = await apiGet<{ url: string }>(`/nfc/tokens/${latest.id}/url`)
         if (data?.url) {
-          window.open(data.url, '_blank')
+          const localUrl = data.url.replace(/^https?:\/\/[^/]+/, window.location.origin)
+          window.open(localUrl, '_blank')
           return
         }
       } catch {}
@@ -293,7 +334,7 @@ export default function AppPage() {
     }
     setShowNfc(true)
     flashApp('Activa tu llavero NFC con el código impreso para poder publicar tu ficha.')
-  }, [nfcTokens, flashApp])
+  }, [nfcTokens, flashApp, vehicle])
 
   const activateNfcToken = async () => {
     const code = activationCode.trim()
@@ -363,7 +404,8 @@ export default function AppPage() {
     try {
       const data = await apiGet<{ url: string }>(`/nfc/tokens/${id}/url`)
       if (data?.url) {
-        await navigator.clipboard.writeText(data.url)
+        const localUrl = data.url.replace(/^https?:\/\/[^/]+/, window.location.origin)
+        await navigator.clipboard.writeText(localUrl)
         setCopiedTokenId(id)
         setUrlRecoveryFailed(prev => { const next = { ...prev }; delete next[id]; return next })
         setTimeout(() => setCopiedTokenId(null), 2000)
@@ -420,6 +462,8 @@ export default function AppPage() {
         // guardado ya no existe (se borró, o es de otra cuenta) cae al primero.
         const savedId = typeof window !== 'undefined' ? localStorage.getItem('carlink_active_vehicle_id') : null
         setVehicle(data.find((v: any) => v.id === savedId) || data[0])
+        const active = data.find((v: any) => v.id === savedId) || data[0]
+        if (active) setLostKeychainEnabled(active.lost_keychain_enabled || false)
       }
       setVehicleLoading(false)
     })
@@ -637,7 +681,7 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} /> :
+          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -647,7 +691,7 @@ export default function AppPage() {
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'resenas' ? <ResenasTab /> :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} />}
+           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} />}
         </div>
 
         {/* Bienvenida */}
@@ -700,7 +744,7 @@ export default function AppPage() {
 
       {/* App-level toast */}
         {appToast && (
-          <div style={{ position: 'fixed', left: '50%', bottom: 34, zIndex: 60, transform: 'translateX(-50%)', animation: 'toastIn .4s both', display: 'flex', gap: 11, alignItems: 'center', padding: '14px 24px', borderRadius: 999, background: 'rgba(16,16,16,0.94)', backdropFilter: 'blur(14px)', border: '1px solid rgba(245,197,24,0.5)', color: '#fff8e6', fontWeight: 600, fontSize: 14 }}>
+          <div style={{ position: 'fixed', left: '50%', bottom: 34, zIndex: 80, transform: 'translateX(-50%)', animation: 'toastIn .4s both', display: 'flex', gap: 11, alignItems: 'center', padding: '14px 24px', borderRadius: 999, background: 'rgba(16,16,16,0.94)', backdropFilter: 'blur(14px)', border: '1px solid rgba(245,197,24,0.5)', color: '#fff8e6', fontWeight: 600, fontSize: 14 }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
             </span>
@@ -835,74 +879,6 @@ export default function AppPage() {
                   <input value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
                 </div>
               </div>
-              {/* Sell toggle */}
-              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: sellEnabled ? 'rgba(245,197,24,0.08)' : 'var(--surface-2)', border: `1px solid ${sellEnabled ? 'rgba(245,197,24,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>Publicar mi perfil</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{isVerified ? 'Ofrecer este vehículo en venta' : 'Requiere perfil verificado'}</div>
-                  </div>
-                  <button onClick={() => isVerified ? setSellEnabled(v => !v) : flashApp('Verifica tu perfil para publicar el vehículo en venta')}
-                    title={isVerified ? undefined : 'Requiere perfil verificado'}
-                    style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: sellEnabled ? '#F5C518' : 'rgba(255,255,255,0.12)', cursor: isVerified ? 'pointer' : 'not-allowed', opacity: isVerified ? 1 : 0.5, position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
-                    <span style={{ position: 'absolute', top: 3, left: sellEnabled ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: sellEnabled ? '#111' : '#666', transition: 'left .2s' }} />
-                  </button>
-                </div>
-
-                {sellEnabled && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .3s both' }}>
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Precio de venta</label>
-                      <input value={sellPrice} onChange={e => setSellPrice(e.target.value)} placeholder="Ej. 45.000.000"
-                        style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div>
-                        <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Ciudad</label>
-                        <input value={sellCity} onChange={e => setSellCity(e.target.value)} placeholder="Ej. Bogotá"
-                          style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Código postal</label>
-                        <input value={sellZip} onChange={e => setSellZip(e.target.value)} placeholder="Ej. 110110"
-                          style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Teléfono de contacto</label>
-                      <input value={sellPhone} onChange={e => setSellPhone(e.target.value)} placeholder="Ej. +57 300 123 4567"
-                        style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Descripción de la venta</label>
-                      <textarea value={sellDescription} onChange={e => setSellDescription(e.target.value)} rows={3} placeholder="Ej. Vehículo en excelente estado, único dueño, documentación al día…"
-                        style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: whatsappEnabled ? 'rgba(74,222,128,0.08)' : 'var(--surface-2)', border: `1px solid ${whatsappEnabled ? 'rgba(74,222,128,0.3)' : 'var(--border)'}`, transition: 'all .2s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#4ade80' }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                      Contacto WhatsApp
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Permite que quien encuentre tu llavero te contacte por WhatsApp</div>
-                  </div>
-                  <button onClick={() => setWhatsappEnabled(v => !v)} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: whatsappEnabled ? '#4ade80' : 'rgba(255,255,255,0.12)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
-                    <span style={{ position: 'absolute', top: 3, left: whatsappEnabled ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: whatsappEnabled ? '#111' : '#666', transition: 'left .2s' }} />
-                  </button>
-                </div>
-                {whatsappEnabled && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-                    <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de WhatsApp</label>
-                    <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="Ej. +57 300 123 4567"
-                      style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                )}
-              </div>
 
               <button onClick={handleSaveProfile} style={{ marginTop: 18, width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Guardar cambios</button>
               <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
@@ -941,20 +917,6 @@ export default function AppPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" style={{ flex: '0 0 auto', marginTop: 1 }}><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
                 <span>Al tocar tu llavero NFC contra el teléfono, se abre la ficha técnica al instante. El taller la actualiza en segundos.</span>
               </div>
-            </div>
-
-            <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--section-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: tDark ? '#fff' : '#17171a', marginBottom: 2 }}>Ficha pública</div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>
-                  {vehicle?.nfc_active !== false ? 'Visible al escanear el llavero NFC.' : 'Oculta — el llavero no mostrará la ficha.'}
-                </div>
-              </div>
-              <button onClick={toggleNfcActive} role="switch" aria-checked={vehicle?.nfc_active !== false}
-                title={vehicle?.nfc_active !== false ? 'Desactivar ficha pública' : 'Activar ficha pública'}
-                style={{ position: 'relative', width: 44, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flex: '0 0 auto', background: vehicle?.nfc_active !== false ? '#2ecc71' : 'rgba(255,255,255,0.15)', transition: 'background .2s' }}>
-                <span style={{ position: 'absolute', top: 2, left: vehicle?.nfc_active !== false ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.4)' }} />
-              </button>
             </div>
 
             <div style={{ marginBottom: 16, padding: 14, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--section-border)' }}>
@@ -1056,6 +1018,131 @@ export default function AppPage() {
               )}
             </div>
 
+            {/* ── Publicar mi perfil (master toggle = nfc_active) ── */}
+            <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--section-border)', transition: 'all .2s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-1)', marginBottom: 2 }}>Publicar mi perfil</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{isNfcPublished ? 'Ficha visible para quien escanee el llavero' : 'Activa la ficha pública de tu vehículo'}</div>
+                </div>
+                <button onClick={toggleNfcActive} role="switch" aria-checked={isNfcPublished}
+                  style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: isNfcPublished ? '#F5C518' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                  <span style={{ position: 'absolute', top: 3, left: isNfcPublished ? 24 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                </button>
+              </div>
+
+              {isNfcPublished && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeUp .3s both' }}>
+
+                  {/* ── Sub-toggle: Contacto WhatsApp ── */}
+                  <div style={{ padding: 12, borderRadius: 12, background: whatsappEnabled ? 'rgba(74,222,128,0.06)' : 'var(--surface-2)', border: `1px solid ${whatsappEnabled ? 'rgba(74,222,128,0.25)' : 'var(--border)'}`, transition: 'all .2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Contacto WhatsApp</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>Permite que quien encuentre tu llavero te contacte</div>
+                        </div>
+                      </div>
+                      <button onClick={toggleWhatsApp} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: whatsappEnabled ? '#4ade80' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                        <span style={{ position: 'absolute', top: 2, left: whatsappEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                      </button>
+                    </div>
+                    {whatsappEnabled && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                        <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="Ej. +57 300 123 4567"
+                          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        <button onClick={async () => {
+                          await apiPut('/auth/me', { whatsapp_enabled: true, whatsapp_number: whatsappNumber })
+                          flashApp('Número de WhatsApp guardado')
+                        }}
+                          style={{ marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.12)', color: '#4ade80', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                          Guardar número
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Sub-toggle: Perdí mi llavero ── */}
+                  <div style={{ padding: 12, borderRadius: 12, background: lostKeychainEnabled ? 'rgba(255,107,107,0.06)' : 'var(--surface-2)', border: `1px solid ${lostKeychainEnabled ? 'rgba(255,107,107,0.25)' : 'var(--border)'}`, transition: 'all .2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4M12 16h.01"/></svg>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Perdí mi llavero</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>Si alguien lo encuentra, puede reportarlo aquí</div>
+                        </div>
+                      </div>
+                      <button onClick={toggleLostKeychain} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: lostKeychainEnabled ? '#ff6b6b' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                        <span style={{ position: 'absolute', top: 2, left: lostKeychainEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Sub-toggle: Vender vehículo ── */}
+                  <div style={{ padding: 12, borderRadius: 12, background: sellEnabled ? 'rgba(245,197,24,0.06)' : 'var(--surface-2)', border: `1px solid ${sellEnabled ? 'rgba(245,197,24,0.25)' : 'var(--border)'}`, transition: 'all .2s', opacity: isVerified ? 1 : 0.5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Vender vehículo</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{isVerified ? 'Publica tu vehículo en venta' : 'Requiere perfil verificado'}</div>
+                        </div>
+                      </div>
+                      <button onClick={toggleSell}
+                        title={isVerified ? undefined : 'Requiere perfil verificado'}
+                        style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: sellEnabled ? '#F5C518' : 'var(--surface-3)', cursor: isVerified ? 'pointer' : 'not-allowed', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                        <span style={{ position: 'absolute', top: 2, left: sellEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                      </button>
+                    </div>
+                    {sellEnabled && isVerified && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8, animation: 'fadeUp .3s both' }}>
+                        <div>
+                          <label style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Precio de venta</label>
+                          <input value={sellPrice} onChange={e => setSellPrice(e.target.value)} placeholder="Ej. 45.000.000"
+                            style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div>
+                            <label style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Ciudad</label>
+                            <input value={sellCity} onChange={e => setSellCity(e.target.value)} placeholder="Ej. Bogotá"
+                              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Código postal</label>
+                            <input value={sellZip} onChange={e => setSellZip(e.target.value)} placeholder="Ej. 110110"
+                              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Teléfono de contacto</label>
+                          <input value={sellPhone} onChange={e => setSellPhone(e.target.value)} placeholder="Ej. +57 300 123 4567"
+                            style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Descripción</label>
+                          <textarea value={sellDescription} onChange={e => setSellDescription(e.target.value)} rows={2} placeholder="Vehículo en excelente estado…"
+                            style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                        </div>
+                        <button onClick={async () => {
+                          if (!vehicle?.id) return
+                          await apiPut(`/vehicles/${vehicle.id}`, {
+                            sell_enabled: true, sell_price: sellPrice, sell_city: sellCity,
+                            sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription,
+                          })
+                          flashApp('Datos de venta guardados')
+                        }}
+                          style={{ padding: '8px 0', borderRadius: 8, border: '1px solid var(--accent-border)', background: 'var(--accent-dim)', color: 'var(--accent)', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                          Guardar datos de venta
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.55 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', marginTop: 1, color: '#F5C518', fontSize: 10, fontWeight: 800 }}>1</span>
@@ -1107,6 +1194,31 @@ export default function AppPage() {
         onClose={() => setShowOrderTracking(false)}
         onBuyAnother={() => { setShowOrderTracking(false); setShowCart(true) }}
       />
+
+      {/* Activate Warning Modal */}
+      {showActivateWarning && (
+        <div onClick={() => setShowActivateWarning(false)} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 28, textAlign: 'center', boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>Publicá tu ficha primero</div>
+            <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 20 }}>
+              Para ver la ficha pública, primero activá tu llavero NFC y encendé el toggle <b style={{ color: 'var(--text-1)' }}>"Publicar mi perfil"</b> en el panel de configuración.
+            </div>
+            <button onClick={() => { setShowActivateWarning(false); setShowNfc(true) }}
+              style={{ width: '100%', padding: '11px 0', borderRadius: 12, border: 'none', background: 'var(--accent)', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              Ir al panel NFC
+            </button>
+            <button onClick={() => setShowActivateWarning(false)}
+              style={{ width: '100%', marginTop: 8, padding: '10px 0', borderRadius: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Found Requests Panel */}
       {showFoundPanel && (
