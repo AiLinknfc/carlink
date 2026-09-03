@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DECIMAL, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import DECIMAL, Boolean, Date, DateTime, Float, ForeignKey, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -64,6 +64,7 @@ class Vehicle(Base):
     sell_phone: Mapped[str] = mapped_column(Text, default="")
     sell_description: Mapped[str] = mapped_column(Text, default="")
     lost_keychain_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    georeference_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     vehicle_condition: Mapped[str] = mapped_column(Text, default="usado")
     description_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     # Ownership transfer (011_vehicle_transfers.sql) — were missing from this
@@ -300,6 +301,8 @@ class Workshop(Base):
     social_facebook: Mapped[str] = mapped_column(Text, default="")
     social_website: Mapped[str] = mapped_column(Text, default="")
     social_whatsapp: Mapped[str] = mapped_column(Text, default="")
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

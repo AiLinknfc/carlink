@@ -1,12 +1,15 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { useTheme } from '@/store/theme'
 import Plate3D from '@/components/Plate3D'
+import { CarLinkMark } from '@/lib/icons_new'
+import dynamic from 'next/dynamic'
+const ServiceHistoryMap = dynamic(() => import('@/components/ServiceHistoryMap'), { ssr: false })
 
 interface NfcVehicle {
   plate: string
@@ -36,12 +39,15 @@ interface NfcVehicle {
   owner_whatsapp: string
   owner_name: string
   lost_keychain_enabled: boolean
+  stamps_required: number
+  promotion_description: string
+  service_history: Array<{ date: string | null; service_type: string; workshop_name: string; latitude: number | null; longitude: number | null }>
+  workshops_profiles: Record<string, { name: string; address: string; city: string; phone: string; description: string; business_hours: string; specialties: string[]; rating: number; is_verified: boolean; email: string; social_website: string; social_whatsapp: string; social_instagram: string; social_facebook: string }>
+  georeference_enabled: boolean
   wallet_bg_preset_id: string | null
   wallet_bg_custom_url: string | null
   wallet_logo_url: string | null
 }
-
-const STAMPS = ['Aceite', 'Filtros', 'Frenos', 'Llantas', 'Suspensión', 'Batería']
 
 export default function NfcPage() {
   const params = useParams()
@@ -60,6 +66,7 @@ export default function NfcPage() {
   const [isAuthed, setIsAuthed] = useState(false)
   const [showFoundAccordion, setShowFoundAccordion] = useState(false)
   const [plateFontScale, setPlateFontScale] = useState(1)
+  const [selectedWorkshop, setSelectedWorkshop] = useState<string | null>(null)
   const { theme } = useTheme()
   const isDark = theme !== 'light'
 
@@ -99,7 +106,7 @@ export default function NfcPage() {
         }
         return r.json()
       })
-      .then(j => { setData(j); setLoading(false) })
+      .then(j => { setData(j); setSelectedWorkshop(j.service_history?.[0]?.workshop_name || null); setLoading(false) })
       .catch(e => {
         const msg = e.message || ''
         if (msg === 'rate_limited') setError('rate_limited')
@@ -128,11 +135,6 @@ export default function NfcPage() {
   const progWidth = nextServiceKm != null && currentKm != null && cycleStart != null
     ? `${Math.min(100, Math.max(0, ((currentKm - cycleStart) / oilCycleKm) * 100))}%`
     : '0%'
-
-  const stamps = useMemo(() => STAMPS.map((label, i) => ({
-    label,
-    on: data != null && i < (data.total_services || 0),
-  })), [data?.total_services])
 
   const hasFicha = data != null && (currentKm != null || data.total_services > 0)
 
@@ -185,23 +187,30 @@ export default function NfcPage() {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         .nfc-card{width:460px;max-width:100%;box-sizing:border-box}
-        .nfc-page{padding:24px}
-        .nfc-card-inner{padding:30px;box-sizing:border-box}
-        .nfc-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .nfc-price{font-size:22px}
-        .nfc-km{font-size:40px}
+        .nfc-page{padding:16px}
+        .nfc-card-inner{padding:20px;box-sizing:border-box}
+        .nfc-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .nfc-ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .nfc-stamps-row{display:flex;gap:5px;flex-wrap:wrap}
+        .nfc-history-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+        .nfc-history-item:last-child{border-bottom:none}
+        .nfc-privacy-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px}
+        .nfc-price{font-size:20px}
+        .nfc-km{font-size:32px}
+        .nfc-plate-wrap{transform:scale(0.7);transform-origin:center;margin:-20px 0 -16px}
         @media(max-width:400px){
-          .nfc-card-inner{padding:20px}
-          .nfc-grid-2{grid-template-columns:1fr;gap:10px}
-          .nfc-price{font-size:18px}
-          .nfc-km{font-size:30px}
-          .nfc-page{padding:12px}
+          .nfc-card-inner{padding:16px}
+          .nfc-grid-2{grid-template-columns:1fr;gap:8px}
+          .nfc-ficha-grid{grid-template-columns:1fr;gap:8px}
+          .nfc-price{font-size:17px}
+          .nfc-km{font-size:26px}
+          .nfc-page{padding:10px}
         }
         @media(max-width:340px){
-          .nfc-card-inner{padding:16px}
-          .nfc-km{font-size:26px}
-          .nfc-price{font-size:16px}
-          .nfc-page{padding:8px}
+          .nfc-card-inner{padding:14px}
+          .nfc-km{font-size:22px}
+          .nfc-price{font-size:15px}
+          .nfc-page{padding:6px}
         }
       `}</style>
       {loading && (
@@ -285,30 +294,29 @@ export default function NfcPage() {
           }}>
             {/* Header: CarLink + Verificada */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <a href="/login" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9, background: '#F5C518', color: '#111' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="2.8"/>
-                    <path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1"/>
-                  </svg>
+                  <CarLinkMark size={18} />
                 </span>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: 'var(--text-1)' }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
-              </div>
+              </a>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', color: '#F5C518', fontSize: 11, fontWeight: 700 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F5C518', boxShadow: '0 0 6px #F5C518' }} />
                 Verificada
               </span>
             </div>
 
-            {/* Placa */}
-            <div style={{ margin: '6px 0 8px', fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Placa</div>
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0 8px' }}>
-              <Plate3D plate={plateText} city={data.city || ''} size="lg" showLabel={false} fontScale={plateFontScale} />
+            {/* Ficha de Vehiculo */}
+            <div style={{ margin: '4px 0 2px', fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: isDark ? '#fff' : 'var(--text-2)', fontWeight: 800 }}>Ficha de Vehiculo</div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className="nfc-plate-wrap">
+                <Plate3D plate={plateText} city={data.city || ''} size="lg" showLabel={false} fontScale={plateFontScale} />
+              </div>
             </div>
 
             {/* Info bar: stars */}
             {data.workshop_rating > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
                 {[1, 2, 3, 4, 5].map(s => (
                   <svg key={s} width="13" height="13" viewBox="0 0 24 24" fill={s <= Math.round(data.workshop_rating) ? '#F5C518' : 'none'} stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 ))}
@@ -318,15 +326,15 @@ export default function NfcPage() {
 
             {/* ── SECCIÓN VENTA: solo si sell_enabled ── */}
             {data.sell_enabled && (
-              <div style={{ marginTop: 22 }}>
+              <div style={{ marginTop: 14 }}>
                 <div className="nfc-grid-2">
                   <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Vehículo</div><div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginTop: 3 }}>{data.brand} {data.model}</div></div>
                   <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Año</div><div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginTop: 3 }}>{data.year}</div></div>
                   <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Color</div><div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginTop: 3 }}>{data.color || '—'}</div></div>
                   <div><div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Tipo</div><div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginTop: 3 }}>{data.type || '—'}</div></div>
                 </div>
-                <div style={{ marginTop: 20, padding: '16px 18px', borderRadius: 16, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 14, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Precio de venta</span>
                     <span className="nfc-price" style={{ fontFamily: 'var(--font-display)', color: '#F5C518' }}>{data.sell_price || 'Consultar'}</span>
                   </div>
@@ -345,78 +353,136 @@ export default function NfcPage() {
             {/* ── FICHA TÉCNICA ── */}
             {hasFicha && (
               <>
-                <div style={{ marginTop: 10, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700, marginBottom: 16 }}>Ficha técnica</div>
-                  {data.lubricant_brand && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Lubricante</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginTop: 3 }}>{data.lubricant_brand}</div>
-                      {data.lubricant_type && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{data.lubricant_type}</div>}
+                <div style={{ marginTop: 4 }}>
+
+                  <div className="nfc-ficha-grid">
+                    {/* Celda 1: Tipo de Aceite */}
+                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v12"/><circle cx="18" cy="15" r="3"/><path d="M18 12a3 3 0 0 1-3-3"/><path d="M6 9c0 0 3-3 6-3"/><path d="M6 15c0 0 3 3 6 3"/></svg>
+                        <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Tipo de Aceite</span>
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)' }}>{data.lubricant_type || '—'}</div>
                     </div>
-                  )}
-                  {currentKm != null && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Kilometraje actual</div>
-                      <div className="nfc-km" style={{ fontFamily: 'var(--font-display)', letterSpacing: '.01em', lineHeight: 1, color: 'var(--text-1)', marginTop: 4 }}>
-                        {currentKm.toLocaleString()}<span style={{ fontSize: 16, color: 'var(--text-2)', fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span>
+
+                    {/* Celda 2: Kilometraje */}
+                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Kilometraje</span>
+                      </div>
+                      <div className="nfc-km" style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', lineHeight: 1, color: 'var(--text-1)' }}>
+                        {currentKm != null ? currentKm.toLocaleString() : '—'}<span style={{ fontSize: 10, color: 'var(--text-2)', fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span>
                       </div>
                     </div>
-                  )}
-                  {nextServiceKm != null && currentKm != null && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-2)', marginBottom: 7, flexWrap: 'wrap', gap: 4 }}>
-                        <span>Próximo servicio</span>
-                        <span style={{ color: 'var(--text-1)', fontWeight: 600 }}>{nextServiceKm.toLocaleString()} km · faltan {kmToNext?.toLocaleString()} km</span>
+
+                    {/* Celda 3: Marca Lubricante */}
+                    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19h14M7 3h10l4 8H3z"/></svg>
+                        <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Marca Lubricante</span>
                       </div>
-                      <div style={{ height: 9, borderRadius: 6, background: 'var(--border)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: progWidth, background: 'linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D)', borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
-                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{data.lubricant_brand || '—'}</div>
+                      {data.lubricant_type && <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>{data.lubricant_type}</div>}
                     </div>
-                  )}
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700, marginBottom: 8 }}>Servicios realizados</div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {stamps.map((st, i) => (
-                        <span key={i} title={st.label} style={{ width: 18, height: 18, borderRadius: '50%', background: st.on ? 'rgba(245,197,24,0.3)' : 'var(--border)', border: '1.5px solid rgba(245,197,24,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
-                          {st.on && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
-                        </span>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-2)' }}>{data.total_services} sellos · Nivel Oro</div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 12, borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Servicios tomados</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#F5C518', marginTop: 2 }}>
-                        {data.total_services} {data.total_services === 1 ? 'servicio registrado' : 'servicios registrados'}
-                      </div>
-                    </div>
-                    {data.latest_service_date && (
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Más reciente</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>{new Date(data.latest_service_date).toLocaleDateString()}</div>
+
+                    {/* Celda 4: Próximo Servicio */}
+                    {nextServiceKm != null && currentKm != null && (
+                      <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                          <span style={{ fontSize: 9, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Próximo Servicio</span>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 5 }}>{nextServiceKm.toLocaleString()} km</div>
+                        <div style={{ height: 6, borderRadius: 4, background: 'var(--border)', overflow: 'hidden', marginBottom: 4 }}>
+                          <div style={{ height: '100%', width: progWidth, background: 'linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D)', borderRadius: 4, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-2)' }}>Faltan: {kmToNext?.toLocaleString()} km</div>
                       </div>
                     )}
                   </div>
+
+                  {/* ── MÓDULO 2: Historial Público de Servicios ── */}
+                  {data.service_history.length > 0 && (
+                    <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700 }}>Historial de Servicios</div>
+                        {!data.georeference_enabled && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--text-3)' }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Talleres privados
+                          </div>
+                        )}
+                        {data.latest_service_date && (
+                          <div style={{ fontSize: 9, color: 'var(--text-3)' }}>Último: {new Date(data.latest_service_date).toLocaleDateString()}</div>
+                        )}
+                      </div>
+                      {data.georeference_enabled ? (
+                        <ServiceHistoryMap items={data.service_history} onSelectWorkshop={setSelectedWorkshop} />
+                      ) : (
+                        <div>
+                          {data.service_history.map((svc, i) => (
+                            <div key={i} className="nfc-history-item" onClick={() => setSelectedWorkshop(svc.workshop_name || null)} style={{ cursor: 'pointer', background: selectedWorkshop === svc.workshop_name ? 'rgba(245,197,24,0.08)' : undefined }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{svc.service_type}</span>
+                              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                                {svc.date ? new Date(svc.date).toLocaleDateString() : '—'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── MÓDULO 3: Logros y Sellos de Garantía ── */}
+                  <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700, marginBottom: 8 }}>Logros y Sellos de Garantia</div>
+                    {selectedWorkshop ? (() => {
+                      const count = data.service_history.filter(s => s.workshop_name === selectedWorkshop).length
+                      const required = data.stamps_required || 6
+                      const filled = Math.min(count, required)
+                      const remaining = Math.max(0, required - count)
+                      return (
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>{selectedWorkshop}</div>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+                            {Array.from({ length: required }).map((_, i) => (
+                              <span key={i} style={{ width: 18, height: 18, borderRadius: '50%', background: i < filled ? 'rgba(245,197,24,0.3)' : 'var(--border)', border: '1.5px solid rgba(245,197,24,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {i < filled && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                              </span>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-2)' }}>
+                            {count} sellos{remaining > 0 ? ` · Faltan ${remaining} para reclamar` : ' · Meta alcanzada'}
+                            {data.promotion_description ? ` · ${data.promotion_description}` : ''}
+                          </div>
+                        </div>
+                      )
+                    })() : (
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Selecciona un servicio en el historial para ver los sellos de ese taller</div>
+                    )}
+                  </div>
+
                 </div>
               </>
             )}
 
-            {/* Footer message */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Ficha técnica verificada por tu taller de confianza</div>
+            {/* ── MÓDULO 5: Footer ── */}
+            <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>Ficha técnica verificada por tu taller de confianza</div>
+              <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 4, opacity: 0.7 }}>Todo dato proviene del registro de servicios del taller asociado.</div>
             </div>
           </div>
 
           {/* ── SECCIÓN WHATSAPP ── */}
           {data.owner_whatsapp && (
             <div style={{
-              marginTop: 16,
-              borderRadius: 20,
+              marginTop: 12,
+              borderRadius: 16,
               overflow: 'hidden',
               background: `linear-gradient(155deg,rgba(37,211,102,0.06),${isDark ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.95)'})`,
               border: '1px solid rgba(37,211,102,0.2)',
-              padding: 20,
+              padding: 16,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(37,211,102,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -438,8 +504,8 @@ export default function NfcPage() {
           {/* ── SECCIÓN ENCONTRASTE / PERDISTE (accordion) ── */}
           {data.lost_keychain_enabled && (
           <div style={{
-            marginTop: 16,
-            borderRadius: 20,
+            marginTop: 12,
+            borderRadius: 16,
             overflow: 'hidden',
             background: `linear-gradient(155deg,rgba(255,68,68,0.08),${isDark ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.95)'})`,
             border: '1px solid rgba(255,68,68,0.2)',
@@ -447,7 +513,7 @@ export default function NfcPage() {
             {/* Header — siempre visible, funciona como accordion toggle */}
             <button onClick={() => setShowFoundAccordion(v => !v)}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 20,
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 16,
                 background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
               }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -475,18 +541,19 @@ export default function NfcPage() {
               <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,68,68,0.15)' }}>
                 {!showReport ? (
                   <>
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginTop: 16, marginBottom: 12 }}>
-                      Inicia sesión para que el propietario sepa quién encontró su llavero.
-                    </div>
-                    <a href="/app" style={{ display: 'block', textAlign: 'center', padding: '12px 0', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', marginBottom: 10 }}>
-                      Iniciar sesión para reportar
-                    </a>
+                    {!isAuthed && (
+                      <a href="/app" style={{ display: 'block', textAlign: 'center', padding: '12px 0', borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', marginBottom: 10, marginTop: 16 }}>
+                        Iniciar sesion
+                      </a>
+                    )}
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, textAlign: 'center' }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>¿No tienes cuenta?</div>
-                      <button onClick={() => { setReportName(''); setReportPhone(''); setReportMessage(''); setShowReport(true) }}
-                        style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--input-bg)', color: 'var(--text-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                        Déjanos tu teléfono y te notificamos
-                      </button>
+                      <a href="/register" style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'underline', cursor: 'pointer' }}>No tienes cuenta?</a>
+                      <div style={{ marginTop: 8 }}>
+                        <button onClick={() => { setReportName(''); setReportPhone(''); setReportMessage(''); setShowReport(true) }}
+                          style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--input-bg)', color: 'var(--text-2)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                          Dejanos tu telefono y te notificamos
+                        </button>
+                      </div>
                     </div>
                   </>
                 ) : reportSent ? (
@@ -539,8 +606,8 @@ export default function NfcPage() {
           )}
 
           {/* Footer */}
-          <div style={{ textAlign: 'center', marginTop: 20, padding: 16 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-4)', lineHeight: 1.6, maxWidth: 300, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginTop: 14, padding: 12 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-4)', lineHeight: 1.5, maxWidth: 300, margin: '0 auto' }}>
               Cualquiera con este enlace podrá ver esta versión resumida de tu ficha — sin datos personales sensibles.
             </div>
           </div>

@@ -291,3 +291,23 @@ async def toggle_lost_keychain(
     await db.refresh(vehicle)
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
+
+
+@router.patch("/{vehicle_id}/georeference-toggle", response_model=VehicleOut)
+async def toggle_georeference(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    vehicle.georeference_enabled = not vehicle.georeference_enabled
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return vehicle

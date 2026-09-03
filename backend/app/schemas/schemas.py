@@ -88,6 +88,7 @@ class VehicleOut(BaseModel):
     sell_phone: str = ""
     sell_description: str = ""
     lost_keychain_enabled: bool = False
+    georeference_enabled: bool = False
     vehicle_condition: str = "usado"
     created_at: datetime
     updated_at: datetime
@@ -1227,6 +1228,15 @@ class NfcTokenInfoPublic(BaseModel):
     owner_whatsapp: str = ""
     owner_name: str = ""
     lost_keychain_enabled: bool = False
+    # Sellos / garantía (from workshop config)
+    stamps_required: int = 6
+    promotion_description: str = ""
+    # Historial público de servicios
+    service_history: list[dict] = []
+    # Perfiles de talleres (key: nombre del taller)
+    workshops_profiles: dict = {}
+    # Georreferenciación
+    georeference_enabled: bool = False
 
 
 # =========== Upload ===========

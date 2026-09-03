@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ServiceIcon, Icon } from '@/lib/icons_new'
+import { useTheme } from '@/store/theme'
 
 /* Opciones de frenos: revisar y reemplazar en un mismo control. La última es la
    única que renueva la pieza en Control de partes. */
@@ -258,16 +259,26 @@ function buildDescription(type: string, extra: Record<string, any>): string {
 interface Props {
   vehicleId: string
   editRecord?: any
+  defaultServiceType?: string
   latestMileage?: number
   onClose: () => void
-  /** Si el alta (no edición) trae un taller registrado adjunto, se manda esa
+  /** Si el alta (no edicion) trae un taller registrado adjunto, se manda esa
    * info — la usa app/page.tsx para ofrecer calificar ese taller. */
   onSaved: (newWorkshop?: { workshopId: string; workshopName: string }) => void
 }
 
-export default function ServiceFormModal({ vehicleId, editRecord, latestMileage, onClose, onSaved }: Props) {
-  const [step, setStep] = useState<'type' | 'form'>(editRecord ? 'form' : 'type')
-  const [serviceType, setServiceType] = useState(editRecord?.service_type || '')
+export default function ServiceFormModal({ vehicleId, editRecord, defaultServiceType, latestMileage, onClose, onSaved }: Props) {
+  const { theme } = useTheme()
+  const isDark = theme !== 'light'
+  const textPrimary = isDark ? '#f5f3ec' : '#17171a'
+  const textMuted = isDark ? '#7c786e' : '#7a756a'
+  const textSecondary = isDark ? '#b6b2a6' : '#5c584e'
+  const panelBg = isDark ? 'rgba(14,14,14,0.98)' : 'rgba(247,246,242,0.99)'
+  const border = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,17,17,0.1)'
+  const btnGhostBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
+  const inputBg = isDark ? 'rgba(255,255,255,0.04)' : '#ffffff'
+  const [step, setStep] = useState<'type' | 'form'>(editRecord ? 'form' : defaultServiceType ? 'form' : 'type')
+  const [serviceType, setServiceType] = useState(editRecord?.service_type || defaultServiceType || '')
   const [mileage, setMileage] = useState(editRecord?.mileage?.toString() || (latestMileage != null && !editRecord ? String(latestMileage) : ''))
   const [date, setDate] = useState(editRecord?.date ? editRecord.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
   const [workshop, setWorkshop] = useState(editRecord?.workshop || '')
@@ -566,15 +577,15 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
               <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15 }}>
                 {editRecord ? 'Editar servicio' : 'Nuevo servicio'}
               </div>
-              <div style={{ fontSize: 11, color: '#7c786e', marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: textMuted, marginTop: 2 }}>
                 {editRecord ? `#${editRecord.id?.slice(0, 8)}` : 'Registra un servicio'}
               </div>
             </div>
           </div>
           <button onClick={onClose} style={{
             width: 34, height: 34, borderRadius: 9,
-            border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)',
-            color: '#b6b2a6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${border}`, background: btnGhostBg,
+            color: textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
@@ -583,7 +594,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
         {/* Step 1: choose type */}
         {step === 'type' && (
           <div>
-            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: textMuted, fontWeight: 700, marginBottom: 12 }}>
               Selecciona el tipo de servicio
             </div>
             <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -591,8 +602,8 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                 <button key={st.id} onClick={() => { setServiceType(st.id); setStep('form') }} style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
                   borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#f5f3ec', fontSize: 14, fontWeight: 600, transition: 'all .15s',
+                  background: btnGhostBg, border: `1px solid ${border}`,
+                  color: textPrimary, fontSize: 14, fontWeight: 600, transition: 'all .15s',
                 }}>
                   <span style={{ color: '#F5C518', display: 'flex' }}><ServiceIcon type={st.id} size={20} /></span>
                   <span>{st.label}</span>
@@ -607,11 +618,11 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
           <div>
             {/* Service type (editable) */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo de servicio</label>
+              <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo de servicio</label>
               <select value={serviceType} onChange={e => setServiceType(e.target.value)} style={{
                 width: '100%', padding: '11px 13px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)',
-                color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer',
+                border: `1px solid ${border}`, background: inputBg,
+                color: textPrimary, fontSize: 14, outline: 'none', cursor: 'pointer',
               }}>
                 {SERVICE_TYPES.map(st => (
                   <option key={st.id} value={st.id}>{st.label}</option>
@@ -634,9 +645,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                         return (
                           <label key={f.key} style={{
                             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px',
-                            borderRadius: 10, background: 'rgba(255,255,255,0.03)',
-                            border: `1px solid ${extra[f.key] ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                            cursor: 'pointer', fontSize: 13, color: '#d8d4c8', fontWeight: 500,
+                            borderRadius: 10, background: btnGhostBg,
+                            border: `1px solid ${extra[f.key] ? 'rgba(245,197,24,0.4)' : border}`,
+                            cursor: 'pointer', fontSize: 13, color: textPrimary, fontWeight: 500,
                             transition: 'all .15s',
                           }}>
                             <input type="checkbox" checked={!!extra[f.key]} onChange={e => setField(f.key, e.target.checked)}
@@ -648,11 +659,11 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                       if (f.type === 'select') {
                         return (
                           <div key={f.key}>
-                            <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
+                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
                             <select value={extra[f.key] || ''} onChange={e => setField(f.key, e.target.value)} style={{
                               width: '100%', padding: '11px 13px', borderRadius: 10,
-                              border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)',
-                              color: '#f5f3ec', fontSize: 14, outline: 'none', cursor: 'pointer',
+                              border: `1px solid ${border}`, background: inputBg,
+                              color: textPrimary, fontSize: 14, outline: 'none', cursor: 'pointer',
                             }}>
                               <option value="">Seleccionar…</option>
                               {f.options?.map((o: string) => <option key={o} value={o}>{o}</option>)}
@@ -667,7 +678,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                         ).slice(0, 8)
                         return (
                           <div key={f.key} ref={viscInputRef} style={{ position: 'relative' }}>
-                            <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
+                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
                             <input
                               type="text" value={val}
                               onChange={e => { setField(f.key, e.target.value); setViscDropdownOpen(true) }}
@@ -675,15 +686,15 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                               placeholder={f.placeholder}
                               style={{
                                 width: '100%', padding: '11px 13px', borderRadius: 10,
-                                border: val && LUBRICANT_RULES[val.toUpperCase()] ? '1px solid rgba(245,197,24,0.5)' : '1px solid rgba(255,255,255,0.14)',
-                                background: 'rgba(255,255,255,0.04)',
-                                color: '#f5f3ec', fontSize: 14, outline: 'none',
+                                border: val && LUBRICANT_RULES[val.toUpperCase()] ? '1px solid rgba(245,197,24,0.5)' : `1px solid ${border}`,
+                                background: inputBg,
+                                color: textPrimary, fontSize: 14, outline: 'none',
                               }}
                             />
                             {viscDropdownOpen && suggestions.length > 0 && val.length > 0 && (
                               <div style={{
                                 position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
-                                background: '#1a1a1e', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
+                                background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
                                 maxHeight: 200, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
                               }}>
                                 {suggestions.map(s => {
@@ -693,11 +704,11 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                                       style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
                                         padding: '10px 13px', background: 'transparent', border: 'none',
-                                        borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer', textAlign: 'left',
+                                        borderBottom: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left',
                                       }}>
                                       <div>
-                                        <div style={{ fontSize: 14, fontWeight: 600, color: '#f5f3ec' }}>{s}</div>
-                                        <div style={{ fontSize: 11, color: '#7c786e' }}>{rule.label} · {rule.lifespanKm.toLocaleString()} km / {rule.lifespanMonths} meses</div>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{s}</div>
+                                        <div style={{ fontSize: 11, color: textMuted }}>{rule.label} · {rule.lifespanKm.toLocaleString()} km / {rule.lifespanMonths} meses</div>
                                       </div>
                                       <span style={{ display: 'flex', color: '#F5C518' }}><Icon type="Check" size={14} strokeWidth={2.4} /></span>
                                     </button>
@@ -710,12 +721,12 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                       }
                       return (
                         <div key={f.key}>
-                          <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
+                          <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
                           <input type={f.type} value={extra[f.key] || ''} onChange={e => setField(f.key, e.target.value)}
                             placeholder={f.placeholder} style={{
                               width: '100%', padding: '11px 13px', borderRadius: 10,
-                              border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)',
-                              color: '#f5f3ec', fontSize: 14, outline: 'none',
+                              border: `1px solid ${border}`, background: inputBg,
+                              color: textPrimary, fontSize: 14, outline: 'none',
                             }} />
                         </div>
                       )
@@ -726,12 +737,12 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
             })()}
 
             {/* Common fields */}
-            <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7c786e', fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
+            <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
             <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Kilometraje actual *</label>
+                <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Kilometraje actual *</label>
                 {latestMileage != null && !editRecord && (
-                  <div style={{ fontSize: 10, color: '#6f6a5f', marginBottom: 4, height: 14, overflow: 'hidden' }}>Último: {latestMileage.toLocaleString()} km</div>
+                  <div style={{ fontSize: 10, color: textMuted, marginBottom: 4, height: 14, overflow: 'hidden' }}>Ultimo: {latestMileage.toLocaleString()} km</div>
                 )}
                 {latestMileage == null || editRecord ? <div style={{ height: 19 }} /> : null}
                 <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
@@ -744,28 +755,28 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                           ? '1.5px solid #ffb020'
                           : '1px solid rgba(46,204,113,0.5)'
                       : '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)',
-                    color: '#f5f3ec', fontSize: 14, outline: 'none',
+                    background: inputBg,
+                    color: textPrimary, fontSize: 14, outline: 'none',
                   }} />
                 {mileage && latestMileage != null && !editRecord && parseInt(mileage) < latestMileage && (
                   <div style={{ fontSize: 11, color: '#ff4d6a', marginTop: 4, lineHeight: 1.3 }}>No puede ser menor al último registrado ({latestMileage.toLocaleString()} km)</div>
                 )}
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
+                <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
                 <input type="date" className="date-field" value={date} onChange={e => setDate(e.target.value)} />
               </div>
               <div ref={wsRef} style={{ position: 'relative' }}>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Taller</label>
+                <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Taller</label>
                 <div style={{ position: 'relative' }}>
                   <input type="text" value={workshop} onChange={e => handleWsInput(e.target.value)}
                     onFocus={() => { if (wsResults.length > 0) setShowWsDropdown(true) }}
                     placeholder="Nombre o código TLR-XXXXX"
                     style={{
                       width: '100%', padding: '11px 13px', borderRadius: 10,
-                      border: workshopId ? '1px solid rgba(46,204,113,0.5)' : '1px solid rgba(255,255,255,0.14)',
-                      background: 'rgba(255,255,255,0.04)',
-                      color: '#f5f3ec', fontSize: 14, outline: 'none',
+                      border: workshopId ? '1px solid rgba(46,204,113,0.5)' : `1px solid ${border}`,
+                      background: inputBg,
+                      color: textPrimary, fontSize: 14, outline: 'none',
                     }} />
                   {wsSearching && (
                     <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(245,197,24,0.2)', borderTopColor: '#F5C518', animation: 'spin .6s linear infinite', display: 'inline-block' }} />
@@ -774,15 +785,15 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                 {showWsDropdown && wsResults.length > 0 && (
                   <div style={{
                     position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
-                    background: '#1a1a1e', border: '1px solid rgba(245,197,24,0.2)', borderRadius: 10,
+                    background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.2)', borderRadius: 10,
                     maxHeight: 200, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
                   }}>
                     {wsResults.map(ws => (
                       <button key={ws.id} onClick={() => selectWorkshop(ws)}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 13px',
-                          background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                          color: '#f5f3ec', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                          background: 'transparent', border: 'none',                           borderBottom: `1px solid ${border}`,
+                          color: textPrimary, fontSize: 13, cursor: 'pointer', textAlign: 'left',
                         }}>
                         <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, color: '#F5C518', fontWeight: 700, flex: '0 0 auto' }}>{ws.code}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -790,7 +801,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                             {ws.name}
                             {ws.is_verified && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 4, verticalAlign: 'middle' }}><path d="M20 6L9 17l-5-5"/></svg>}
                           </div>
-                          <div style={{ fontSize: 11, color: '#7c786e' }}>{ws.city}{ws.address ? ` · ${ws.address}` : ''}</div>
+                          <div style={{ fontSize: 11, color: textMuted }}>{ws.city}{ws.address ? ` · ${ws.address}` : ''}</div>
                         </div>
                       </button>
                     ))}
@@ -801,12 +812,12 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                 )}
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo</label>
+                <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo</label>
                 <input type="number" value={cost} onChange={e => setCost(e.target.value)}
                   placeholder="$0" style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)',
-                    color: '#f5f3ec', fontSize: 14, outline: 'none',
+                    border: `1px solid ${border}`, background: inputBg,
+                    color: textPrimary, fontSize: 14, outline: 'none',
                   }} />
               </div>
             </div>
@@ -815,7 +826,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
             {serviceType === 'Aceite' && (() => {
               const rule = getLubricantRule(extra.lubricant_type)
               if (!rule) return (
-                <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 12, color: '#6f6a5f' }}>
+                <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: btnGhostBg, border: `1px solid ${border}`, fontSize: 12, color: textMuted }}>
                   Selecciona un tipo de viscosidad para calcular la vida útil automáticamente.
                 </div>
               )
@@ -849,16 +860,16 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
                 Programación
               </div>
               <div>
-                <label style={{ fontSize: 11, color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 5 }}>Próximo servicio (km)</label>
+                <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Proximo servicio (km)</label>
                 <input type="number" value={extra.next_service_mileage || ''} onChange={e => setField('next_service_mileage', e.target.value)}
-                  placeholder="Se calcula automáticamente" style={{
+                  placeholder="Se calcula automaticamente" style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
-                    border: extra.next_service_mileage ? '1px solid rgba(245,197,24,0.4)' : '1px solid rgba(255,255,255,0.14)',
-                    background: 'rgba(255,255,255,0.04)',
-                    color: '#f5f3ec', fontSize: 14, outline: 'none',
+                    border: extra.next_service_mileage ? '1px solid rgba(245,197,24,0.4)' : `1px solid ${border}`,
+                    background: inputBg,
+                    color: textPrimary, fontSize: 14, outline: 'none',
                   }} />
                 {extra.next_service_mileage && (
-                  <div style={{ fontSize: 11, color: '#6f6a5f', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: textMuted, marginTop: 4 }}>
                     {parseInt(extra.next_service_mileage).toLocaleString()} km
                     {mileage ? ` (${(parseInt(extra.next_service_mileage) - parseInt(mileage)).toLocaleString()} km desde ahora)` : ''}
                   </div>
@@ -883,7 +894,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
               {serviceType === 'Aceite' && (() => {
                 const rule = getLubricantRule(extra.lubricant_type)
                 return rule ? (
-                  <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: '#6f6a5f' }}>
+                  <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: textMuted }}>
                     {rule.label} · {rule.lifespanKm.toLocaleString()} km / {rule.lifespanMonths} meses
                   </span>
                 ) : null
@@ -901,8 +912,8 @@ export default function ServiceFormModal({ vehicleId, editRecord, latestMileage,
               <button onClick={() => { if (!editRecord) setStep('type') }} disabled={!editRecord && step === 'form' ? false : false}
                 style={{
                   padding: '12px 18px', borderRadius: 11,
-                  border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)',
-                  color: '#a8a496', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  border: `1px solid ${border}`, background: btnGhostBg,
+                  color: textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 }}>
                 {editRecord ? 'Cancelar' : 'Cambiar tipo'}
               </button>

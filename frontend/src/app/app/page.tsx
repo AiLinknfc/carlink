@@ -15,6 +15,7 @@ import { RatingPromptBanner } from '@/components/RatingPrompt'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
+import InicioView from '@/components/InicioView'
 import QuickRegisterModal from '@/components/QuickRegisterModal'
 import TransferVehicleModal from '@/components/TransferVehicleModal'
 import AddVehicleModal from '@/components/AddVehicleModal'
@@ -51,7 +52,7 @@ export default function AppPage() {
       router.replace('/app/negocio')
     }
   }, [loading, profile, isBusiness, router])
-  const [activeTab, setActiveTab] = useState('ficha')
+  const [activeTab, setActiveTab] = useState('inicio')
   const [vehicle, setVehicle] = useState<any>(null)
   const [vehicleLoading, setVehicleLoading] = useState(true)
   // Todos los vehículos de la cuenta (2026-08-07, feature "agregar vehículo")
@@ -79,6 +80,7 @@ export default function AppPage() {
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
   const [whatsappNumber, setWhatsappNumber] = useState('')
   const [lostKeychainEnabled, setLostKeychainEnabled] = useState(false)
+  const [georeferenceEnabled, setGeoreferenceEnabled] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editRecord, setEditRecord] = useState<any>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -218,6 +220,16 @@ export default function AppPage() {
       setVehicle((prev: any) => ({ ...prev, lost_keychain_enabled: result.lost_keychain_enabled }))
       setLostKeychainEnabled(result.lost_keychain_enabled)
       flashApp(result.lost_keychain_enabled ? 'Sección "Perdí mi llavero" activada' : 'Sección "Perdí mi llavero" desactivada')
+    }
+  }, [vehicle?.id, flashApp])
+
+  const toggleGeoreference = useCallback(async () => {
+    if (!vehicle?.id) return
+    const result = await apiPatch(`/vehicles/${vehicle.id}/georeference-toggle`, {})
+    if (result) {
+      setVehicle((prev: any) => ({ ...prev, georeference_enabled: result.georeference_enabled }))
+      setGeoreferenceEnabled(result.georeference_enabled)
+      flashApp(result.georeference_enabled ? 'Georreferenciación de talleres activada' : 'Georreferenciación de talleres desactivada')
     }
   }, [vehicle?.id, flashApp])
 
@@ -420,8 +432,11 @@ export default function AppPage() {
     setCopyingTokenId(null)
   }
 
-  const onAddService = useCallback(() => {
+  const [pendingServiceType, setPendingServiceType] = useState<string | undefined>(undefined)
+
+  const onAddService = useCallback((serviceType?: string) => {
     setEditRecord(null)
+    setPendingServiceType(serviceType)
     setShowForm(true)
   }, [])
 
@@ -433,6 +448,7 @@ export default function AppPage() {
   const onCloseForm = useCallback(() => {
     setShowForm(false)
     setEditRecord(null)
+    setPendingServiceType(undefined)
   }, [])
 
   const onSaved = useCallback((newWorkshop?: { workshopId: string; workshopName: string }) => {
@@ -464,6 +480,7 @@ export default function AppPage() {
         setVehicle(data.find((v: any) => v.id === savedId) || data[0])
         const active = data.find((v: any) => v.id === savedId) || data[0]
         if (active) setLostKeychainEnabled(active.lost_keychain_enabled || false)
+        if (active) setGeoreferenceEnabled(active.georeference_enabled || false)
       }
       setVehicleLoading(false)
     })
@@ -681,7 +698,8 @@ export default function AppPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
+          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} theme={theme} /> :
+           activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -691,7 +709,7 @@ export default function AppPage() {
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'resenas' ? <ResenasTab /> :
-           <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehículo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} />}
+           <InicioView onAddService={onAddService} theme={theme} />}
         </div>
 
         {/* Bienvenida */}
@@ -758,6 +776,7 @@ export default function AppPage() {
         <ServiceFormModal
           vehicleId={vehicle.id}
           editRecord={editRecord}
+          defaultServiceType={pendingServiceType}
           latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
           onClose={onCloseForm}
           onSaved={onSaved}
@@ -900,7 +919,7 @@ export default function AppPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: 12, background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v5.6M12 15.2v5.6M3.2 12h5.6M15.2 12h5.6"/></svg>
+                  <CarLinkMark size={24} strokeWidth={2} />
                 </span>
                 <div>
                   <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Llavero NFC</div>
@@ -1023,7 +1042,7 @@ export default function AppPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-1)', marginBottom: 2 }}>Publicar mi perfil</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{isNfcPublished ? 'Ficha visible para quien escanee el llavero' : 'Activa la ficha pública de tu vehículo'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{isNfcPublished ? 'Ficha visible para quien escanee el llavero' : 'Activa la ficha publica de tu vehiculo'}</div>
                 </div>
                 <button onClick={toggleNfcActive} role="switch" aria-checked={isNfcPublished}
                   style={{ width: 46, height: 26, borderRadius: 13, border: 'none', background: isNfcPublished ? '#F5C518' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
@@ -1041,7 +1060,7 @@ export default function AppPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Contacto WhatsApp</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>Permite que quien encuentre tu llavero te contacte</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>Permite que quien encuentre tu llavero te contacte</div>
                         </div>
                       </div>
                       <button onClick={toggleWhatsApp} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: whatsappEnabled ? '#4ade80' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
@@ -1070,11 +1089,27 @@ export default function AppPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4M12 16h.01"/></svg>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Perdí mi llavero</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>Si alguien lo encuentra, puede reportarlo aquí</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>Si alguien lo encuentra, puede reportarlo aqui</div>
                         </div>
                       </div>
                       <button onClick={toggleLostKeychain} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: lostKeychainEnabled ? '#ff6b6b' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
                         <span style={{ position: 'absolute', top: 2, left: lostKeychainEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Sub-toggle: Georreferenciación de talleres ── */}
+                  <div style={{ padding: 12, borderRadius: 12, background: georeferenceEnabled ? 'rgba(59,130,246,0.06)' : 'var(--surface-2)', border: `1px solid ${georeferenceEnabled ? 'rgba(59,130,246,0.25)' : 'var(--border)'}`, transition: 'all .2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Georreferenciación de talleres</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>Muestra un mapa con la ubicacion de los talleres en tu historial</div>
+                        </div>
+                      </div>
+                      <button onClick={toggleGeoreference} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: georeferenceEnabled ? '#3b82f6' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                        <span style={{ position: 'absolute', top: 2, left: georeferenceEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
                       </button>
                     </div>
                   </div>
@@ -1086,7 +1121,7 @@ export default function AppPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 3.9M15.4 6.6l-6.8 3.9"/></svg>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-1)' }}>Vender vehículo</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{isVerified ? 'Publica tu vehículo en venta' : 'Requiere perfil verificado'}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>{isVerified ? 'Publica tu vehiculo en venta' : 'Requiere perfil verificado'}</div>
                         </div>
                       </div>
                       <button onClick={toggleSell}

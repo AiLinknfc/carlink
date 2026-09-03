@@ -35,6 +35,69 @@ from app.services.nfc_provisioning import (
 
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
+
+async def _build_service_history(all_records: list, db: AsyncSession) -> tuple[list[dict], dict]:
+    """Build service_history with workshop coordinates for each record.
+    Also returns a dict of workshop profiles keyed by name."""
+    # Fetch workshops by ID for records that have workshop_id
+    history_workshop_ids = list({r.workshop_id for r in all_records if r.workshop_id})
+    workshops_by_id: dict = {}
+    if history_workshop_ids:
+        w_result = await db.execute(
+            select(Workshop).where(Workshop.id.in_(history_workshop_ids))
+        )
+        for w in w_result.scalars().all():
+            workshops_by_id[w.id] = w
+
+    # Fallback: for records without workshop_id, match by workshop name
+    workshops_by_name: dict = {}
+    missing_names = list({r.workshop for r in all_records if not r.workshop_id and r.workshop})
+    if missing_names:
+        w_name_result = await db.execute(select(Workshop))
+        for w in w_name_result.scalars().all():
+            if w.name:
+                workshops_by_name[w.name.lower().strip()] = w
+
+    def _profile(w: Workshop) -> dict:
+        return {
+            "name": w.name,
+            "address": w.address or "",
+            "city": w.city or "",
+            "phone": w.phone or "",
+            "description": w.description or "",
+            "business_hours": w.business_hours or "",
+            "specialties": w.specialties or [],
+            "rating": w.rating or 0.0,
+            "is_verified": w.is_verified,
+            "email": w.email or "",
+            "social_website": w.social_website or "",
+            "social_whatsapp": w.social_whatsapp or "",
+            "social_instagram": w.social_instagram or "",
+            "social_facebook": w.social_facebook or "",
+        }
+
+    # Build profiles dict for all unique workshops
+    profiles: dict = {}
+    for w in workshops_by_id.values():
+        profiles[w.name] = _profile(w)
+    for w in workshops_by_name.values():
+        if w.name not in profiles:
+            profiles[w.name] = _profile(w)
+
+    history = [
+        {
+            "date": str(r.date) if r.date else None,
+            "service_type": r.service_type or "",
+            "workshop_name": r.workshop or "",
+            "latitude": workshops_by_id.get(r.workshop_id, None) and workshops_by_id[r.workshop_id].latitude
+                if r.workshop_id else (workshops_by_name.get((r.workshop or "").lower().strip(), None) and workshops_by_name[(r.workshop or "").lower().strip()].latitude),
+            "longitude": workshops_by_id.get(r.workshop_id, None) and workshops_by_id[r.workshop_id].longitude
+                if r.workshop_id else (workshops_by_name.get((r.workshop or "").lower().strip(), None) and workshops_by_name[(r.workshop or "").lower().strip()].longitude),
+        }
+        for r in all_records
+    ]
+    return history, profiles
+
 _RATE_WINDOW = 60
 _RATE_MAX = 30
 
@@ -464,11 +527,26 @@ async def my_ficha_preview(
     total_services = count_result.scalar() or 0
 
     workshop_rating = 0.0
+    stamps_required = 6
+    promotion_description = ""
     if latest and latest.workshop_id:
         w_result = await db.execute(select(Workshop).where(Workshop.id == latest.workshop_id))
         workshop = w_result.scalar_one_or_none()
         if workshop:
             workshop_rating = workshop.rating or 0.0
+            stamps_required = workshop.stamps_required or 6
+            promotion_description = workshop.promotion_description or ""
+
+    # Fetch full service history (last 20 records)
+    history_result = await db.execute(
+        select(MaintenanceRecord)
+        .where(MaintenanceRecord.vehicle_id == vehicle.id)
+        .order_by(MaintenanceRecord.date.desc(), MaintenanceRecord.created_at.desc())
+        .limit(20)
+    )
+    all_records = list(history_result.scalars().all())
+
+    service_history, workshops_profiles = await _build_service_history(all_records, db)
 
     owner_whatsapp = ""
     owner_name = ""
@@ -505,6 +583,14 @@ async def my_ficha_preview(
         owner_whatsapp=owner_whatsapp,
         owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
+        # Sellos / garantía
+        stamps_required=stamps_required,
+        promotion_description=promotion_description,
+        # Historial público
+        service_history=service_history,
+        workshops_profiles=workshops_profiles,
+        # Georreferenciación
+        georeference_enabled=vehicle.georeference_enabled,
     )
 
 
@@ -632,13 +718,28 @@ async def access_via_nfc(
     )
     total_services = count_result.scalar() or 0
 
-    # Fetch workshop rating from latest record
+    # Fetch workshop rating + stamps config from latest record
     workshop_rating = 0.0
+    stamps_required = 6
+    promotion_description = ""
     if latest and latest.workshop_id:
         w_result = await db.execute(select(Workshop).where(Workshop.id == latest.workshop_id))
         workshop = w_result.scalar_one_or_none()
         if workshop:
             workshop_rating = workshop.rating or 0.0
+            stamps_required = workshop.stamps_required or 6
+            promotion_description = workshop.promotion_description or ""
+
+    # Fetch full service history for public display (last 20 records)
+    history_result = await db.execute(
+        select(MaintenanceRecord)
+        .where(MaintenanceRecord.vehicle_id == vehicle.id)
+        .order_by(MaintenanceRecord.date.desc(), MaintenanceRecord.created_at.desc())
+        .limit(20)
+    )
+    all_records = list(history_result.scalars().all())
+
+    service_history, workshops_profiles = await _build_service_history(all_records, db)
 
     # Owner WhatsApp info (owner already fetched above for the access check)
     owner_whatsapp = ""
@@ -679,4 +780,12 @@ async def access_via_nfc(
         owner_whatsapp=owner_whatsapp,
         owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
+        # Sellos / garantía
+        stamps_required=stamps_required,
+        promotion_description=promotion_description,
+        # Historial público
+        service_history=service_history,
+        workshops_profiles=workshops_profiles,
+        # Georreferenciación
+        georeference_enabled=vehicle.georeference_enabled,
     )
