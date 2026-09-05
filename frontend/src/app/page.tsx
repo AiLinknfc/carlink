@@ -204,8 +204,17 @@ export default function LandingPage() {
       <style>{`
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative}
+        [data-r="shopHero-canvas"]{position:absolute;left:28%;right:0;top:0;bottom:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
+        [data-r="shopHero-text"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:100px;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;width:clamp(320px,42vw,520px)}
+        [data-r="shopHero-cta"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:380px;z-index:2;width:clamp(320px,42vw,520px)}
         @media(max-width:860px){
-          [data-r="shopHero"] [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+          [data-r="shopHero"] section{height:auto !important;min-height:100vh}
+          [data-r="shopHero-inner"]{position:relative !important;height:auto !important;padding:100px clamp(16px,4vw,40px) 40px !important}
+          [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2}
+          [data-r="shopHero-canvas"] canvas{max-width:100% !important;height:auto !important}
+          [data-r="shopHero-text"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:0 auto;order:1}
+          [data-r="shopHero-cta"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:-30px auto 0 !important;order:3}
         }
         @media(max-width:720px){
           [data-r="keychainScrub"] canvas{min-height:360px !important}
@@ -263,19 +272,22 @@ export default function LandingPage() {
 
       {/* ===== SHOP HERO (copiado de /shop) ===== */}
       <section data-r="shopHero" style={{ position: 'relative', height: '100vh' }}>
-        <div style={{ position: 'sticky', top: 0, height: '100vh', maxWidth: 1280, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
+        <div data-r="shopHero-inner" style={{ position: 'sticky', top: 0, height: '100vh', maxWidth: 1280, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 62% 44%,rgba(245,197,24,0.14),transparent 58%)', pointerEvents: 'none' }} />
           {/* Canvas — shifted right, behind text */}
-          <div style={{ position: 'absolute', left: '28%', right: 0, top: 0, bottom: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 20, animation: 'shopFadeUp .7s .14s both' }}>
-            <KeychainScrub dark={dark} />
+          <div data-r="shopHero-canvas" style={{ animation: 'shopFadeUp .7s .14s both' }}>
+            <KeychainScrub />
           </div>
           {/* Text — floating left, overlapping canvas ~20% */}
-          <div style={{ position: 'absolute', left: 'clamp(20px,5vw,64px)', top: 100, zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: 'clamp(320px,42vw,520px)', animation: 'shopFadeUp .7s both' }}>
+          <div data-r="shopHero-text" style={{ animation: 'shopFadeUp .7s both' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />El pasaporte digital de tu vehículo
             </div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
             <p style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
+          </div>
+          {/* CTA + price + checklist — below canvas on mobile */}
+          <div data-r="shopHero-cta" style={{ animation: 'shopFadeUp .7s both' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
               <Link href="#h-buyfob" style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
               <div>

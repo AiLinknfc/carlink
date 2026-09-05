@@ -5,22 +5,19 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 export const TOTAL_FRAMES = 121
 const FRAME_PATH = (n: number) => `/frames/frame_${String(n).padStart(4, '0')}.webp`
 
-const FULL_RECT = { sx: 0, sy: 0, sw: 1920, sh: 1080 }
-const CONTENT_RECT = { sx: 515, sy: 0, sw: 1080, sh: 1080 }
+const FULL_RECT = { sx: 300, sy: 0, sw: 1400, sh: 1030 }
+const CONTENT_RECT = { sx: 650, sy: 0, sw: 880, sh: 1030 }
 const FULL_ASPECT = FULL_RECT.sw / FULL_RECT.sh
 const NARROW_ASPECT = 0.5
 const ZOOM_BLEND_CAP = 0.8
 
-export default function KeychainScrub({ dark }: { dark: boolean }) {
+export default function KeychainScrub() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const imagesRef = useRef<HTMLImageElement[]>([])
   const currentFrameRef = useRef(0)
   const accumulatedRef = useRef(0)
   const [loaded, setLoaded] = useState(false)
-  const [frameNum, setFrameNum] = useState(1)
-
-  const pageBg = dark ? '#060606' : '#f7f6f2'
 
   // Preload all frames
   useEffect(() => {
@@ -46,7 +43,6 @@ export default function KeychainScrub({ dark }: { dark: boolean }) {
     if (!canvas || !img || !img.complete || img.naturalWidth === 0) return
 
     currentFrameRef.current = index
-    setFrameNum(index + 1)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
@@ -68,30 +64,9 @@ export default function KeychainScrub({ dark }: { dark: boolean }) {
     const dx = (cw - dw) / 2
     const dy = (ch - dh) / 2
 
-    ctx.fillStyle = pageBg
-    ctx.fillRect(0, 0, cw, ch)
+    ctx.clearRect(0, 0, cw, ch)
     ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
-
-    // Edge fades
-    const BASE_FADE_FRAC = 0.16
-    const FEATHER_FRAC = 0.03
-    const gapYFrac = Math.max(0, ch - dh) / 2 / ch
-    const gapXFrac = Math.max(0, cw - dw) / 2 / cw
-    const vFade = Math.max(BASE_FADE_FRAC, gapYFrac > 0 ? gapYFrac + FEATHER_FRAC : 0)
-    const hFade = gapXFrac > 0 ? gapXFrac + FEATHER_FRAC : 0
-
-    const fades = wrapRef.current?.querySelectorAll<HTMLElement>('[data-fade]')
-    fades?.forEach(el => {
-      const dir = el.dataset.fade
-      if (dir === 'top' || dir === 'bottom') {
-        el.style.height = `${(vFade * 100).toFixed(2)}%`
-        el.style.background = `linear-gradient(${dir === 'top' ? 'to bottom' : 'to top'}, ${pageBg} 0%, transparent 100%)`
-      } else if (dir === 'left' || dir === 'right') {
-        el.style.width = `${(hFade * 100).toFixed(2)}%`
-        el.style.background = `linear-gradient(${dir === 'left' ? 'to right' : 'to left'}, ${pageBg} 0%, transparent 100%)`
-      }
-    })
-  }, [pageBg])
+  }, [])
 
   // Resize canvas
   useEffect(() => {
@@ -220,7 +195,7 @@ export default function KeychainScrub({ dark }: { dark: boolean }) {
   // Repaint on theme change
   useEffect(() => {
     if (loaded) drawFrame(Math.max(currentFrameRef.current, 0))
-  }, [dark, loaded, drawFrame])
+  }, [loaded, drawFrame])
 
   return (
     <div
@@ -232,26 +207,6 @@ export default function KeychainScrub({ dark }: { dark: boolean }) {
         ref={canvasRef}
         style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: '16/10' }}
       />
-      {/* Edge fades */}
-      <div data-fade="top" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '16%', pointerEvents: 'none', zIndex: 1 }} />
-      <div data-fade="bottom" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '16%', pointerEvents: 'none', zIndex: 1 }} />
-      <div data-fade="left" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 0, pointerEvents: 'none', zIndex: 1 }} />
-      <div data-fade="right" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 0, pointerEvents: 'none', zIndex: 1 }} />
-      {/* HUD */}
-      <div style={{
-        position: 'absolute', left: 12, bottom: 12, zIndex: 2,
-        display: 'flex', alignItems: 'baseline', gap: 6,
-        fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '.06em',
-        color: dark ? '#f3efe4' : '#1a1712',
-        textShadow: dark ? '0 1px 6px rgba(0,0,0,0.5)' : '0 1px 6px rgba(255,255,255,0.5)',
-      }}>
-        <span>{String(frameNum).padStart(3, '0')}</span>
-        <span style={{ color: dark ? '#9b9689' : '#837c6c' }}>/ {String(TOTAL_FRAMES).padStart(3, '0')}</span>
-      </div>
-      {/* Progress bar */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, zIndex: 2, background: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' }}>
-        <div style={{ height: '100%', width: `${((frameNum - 1) / (TOTAL_FRAMES - 1)) * 100}%`, background: '#F5C518', transition: 'width 0.05s linear' }} />
-      </div>
     </div>
   )
 }
