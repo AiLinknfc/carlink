@@ -263,10 +263,15 @@ export default function LandingPage() {
 
       {/* ===== SHOP HERO (copiado de /shop) ===== */}
       <section data-r="shopHero" style={{ position: 'relative', height: '100vh' }}>
-        <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 0, alignItems: 'center', maxWidth: 1280, margin: '0 auto', padding: '20px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'sticky', top: 0, height: '100vh', maxWidth: 1280, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 62% 44%,rgba(245,197,24,0.14),transparent 58%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', animation: 'shopFadeUp .7s both', paddingRight: 40 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start' }}>
+          {/* Canvas — shifted right, behind text */}
+          <div style={{ position: 'absolute', left: '28%', right: 0, top: 0, bottom: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 20, animation: 'shopFadeUp .7s .14s both' }}>
+            <KeychainScrub dark={dark} />
+          </div>
+          {/* Text — floating left, overlapping canvas ~20% */}
+          <div style={{ position: 'absolute', left: 'clamp(20px,5vw,64px)', top: 100, zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: 'clamp(320px,42vw,520px)', animation: 'shopFadeUp .7s both' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />El pasaporte digital de tu vehículo
             </div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
@@ -283,9 +288,6 @@ export default function LandingPage() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Android e iPhone</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Sin batería</span>
             </div>
-          </div>
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'shopFadeUp .7s .14s both' }}>
-            <KeychainScrub dark={dark} />
           </div>
         </div>
       </section>
