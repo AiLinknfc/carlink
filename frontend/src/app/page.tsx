@@ -12,8 +12,26 @@ import CartModal from '@/components/CartModal'
 import LandingSections from '@/components/LandingSections'
 import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
-import { CarLinkMark } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
+import KeychainScrub from '@/components/KeychainScrub'
 import Link from 'next/link'
+
+const GOLD = '#F5C518'
+const CHECK = (color = GOLD, size = 15) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
+)
+const ARROW = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+)
+
+function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSize: number; iconSize: number; textColor?: string }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: textColor }}>
+      <CarLinkLogo size={iconSize} />
+      <span>Car<span style={{ color: GOLD }}>Link</span></span>
+    </span>
+  )
+}
 
 const PLATE_TYPES = [
   { id: 'particular', name: 'Particular', showLabel: false },
@@ -114,6 +132,11 @@ export default function LandingPage() {
     knobGlow: dark ? '0 0 12px rgba(245,197,24,0.85)' : 'none',
   }
 
+  // Shop hero theme tokens
+  const SHOP_MUTED = dark ? '#a8a496' : '#5c584e'
+  const SHOP_BORDER = dark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.1)'
+  const SHOP_CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' as const }
+
   const ps = PLATE_STYLE[type]
   const pc = PLATE_CONFIG[type]
   const plateLetters = plates[type].letters
@@ -178,6 +201,17 @@ export default function LandingPage() {
       <BgParticles theme={theme} />
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: tk.vignette }} />
 
+      <style>{`
+        @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+        @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @media(max-width:860px){
+          [data-r="shopHero"] [style*="grid-template-columns"]{grid-template-columns:1fr !important}
+        }
+        @media(max-width:720px){
+          [data-r="keychainScrub"] canvas{min-height:360px !important}
+        }
+      `}</style>
+
       {/* ===== HEADER ===== */}
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30,
@@ -187,10 +221,8 @@ export default function LandingPage() {
         borderBottom: `1px solid ${tk.thinBorder}`,
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 7, background: '#F5C518', color: '#111' }}>
-            <CarLinkMark size={14} />
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em' }}>
+          <CarLinkLogo size={33} />
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
         </div>
 
@@ -228,6 +260,35 @@ export default function LandingPage() {
           </button>
         </div>
       </header>
+
+      {/* ===== SHOP HERO (copiado de /shop) ===== */}
+      <section data-r="shopHero" style={{ position: 'relative', height: '100vh' }}>
+        <div style={{ position: 'sticky', top: 0, height: '100vh', display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 0, alignItems: 'center', maxWidth: 1280, margin: '0 auto', padding: '20px clamp(20px,5vw,64px)' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 62% 44%,rgba(245,197,24,0.14),transparent 58%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', animation: 'shopFadeUp .7s both', paddingRight: 40 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />El pasaporte digital de tu vehículo
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
+            <p style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
+              <Link href="#h-buyfob" style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$49.900</div>
+                <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 32, fontSize: 13.5, color: SHOP_MUTED, flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}App gratis para siempre</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Android e iPhone</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Sin batería</span>
+            </div>
+          </div>
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'shopFadeUp .7s .14s both' }}>
+            <KeychainScrub dark={dark} />
+          </div>
+        </div>
+      </section>
 
       {/* ===== HERO (original single-column layout) ===== */}
       <section data-r="entrada" className="hero-section" style={{
@@ -368,7 +429,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <LandingSections theme={theme} onStart={openLoginModal} onOpenEmpresa={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} onBuyFob={() => setCartOpen(true)} />
+      <LandingSections theme={theme} onStart={openLoginModal} onOpenEmpresa={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} />
 
       <LoginModal
         isOpen={loginModalOpen}
