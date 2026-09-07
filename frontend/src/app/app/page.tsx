@@ -7,7 +7,7 @@ import { useTheme } from '@/store/theme'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleApi } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
-import { CarLinkMark, Icon } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
 import { useMaintenance } from '@/lib/hooks'
 import { useRatingPrompts } from '@/lib/useRatingPrompts'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
@@ -727,7 +727,7 @@ export default function AppPage() {
               background: 'rgba(245,197,24,0.12)', border: '1px solid rgba(245,197,24,0.35)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518',
             }}>
-              <CarLinkMark size={30} />
+              <CarLinkLogo size={39} />
             </span>
             <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>
               Bienvenido{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
@@ -778,6 +778,7 @@ export default function AppPage() {
           editRecord={editRecord}
           defaultServiceType={pendingServiceType}
           latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
+          hideServiceType={!!pendingServiceType}
           onClose={onCloseForm}
           onSaved={onSaved}
         />
@@ -917,10 +918,8 @@ export default function AppPage() {
         <div onClick={() => { setShowNfc(false); setGeneratedUrl(''); setGenCopied(false) }} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} className="nfc-panel" style={{ width: 480, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: 20, padding: 24, boxShadow: tDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 40px 90px rgba(0,0,0,.12)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ width: 48, height: 48, borderRadius: 12, background: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111' }}>
-                  <CarLinkMark size={24} strokeWidth={2} />
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CarLinkLogo size={62} />
                 <div>
                   <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Llavero NFC</div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Ficha pública de tu vehículo</div>

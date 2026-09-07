@@ -1,4 +1,5 @@
-import { CarLinkMark, Icon } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
+import { Icon } from '@/lib/icons_new'
 import Link from 'next/link'
 
 const TIMELINE = [
@@ -19,9 +20,7 @@ export default function AboutContent() {
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px clamp(16px,4vw,40px) 60px' }}>
       {/* Hero */}
       <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 18, background: 'var(--accent)', color: '#111', marginBottom: 20 }}>
-          <CarLinkMark size={36} />
-        </div>
+        <CarLinkLogo size={82} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px,4vw,42px)', lineHeight: 1, margin: '0 0 12px', textTransform: 'uppercase' }}>
           Sobre <span style={{ color: 'var(--accent)' }}>CarLink</span>
         </h1>

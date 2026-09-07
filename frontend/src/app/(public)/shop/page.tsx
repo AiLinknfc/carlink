@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import Link from 'next/link'
-import { CarLinkMark, NfcKeyIcon } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
+import { NfcKeyIcon } from '@/lib/icons_new'
 import { waitlistApi, reviewsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
@@ -15,6 +16,9 @@ import { useTheme } from '@/store/theme'
 // contraste interno) se quedan fijas; el resto de constantes de estilo se calculan dentro
 // del componente porque dependen de `isDark`.
 const GOLD = '#F5C518'
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000
+const SECTION_MAX: React.CSSProperties = { maxWidth: 1160, margin: '0 auto', width: '100%' }
 
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
@@ -29,12 +33,10 @@ const ARROW = (
 // usaba — sigue así para la instancia que vive DENTRO del mockup del teléfono
 // (siempre oscuro), y las 2 instancias de página real (nav/footer) pasan el
 // color que corresponda al tema.
-function CarLinkWordmark({ fontSize, iconSize, badgeSize, badgeRadius, textColor = '#f5f3ec' }: { fontSize: number; iconSize: number; badgeSize: number; badgeRadius: number; textColor?: string }) {
+function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSize: number; iconSize: number; textColor?: string }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: badgeSize > 22 ? 10 : 8, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: textColor }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: badgeSize, height: badgeSize, borderRadius: badgeRadius, background: GOLD, color: '#111' }}>
-        <CarLinkMark size={iconSize} />
-      </span>
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize, letterSpacing: '.01em', color: textColor }}>
+      <CarLinkLogo size={iconSize} />
       <span>Car<span style={{ color: GOLD }}>Link</span></span>
     </span>
   )
@@ -84,15 +86,6 @@ const BOX_ITEMS = [
     icon: <><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></>,
   },
 ]
-const COMPARISON = [
-  { feature: 'Organización del historial', without: 'Papeles arrugados, térmicos borrados en la guantera', withCl: 'Bitácora digital en la nube accesible en 1 segundo' },
-  { feature: 'Proceso para ver información', without: 'Revolver facturas y adivinar kilometrajes antiguos', withCl: 'Acercar tu celular al llavero NFC sin abrir aplicaciones' },
-  { feature: 'Confianza del comprador', without: 'Sospechas de kilometraje y pedido de rebajas del 15%', withCl: 'Transparencia verificada que defiende el precio de venta' },
-  { feature: 'Aviso de mantenimiento', without: 'Depender de stickers borrosos en el panorámico', withCl: 'Alertas digitales inteligentes de aceite, frenos y SOAT' },
-  { feature: 'Resistencia del formato', without: 'Se rompe, se moja, se extravía en lavaderos', withCl: 'Resina IP68 impermeable e indestructible en tu llavero' },
-  { feature: 'Costo mensual de almacenamiento', without: 'N/A', withCl: '$0 COP — pago único de por vida' },
-]
-
 // Precios y features iguales a los de la sección "Planes" (h-planes) y "Compra tu llavero"
 // (h-buyfob) del home — no inventar números nuevos aquí. Se arma dentro del componente
 // (buildPlans) porque border/priceColor/bg dependen de isDark.
@@ -105,7 +98,7 @@ function buildPlans(isDark: boolean, border: string, textColor: string) {
       cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
     },
     {
-      name: 'Llavero NFC CarLink', price: '$49.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
+      name: 'Llavero NFC CarLink', price: '$29.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
       border: `2px solid ${GOLD}`, priceColor: GOLD, bg: isDark ? 'linear-gradient(165deg,#241f0c,#141418)' : 'linear-gradient(165deg,#fff6d9,#fffdf5)',
       features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
       cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
@@ -158,6 +151,34 @@ const FAQS = [
   { q: '¿El llavero es resistente al agua, caídas y roces de llaves?', a: 'Totalmente. CarLink está encapsulado en resina polimérica industrial IP68 impermeable, resistente a caídas de más de 3 metros, salpicaduras de gasolina, aceite y el friccionamiento continuo con otras llaves metálicas.' },
 ]
 
+const TRUST = [
+  { title: 'Talleres verificados', desc: 'Cada taller aliado pasa por un proceso de verificación antes de poder actualizar fichas.', icon: <path d="M20 6L9 17l-5-5" /> },
+  { title: 'Garantía respaldada', desc: 'Cada servicio queda con su sello de garantía visible en la ficha, no en un papel que se pierde.', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></> },
+  { title: 'Historial inalterable', desc: 'Cada registro queda con fecha, taller y kilometraje — nadie lo puede reescribir después.', icon: <><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /></> },
+  { title: 'Datos protegidos', desc: 'Solo tú decides quién ve tu ficha. La verificación es tuya, no de terceros.', icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> },
+]
+
+const COVERAGE = [
+  { city: 'Bogotá D.C.', count: 4 }, { city: 'Medellín', count: 3 }, { city: 'Cali', count: 2 }, { city: 'Barranquilla', count: 2 },
+  { city: 'Cartagena', count: 1 }, { city: 'Bucaramanga', count: 2 }, { city: 'Pereira', count: 1 }, { city: 'Manizales', count: 1 },
+  { city: 'Tunja', count: 1 }, { city: 'Duitama', count: 1 },
+]
+
+const SPONSORS = [
+  { name: 'Terpel', logo: '/images/sponsors/terpel.svg' },
+  { name: 'Mobil 1', logo: '/images/sponsors/mobil1.svg' },
+  { name: 'Shell Helix', logo: '/images/sponsors/shell-helix.svg' },
+  { name: 'Castrol', logo: '/images/sponsors/castrol.svg' },
+  { name: 'Michelin', logo: '/images/sponsors/michelin.svg' },
+  { name: 'SURA', logo: '/images/sponsors/sura.svg' },
+]
+
+const MARKET_PREVIEW = [
+  { model: 'Mazda 3 Grand Touring 2021', price: '$78.500.000', km: '41.200 km', city: 'Bogotá D.C.', img: '/images/cars/mazda-3-2021.webp' },
+  { model: 'Renault Duster Intens 2020', price: '$62.900.000', km: '58.400 km', city: 'Bogotá D.C.', img: '/images/cars/renault-duster-2020.jpg' },
+  { model: 'Chevrolet Tracker LT 2022', price: '$85.200.000', km: '22.900 km', city: 'Medellín', img: '/images/cars/chevrolet-tracker-2022.webp' },
+]
+
 export default function ShopPage() {
   const { isDark } = useTheme()
 
@@ -179,11 +200,9 @@ export default function ShopPage() {
   // inputs) — blanco translúcido sobre oscuro, negro translúcido sobre
   // claro, mismo criterio que dividerColor en Sidebar.tsx.
   const softTint = (alpha: number) => isDark ? `rgba(255,255,255,${alpha})` : `rgba(17,17,17,${alpha})`
-  // Gradientes "tarjeta premium" con matiz dorado — 3 tarjetas puntuales
-  // (paso a paso, guía de mantenimiento, CTA final) más el header de la
-  // tabla comparativa.
+  // Gradientes "tarjeta premium" con matiz dorado — tarjetas puntuales
+  // (paso a paso, guía de mantenimiento, CTA final).
   const goldCardGradient = isDark ? 'linear-gradient(160deg,#17160f,#121216)' : 'linear-gradient(160deg,#fff8e1,#fdfaf2)'
-  const goldTableHeaderGradient = isDark ? 'linear-gradient(160deg,#1a180f,#141418)' : 'linear-gradient(160deg,#fff4d6,#f7f6f2)'
   const goldCtaGradient = isDark
     ? 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)'
     : 'radial-gradient(120% 100% at 50% 100%,#fff3c4 0%,#fbfaf6 58%,#ffffff 100%)'
@@ -193,6 +212,9 @@ export default function ShopPage() {
   // Texto "muted claro" (listas de features sobre las tarjetas doradas de
   // sección) — versión más clara que MUTED, propia de esas dos listas.
   const mutedLight = isDark ? '#d8d4c8' : '#4a4638'
+
+  const lead: React.CSSProperties = { fontWeight: 300, fontSize: 15, lineHeight: 1.6, color: MUTED, margin: 0 }
+  const card = (border = BORDER): React.CSSProperties => ({ background: CARD, border: `1px solid ${border}` })
 
   const EYEBROW: React.CSSProperties = { fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }
   const H2: React.CSSProperties = { fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0', color: textColor }
@@ -206,6 +228,7 @@ export default function ShopPage() {
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
+  const mapRef = useRef<HTMLIFrameElement>(null)
   // Reseñas reales de producto (ver ResenasTab) — la lectura pública no expone
   // nombre/email del autor (mismo criterio de privacidad que el resto de fichas
   // públicas de la app), así que solo se muestran si hay suficientes con
@@ -287,7 +310,6 @@ export default function ShopPage() {
         @media(max-width:720px){
           [data-r="shopNavLinks"]{display:none !important}
           [data-r="shopBackLabel"]{display:none !important}
-          [data-r="shopScrollHint"]{display:flex !important}
           [data-r="shopNavCta"]{padding:10px 16px !important;font-size:13px !important}
           [data-r="shopHeroScene"]{min-height:360px !important}
           [data-r="shopHeroPhone"]{width:200px !important;height:370px !important}
@@ -353,6 +375,8 @@ export default function ShopPage() {
         }
         .card-fly-away{animation:cardFlyAway .48s cubic-bezier(.4,0,.2,1) forwards}
         .card-gone{display:none !important}
+        @keyframes sponsorScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        @media(max-width:860px){ .grid2{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} }
       `}</style>
 
       {/* NAV — el logo ya vuelve al inicio, pero se agrega un link explícito
@@ -367,7 +391,7 @@ export default function ShopPage() {
           </Link>
           <span style={{ width: 1, height: 22, background: BORDER }} />
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={18} iconSize={14} badgeSize={26} badgeRadius={7} textColor={textColor} />
+            <CarLinkWordmark fontSize={18} iconSize={33} textColor={textColor} />
           </Link>
         </div>
         <nav data-r="shopNavLinks" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
@@ -391,7 +415,7 @@ export default function ShopPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
             <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$49.900</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
               <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>pago único · envío incluido</div>
             </div>
           </div>
@@ -411,7 +435,7 @@ export default function ShopPage() {
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 40, background: 'linear-gradient(0deg,#0e0e12,transparent)', zIndex: 2, pointerEvents: 'none' }} />
             <div style={{ padding: '36px 14px 20px', height: '100%', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: 10, scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
               <div style={{ padding: '0 4px 6px' }}>
-                <CarLinkWordmark fontSize={12} iconSize={10} badgeSize={18} badgeRadius={5} />
+                <CarLinkWordmark fontSize={12} iconSize={23} />
               </div>
 
               {/* Ficha 1: Kilometraje — placa amarilla */}
@@ -658,7 +682,7 @@ export default function ShopPage() {
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
           <div style={EYEBROW}>Transparencia total</div>
           <h2 style={H2}>¿Qué llega exactamente en tu caja?</h2>
-          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $49.900 COP recibes la experiencia completa lista para usar.</p>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $29.900 COP recibes la experiencia completa lista para usar.</p>
         </div>
 
         <div data-r="shopBox" style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 48, alignItems: 'center', maxWidth: 1080, margin: '0 auto' }}>
@@ -686,59 +710,7 @@ export default function ShopPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 38 }}>
-          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Recibir todo el kit por $49.900 COP{ARROW}</Link>
-        </div>
-      </section>
-
-      {/* COMPARACIÓN */}
-      <section style={SECTION}>
-        <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 40px' }}>
-          <div style={EYEBROW}>La diferencia</div>
-          <h2 style={H2}>¿Realmente necesitas CarLink?</h2>
-          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '48ch' }}>Mira la diferencia entre seguir con el método antiguo de carpetas vs pasar al control digital inteligente en tu bolsillo.</p>
-        </div>
-
-        {/* La columna "Con CarLink" es lo importante — en mobile queda fuera de
-            vista sin este aviso, ya que la tabla completa no cabe en pantalla. */}
-        <div data-r="shopScrollHint" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10, fontSize: 12.5, fontWeight: 600, color: GOLD }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-          Desliza para ver la comparación completa
-        </div>
-        <div style={{ overflowX: 'auto', borderRadius: 20, border: `1px solid ${BORDER}` }}>
-          <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: MUTED, background: CARD, borderBottom: `1px solid ${BORDER}` }}>Característica</th>
-                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: '#ff4d6a', background: CARD, borderBottom: '1px solid rgba(255,77,106,0.24)' }}>Sin CarLink</th>
-                <th style={{ textAlign: 'left', padding: '16px 20px', fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD, background: goldTableHeaderGradient, borderBottom: '1px solid rgba(245,197,24,0.42)' }}>Con CarLink</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARISON.map((row, i) => (
-                <tr key={row.feature} style={{ background: i % 2 ? softTint(0.02) : 'transparent' }}>
-                  <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: textColor, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: MUTED, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${BORDER}` : 'none', verticalAlign: 'top' }}>
-                    <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 3 }}><path d="M18 6L6 18M6 6l12 12" /></svg>
-                      {row.without}
-                    </div>
-                  </td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: textColor, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
-                    <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                      {CHECK(GOLD, 15)}
-                      {row.withCl}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 44 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: textColor }}>Toma el control del historial de tu carro hoy</div>
-          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '10px auto 26px', maxWidth: '48ch' }}>Haz tu pedido ahora y recibe el kit completo por $49.900 COP con envío gratis.</p>
-          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Comprar Llavero CarLink{ARROW}</Link>
+          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Recibir todo el kit por $29.900 COP{ARROW}</Link>
         </div>
       </section>
 
@@ -1034,7 +1006,7 @@ export default function ShopPage() {
           <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
           <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $49.900{ARROW}</Link>
+            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $29.900{ARROW}</Link>
             <Link href="/register" data-r="shopCtaSecondary" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
@@ -1058,11 +1030,462 @@ export default function ShopPage() {
         </div>
       </section>
 
+      {/* ===== CONFIANZA ===== */}
+      <section id="h-confianza" style={{ ...SECTION_MAX, padding: '64px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
+          <div style={EYEBROW}>Por qué confiar</div>
+          <h2 style={H2}>Cada dato queda respaldado</h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 16 }}>
+          {TRUST.map(tr => (
+            <div key={tr.title} style={{ padding: 22, borderRadius: 18, ...card(), display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <span style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{tr.icon}</svg>
+              </span>
+              <div style={{ fontSize: 15.5, fontWeight: 500 }}>{tr.title}</div>
+              <p style={{ ...lead, fontSize: 13.5, lineHeight: 1.55 }}>{tr.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== DASHBOARD VEHICULAR + ODÓMETRO ===== */}
+      <section id="h-vehicle-dash" style={{ ...SECTION_MAX, padding: '40px clamp(20px,5vw,64px) 48px', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 32px' }}>
+          <div style={EYEBROW}>Dashboard vehicular</div>
+          <h2 style={{ ...H2, margin: '10px 0 0' }}>Historial y estado de tu vehículo en tiempo real</h2>
+        </div>
+        <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, alignItems: 'stretch' }}>
+          {/* ─── LEFT: Histórico de datos vehiculares ─── */}
+          <div style={{ ...card(), borderRadius: 22, padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 5-9" /></svg>
+              <span style={{ fontSize: 13, fontWeight: 700, color: GOLD }}>Histórico vehicular</span>
+            </div>
+
+            {(() => {
+              const services = [
+                { date: '05 dic 2025', event: 'Revisión general + afinación', km: '1.200 km', tall: 'Taller AutoPlus', pts: [98, 82, 74, 70, 68, 66, 65, 64, 63, 62], scale: [0, 100] },
+                { date: '12 feb 2026', event: 'Cambio de llantas Michelin', km: '3.800 km', tall: 'Taller Express', pts: [100, 88, 80, 73, 65, 56, 46, 35, 23, 10], scale: [0, 100] },
+                { date: '28 abr 2026', event: 'Revisión de frenos delanteros', km: '6.200 km', tall: 'CDA Medellín', pts: [95, 90, 82, 70, 55, 38, 22, 12, 6, 2], scale: [0, 100] },
+                { date: '14 jun 2026', event: 'Cambio de aceite synthetic 5W-30', km: '8.400 km', tall: 'Taller AutoPlus', pts: [100, 85, 72, 62, 55, 50, 47, 45, 44, 43], scale: [0, 100] },
+              ]
+              const [hovered, setHovered] = useState<number>(0)
+              const active = services[hovered]
+              const chartW = 300
+              const chartH = 100
+              const padL = 28
+              const padR = 8
+              const padT = 6
+              const padB = 14
+              const innerW = chartW - padL - padR
+              const innerH = chartH - padT - padB
+              const stepX = innerW / (active.pts.length - 1)
+              const [yMin, yMax] = active.scale
+              const toY = (v: number) => padT + innerH * (1 - (v - yMin) / (yMax - yMin))
+              const toX = (i: number) => padL + i * stepX
+              const pointsFor = (pts: number[]): Array<[number, number]> => pts.map((v, i) => [toX(i), toY(v)])
+              const smoothPath = (pts: Array<[number, number]>, tension = 0.5) => {
+                if (pts.length < 2) return ''
+                let d = `M${pts[0][0]},${pts[0][1]}`
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const p0 = pts[i - 1] ?? pts[i]
+                  const p1 = pts[i]
+                  const p2 = pts[i + 1]
+                  const p3 = pts[i + 2] ?? p2
+                  const c1x = p1[0] + (p2[0] - p0[0]) / 6 * tension * 2
+                  const c1y = p1[1] + (p2[1] - p0[1]) / 6 * tension * 2
+                  const c2x = p2[0] - (p3[0] - p1[0]) / 6 * tension * 2
+                  const c2y = p2[1] - (p3[1] - p1[1]) / 6 * tension * 2
+                  d += ` C${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`
+                }
+                return d
+              }
+              const pathFor = (pts: number[]) => smoothPath(pointsFor(pts))
+              const areaPath = `${pathFor(active.pts)} L${toX(active.pts.length - 1)},${chartH} L${padL},${chartH} Z`
+              const yTicks = [yMin, Math.round((yMax - yMin) * 0.5 + yMin), yMax]
+
+              return (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, lineHeight: 1.35 }}>{active.event}</span>
+                    <span style={{ fontSize: 10.5, color: MUTED, whiteSpace: 'nowrap', flex: '0 0 auto' }}>{active.date}</span>
+                  </div>
+
+                  <div style={{ position: 'relative', height: 160, borderRadius: 14, background: softTint(0.05), border: `1px solid ${BORDER}`, overflow: 'visible', padding: '8px 4px 4px 0' }}>
+                    <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id="hChartGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={GOLD} stopOpacity="0.30" />
+                          <stop offset="100%" stopColor={GOLD} stopOpacity="0.02" />
+                        </linearGradient>
+                      </defs>
+                      {yTicks.map((tick, i) => (
+                        <g key={i}>
+                          <line x1={padL} y1={toY(tick)} x2={chartW - padR} y2={toY(tick)} stroke={MUTED} strokeWidth="0.3" opacity="0.25" />
+                          <text x={padL - 3} y={toY(tick) + 3} textAnchor="end" fill={MUTED} fontSize="6" fontFamily="var(--font-ui)">{tick}%</text>
+                        </g>
+                      ))}
+                      <path d={areaPath} fill="url(#hChartGrad)">
+                        <animate attributeName="d" dur="0.4s" fill="freeze" from={`M${padL},${chartH} L${chartW - padR},${chartH} L${chartW - padR},${chartH} L${padL},${chartH} Z`} to={areaPath} />
+                      </path>
+                      {services.map((s, i) => {
+                        const isActive = hovered === i
+                        return (
+                          <g key={i}>
+                            <path d={pathFor(s.pts)} fill="none" stroke={GOLD} strokeLinecap="round" strokeLinejoin="round"
+                              strokeWidth={isActive ? 2.5 : 1.3} opacity={isActive ? 1 : 0.25}
+                              style={{ transition: 'opacity .25s ease, stroke-width .25s ease' }} />
+                            <path d={pathFor(s.pts)} fill="none" stroke="transparent" strokeWidth="14"
+                              style={{ cursor: 'pointer' }} pointerEvents="stroke"
+                              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(0)} />
+                            {isActive && s.pts.map((y, p) => (
+                              <circle key={p} cx={toX(p)} cy={toY(y)} r="2.8" fill={GOLD} stroke={isDark ? '#0a0a0a' : '#fff'} strokeWidth="1.2" />
+                            ))}
+                          </g>
+                        )
+                      })}
+                      <circle cx={toX(0)} cy={toY(active.pts[0])} r="4" fill={GOLD} opacity="0.25">
+                        <animate attributeName="r" dur="1.5s" repeatCount="indefinite" values="4;7;4" />
+                      </circle>
+                    </svg>
+                    <div style={{ position: 'absolute', bottom: 4, left: 28, fontSize: 8.5, color: MUTED }}>dic</div>
+                    <div style={{ position: 'absolute', bottom: 4, left: '38%', fontSize: 8.5, color: MUTED }}>feb</div>
+                    <div style={{ position: 'absolute', bottom: 4, left: '62%', fontSize: 8.5, color: MUTED }}>abr</div>
+                    <div style={{ position: 'absolute', bottom: 4, right: 8, fontSize: 8.5, color: MUTED }}>jun</div>
+                  </div>
+
+                  {services.map((row, i) => (
+                    <div key={i}
+                      onMouseEnter={() => setHovered(i)}
+                      onMouseLeave={() => setHovered(0)}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10,
+                        background: hovered === i ? `${GOLD}12` : softTint(0.05),
+                        border: `1px solid ${hovered === i ? GOLD : BORDER}`,
+                        cursor: 'pointer', transition: 'all 0.25s ease',
+                        transform: hovered === i ? 'scale(1.01)' : 'scale(1)',
+                      }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', marginTop: 4, background: hovered === i ? GOLD : MUTED, flexShrink: 0, transition: 'background 0.25s', boxShadow: hovered === i ? `0 0 8px ${GOLD}` : 'none' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: hovered === i ? GOLD : textColor, lineHeight: 1.35, transition: 'color 0.25s' }}>{row.event}</div>
+                        <div style={{ fontSize: 10.5, color: MUTED, marginTop: 1 }}>{row.date} · {row.km} · {row.tall}</div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )
+            })()}
+          </div>
+
+          {/* ─── RIGHT: Odómetro hiperrealista ─── */}
+          <div style={{ ...card(), borderRadius: 22, padding: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, alignSelf: 'flex-start' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+              <span style={{ fontSize: 13, fontWeight: 700, color: GOLD }}>Odómetro en vivo</span>
+            </div>
+
+            {(() => {
+              const indicators = [
+                { l: 'Kilometraje', v: 42000, max: 100000, unit: 'km', color: GOLD, pct: 42 },
+                { l: 'Combustible', v: 78, max: 100, unit: '%', color: GOLD, pct: 78 },
+                { l: 'Temperatura', v: 73, max: 120, unit: '°C', color: GOLD, pct: 61 },
+                { l: 'Llantas', v: 85, max: 100, unit: '%', color: GOLD, pct: 85 },
+              ]
+              const [hovered, setHovered] = useState<number | null>(null)
+              const active = hovered !== null ? indicators[hovered] : indicators[0]
+              const needleAngle = (active.v / active.max) * 270 - 135
+
+              return (
+                <>
+                  <div style={{ position: 'relative', width: 220, height: 220 }}>
+                    <svg viewBox="0 0 220 220" style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+                      <defs>
+                        <linearGradient id="odomGrad" x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0%" stopColor={active.color} stopOpacity="0.25" />
+                          <stop offset="100%" stopColor={active.color} stopOpacity="0.05" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="110" cy="110" r="105" fill="none" stroke="url(#odomGrad)" strokeWidth="2" />
+                      <circle cx="110" cy="110" r="100" fill="none" stroke={BORDER} strokeWidth="1" />
+                      {Array.from({ length: 60 }).map((_, i) => {
+                        const angle = (i * 6 - 90) * (Math.PI / 180)
+                        const isMajor = i % 5 === 0
+                        const r1 = isMajor ? 85 : 91
+                        const r2 = 97
+                        return (
+                          <line key={i} x1={round3(110 + r1 * Math.cos(angle))} y1={round3(110 + r1 * Math.sin(angle))} x2={round3(110 + r2 * Math.cos(angle))} y2={round3(110 + r2 * Math.sin(angle))} stroke={isMajor ? active.color : MUTED} strokeWidth={isMajor ? 2 : 0.7} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+                        )
+                      })}
+                      {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                        const v = Math.round(active.max * frac)
+                        const angle = (frac * 270 - 135) * (Math.PI / 180)
+                        const r = 73
+                        return <text key={frac} x={round3(110 + r * Math.cos(angle))} y={round3(110 + r * Math.sin(angle))} textAnchor="middle" dominantBaseline="central" fill={MUTED} fontSize="8" fontWeight="500">{v}</text>
+                      })}
+                      <g style={{ transformOrigin: '110px 110px', transform: `rotate(${needleAngle}deg)`, transition: 'transform 0.6s cubic-bezier(.4,0,.2,1)' }}>
+                        <line x1="110" y1="110" x2="110" y2="18" stroke={active.color} strokeWidth="2.5" strokeLinecap="round" />
+                        <circle cx="110" cy="110" r="7" fill={active.color} />
+                        <circle cx="110" cy="110" r="3.5" fill="#111" />
+                      </g>
+                    </svg>
+                    <div style={{ position: 'absolute', bottom: 34, left: '50%', transform: 'translateX(-50%)', textAlign: 'center', transition: 'all 0.3s' }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: active.color, lineHeight: 1, transition: 'color 0.3s' }}>
+                        {active.v.toLocaleString('es-CO')}
+                      </div>
+                      <div style={{ fontSize: 9, color: MUTED, letterSpacing: '.12em', textTransform: 'uppercase' }}>{active.unit} {active.l.toLowerCase()}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
+                    {indicators.map((ind, i) => {
+                      const opacity = 1 - i * 0.2
+                      return (
+                        <div key={i}
+                          onMouseEnter={() => setHovered(i)}
+                          onMouseLeave={() => setHovered(null)}
+                          style={{
+                            padding: '10px 12px', borderRadius: 10,
+                            background: hovered === i ? `rgba(245,197,24,0.15)` : softTint(0.05),
+                            border: `1px solid ${hovered === i ? GOLD : BORDER}`,
+                            cursor: 'pointer', transition: 'all 0.25s ease',
+                            transform: hovered === i ? 'scale(1.03)' : 'scale(1)',
+                          }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: hovered === i ? GOLD : MUTED, letterSpacing: '.08em', textTransform: 'uppercase', transition: 'color 0.25s' }}>{ind.l}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, opacity }}>{ind.v.toLocaleString('es-CO')} {ind.unit}</span>
+                          </div>
+                          <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                            <div style={{ width: `${ind.pct}%`, height: '100%', borderRadius: 2, background: GOLD, opacity, transition: 'width 0.6s ease' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== COBERTURA ===== */}
+      <section id="h-cobertura" style={{ ...SECTION_MAX, padding: '64px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 40px' }}>
+          <div style={EYEBROW}>Ubicación y cobertura</div>
+          <h2 style={{ ...H2, margin: '10px 0 12px' }}>Talleres aliados cerca de ti</h2>
+          <p style={lead}>CarLink ya opera en estas ciudades — cada una con talleres verificados listos para actualizar tu ficha.</p>
+        </div>
+        <div data-r="mapFrame" style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', minHeight: 400, border: `1px solid ${BORDER}`, background: '#0a0a0a', boxShadow: '0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+          <iframe ref={mapRef} src="/mapa-talleres-colombia.html" title="Mapa de talleres CarLink en Colombia" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }} />
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(120% 100% at 50% 0%, transparent 60%, rgba(8,8,4,0.35) 100%)' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginTop: 14 }}>
+          {COVERAGE.map(cv => (
+            <div key={cv.city} style={{ padding: 16, borderRadius: 14, ...card(), display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => mapRef.current?.contentWindow?.postMessage({ type: 'flyToCity', city: cv.city }, '*')}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: GOLD, flex: '0 0 auto', boxShadow: `0 0 8px ${GOLD}` }} />
+              <div><div style={{ fontSize: 14, fontWeight: 500 }}>{cv.city}</div><div style={{ fontSize: 11.5, fontWeight: 300, color: MUTED }}>{cv.count} talleres</div></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 28 }}>
+          <Link href="/register?mode=empresa" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', textDecoration: 'none' }}>
+            ¿Tienes un taller? Únete a la red{ARROW}
+          </Link>
+        </div>
+      </section>
+
+      {/* ===== PLANES ===== */}
+      <section id="h-planes" style={{ ...SECTION_MAX, padding: '64px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
+          <div style={EYEBROW}>Planes</div>
+          <h2 style={H2}>Gratis para conductores, simple para talleres</h2>
+          <p style={{ ...lead, marginTop: 8 }}>Gratis para conductores, simple para talleres</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
+          {[
+            { name: 'Conductor', price: 'Gratis', period: '', tag: '', border: BORDER, features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'], cta: 'Crear mi ficha', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD },
+            { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Pruebalo ya!', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Registrar mi taller', btnBg: GOLD, btnColor: '#111' },
+          ].map(pl => (
+            <div key={pl.name} style={{ padding: 28, borderRadius: 20, ...card(pl.border), position: 'relative' }}>
+              {pl.tag && <span style={{ position: 'absolute', top: -11, right: 24, background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{pl.tag}</span>}
+              <div style={{ fontSize: 13, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.08em', color: MUTED }}>{pl.name}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 18px' }}>
+                <span style={{ fontSize: 34, fontWeight: 400 }}>{pl.price}</span>
+                {pl.period && <span style={{ fontSize: 13, fontWeight: 300, color: MUTED }}>{pl.period}</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 20 }}>
+                {pl.features.map(ft => (
+                  <div key={ft} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, fontWeight: 300 }}>{CHECK()}{ft}</div>
+                ))}
+              </div>
+              {pl.name === 'Taller aliado'
+                ? <Link href="/register?mode=empresa" style={{ width: '100%', padding: 12, borderRadius: 11, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 600, fontSize: 14, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'block' }}>{pl.cta}</Link>
+                : <Link href="/register" style={{ width: '100%', padding: 12, borderRadius: 11, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 600, fontSize: 14, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'block' }}>{pl.cta}</Link>
+              }
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== PATROCINADORES + KPIs ===== */}
+      <section id="h-sponsors" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 32px' }}>
+          <div style={EYEBROW}>Respaldo</div>
+          <h2 style={H2}>Marcas y aliados que confían en CarLink</h2>
+        </div>
+        <div style={{ overflow: 'hidden', marginBottom: 40, maskImage: 'linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)' }}>
+          <div style={{ display: 'flex', gap: 28, width: 'max-content', animation: 'sponsorScroll 25s linear infinite' }}>
+            {[...SPONSORS, ...SPONSORS].map((sp, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 28px', borderRadius: 14, ...card(), minWidth: 160, flexShrink: 0 }}>
+                <img src={sp.logo} alt={sp.name} style={{ height: 28, maxWidth: 120, objectFit: 'contain', filter: isDark ? 'brightness(0) invert(1) opacity(0.5)' : 'grayscale(1) opacity(0.5)', transition: 'filter 0.3s' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.setAttribute('style', 'display:block') }} />
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '.02em', color: MUTED, display: 'none' }}>{sp.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 12, maxWidth: 820, margin: '0 auto', padding: '24px 20px', borderRadius: 18, background: softTint(0.05), border: `1px solid ${BORDER}` }}>
+          {[
+            { v: '4.8/5', l: 'Calificación promedio' },
+            { v: '23+', l: 'Talleres en red' },
+            { v: '10', l: 'Ciudades con cobertura' },
+            { v: '4.9', l: 'Satisfacción' },
+            { v: '342', l: 'Llaveros activos' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: GOLD, lineHeight: 1.1 }}>{s.v}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: MUTED, marginTop: 4 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== VEHÍCULOS CERTIFICADOS CON IA ===== */}
+      <section id="h-marketai" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
+        <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 36, alignItems: 'center' }}>
+          <div>
+            <div style={EYEBROW}>Vehículos certificados</div>
+            <h2 style={{ ...H2, margin: '10px 0 12px' }}>Compra un carro con peritaje y ficha completa, guiado por IA</h2>
+            <p style={{ ...lead, margin: '0 0 20px' }}>Cada anuncio en Vehículos en venta incluye peritaje mecánico, historial verificado y una IA que responde tus preguntas sobre el vehículo antes de agendar una visita.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
+              {['Peritaje mecánico verificado por un taller aliado', 'Historial completo de mantenimiento de la placa', 'Asistente IA que resuelve dudas antes de la visita'].map(t => (
+                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, fontWeight: 400 }}>{CHECK()}{t}</div>
+              ))}
+            </div>
+            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 20px rgba(245,197,24,0.35)', textDecoration: 'none' }}>Explorar vehículos{ARROW}</Link>
+          </div>
+          <div style={{ borderRadius: 20, padding: 22, ...card() }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 9, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8" /><rect x="4" y="8" width="16" height="12" rx="2" /><path d="M2 14h2M20 14h2M9 12v2M15 12v2" /></svg>
+              </span>
+              <span style={{ fontSize: 13.5, fontWeight: 600 }}>Asistente de compra CarLink</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ alignSelf: 'flex-end', maxWidth: '80%', padding: '10px 14px', borderRadius: '12px 12px 2px 12px', background: GOLD, color: '#111', fontSize: 13, fontWeight: 500 }}>¿Este Mazda 3 tuvo choques?</div>
+              <div style={{ alignSelf: 'flex-start', maxWidth: '80%', padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: softTint(0.05), fontSize: 13, fontWeight: 300 }}>No — el peritaje del taller no reporta daños estructurales. Su último cambio de aceite fue hace 1.200 km.</div>
+              <div style={{ alignSelf: 'flex-end', maxWidth: '80%', padding: '10px 14px', borderRadius: '12px 12px 2px 12px', background: GOLD, color: '#111', fontSize: 13, fontWeight: 500 }}>¿Cuándo vence el SOAT?</div>
+              <div style={{ alignSelf: 'flex-start', maxWidth: '80%', padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: softTint(0.05), fontSize: 13, fontWeight: 300 }}>Vigente hasta noviembre — puedes verlo en Documentos del vehículo.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== PREVIEW VEHÍCULOS EN VENTA ===== */}
+      <section id="h-marketpreview" style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 56px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
+          {MARKET_PREVIEW.map(mp => (
+            <div key={mp.model} style={{ borderRadius: 18, overflow: 'hidden', ...card() }}>
+              <div style={{ height: 140, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <img src={mp.img} alt={mp.model} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <span style={{ position: 'absolute', top: 9, right: 9, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'rgba(245,197,24,0.16)', border: `1px solid rgba(245,197,24,0.5)`, color: GOLD, fontSize: 10, fontWeight: 800 }}>Peritaje OK</span>
+              </div>
+              <div style={{ padding: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 700 }}>{mp.model}</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: GOLD }}>{mp.price}</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: MUTED, marginTop: 3 }}>{mp.km} · {mp.city}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== COMPRA TU LLAVERO ===== */}
+      <section id="h-buyfob" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px) 64px', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 40px' }}>
+          <div style={EYEBROW}>Llavero NFC</div>
+          <h2 style={{ ...H2, margin: '10px 0 12px' }}>Compra tu llavero — 3 pasos, sin vueltas</h2>
+          <p style={lead}>Vincúlalo a tu placa y tu ficha aparece al instante en cualquier taller.</p>
+        </div>
+        <div className="buyfob-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 44, maxWidth: 920, margin: '0 auto', alignItems: 'center' }}>
+          {/* Left — Steps + benefits */}
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 36 }}>
+              {[
+                ['1', 'Elige tu llavero', 'Selecciona el llavero Premium que mejor se adapte a tu estilo.'],
+                ['2', 'Confirma tu dirección', 'Ingresa tu placa y la dirección de envío. Validamos la cobertura en tu ciudad.'],
+                ['3', 'Paga y listo', 'Acepta Stripe, Nequi, Bancolombia o contraentrega. Recibe tu llavero en 5 días hábiles.'],
+              ].map(([n, t, d]) => (
+                <div key={n} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '16px 18px', borderRadius: 14, ...card() }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{n}</div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>{t}</div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: MUTED }}>{d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: GOLD }}>¿Qué incluye tu llavero?</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { id: 'enc', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>, title: 'Placa encriptada', desc: 'Datos protegidos con cifrado de extremo a extremo.' },
+                  { id: 'fir', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" /></svg>, title: 'Firma digital', desc: 'Cada ficha lleva tu firma digital certificada.' },
+                  { id: 'exp', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>, title: 'Expediente digital', desc: 'Historial completo de mantenimiento y servicios.' },
+                  { id: 'ges', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>, title: 'Gestión inteligente', desc: 'Administra repuestos, talleres y mantenimiento desde tu ficha.' },
+                  { id: 'fic', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>, title: 'Ficha publicable', desc: 'Un toque publica tu ficha. Incluye opción de reportar el llavero en caso de pérdida.' },
+                  { id: 'not', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg>, title: 'Notificaciones predictivas', desc: 'Alertas automáticas de mantenimiento, cambios de aceite y revisiones programadas.' },
+                ] as const).map((item) => (
+                  <div key={item.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.04)', border: `1px solid ${BORDER}` }}>
+                    <span style={{ flexShrink: 0, lineHeight: 1, marginTop: 2 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 2 }}>{item.title}</div>
+                      <div style={{ fontSize: 11, lineHeight: 1.45, color: MUTED }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Right — Product card */}
+          <div style={{ position: 'sticky', top: 120 }}>
+            <div style={{ padding: 28, borderRadius: 20, ...card(GOLD), position: 'relative', textAlign: 'center' }}>
+              <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 14px', borderRadius: 999 }}>Premium</span>
+              <div style={{ width: 80, height: 80, margin: '0 auto 16px', borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#111', display: 'flex' }}><NfcKeyIcon size={38} strokeWidth={1.6} /></span>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>Llavero NFC CarLink</div>
+              <p style={{ fontWeight: 300, fontSize: 13, lineHeight: 1.5, color: MUTED, margin: '10px 0 18px' }}>Impreso en PLA con chip NFC. Tu ficha se abre al instante con un toque.</p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 18, fontSize: 12, color: MUTED }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> Encriptado</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg> Predictivo</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg> Expediente</span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>$29.900</div>
+              <div style={{ fontSize: 12, color: MUTED, marginBottom: 18 }}>Envío incluido · Llega en 5 días hábiles</div>
+              <Link href="/#h-buyfob" style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'opacity 0.2s', textAlign: 'center', textDecoration: 'none', display: 'block' }}>Comprar ahora</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
         <div data-r="shopFooter" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={20} iconSize={15} badgeSize={26} badgeRadius={7} textColor={textColor} />
+            <CarLinkWordmark fontSize={20} iconSize={33} textColor={textColor} />
           </Link>
           <div data-r="shopFooterText" style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
         </div>

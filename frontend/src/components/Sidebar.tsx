@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { CarLinkMark, STAR_PATH } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
+import { STAR_PATH } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
 
@@ -258,10 +259,8 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         transition: isMobile ? 'left .25s cubic-bezier(0.22,1,0.36,1)' : 'width .22s cubic-bezier(0.22,1,0.36,1)',
       }}
     >
-      <div style={{ padding: '22px 20px 12px', display: 'flex', alignItems: 'center', gap: 11 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 11, background: '#F5C518', color: '#111', flex: '0 0 auto' }}>
-          <CarLinkMark size={20} />
-        </span>
+      <div style={{ padding: '22px 20px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <CarLinkLogo size={33} />
         <div
           style={{
             fontFamily: 'var(--font-display)', fontSize: 27, letterSpacing: '.01em', lineHeight: 1,

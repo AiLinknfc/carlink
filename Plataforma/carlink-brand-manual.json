@@ -1,0 +1,436 @@
+{
+  "$schema": "carlink-brand-manual/v1",
+  "meta": {
+    "brand": "CarLink",
+    "tagline": "El pasaporte digital de tu vehículo",
+    "product": "Llavero NFC + ficha técnica digital de mantenimiento vehicular",
+    "market": "Colombia",
+    "language": "es-CO",
+    "version": "1.0",
+    "updated": "2026-08-30",
+    "purpose": "Manual de marca extraído de la landing de CarLink. Sirve como fuente única para replicar la identidad visual en otros sitios, apps o piezas."
+  },
+
+  "positioning": {
+    "oneLiner": "CarLink convierte tu vehículo en un vehículo inteligente: escaneas tu llavero NFC y todo el historial de mantenimiento aparece al instante.",
+    "audiences": [
+      { "id": "conductor", "label": "Conductor / dueño de vehículo", "promise": "Nunca vuelvas a perder una factura ni a olvidar un mantenimiento. Vende tu carro con historial verificable." },
+      { "id": "taller", "label": "Taller, lubricentro o CDA", "promise": "Certifica cada servicio que haces, construye reputación verificable y recibe clientes nuevos." }
+    ],
+    "differentiators": [
+      "Un toque NFC muestra la ficha — sin abrir apps ni buscar enlaces",
+      "Historial certificado por el taller que hizo el trabajo (trazabilidad real)",
+      "Pago único del llavero, sin mensualidades",
+      "Predicción de reemplazo de piezas según vida útil y kilometraje"
+    ]
+  },
+
+  "color": {
+    "philosophy": "Negro profundo como lienzo, un único amarillo señal como acento. Máximo un momento de amarillo saturado por pantalla. El amarillo se reserva para lo accionable (CTA, dato clave, estado activo); todo lo demás vive en neutros cálidos.",
+    "primary": {
+      "signal": { "hex": "#F5C518", "role": "Color de marca. CTAs, cifras clave, íconos activos, logo, acentos.", "onColor": "#111111" },
+      "signalHover": { "hex": "#FFD84D", "role": "Hover de botones y enlaces sobre el amarillo." },
+      "signalDeep": { "hex": "#8A6A00", "role": "Extremo oscuro de gradientes y barras de progreso." },
+      "signalInk": { "hex": "#B8860A", "role": "Texto/ícono amarillo sobre fondos claros (garantiza contraste AA)." },
+      "signalInkDark": { "hex": "#C99A00", "role": "Texto amarillo sobre superficies oscuras medias." }
+    },
+    "surfaces": {
+      "canvas": { "hex": "#08080A", "role": "Fondo base de la página (modo oscuro)." },
+      "surfaceAlt": { "hex": "#0C0C10", "role": "Bandas de sección alternas, para dar ritmo vertical." },
+      "surfaceRaised": { "hex": "#121216", "role": "Cards, paneles, contenedores elevados." },
+      "surfaceInput": { "hex": "rgba(255,255,255,0.04)", "role": "Campos de formulario, chips, celdas." },
+      "surfaceWarm": { "hex": "#171708", "role": "Superficies con tinte cálido (paneles de negocio, ficha)." },
+      "canvasLight": { "hex": "#F7F6F2", "role": "Fondo base del modo claro." },
+      "surfaceRaisedLight": { "hex": "rgba(255,255,255,0.80)", "role": "Cards en modo claro (glass)." }
+    },
+    "text": {
+      "primary": { "hex": "#F5F3EC", "role": "Titulares y texto principal sobre oscuro." },
+      "secondary": { "hex": "#D8D4C8", "role": "Párrafos largos, texto de apoyo con buena legibilidad." },
+      "muted": { "hex": "#A8A496", "role": "Descripciones, subtítulos, labels." },
+      "faint": { "hex": "#6F6A5F", "role": "Metadatos, ayudas, unidades, disclaimers." },
+      "primaryLight": { "hex": "#17171A", "role": "Texto principal en modo claro." },
+      "mutedLight": { "hex": "#6F6A5F", "role": "Texto secundario en modo claro." }
+    },
+    "status": {
+      "ok": { "hex": "#2ECC71", "text": "#5BE89A", "role": "Al día, verificado, aprobado." },
+      "warn": { "hex": "#FFB020", "text": "#FFCF5A", "role": "Próximo a vencer, límites aceptables." },
+      "critical": { "hex": "#FF4D6A", "role": "Vencido, urgente, requiere cambio ya." },
+      "note": "En el tablero e indicadores la escala es estrictamente verde → amarillo → rojo. No introducir más colores de estado."
+    },
+    "brandExceptions": {
+      "whatsapp": "#25D366",
+      "facebook": "#1877F2",
+      "instagram": "linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)",
+      "rule": "Los colores oficiales de terceros se respetan solo en sus propios botones. Ningún otro elemento de la UI usa verdes, azules o magentas."
+    },
+    "lines": {
+      "hairline": "rgba(255,255,255,0.08)",
+      "hairlineStrong": "rgba(255,255,255,0.14)",
+      "hairlineLight": "rgba(17,17,17,0.08)",
+      "signalBorder": "rgba(245,197,24,0.30)",
+      "signalBorderStrong": "rgba(245,197,24,0.40)"
+    },
+    "washes": {
+      "signalTintSubtle": "rgba(245,197,24,0.08)",
+      "signalTint": "rgba(245,197,24,0.12)",
+      "signalTintStrong": "rgba(245,197,24,0.16)",
+      "heroGlow": "radial-gradient(circle at 62% 44%, rgba(245,197,24,0.14), transparent 58%)",
+      "sectionGlow": "radial-gradient(110% 100% at 50% 0%, #141208 0%, #08080A 62%)",
+      "cardWarm": "linear-gradient(155deg,#171708,#141414 55%,#0F0F0F)",
+      "progress": "linear-gradient(90deg,#8A6A00,#F5C518,#FFD84D)"
+    }
+  },
+
+  "typography": {
+    "philosophy": "Dos familias, roles estrictos. Anton solo para momentos de marca y cifras que deben golpear; Inter para todo lo que se lee. La delgadez de Inter (300–500) contrasta con el peso condensado de Anton.",
+    "families": {
+      "display": {
+        "name": "Anton",
+        "fallback": "sans-serif",
+        "source": "https://fonts.googleapis.com/css2?family=Anton&display=swap",
+        "usage": "Logo, titulares de sección (h1/h2), cifras grandes (kilometraje, precio, métricas). Nunca en párrafos ni labels.",
+        "weights": [400],
+        "letterSpacing": "0 a 0.02em",
+        "lineHeight": "1.02 – 1.10"
+      },
+      "body": {
+        "name": "Inter",
+        "fallback": "system-ui, sans-serif",
+        "usage": "Todo el texto de lectura, labels, botones, navegación, formularios.",
+        "weights": [300, 400, 500, 600, 700, 800],
+        "notes": "300 para párrafos largos (aire, elegancia); 500–600 para UI; 700–800 solo en botones y datos."
+      },
+      "mono": {
+        "name": "JetBrains Mono",
+        "fallback": "monospace",
+        "usage": "Placas, códigos de certificado, IDs, referencias técnicas.",
+        "weights": [400, 600, 700]
+      }
+    },
+    "scale": [
+      { "token": "hero", "family": "Anton", "size": "clamp(38px, 5.4vw, 72px)", "lineHeight": "1.02", "usage": "H1 del hero" },
+      { "token": "h2", "family": "Anton", "size": "clamp(28px, 3.6vw, 46px)", "lineHeight": "1.08", "usage": "Titulares de sección" },
+      { "token": "h3", "family": "Anton", "size": "clamp(24px, 3vw, 36px)", "lineHeight": "1.10", "usage": "Subsecciones" },
+      { "token": "metricXL", "family": "Anton", "size": "34–54px", "lineHeight": "1", "usage": "Precio, kilometraje, KPIs" },
+      { "token": "metric", "family": "Anton", "size": "19–24px", "lineHeight": "1", "usage": "Métricas en cards" },
+      { "token": "leadParagraph", "family": "Inter", "size": "clamp(17px, 1.7vw, 21px)", "weight": 400, "lineHeight": "1.55", "usage": "Bajada del hero" },
+      { "token": "body", "family": "Inter", "size": "15.5px", "weight": 300, "lineHeight": "1.6", "usage": "Párrafos" },
+      { "token": "bodySm", "family": "Inter", "size": "13.5px", "weight": 400, "lineHeight": "1.5", "usage": "Texto de apoyo en cards" },
+      { "token": "ui", "family": "Inter", "size": "14.5px", "weight": 500, "usage": "Navegación, enlaces" },
+      { "token": "button", "family": "Inter", "size": "14–17px", "weight": 800, "usage": "Botones" },
+      { "token": "eyebrow", "family": "Inter", "size": "11–12px", "weight": 700, "transform": "uppercase", "letterSpacing": "0.20–0.24em", "color": "#F5C518", "usage": "Etiqueta sobre cada titular de sección — firma tipográfica de la marca" },
+      { "token": "label", "family": "Inter", "size": "10–11px", "weight": 700, "transform": "uppercase", "letterSpacing": "0.10–0.16em", "color": "#A8A496", "usage": "Labels de datos" },
+      { "token": "caption", "family": "Inter", "size": "12.5px", "weight": 300, "color": "#6F6A5F", "usage": "Notas legales, unidades" }
+    ],
+    "rules": [
+      "Sentence case en titulares y párrafos. UPPERCASE solo en eyebrows y labels de datos.",
+      "text-wrap: pretty en todos los titulares.",
+      "Ancho máximo de párrafo: 52–62ch.",
+      "Nunca mezclar Anton en el mismo bloque de lectura que Inter, salvo la palabra acentuada dentro de un titular."
+    ]
+  },
+
+  "layout": {
+    "maxWidth": "1280px",
+    "sectionMaxWidth": "1160px",
+    "narrowMaxWidth": "820px",
+    "gutter": "clamp(20px, 5vw, 64px)",
+    "sectionPaddingY": "clamp(48px, 6vw, 84px)",
+    "grid": {
+      "twoCol": "1fr 1fr con gap 40–48px",
+      "threeCol": "repeat(3, 1fr) con gap 18px",
+      "autoFit": "repeat(auto-fit, minmax(220px, 1fr)) con gap 14–16px"
+    },
+    "rhythm": "Bandas alternas #08080A / #0C0C10 separadas por hairline rgba(255,255,255,0.07). Cada banda abre con eyebrow + titular Anton + párrafo centrado (max 660px).",
+    "breakpoint": "860px — grids de 2/3 columnas colapsan a 1; nav se vuelve compacta; sidebar pasa a topbar/drawer."
+  },
+
+  "radii": {
+    "pill": "999px",
+    "button": "12–14px",
+    "input": "10–12px",
+    "card": "16–20px",
+    "panel": "20–22px",
+    "hero": "24px",
+    "phoneMock": "34px"
+  },
+
+  "spacing": {
+    "scale": [4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 26, 28, 32, 38, 46, 56, 64],
+    "rule": "Siempre flex/grid + gap. Nunca márgenes por elemento ni espaciado por whitespace del HTML."
+  },
+
+  "elevation": {
+    "philosophy": "En oscuro, el glow amarillo sustituye a la sombra como mecanismo de jerarquía. Las sombras solo dan profundidad física (mockups, modales).",
+    "tokens": {
+      "cardInset": "inset 0 1px 0 rgba(255,255,255,0.06)",
+      "ctaGlow": "0 0 24px rgba(245,197,24,0.40)",
+      "ctaGlowStrong": "0 0 40px rgba(245,197,24,0.75)",
+      "modal": "0 30px 80px rgba(0,0,0,0.60)",
+      "deep": "0 40px 90px rgba(0,0,0,0.70)",
+      "cardLight": "0 24px 60px rgba(17,17,17,0.12)"
+    },
+    "glass": "background: rgba(8,8,10,0.82); backdrop-filter: blur(18–22px)  — usado en nav sticky, modales y overlays."
+  },
+
+  "motion": {
+    "easing": {
+      "entrance": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "micro": "ease",
+      "overshoot": "cubic-bezier(0.34, 1.56, 0.64, 1)"
+    },
+    "durations": { "hover": "160–180ms", "control": "200–300ms", "reveal": "500–850ms", "scene": "1100ms" },
+    "keyframes": {
+      "fadeUp": "from { opacity:0; transform: translateY(18px) } to { opacity:1; transform:none }",
+      "textIn": "from { opacity:0; transform: translateX(36px) } to { opacity:1; transform:none }",
+      "shineSweep": "barrido diagonal de luz sobre placas y tarjetas, 6s ease-in-out infinite",
+      "pulse": "parpadeo de opacidad + drop-shadow para testigos en estado crítico, 1.1s infinite",
+      "roadDash": "líneas de carretera desplazándose para sensación de velocidad"
+    },
+    "rules": [
+      "Entradas escalonadas con delays de 40–160ms para crear secuencia legible.",
+      "Traslape del 20% entre escenas consecutivas: una se desvanece mientras la siguiente entra.",
+      "Sin bounces en UI de contenido; el overshoot se reserva a interacciones con el producto físico (placa, llavero)."
+    ]
+  },
+
+  "iconography": {
+    "style": "SVG inline, stroke-only, currentColor",
+    "strokeWidth": "1.7–1.9 (UI) · 2.2–2.6 (checks y flechas de énfasis)",
+    "linecap": "round",
+    "linejoin": "round",
+    "sizes": [12, 14, 15, 16, 17, 19, 20, 26, 34],
+    "brandMark": {
+      "concept": "Llanta: aro exterior + buje central + radios",
+      "svg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8.3\"/><circle cx=\"12\" cy=\"12\" r=\"2.8\"/><path d=\"M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1\"/></svg>",
+      "container": "cuadrado 30–34px, radius 8–9px, fondo #F5C518, ícono #111"
+    },
+    "rules": [
+      "PROHIBIDO el emoji en cualquier superficie. Si se necesita un marcador, usar un punto de color o un ícono SVG.",
+      "Nunca mezclar íconos rellenos con íconos de trazo en un mismo grupo.",
+      "El glifo de ondas NFC es un signo de marca: no sustituir por un ícono de wifi genérico."
+    ]
+  },
+
+  "components": {
+    "buttonPrimary": {
+      "background": "#F5C518",
+      "color": "#111111",
+      "fontWeight": 800,
+      "padding": "15–17px 26–34px",
+      "borderRadius": "12–14px (o 999px en nav)",
+      "boxShadow": "0 0 24px rgba(245,197,24,0.40)",
+      "hover": "background #FFD84D; box-shadow 0 0 40px rgba(245,197,24,0.75)",
+      "iconAffordance": "flecha derecha 17–18px, stroke 2.4–2.6, al final del label"
+    },
+    "buttonGhost": {
+      "background": "rgba(245,197,24,0.06–0.08)",
+      "border": "1px solid rgba(245,197,24,0.40)",
+      "color": "#F5C518 (oscuro) / #B8860A (claro)",
+      "fontWeight": 700,
+      "hover": "background rgba(245,197,24,0.14–0.16)"
+    },
+    "buttonNeutral": {
+      "background": "rgba(255,255,255,0.04–0.06)",
+      "border": "1px solid rgba(255,255,255,0.12)",
+      "color": "#A8A496",
+      "hover": "color #FFFFFF"
+    },
+    "card": {
+      "background": "#121216",
+      "border": "1px solid rgba(255,255,255,0.08)",
+      "borderRadius": "18–20px",
+      "padding": "24–28px",
+      "insetHighlight": "inset 0 1px 0 rgba(255,255,255,0.06)",
+      "hover": "transform: translateY(-6px) scale(1.015); border-color: rgba(245,197,24,0.55); glow amarillo suave",
+      "forbidden": "Nunca borde de acento a la izquierda. La jerarquía se hace con el borde superior iluminado y el glow."
+    },
+    "badge": {
+      "shape": "pill 999px",
+      "padding": "5–7px 12–15px",
+      "fontSize": "11–12.5px",
+      "fontWeight": 700,
+      "pattern": "punto de estado (6–8px, con box-shadow del mismo color) + label",
+      "variants": {
+        "signal": "bg rgba(245,197,24,0.10) · border rgba(245,197,24,0.30) · text #F5C518",
+        "ok": "bg rgba(46,204,113,0.12) · border rgba(46,204,113,0.35) · text #5BE89A",
+        "warn": "bg rgba(255,176,32,0.10) · border rgba(255,176,32,0.40) · text #FFCF5A"
+      }
+    },
+    "input": {
+      "background": "rgba(255,255,255,0.04)",
+      "border": "1px solid rgba(255,255,255,0.14)",
+      "borderRadius": "10–12px",
+      "padding": "12–15px 14–18px",
+      "color": "#F5F3EC",
+      "outline": "none",
+      "focus": "border-color #F5C518 + glow amarillo suave"
+    },
+    "nav": {
+      "position": "sticky top 0, z-index 50",
+      "background": "rgba(8,8,10,0.82) + backdrop-filter blur(18px)",
+      "borderBottom": "1px solid rgba(255,255,255,0.07)",
+      "structure": "logo (Anton 24px + marca de llanta) · enlaces (Inter 500, 14.5px, #A8A496, gap 28px) · CTA pill amarillo",
+      "logoLockup": "\"Car\" en #F5F3EC + \"Link\" en #F5C518"
+    },
+    "sectionHeader": {
+      "structure": "eyebrow uppercase amarillo → titular Anton → párrafo Inter 300",
+      "alignment": "centrado, max-width 660px, margin-bottom 44–52px"
+    },
+    "dataReadout": {
+      "usage": "Kilometraje, precio, KPIs",
+      "structure": "label uppercase 10–11px #A8A496 → cifra Anton grande #F5C518 → unidad Inter 600 pequeña #A8A496",
+      "progressBar": "height 6–9px, radius 4–6px, track rgba(255,255,255,0.10), fill linear-gradient(90deg,#8A6A00,#F5C518,#FFD84D), transition 0.7s"
+    },
+    "modal": {
+      "overlay": "rgba(4,4,4,0.82) + backdrop-filter blur(8px)",
+      "panel": "#111318 · border 1px solid rgba(245,197,24,0.30) · radius 22px · padding 26px · max-height 88vh · overflow-y auto",
+      "close": "botón 30px, radius 9px, bg rgba(255,255,255,0.08), ícono X stroke 2.2"
+    },
+    "toast": {
+      "position": "fixed bottom 34px, centrado",
+      "style": "pill, bg rgba(16,16,16,0.94) + blur(14px), border rgba(245,197,24,0.50), glow amarillo, ícono check en círculo amarillo"
+    }
+  },
+
+  "imagery": {
+    "treatment": "Objetos aislados sobre oscuro, luz de borde amarilla. Temperatura fría/neutra, alto contraste. Nunca cálido-nostálgico ni con grano.",
+    "hero": "Mockup de teléfono (250×430, radius 34px, bisel 8px #17171C, notch) mostrando la ficha real del producto — el producto se demuestra, no se ilustra.",
+    "productMotifs": [
+      "Placa vehicular colombiana (amarilla, texto Anton, 'COLOMBIA' arriba y ciudad abajo)",
+      "Llavero NFC rectangular con forma de placa",
+      "Tablero de instrumentos con gauges y testigos",
+      "Ficha/tarjeta de mantenimiento con sellos de fidelidad"
+    ],
+    "forbidden": [
+      "Gradientes multicolor agresivos",
+      "Fotografía de stock de gente sonriendo con llaves",
+      "Ilustraciones planas tipo corporate",
+      "Emoji"
+    ]
+  },
+
+  "voice": {
+    "language": "Español de Colombia, tuteo (nunca 'usted')",
+    "person": "Se habla al conductor o al dueño del taller en segunda persona; la marca habla en primera del plural.",
+    "tone": "Directa, concreta, sin relleno. Frases cortas. Beneficio antes que característica.",
+    "verbs": ["Escanea", "Certifica", "Registra", "Vincula", "Comprueba", "Agenda", "Publica"],
+    "casing": "Sentence case. Title Case solo en nombres de producto o funciones.",
+    "numbers": "Solo cifras con significado (precio, kilometraje, días restantes, cantidad de talleres). Nada de bloques de estadísticas decorativas.",
+    "punctuation": "Guion medio (—) para incisos. Punto medio (·) como separador de metadatos. Sin puntos suspensivos en copy comercial.",
+    "examples": {
+      "hero": "Toda la historia de tu vehículo en un toque",
+      "eyebrow": "EL PASAPORTE DIGITAL DE TU VEHÍCULO",
+      "price": "$49.000 — pago único · sin mensualidades",
+      "b2b": "Convierte cada servicio en un cliente que vuelve",
+      "trust": "Garantía de 30 días o te devolvemos tu dinero"
+    },
+    "forbidden": ["Emoji", "Jerga técnica profunda (NDEF, ISO/IEC 14443) en superficies comerciales", "Promesas sin respaldo", "Signos de exclamación múltiples"]
+  },
+
+  "conversionFunnel": {
+    "principle": "Un solo objetivo por audiencia. La página es una escalera: problema → mecanismo → prueba → precio → objeciones → cierre. Cada peldaño responde la pregunta que el visitante se hace en ese momento.",
+    "stages": [
+      { "order": 1, "section": "Nav sticky", "visitorQuestion": "¿Dónde estoy y qué hago?", "job": "Orientación permanente + CTA siempre visible", "cta": "Comprar llavero" },
+      { "order": 2, "section": "Hero", "visitorQuestion": "¿Qué es esto y por qué me importa?", "job": "Promesa + precio + demo visual en 5 segundos", "cta": "CTA primario + precio expuesto sin fricción" },
+      { "order": 3, "section": "Prueba social (talleres aliados)", "visitorQuestion": "¿Alguien confía en esto?", "job": "Credibilidad inmediata post-promesa", "cta": null },
+      { "order": 4, "section": "El problema", "visitorQuestion": "¿Esto me pasa a mí?", "job": "Espejo del dolor: facturas perdidas, mantenimientos olvidados, reventa sin historial", "cta": null },
+      { "order": 5, "section": "Cómo funciona", "visitorQuestion": "¿Cómo funciona realmente?", "job": "Mecanismo en 3 pasos, animado — elimina la sensación de magia o complejidad", "cta": null },
+      { "order": 6, "section": "Beneficios / features", "visitorQuestion": "¿Qué gano exactamente?", "job": "Traducir mecanismo a resultados concretos", "cta": null },
+      { "order": 7, "section": "Testimonios", "visitorQuestion": "¿A quién le funcionó?", "job": "Prueba social específica y verosímil (conductor + taller)", "cta": null },
+      { "order": 8, "section": "Para talleres (B2B)", "visitorQuestion": "Tengo un taller, ¿esto es para mí?", "job": "Bifurcación de audiencia sin sacarla del sitio", "cta": "Registrar mi taller" },
+      { "order": 9, "section": "Precio", "visitorQuestion": "¿Cuánto y qué riesgo corro?", "job": "Precio único + urgencia honesta (stock del lote) + señales de confianza (garantía, cambios, envío, pago seguro)", "cta": "Comprar llavero" },
+      { "order": 10, "section": "FAQ", "visitorQuestion": "Pero, ¿qué pasa si…?", "job": "Desactivar las objeciones que frenan la compra", "cta": null },
+      { "order": 11, "section": "Captura de lead", "visitorQuestion": "Me interesa pero no hoy", "job": "Rescatar al visitante no listo — email para el próximo lote", "cta": "Avísame" },
+      { "order": 12, "section": "Footer", "visitorQuestion": "¿Quiénes son y cómo los contacto?", "job": "NAP, redes, legales, SEO", "cta": null }
+    ],
+    "ctaHierarchy": {
+      "primary": "Comprar llavero — $49.000 (amarillo sólido, glow, repetido en nav / hero / precio)",
+      "secondary": "Registrar mi taller (ghost amarillo, exclusivo de la sección B2B)",
+      "tertiary": "Crear cuenta gratis / Avísame (neutro o input+botón, para no-listos)",
+      "rule": "Un solo CTA primario visible por viewport. Nunca dos botones amarillos sólidos compitiendo."
+    },
+    "trustDevices": [
+      "Logos/nombres de talleres aliados justo bajo el hero",
+      "Testimonios con nombre, rol y ciudad",
+      "Fila de señales de confianza en la sección de precio (garantía, cambios, envío, pago seguro)",
+      "Precio y condiciones visibles sin scroll adicional",
+      "Urgencia basada en un hecho verificable (stock del lote), nunca un contador falso"
+    ]
+  },
+
+  "gaps": {
+    "note": "Lo que falta para cerrar mejor la conversión — priorizado.",
+    "high": [
+      { "id": "real-photography", "gap": "No hay fotografía real del llavero NFC ni del producto en uso.", "why": "Es el mayor freno de compra en e-commerce físico: el visitante no puede juzgar calidad, tamaño ni acabado.", "fix": "Sesión de producto sobre fondo oscuro con luz de borde amarilla + una foto de contexto (llavero junto a llaves reales) + foto de escala en la mano." },
+      { "id": "checkout-real", "gap": "El CTA muestra un toast; no hay pasarela de pago real.", "why": "Toda la intención acumulada se pierde en el último clic.", "fix": "Integrar pasarela colombiana (Wompi, Mercado Pago o PayU) con PSE y Nequi, que son medios esperados en Colombia." },
+      { "id": "video-demo", "gap": "No hay video de 15–30s del toque NFC real.", "why": "El mecanismo NFC es el corazón de la propuesta; verlo en video convierte mucho mejor que animación vectorial.", "fix": "Video vertical corto en loop dentro del mockup del hero." },
+      { "id": "analytics", "gap": "Sin instrumentación de eventos ni píxeles.", "why": "Sin datos no hay optimización del embudo ni retargeting.", "fix": "GA4 + Meta Pixel + eventos por sección vista, clic en CTA, envío de lead, inicio de checkout." }
+    ],
+    "medium": [
+      { "id": "guarantee-page", "gap": "La garantía de 30 días se menciona pero no tiene página que la respalde.", "fix": "Página de garantía y devoluciones enlazada desde la señal de confianza y el footer." },
+      { "id": "comparison", "gap": "No se compara contra la alternativa actual (carpeta de facturas, libreta, nada).", "fix": "Tabla simple 'Antes vs. con CarLink' — hace tangible el valor sin sonar agresivo." },
+      { "id": "b2b-pricing", "gap": "La sección de talleres no muestra precio ni modelo de suscripción.", "fix": "Precio del plan taller o un 'agenda una demo' con calendario, según estrategia." },
+      { "id": "seo-schema", "gap": "Falta datos estructurados (Product, FAQPage, Organization, LocalBusiness).", "fix": "JSON-LD por sección; la FAQ ya existe y es candidata directa a rich snippet." },
+      { "id": "whatsapp-entry", "gap": "No hay canal de conversación inmediata.", "fix": "Botón flotante de WhatsApp — en Colombia es el canal de compra dominante." }
+    ],
+    "low": [
+      { "id": "light-mode-landing", "gap": "La landing existe solo en modo oscuro (el toggle vive en la app).", "fix": "Exponer el toggle también en la landing o documentar que la landing es oscura por decisión de marca." },
+      { "id": "accessibility-audit", "gap": "Falta auditoría formal de contraste y navegación por teclado.", "fix": "Verificar AA en textos #6F6A5F sobre #0C0C10, focus rings visibles en todos los controles, alt text en SVGs informativos." },
+      { "id": "post-purchase", "gap": "No hay comunicación de qué pasa después de comprar.", "fix": "Sección o email de onboarding: qué llega, en cuánto, cómo se vincula a la placa." }
+    ]
+  },
+
+  "replication": {
+    "cssVariables": {
+      "--cl-canvas": "#08080A",
+      "--cl-surface-alt": "#0C0C10",
+      "--cl-surface": "#121216",
+      "--cl-surface-warm": "#171708",
+      "--cl-signal": "#F5C518",
+      "--cl-signal-hover": "#FFD84D",
+      "--cl-signal-deep": "#8A6A00",
+      "--cl-signal-ink": "#B8860A",
+      "--cl-text": "#F5F3EC",
+      "--cl-text-2": "#D8D4C8",
+      "--cl-text-muted": "#A8A496",
+      "--cl-text-faint": "#6F6A5F",
+      "--cl-ok": "#2ECC71",
+      "--cl-warn": "#FFB020",
+      "--cl-critical": "#FF4D6A",
+      "--cl-line": "rgba(255,255,255,0.08)",
+      "--cl-line-strong": "rgba(255,255,255,0.14)",
+      "--cl-signal-line": "rgba(245,197,24,0.30)",
+      "--cl-r-pill": "999px",
+      "--cl-r-btn": "13px",
+      "--cl-r-card": "18px",
+      "--cl-r-panel": "22px",
+      "--cl-glow": "0 0 24px rgba(245,197,24,0.40)",
+      "--cl-glow-strong": "0 0 40px rgba(245,197,24,0.75)",
+      "--cl-inset": "inset 0 1px 0 rgba(255,255,255,0.06)",
+      "--cl-ease": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "--cl-font-display": "'Anton', sans-serif",
+      "--cl-font-body": "'Inter', system-ui, sans-serif",
+      "--cl-font-mono": "'JetBrains Mono', monospace",
+      "--cl-max-w": "1160px",
+      "--cl-gutter": "clamp(20px, 5vw, 64px)"
+    },
+    "fontImports": [
+      "https://fonts.googleapis.com/css2?family=Anton&display=swap",
+      "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
+      "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+    ],
+    "checklist": [
+      "Fondo #08080A, texto #F5F3EC, un solo amarillo #F5C518 como acento",
+      "Anton para titulares y cifras; Inter 300 para párrafos",
+      "Cada sección abre con eyebrow uppercase amarillo",
+      "Bandas alternas separadas por hairline de 1px al 7% de blanco",
+      "Cards #121216 con inset highlight superior — sin borde de acento lateral",
+      "CTA primario amarillo con glow; uno solo por viewport",
+      "Íconos SVG stroke-only, currentColor, sin emoji",
+      "Entradas con fadeUp/textIn escalonadas y easing out-expo",
+      "Flex/grid + gap para todo el espaciado",
+      "Breakpoint único en 860px"
+    ]
+  }
+}

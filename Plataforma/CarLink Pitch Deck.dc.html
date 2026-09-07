@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/ailink-design-system-ee76465d-7871-4a74-a2c7-65f03496b911/colors_and_type.css">
+<script src="_ds/ailink-design-system-ee76465d-7871-4a74-a2c7-65f03496b911/_ds_bundle.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Anton&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#000;font-family:'Inter',sans-serif;}
+</style>
+</helmet>
+
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+  <!-- 1. PORTADA -->
+  <section data-label="Portada" data-speaker-notes="Abrir con la promesa: el historial de tu carro, siempre contigo, en un llavero." style="background:radial-gradient(120% 100% at 50% 0%,#1c1a12 0%,#0b0b0d 55%,#000 100%);color:#f5f3ec;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 110px;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,rgba(245,197,24,0.16),transparent 58%);pointer-events:none;"></div>
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="display:flex;align-items:center;gap:22px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:22px;background:#F5C518;color:#111;"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.3"></circle><circle cx="12" cy="12" r="2.8"></circle><path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1"></path></svg></span>
+        <span style="font-family:'Anton',sans-serif;font-size:112px;letter-spacing:0.005em;line-height:1;">Car<span style="color:#F5C518;">Link</span></span>
+      </div>
+      <p style="font-size:46px;font-weight:400;color:#d8d4c8;line-height:1.25;margin:40px 0 0;max-width:30ch;">El historial de tu carro, siempre contigo — en un llavero.</p>
+      <div style="margin-top:56px;display:flex;gap:18px;align-items:center;">
+        <span style="padding:14px 30px;border-radius:999px;background:#F5C518;color:#111;font-size:26px;font-weight:800;">Llavero NFC · $49.900</span>
+        <span style="padding:14px 30px;border-radius:999px;border:2px solid rgba(245,197,24,0.5);color:#F5C518;font-size:26px;font-weight:700;">Talleres aliados</span>
+      </div>
+    </div>
+    <div style="position:absolute;left:110px;bottom:44px;font-size:22px;letter-spacing:.12em;color:rgba(245,243,236,0.32);text-transform:uppercase;font-weight:600;">carlink.co</div>
+  </section>
+
+  <!-- 2. QUÉ ES -->
+  <section data-label="¿Qué es CarLink?" data-speaker-notes="Explicación simple, sin tecnicismos: es la hoja de vida del carro, digital y verificada." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">En una frase</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;max-width:26ch;">CarLink es la <span style="color:#F5C518;">hoja de vida digital</span> de tu vehículo</h2>
+    <p style="font-size:32px;font-weight:400;color:#a8a496;line-height:1.45;margin:28px 0 0;max-width:56ch;">Cada cambio de aceite, cada filtro, cada repuesto y cada revisión queda registrado por el taller que te atendió — no en un papel que se pierde, sino en una ficha que vive en tu teléfono.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:64px;">
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.18);">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6 6 0 0 1 12 0"></path><path d="M3.5 11a9 9 0 0 1 17 0"></path><circle cx="12" cy="15" r="1.6" fill="#F5C518" stroke="none"></circle></svg>
+        <div style="font-size:30px;font-weight:700;margin:22px 0 10px;">Un toque</div>
+        <div style="font-size:25px;color:#a8a496;line-height:1.4;">Acercas el llavero al celular y tu ficha aparece. Sin apps, sin buscar enlaces.</div>
+      </div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.18);">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        <div style="font-size:30px;font-weight:700;margin:22px 0 10px;">Verificado</div>
+        <div style="font-size:25px;color:#a8a496;line-height:1.4;">Lo registra el taller, no tú. Por eso vale cuando vendes el carro.</div>
+      </div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.18);">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2M9 2h6"></path></svg>
+        <div style="font-size:30px;font-weight:700;margin:22px 0 10px;">Te avisa</div>
+        <div style="font-size:25px;color:#a8a496;line-height:1.4;">Próximo cambio, SOAT por vencer, pieza al límite. Antes de que sea un problema.</div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">02</div>
+  </section>
+
+  <!-- 3. EL PROBLEMA -->
+  <section data-label="El problema" data-speaker-notes="Situación que cualquiera reconoce: la guantera llena de facturas y nadie sabe qué se le hizo al carro." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Lo que pasa hoy</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;max-width:24ch;">Nadie sabe con certeza qué le hicieron al carro</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:56px;">
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:26px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;margin-bottom:26px;">Si eres el dueño</div>
+        <div style="display:flex;flex-direction:column;gap:20px;font-size:27px;color:#d8d4c8;line-height:1.4;">
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>Facturas sueltas en la guantera que se pierden o se borran.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>No recuerdas a qué kilometraje toca el próximo cambio.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>Al vender, no puedes probar que le hiciste todo bien.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>El SOAT o la tecnomecánica se te vencen sin darte cuenta.</div>
+        </div>
+      </div>
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:26px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;margin-bottom:26px;">Si tienes un taller</div>
+        <div style="display:flex;flex-direction:column;gap:20px;font-size:27px;color:#d8d4c8;line-height:1.4;">
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>Haces buen trabajo pero no queda registro que te respalde.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>Compites solo por precio, no por reputación.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>El cliente vuelve cuando se acuerda, no cuando toca.</div>
+          <div style="display:flex;gap:16px;"><span style="color:#F5C518;flex:0 0 auto;">—</span>No tienes forma de certificar los repuestos que instalaste.</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">03</div>
+  </section>
+
+  <!-- 4. CÓMO FUNCIONA -->
+  <section data-label="Cómo funciona" data-speaker-notes="Tres pasos. Enfatizar que el usuario no tiene que hacer nada complicado." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Así funciona</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;">Tres pasos y ya está</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:64px;flex:1;align-content:start;">
+      <div style="padding:40px;border-radius:24px;background:linear-gradient(160deg,#1c1a12,#15151a);border:1px solid rgba(245,197,24,0.22);display:flex;flex-direction:column;">
+        <div style="width:74px;height:74px;border-radius:20px;background:#F5C518;color:#111;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:38px;">1</div>
+        <div style="font-size:34px;font-weight:700;margin:28px 0 14px;">Ingresas tu placa</div>
+        <div style="font-size:26px;color:#a8a496;line-height:1.45;">Escribes la placa y la ciudad donde fue expedida. Entras con tu cuenta de Google. Nada más.</div>
+      </div>
+      <div style="padding:40px;border-radius:24px;background:linear-gradient(160deg,#1c1a12,#15151a);border:1px solid rgba(245,197,24,0.22);display:flex;flex-direction:column;">
+        <div style="width:74px;height:74px;border-radius:20px;background:#F5C518;color:#111;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:38px;">2</div>
+        <div style="font-size:34px;font-weight:700;margin:28px 0 14px;">El taller registra</div>
+        <div style="font-size:26px;color:#a8a496;line-height:1.45;">Cada servicio queda con fecha, kilometraje, aceite usado y repuestos — certificado por quien te atendió.</div>
+      </div>
+      <div style="padding:40px;border-radius:24px;background:linear-gradient(160deg,#1c1a12,#15151a);border:1px solid rgba(245,197,24,0.22);display:flex;flex-direction:column;">
+        <div style="width:74px;height:74px;border-radius:20px;background:#F5C518;color:#111;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:38px;">3</div>
+        <div style="font-size:34px;font-weight:700;margin:28px 0 14px;">Tu ficha vive sola</div>
+        <div style="font-size:26px;color:#a8a496;line-height:1.45;">Se actualiza automáticamente y te avisa del próximo mantenimiento. La muestras con un toque del llavero.</div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">04</div>
+  </section>
+
+  <!-- 5. EL LLAVERO -->
+  <section data-label="El llavero NFC" data-speaker-notes="El producto físico. Precio único de $49.900, personalizable, envío exprés." style="background:radial-gradient(110% 100% at 78% 40%,#241f0c 0%,#0b0b0d 58%,#000 100%);color:#f5f3ec;padding:96px 110px 84px;display:flex;align-items:center;gap:70px;position:relative;overflow:hidden;">
+    <div style="flex:1;">
+      <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">El producto</div>
+      <h2 style="font-family:'Anton',sans-serif;font-size:80px;letter-spacing:0.005em;line-height:1.05;margin:20px 0 0;max-width:18ch;">Tu llavero NFC personalizado</h2>
+      <p style="font-size:31px;color:#a8a496;line-height:1.45;margin:26px 0 0;max-width:34ch;">Con tu placa o el texto que quieras. Lo acercas al celular y tu ficha aparece al instante — incluso para el mecánico.</p>
+      <div style="display:flex;flex-direction:column;gap:18px;margin-top:40px;font-size:28px;color:#d8d4c8;">
+        <div style="display:flex;align-items:center;gap:16px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M20 6L9 17l-5-5"></path></svg>Placa o texto personalizado</div>
+        <div style="display:flex;align-items:center;gap:16px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M20 6L9 17l-5-5"></path></svg>Diseño propio, impreso en 3D</div>
+        <div style="display:flex;align-items:center;gap:16px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M20 6L9 17l-5-5"></path></svg>Envío exprés a todo el país</div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:20px;margin-top:46px;">
+        <span style="font-family:'Anton',sans-serif;font-size:88px;color:#F5C518;line-height:1;">$49.900</span>
+        <span style="font-size:26px;color:#a8a496;">pago único · sin mensualidad</span>
+      </div>
+    </div>
+    <div style="flex:0 0 560px;display:flex;align-items:center;justify-content:center;position:relative;">
+      <div style="position:absolute;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(245,197,24,0.28),transparent 68%);"></div>
+      <div style="position:relative;width:410px;height:250px;border-radius:26px;background:linear-gradient(168deg,#F8D64B 0%,#F2C21A 60%,#E7B412 100%);border:7px solid #0c0c0e;box-shadow:0 40px 90px rgba(0,0,0,.65),inset 0 5px 0 rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:22px;font-weight:800;letter-spacing:.3em;color:#141414;text-indent:.3em;">COLOMBIA</div>
+        <div style="font-family:'Anton',sans-serif;font-size:86px;color:#111116;line-height:1;margin-top:8px;">GHK 472</div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:9px;color:#3a3a1e;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8.5a6 6 0 0 1 12 0"></path><path d="M3.5 11a9 9 0 0 1 17 0"></path><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"></circle></svg><span style="font-size:19px;font-weight:800;letter-spacing:.16em;">NFC</span></div>
+        <div style="position:absolute;top:22px;right:24px;width:26px;height:26px;border-radius:50%;border:4px solid rgba(20,20,20,.32);"></div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">05</div>
+  </section>
+
+  <!-- 6. LA FICHA -->
+  <section data-label="Lo que ves al tocar" data-speaker-notes="Mostrar el contenido concreto de la ficha: kilometraje, próximo servicio, checklist, taller." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Lo que ves al tocar</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:74px;letter-spacing:0.005em;line-height:1.06;margin:18px 0 0;">Toda la vida del carro, en una tarjeta</h2>
+    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:30px;margin-top:48px;flex:1;">
+      <div style="padding:40px;border-radius:26px;background:linear-gradient(158deg,#1c1a12,#141414 60%,#0f0f0f);border:1px solid rgba(245,197,24,0.3);display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:#a8a496;font-weight:700;">Kilometraje actual</div>
+            <div style="font-family:'Anton',sans-serif;font-size:92px;color:#F5C518;line-height:1;margin-top:8px;">48 250<span style="font-size:32px;color:#a8a496;font-family:'Inter';font-weight:600;"> km</span></div>
+          </div>
+          <span style="display:inline-flex;align-items:center;gap:11px;padding:12px 24px;border-radius:999px;background:rgba(245,197,24,0.14);border:1px solid rgba(245,197,24,0.42);color:#F5C518;font-size:23px;font-weight:700;"><span style="width:11px;height:11px;border-radius:50%;background:#F5C518;"></span>Al día</span>
+        </div>
+        <div style="margin-top:34px;">
+          <div style="display:flex;justify-content:space-between;font-size:24px;color:#a8a496;margin-bottom:14px;"><span>Próximo servicio</span><span style="color:#fff;font-weight:600;">51.200 km</span></div>
+          <div style="height:16px;border-radius:10px;background:rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;width:59%;background:linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D);border-radius:10px;"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:36px;">
+          <div style="padding:20px;border-radius:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);"><div style="font-size:22px;font-weight:700;color:#F5C518;">Aceite</div><div style="font-size:20px;color:#a8a496;margin-top:6px;">Mobil 1 · 5W-30</div></div>
+          <div style="padding:20px;border-radius:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);"><div style="font-size:22px;font-weight:700;color:#F5C518;">Filtros</div><div style="font-size:20px;color:#a8a496;margin-top:6px;">Aire · aceite</div></div>
+          <div style="padding:20px;border-radius:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);"><div style="font-size:22px;font-weight:700;color:#F5C518;">Frenos</div><div style="font-size:20px;color:#a8a496;margin-top:6px;">Revisados</div></div>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="margin-top:32px;display:flex;align-items:center;gap:18px;padding-top:26px;border-top:1px solid rgba(255,255,255,0.1);">
+          <span style="width:62px;height:62px;border-radius:16px;background:#F5C518;color:#111;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;">TC</span>
+          <div><div style="font-size:25px;font-weight:700;">Tecnicentro La 80</div><div style="font-size:21px;color:#a8a496;">Bogotá D.C. · 4.8 ★ · taller verificado</div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div style="padding:32px;border-radius:22px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><div style="font-size:27px;font-weight:700;color:#F5C518;">Historial completo</div><div style="font-size:23px;color:#a8a496;line-height:1.4;margin-top:10px;">Cada servicio con su fecha, taller y el aceite que se aplicó.</div></div>
+        <div style="padding:32px;border-radius:22px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><div style="font-size:27px;font-weight:700;color:#F5C518;">Documentos al día</div><div style="font-size:23px;color:#a8a496;line-height:1.4;margin-top:10px;">SOAT, tecnomecánica y facturas guardadas y con alerta de vencimiento.</div></div>
+        <div style="padding:32px;border-radius:22px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><div style="font-size:27px;font-weight:700;color:#F5C518;">Control de partes</div><div style="font-size:23px;color:#a8a496;line-height:1.4;margin-top:10px;">Predice cuándo toca cambiar frenos, llantas, batería o bujías.</div></div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">06</div>
+  </section>
+
+  <!-- 7. PARA CONDUCTORES -->
+  <section data-label="Para conductores" data-speaker-notes="Beneficios tangibles: ahorras, no se te vence nada, y vendes mejor." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Si conduces</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;max-width:26ch;">Tranquilidad, y un carro que vale más</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:56px;flex:1;align-content:start;">
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);display:flex;gap:26px;align-items:flex-start;">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        <div><div style="font-size:32px;font-weight:700;margin-bottom:12px;">Vendes tu carro por más</div><div style="font-size:25px;color:#a8a496;line-height:1.45;">Un historial verificado por talleres reales le da confianza inmediata al comprador — y respalda tu precio.</div></div>
+      </div>
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);display:flex;gap:26px;align-items:flex-start;">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2M9 2h6"></path></svg>
+        <div><div style="font-size:32px;font-weight:700;margin-bottom:12px;">No se te vence nada</div><div style="font-size:25px;color:#a8a496;line-height:1.45;">Cuenta regresiva y notificaciones del próximo mantenimiento, SOAT y tecnomecánica.</div></div>
+      </div>
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);display:flex;gap:26px;align-items:flex-start;">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M12 14l3.5-3.5"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+        <div><div style="font-size:32px;font-weight:700;margin-bottom:12px;">Evitas gastos sorpresa</div><div style="font-size:25px;color:#a8a496;line-height:1.45;">El control de partes te avisa antes de que algo falle — reparar a tiempo siempre cuesta menos.</div></div>
+      </div>
+      <div style="padding:38px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);display:flex;gap:26px;align-items:flex-start;">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"></path><path d="M9 8h6M9 12h6"></path></svg>
+        <div><div style="font-size:32px;font-weight:700;margin-bottom:12px;">Todo en un solo lugar</div><div style="font-size:25px;color:#a8a496;line-height:1.45;">Facturas, certificados y fotos del vehículo — escaneados y guardados, sin la carpeta de papeles.</div></div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">07</div>
+  </section>
+
+  <!-- 8. PARA TALLERES -->
+  <section data-label="Para talleres" data-speaker-notes="Aquí se vende la suscripción: reputación, clientes que vuelven, y capacidad de certificar." style="background:radial-gradient(110% 100% at 20% 20%,#241f0c 0%,#0b0b0d 58%,#000 100%);color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;position:relative;overflow:hidden;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Si tienes un taller o CDA</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;max-width:26ch;">Deja de competir por precio. Compite por <span style="color:#F5C518;">reputación</span>.</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:56px;">
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Perfil verificado</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">Tu taller con logo, dirección, horarios, redes y sello CarLink — visible para todos los conductores de la app.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Reseñas reales</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">Cada cliente atendido puede calificarte. Tu estrella promedio te trae los siguientes.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Certificas repuestos</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">Tú avalas que la pieza pasó por tu taller y quedó bien instalada. Eso nadie más lo puede hacer.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Clientes que vuelven</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">La app le recuerda al cliente cuándo toca — y le sugiere volver contigo, con descuento si quieres.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Agenda y analítica</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">Citas desde la app y un panel con clientes atendidos, tendencia y calificación promedio.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(245,197,24,0.2);"><div style="font-size:30px;font-weight:700;color:#F5C518;margin-bottom:14px;">Peritajes y compraventas</div><div style="font-size:24px;color:#a8a496;line-height:1.45;">Si haces peritajes, publica y certifica vehículos en venta con tu firma técnica.</div></div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">08</div>
+  </section>
+
+  <!-- 9. PLANES -->
+  <section data-label="Planes" data-speaker-notes="Gratis para conductores. El llavero es pago único. El taller paga suscripción mensual." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Planes</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;">Gratis para conductores, suscripción para talleres</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px;margin-top:60px;flex:1;align-content:start;">
+      <div style="padding:44px 38px;border-radius:26px;background:#15151a;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;">
+        <div style="font-size:24px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#a8a496;">Conductor</div>
+        <div style="font-family:'Anton',sans-serif;font-size:72px;color:#f5f3ec;line-height:1;margin:20px 0 6px;">Gratis</div>
+        <div style="font-size:23px;color:#a8a496;">para siempre</div>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:34px;font-size:24px;color:#d8d4c8;">
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Ficha técnica ilimitada</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Historial y recordatorios</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Documentos y facturas</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Pase para tu Wallet</div>
+        </div>
+      </div>
+      <div style="padding:44px 38px;border-radius:26px;background:linear-gradient(165deg,#241f0c,#15151a);border:2px solid #F5C518;display:flex;flex-direction:column;position:relative;">
+        <span style="position:absolute;top:-19px;left:38px;background:#F5C518;color:#111;font-size:20px;font-weight:800;padding:9px 22px;border-radius:999px;letter-spacing:.06em;">EL PRODUCTO</span>
+        <div style="font-size:24px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F5C518;">Llavero NFC</div>
+        <div style="font-family:'Anton',sans-serif;font-size:72px;color:#F5C518;line-height:1;margin:20px 0 6px;">$49.900</div>
+        <div style="font-size:23px;color:#a8a496;">pago único</div>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:34px;font-size:24px;color:#d8d4c8;">
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Placa o texto personalizado</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Diseño propio impreso en 3D</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Envío exprés a todo el país</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Reposición si lo pierdes</div>
+        </div>
+      </div>
+      <div style="padding:44px 38px;border-radius:26px;background:#15151a;border:1px solid rgba(245,197,24,0.3);display:flex;flex-direction:column;">
+        <div style="font-size:24px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#a8a496;">Taller aliado</div>
+        <div style="font-family:'Anton',sans-serif;font-size:72px;color:#f5f3ec;line-height:1;margin:20px 0 6px;">$79.900</div>
+        <div style="font-size:23px;color:#a8a496;">al mes</div>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:34px;font-size:24px;color:#d8d4c8;">
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Clientes y fichas ilimitadas</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Perfil público con reseñas</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Certificar repuestos y peritajes</div>
+          <div style="display:flex;gap:14px;"><span style="color:#F5C518;">✓</span>Agenda, analítica y soporte</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">09</div>
+  </section>
+
+  <!-- 10. CONFIANZA -->
+  <section data-label="Confianza" data-speaker-notes="Por qué creerle a CarLink: nadie puede reescribir el historial, y el usuario controla su privacidad." style="background:#0b0b0d;color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;">
+    <div style="font-size:22px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#F5C518;">Por qué confiar</div>
+    <h2 style="font-family:'Anton',sans-serif;font-size:76px;letter-spacing:0.005em;line-height:1.06;margin:20px 0 0;max-width:24ch;">Un historial que nadie puede reescribir</h2>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:60px;">
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg><div style="font-size:28px;font-weight:700;margin:22px 0 12px;">Talleres verificados</div><div style="font-size:23px;color:#a8a496;line-height:1.45;">Cada aliado pasa por verificación antes de poder registrar servicios.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path></svg><div style="font-size:28px;font-weight:700;margin:22px 0 12px;">Registro inalterable</div><div style="font-size:23px;color:#a8a496;line-height:1.45;">Fecha, taller y kilometraje quedan fijos. Nadie los edita después.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><div style="font-size:28px;font-weight:700;margin:22px 0 12px;">Tú decides quién ve</div><div style="font-size:23px;color:#a8a496;line-height:1.45;">Puedes ocultar tu ficha pública en cualquier momento, por seguridad.</div></div>
+      <div style="padding:36px;border-radius:24px;background:#15151a;border:1px solid rgba(255,255,255,0.08);"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg><div style="font-size:28px;font-weight:700;margin:22px 0 12px;">Garantía visible</div><div style="font-size:23px;color:#a8a496;line-height:1.45;">El sello de garantía del taller queda en la ficha, no en un papel suelto.</div></div>
+    </div>
+    <div style="margin-top:52px;padding:40px 46px;border-radius:24px;background:linear-gradient(135deg,rgba(245,197,24,0.12),rgba(21,21,26,0.6));border:1px dashed rgba(245,197,24,0.42);">
+      <div style="font-size:30px;color:#f5f3ec;line-height:1.4;font-weight:500;">CarLink no reemplaza el SOAT ni la tecnomecánica — los complementa. Es la parte que hoy no existe: el registro confiable de todo lo que se le ha hecho al carro.</div>
+    </div>
+    <div style="position:absolute;right:110px;bottom:44px;font-size:22px;color:rgba(245,243,236,0.3);font-family:'JetBrains Mono',monospace;">10</div>
+  </section>
+
+  <!-- 11. CTA -->
+  <section data-label="Empieza hoy" data-speaker-notes="Cierre con las dos acciones: compra tu llavero, o registra tu taller." style="background:radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 55%,#000 100%);color:#f5f3ec;padding:96px 110px 84px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 78%,rgba(245,197,24,0.18),transparent 58%);pointer-events:none;"></div>
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;">
+      <h2 style="font-family:'Anton',sans-serif;font-size:88px;letter-spacing:0.005em;line-height:1.05;margin:0;max-width:24ch;">Empieza hoy — <span style="color:#F5C518;">un toque</span> y ya tienes historial</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:64px;width:100%;max-width:1180px;">
+        <div style="padding:46px 40px;border-radius:26px;background:#F5C518;color:#111;text-align:left;">
+          <div style="font-size:23px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.7;">Si conduces</div>
+          <div style="font-family:'Anton',sans-serif;font-size:52px;line-height:1.05;margin:16px 0 14px;">Compra tu llavero</div>
+          <div style="font-size:26px;line-height:1.4;opacity:.82;">Crea tu ficha gratis y pide tu llavero personalizado por $49.900, con envío exprés.</div>
+        </div>
+        <div style="padding:46px 40px;border-radius:26px;background:#15151a;border:2px solid rgba(245,197,24,0.5);text-align:left;">
+          <div style="font-size:23px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;">Si tienes taller o CDA</div>
+          <div style="font-family:'Anton',sans-serif;font-size:52px;line-height:1.05;margin:16px 0 14px;">Regístrate como aliado</div>
+          <div style="font-size:26px;line-height:1.4;color:#a8a496;">Verifica tu negocio, empieza a certificar servicios y aparece ante miles de conductores.</div>
+        </div>
+      </div>
+      <div style="margin-top:60px;display:flex;align-items:center;gap:20px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:14px;background:#F5C518;color:#111;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="8.3"></circle><circle cx="12" cy="12" r="2.8"></circle><path d="M12 3.7v3M12 17.3v3M3.7 12h3M17.3 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M6.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1"></path></svg></span>
+        <span style="font-family:'Anton',sans-serif;font-size:44px;">Car<span style="color:#F5C518;">Link</span></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:rgba(245,243,236,0.3);"></span>
+        <span style="font-size:28px;color:#a8a496;">carlink.co</span>
+      </div>
+    </div>
+  </section>
+
+</x-import>
+</x-dc>
+</body>
+</html>

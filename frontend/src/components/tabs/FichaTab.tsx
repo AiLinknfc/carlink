@@ -8,7 +8,8 @@ import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
-import { ServiceIcon, NfcKeyIcon, CarLinkMark } from '@/lib/icons_new'
+import { ServiceIcon, NfcKeyIcon } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
 import { isPdf, proxyUrl } from '@/lib/upload'
 import ExpenseScanModal from '@/components/ExpenseScanModal'
 import type { Vehicle, MaintenanceRecord, FuelSummary, VehicleExpense } from '@/lib/types'
@@ -628,7 +629,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 color: t.color, opacity: !t.tracked ? 0.9 : t.critical ? 1 : 0.75,
                 animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
               {t.iconKey === 'brakes' && <ServiceIcon type="Frenos" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'tire' && <CarLinkMark size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'tire' && <CarLinkLogo size={26} />}
               {t.iconKey === 'battery' && <ServiceIcon type="Batería" size={20} strokeWidth={1.5} />}
               {t.iconKey === 'temp' && <ServiceIcon type="Refrigerante" size={20} strokeWidth={1.5} />}
               {t.iconKey === 'filter' && <ServiceIcon type="Aire" size={20} strokeWidth={1.5} />}
@@ -680,7 +681,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               ? `${quien} pasó la mitad de su vida útil — le quedan ${Math.round(t.pct * 100)}% de su intervalo. Ve agendando la revisión.`
               : `${quien} está dentro de su vida útil normal.`
         const iconSvg = t.iconKey === 'brakes' ? <ServiceIcon type="Frenos" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'tire' ? <CarLinkMark size={22} strokeWidth={1.5} />
+          : t.iconKey === 'tire' ? <CarLinkLogo size={29} />
           : t.iconKey === 'filter' ? <ServiceIcon type="Aire" size={22} strokeWidth={1.5} />
           : t.iconKey === 'suspension' ? <ServiceIcon type="Suspensión" size={22} strokeWidth={1.5} />
           : t.iconKey === 'transmission' ? <ServiceIcon type="Transmisión" size={22} strokeWidth={1.5} />

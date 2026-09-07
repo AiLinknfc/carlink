@@ -211,7 +211,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setPaying(true)
     try {
       // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
-      // calcula el backend (49.900 * cantidad), nunca se manda un precio
+      // calcula el backend (29.900 * cantidad), nunca se manda un precio
       // desde acá. Devuelve la referencia + la firma de integridad que el
       // widget de Wompi necesita para no dejar alterar el monto.
       const created = await withTimeout(apiPost<{ order_id: string; reference: string; amount_in_cents: number; currency: string; integrity_signature: string }>('/shop/orders', {

@@ -261,13 +261,14 @@ interface Props {
   editRecord?: any
   defaultServiceType?: string
   latestMileage?: number
+  hideServiceType?: boolean
   onClose: () => void
   /** Si el alta (no edicion) trae un taller registrado adjunto, se manda esa
    * info — la usa app/page.tsx para ofrecer calificar ese taller. */
   onSaved: (newWorkshop?: { workshopId: string; workshopName: string }) => void
 }
 
-export default function ServiceFormModal({ vehicleId, editRecord, defaultServiceType, latestMileage, onClose, onSaved }: Props) {
+export default function ServiceFormModal({ vehicleId, editRecord, defaultServiceType, latestMileage, hideServiceType, onClose, onSaved }: Props) {
   const { theme } = useTheme()
   const isDark = theme !== 'light'
   const textPrimary = isDark ? '#f5f3ec' : '#17171a'
@@ -617,6 +618,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         {step === 'form' && (
           <div>
             {/* Service type (editable) */}
+            {!hideServiceType && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo de servicio</label>
               <select value={serviceType} onChange={e => setServiceType(e.target.value)} style={{
@@ -629,6 +631,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                 ))}
               </select>
             </div>
+            )}
 
             {/* Type-specific fields */}
             {(() => {

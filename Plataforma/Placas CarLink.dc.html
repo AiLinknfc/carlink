@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/ailink-design-system-ee76465d-7871-4a74-a2c7-65f03496b911/colors_and_type.css">
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;overflow-x:hidden;background:#060606;font-family:'Inter',system-ui,sans-serif;}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(245,197,24,.3);border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(245,197,24,.55)}
+  input,select,button,textarea{font-family:inherit}
+  select option{background:#141414;color:#f5f3ec}
+  @keyframes sectionIn{from{transform:translateY(22px)}to{transform:none}}
+  @keyframes textIn{from{transform:translateX(36px)}to{transform:none}}
+  @keyframes fadeUp{from{transform:translateY(18px)}to{transform:none}}
+  @keyframes shineSweep{0%{transform:translateX(-170%) skewX(-18deg)}60%{transform:translateX(200%) skewX(-18deg)}100%{transform:translateX(200%) skewX(-18deg)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,22px)}to{opacity:1;transform:translate(-50%,0)}}
+  @media (max-width:860px){
+    [data-r="main"]{left:0 !important;padding:88px 15px 92px !important;}
+    [data-r="aside"]{position:fixed !important;top:0 !important;bottom:auto !important;width:100% !important;height:auto !important;flex-direction:row !important;align-items:center !important;gap:8px !important;padding:9px 12px !important;border-right:none !important;border-bottom:1px solid rgba(245,197,24,.16) !important;z-index:40 !important;}
+    [data-r="brandbox"]{padding:0 !important;flex:0 0 auto !important;}
+    [data-r="brandname"]{font-size:20px !important;}
+    [data-r="spacer"]{display:none !important;}
+    [data-r="vehbox"]{display:none !important;}
+    [data-r="userbox"]{display:none !important;}
+    [data-r="nav"]{flex:1 !important;flex-direction:row !important;overflow-x:auto !important;overflow-y:hidden !important;padding:2px !important;gap:4px !important;}
+    [data-r="nav"] button{padding:10px 12px !important;flex:0 0 auto !important;}
+    [data-r="navlabel"]{display:none !important;}
+    [data-r="fichagrid"]{grid-template-columns:1fr !important;}
+    [data-r="grid2"]{grid-template-columns:1fr !important;}
+    [data-r="heroform"]{flex-direction:column !important;}
+    [data-r="heroform"] [data-r="divider"]{display:none !important;}
+    [data-r="regGrid"]{grid-template-columns:1fr !important;}
+    [data-r="storeRow"]{flex-wrap:wrap !important;}
+  }
+</style>
+</helmet>
+
+<div style="position:relative;min-height:100vh;height:100vh;overflow:hidden;background:#060606;color:#f5f3ec;">
+
+  <canvas ref="{{ bgRef }}" style="position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none;background:#060606;"></canvas>
+  <div style="position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 42%,transparent 40%,rgba(6,6,6,0.86) 100%);"></div>
+
+  <!-- ===== PERSISTENT PLATE ===== -->
+  <div style="position:fixed;left:50%;top:50%;z-index:44;transform-origin:center center;transition:transform 950ms cubic-bezier(0.22,1,0.36,1),opacity .5s;will-change:transform;opacity:{{ plateOpacity }};pointer-events:{{ platePE }};transform:{{ plateTransform }};">
+    <sc-if value="{{ isCarroShape }}" hint-placeholder-val="{{ true }}">
+      <div onMouseEnter="{{ plateSpin }}" onClick="{{ plateSpin }}" style="position:relative;width:448px;height:220px;border-radius:18px;background:{{ ptBg }};border:4px solid #0c0c0e;box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 4px 0 rgba(255,255,255,.5),inset 0 -8px 18px rgba(90,60,0,.22);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;will-change:transform;">
+        <div style="text-align:center;font-size:22px;font-weight:800;letter-spacing:.32em;color:{{ ptLabel }};padding:13px 0 0;text-indent:.32em;">COLOMBIA</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:88px;letter-spacing:.03em;color:{{ ptInk }};line-height:1;text-shadow:0 2px 0 rgba(255,255,255,.28);">{{ plateText }}</div>
+        <div style="text-align:center;font-size:13px;font-weight:700;letter-spacing:.26em;color:{{ ptSub }};padding:0 0 13px;text-indent:.26em;text-transform:uppercase;">{{ city }}</div>
+        <sc-if value="{{ ptTag }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:12px;right:14px;font-size:10px;font-weight:800;letter-spacing:.14em;color:{{ ptSub }};border:1.5px solid {{ ptSub }};border-radius:5px;padding:2px 6px;">{{ ptTag }}</div></sc-if>
+        <div style="position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.6) 48%,transparent 66%);animation:shineSweep 6s ease-in-out infinite;pointer-events:none;"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ isMotoShape }}" hint-placeholder-val="{{ false }}">
+      <div onMouseEnter="{{ plateSpin }}" onClick="{{ plateSpin }}" style="position:relative;width:274px;height:246px;border-radius:18px;background:{{ ptBg }};border:4px solid #0c0c0e;box-shadow:0 30px 70px rgba(0,0,0,.6),inset 0 4px 0 rgba(255,255,255,.5);overflow:hidden;display:flex;flex-direction:column;align-items:center;cursor:pointer;will-change:transform;">
+        <div style="text-align:center;font-size:16px;font-weight:800;letter-spacing:.28em;color:{{ ptLabel }};padding:13px 0 2px;text-indent:.28em;">COLOMBIA</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:62px;letter-spacing:.02em;color:{{ ptInk }};line-height:1.05;text-align:center;text-shadow:0 2px 0 rgba(255,255,255,.28);">{{ plateText }}</div>
+        <div style="text-align:center;font-size:11px;font-weight:700;letter-spacing:.2em;color:{{ ptSub }};padding:0 0 13px;text-transform:uppercase;">{{ city }}</div>
+        <div style="position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.6) 48%,transparent 66%);animation:shineSweep 6s ease-in-out infinite;pointer-events:none;"></div>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ===== FILMSTRIP ===== -->
+  <div style="display:flex;width:400vw;height:100vh;transition:transform 850ms cubic-bezier(0.22,1,0.36,1);transform:{{ filmTransform }};position:relative;z-index:10;">
+
+    <!-- ---------- 1. ENTRADA ---------- -->
+    <section data-r="entrada" style="width:100vw;height:100vh;flex:0 0 100vw;position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:78px clamp(20px,5vw,64px) 26px;overflow-y:auto;">
+      <div style="position:absolute;top:26px;left:clamp(20px,5vw,64px);z-index:16;display:flex;align-items:center;gap:11px;font-family:'Anton',sans-serif;font-size:24px;letter-spacing:.01em;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:#F5C518;color:#111;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h11l-2-3 6 5-6 5 2-3H3z"/></svg></span>
+        <span>Car<span style="color:#F5C518;">Link</span></span>
+      </div>
+      <div style="text-align:center;z-index:16;animation:fadeUp .7s both;flex:0 0 auto;">
+        <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;font-weight:700;color:#F5C518;">Plataforma de mantenimiento vehicular</div>
+        <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,4.6vw,58px);line-height:0.98;letter-spacing:0;margin:12px auto 0;max-width:19ch;text-transform:uppercase;">Tu placa es tu <span style="color:#F5C518;">identidad digital</span></h1>
+      </div>
+      <div style="z-index:16;width:min(720px,96vw);margin:0 auto;flex:0 0 auto;animation:fadeUp .7s .12s both;">
+        <p style="text-align:center;color:#b6b2a6;font-size:15px;max-width:52ch;margin:0 auto 14px;line-height:1.5;">Ingresa tu placa y la ciudad de expedición. Pasa el cursor (o toca) la placa y verás cómo cobra vida.</p>
+        <div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;">
+          <sc-for list="{{ ptypes }}" as="t" hint-placeholder-count="5">
+            <button onClick="{{ t.onClick }}" style="padding:8px 15px;border-radius:999px;border:1px solid {{ t.border }};background:{{ t.bg }};color:{{ t.fg }};font-weight:700;font-size:13px;cursor:pointer;transition:all .18s;">{{ t.name }}</button>
+          </sc-for>
+        </div>
+        <div data-r="heroform" style="display:flex;gap:10px;align-items:stretch;background:rgba(14,14,14,0.72);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(245,197,24,0.22);border-radius:18px;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.55);">
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 8px;">
+            <label style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7c786e;font-weight:700;">Número de placa</label>
+            <input value="{{ plateText }}" onChange="{{ onPlate }}" maxlength="8" placeholder="ABC 123" style="width:100%;border:none;background:transparent;color:#F5C518;font-family:'Anton',sans-serif;font-size:26px;letter-spacing:.06em;text-transform:uppercase;outline:none;padding:2px 0;">
+          </div>
+          <div data-r="divider" style="width:1px;background:rgba(255,255,255,0.1);"></div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 8px;">
+            <label style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7c786e;font-weight:700;">Ciudad de expedición</label>
+            <select value="{{ city }}" onChange="{{ setCity }}" style="width:100%;border:none;background:transparent;color:#f5f3ec;font-size:17px;font-weight:600;outline:none;padding:4px 0;cursor:pointer;">
+              <sc-for list="{{ cities }}" as="c" hint-placeholder-count="6"><option value="{{ c }}">{{ c }}</option></sc-for>
+            </select>
+          </div>
+          <button onClick="{{ goLogin }}" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 26px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 0 24px rgba(245,197,24,0.4);transition:all .2s;" style-hover="box-shadow:0 0 40px rgba(245,197,24,0.75);background:#FFD84D">Continuar
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div style="margin-top:16px;text-align:center;">
+          <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:9px;">Lleva tu ficha en la Wallet</div>
+          <div data-r="storeRow" style="display:flex;gap:10px;justify-content:center;">
+            <a href="#" style="display:inline-flex;align-items:center;gap:9px;padding:9px 16px;border-radius:11px;background:#000;border:1px solid rgba(255,255,255,0.22);color:#fff;text-decoration:none;">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.1-2.8.9-3.5.9-.7 0-1.9-.8-3-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.6zM14.2 5.7c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-1 2.7 1 .1 2-.5 2.7-1.1z"/></svg>
+              <span style="text-align:left;line-height:1.05;"><span style="display:block;font-size:9px;color:#c9c6ba;">Descárgala en</span><span style="display:block;font-size:15px;font-weight:700;">App Store</span></span>
+            </a>
+            <a href="#" style="display:inline-flex;align-items:center;gap:9px;padding:9px 16px;border-radius:11px;background:#000;border:1px solid rgba(255,255,255,0.22);color:#fff;text-decoration:none;">
+              <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#EA4335" d="M3.6 2.3C3.3 2.6 3.1 3 3.1 3.6v16.8c0 .6.2 1 .5 1.3l.1.1L13 12.6v-.2L3.7 2.2l-.1.1z"/><path fill="#FBBC04" d="M16 15.7l-3-3v-.2l3-3 .1.1 3.6 2.1c1 .6 1 1.5 0 2.1L16 15.7z"/><path fill="#4285F4" d="M16.1 15.6L13 12.5 3.6 21.9c.3.4.9.4 1.5.1l11-6.4z"/><path fill="#34A853" d="M16.1 9.4l-11-6.3c-.6-.4-1.2-.3-1.5.1L13 12.5l3.1-3.1z"/></svg>
+              <span style="text-align:left;line-height:1.05;"><span style="display:block;font-size:9px;color:#c9c6ba;">Disponible en</span><span style="display:block;font-size:15px;font-weight:700;">Google Play</span></span>
+            </a>
+          </div>
+        </div>
+        <p style="text-align:center;color:#7c786e;font-size:12px;margin:14px 0 0;">Al continuar accederás con tu cuenta de Google · Datos protegidos</p>
+      </div>
+    </section>
+
+    <!-- ---------- 2. LOGIN GOOGLE ---------- -->
+    <section style="width:100vw;height:100vh;flex:0 0 100vw;position:relative;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <button onClick="{{ goEntrada }}" style="position:absolute;top:26px;left:clamp(20px,5vw,64px);z-index:16;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#b6b2a6;padding:9px 16px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;" style-hover="background:rgba(245,197,24,0.14);color:#fff">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Volver
+      </button>
+      <div style="text-align:center;margin-top:22vh;">
+        <div style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;font-weight:700;color:#F5C518;margin-bottom:18px;animation:fadeUp .5s both;">Acceso seguro</div>
+        <div style="position:relative;width:400px;max-width:92vw;background:#fff;color:#202124;border-radius:16px;box-shadow:0 30px 90px rgba(0,0,0,.65);overflow:hidden;text-align:left;animation:fadeUp .6s .05s both;">
+          <div style="padding:32px 34px 18px;">
+            <svg width="38" height="38" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            <h2 style="font-weight:400;font-size:21px;color:#202124;margin:14px 0 6px;">Elige una cuenta</h2>
+            <p style="color:#5f6368;font-size:14px;margin:0;">para continuar en <b style="font-weight:600;color:#202124;">CarLink Placas</b></p>
+          </div>
+          <div style="border-top:1px solid #e8eaed;">
+            <button onClick="{{ doLogin }}" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 24px;border:none;background:#fff;cursor:pointer;text-align:left;" style-hover="background:#f6f8fc">
+              <span style="width:38px;height:38px;border-radius:50%;background:#F5C518;color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px;">J</span>
+              <span style="flex:1;"><span style="display:block;font-size:14px;color:#202124;font-weight:500;">Juan Pérez</span><span style="display:block;font-size:13px;color:#5f6368;">juan.perez@gmail.com</span></span>
+            </button>
+            <button onClick="{{ doLogin }}" style="width:100%;display:flex;align-items:center;gap:14px;padding:14px 24px;border:none;border-top:1px solid #e8eaed;background:#fff;cursor:pointer;text-align:left;" style-hover="background:#f6f8fc">
+              <span style="width:38px;height:38px;border-radius:50%;border:1px solid #dadce0;color:#5f6368;display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+              <span style="font-size:14px;color:#202124;font-weight:500;">Usar otra cuenta</span>
+            </button>
+          </div>
+          <div style="padding:16px 24px 22px;font-size:12px;color:#5f6368;line-height:1.5;">Para continuar, Google compartirá tu nombre, correo y foto con CarLink Placas.</div>
+          <sc-if value="{{ loggingIn }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+              <div style="width:42px;height:42px;border-radius:50%;border:3px solid #e8eaed;border-top-color:#F5C518;animation:spin .8s linear infinite;"></div>
+              <div style="color:#5f6368;font-size:14px;">Verificando tu cuenta…</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 3. REGISTRO DE VEHÍCULO ---------- -->
+    <section style="width:100vw;height:100vh;flex:0 0 100vw;position:relative;overflow-y:auto;padding:26px clamp(20px,5vw,64px) 40px;">
+      <button onClick="{{ goLogin }}" style="position:absolute;top:26px;left:clamp(20px,5vw,64px);z-index:16;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#b6b2a6;padding:9px 16px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;" style-hover="background:rgba(245,197,24,0.14);color:#fff">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Volver
+      </button>
+      <div style="max-width:760px;margin:34vh auto 0;padding-top:0;">
+        <div style="text-align:center;margin-bottom:24px;animation:fadeUp .5s both;">
+          <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Un último paso, {{ userFirst }}</div>
+          <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,4vw,46px);letter-spacing:.01em;margin:8px 0 6px;text-transform:uppercase;">Registra tu vehículo</h1>
+          <p style="color:#b6b2a6;margin:0;font-size:15px;">Estos datos alimentan tu ficha técnica y las predicciones de mantenimiento.</p>
+        </div>
+        <div style="background:rgba(14,14,14,0.74);backdrop-filter:blur(22px);border:1px solid rgba(245,197,24,0.2);border-radius:20px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:fadeUp .55s .06s both;">
+          <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:10px;">Marca del vehículo</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:9px;margin-bottom:20px;">
+            <sc-for list="{{ brandTiles }}" as="b" hint-placeholder-count="9">
+              <button onClick="{{ b.onClick }}" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px;border-radius:13px;cursor:pointer;background:{{ b.bg }};border:1.5px solid {{ b.border }};transition:all .16s;">
+                <span style="width:40px;height:40px;border-radius:10px;background:{{ b.badge }};display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:18px;color:{{ b.mark }};">{{ b.initial }}</span>
+                <span style="font-size:11px;font-weight:700;color:{{ b.fg }};">{{ b.name }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div data-r="regGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div><label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;display:block;margin-bottom:6px;">Nombre del propietario</label><input value="{{ regName }}" onChange="{{ setRegName }}" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:15px;outline:none;"></div>
+            <div><label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;display:block;margin-bottom:6px;">Modelo / línea</label><input value="{{ regModel }}" onChange="{{ setRegModel }}" placeholder="Ej. Mazda 3 Grand Touring" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:15px;outline:none;"></div>
+            <div><label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;display:block;margin-bottom:6px;">Año</label>
+              <select value="{{ regYear }}" onChange="{{ setRegYear }}" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:15px;outline:none;cursor:pointer;"><sc-for list="{{ years }}" as="y" hint-placeholder-count="6"><option value="{{ y }}">{{ y }}</option></sc-for></select>
+            </div>
+            <div><label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;display:block;margin-bottom:6px;">Tipo</label>
+              <select value="{{ regType }}" onChange="{{ setRegType }}" style="width:100%;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:15px;outline:none;cursor:pointer;"><sc-for list="{{ vtypes }}" as="v" hint-placeholder-count="5"><option value="{{ v }}">{{ v }}</option></sc-for></select>
+            </div>
+          </div>
+          <div style="margin-top:16px;"><label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;display:block;margin-bottom:8px;">Color</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <sc-for list="{{ colorTiles }}" as="c" hint-placeholder-count="6">
+                <button onClick="{{ c.onClick }}" title="{{ c.name }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:999px;cursor:pointer;background:{{ c.bg }};border:1.5px solid {{ c.border }};color:{{ c.fg }};font-size:12px;font-weight:600;"><span style="width:15px;height:15px;border-radius:50%;background:{{ c.dot }};border:1px solid rgba(255,255,255,.3);"></span>{{ c.name }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:18px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(245,197,24,0.08);border:1px dashed rgba(245,197,24,0.32);">
+            <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;">Placa</span>
+            <span style="font-family:'Anton',sans-serif;font-size:20px;color:#F5C518;letter-spacing:.05em;">{{ plateText }}</span>
+            <span style="width:4px;height:4px;border-radius:50%;background:#7c786e;"></span>
+            <span style="font-size:13px;color:#b6b2a6;">{{ city }}</span>
+          </div>
+          <button onClick="{{ doRegister }}" style="margin-top:18px;width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px;border-radius:13px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 0 24px rgba(245,197,24,0.4);transition:all .2s;" style-hover="box-shadow:0 0 40px rgba(245,197,24,0.75);background:#FFD84D">Registrar y entrar
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 4. APP ---------- -->
+    <section style="width:100vw;height:100vh;flex:0 0 100vw;position:relative;">
+      <!-- SIDEBAR -->
+      <aside data-r="aside" style="position:absolute;left:0;top:0;bottom:0;width:266px;background:rgba(9,9,9,0.86);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid rgba(245,197,24,0.14);display:flex;flex-direction:column;z-index:20;">
+        <div data-r="brandbox" style="padding:22px 20px 12px;display:flex;align-items:center;gap:11px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#F5C518;color:#111;flex:0 0 auto;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h11l-2-3 6 5-6 5 2-3H3z"/></svg></span>
+          <div data-r="brandname" style="font-family:'Anton',sans-serif;font-size:27px;letter-spacing:.01em;line-height:1;">Car<span style="color:#F5C518;">Link</span></div>
+        </div>
+        <div data-r="spacer" style="height:94px;flex:0 0 94px;"></div>
+        <div data-r="vehbox" style="padding:0 20px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7c786e;font-weight:700;">Vehículo</div>
+          <div style="font-family:'Anton',sans-serif;font-size:24px;letter-spacing:.01em;margin:4px 0 2px;">{{ veh.modelo }}</div>
+          <div style="font-size:12px;color:#b6b2a6;">{{ veh.anio }} · {{ veh.tipo }} · {{ veh.color }}</div>
+          <div style="margin-top:10px;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:#F5C518;color:#111;font-size:12px;font-weight:800;letter-spacing:.05em;">{{ plateText }}<span style="width:4px;height:4px;border-radius:50%;background:#111;opacity:.5;"></span>{{ city }}</div>
+        </div>
+        <nav data-r="nav" style="flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:2px;">
+          <button onClick="{{ goFicha }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cFicha }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navFicha }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navFicha }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Ficha técnica</span></button>
+          <button onClick="{{ goHist }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cHist }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navHist }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navHist }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Historial</span></button>
+          <button onClick="{{ goDiag }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cDiag }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navDiag }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navDiag }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5 2 7h10c0-2 2-4 2-7a7 7 0 0 0-7-7z"/><path d="M9 21h6M10 18v3M14 18v3"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Diagnóstico</span></button>
+          <button onClick="{{ goPartes }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cPartes }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navPartes }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navPartes }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l3.5-3.5"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Control de partes</span></button>
+          <button onClick="{{ goGal }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cGal }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navGal }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navGal }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Galería</span></button>
+          <button onClick="{{ goCert }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cCert }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navCert }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navCert }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 8h6M9 12h6"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Certificados</span></button>
+          <button onClick="{{ goDoc }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cDoc }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navDoc }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navDoc }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Documentos</span></button>
+          <button onClick="{{ goTaller }}" style="position:relative;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:transparent;color:{{ cTaller }};cursor:pointer;text-align:left;font-size:14px;font-weight:600;border-radius:11px;transition:color .2s;" style-hover="color:#fff"><span style="position:absolute;inset:0;border-radius:11px;background:linear-gradient(90deg,rgba(245,197,24,0.22),rgba(245,197,24,0.02));opacity:{{ navTaller }};transition:opacity .25s;"></span><span style="position:absolute;left:0;top:50%;height:20px;width:3px;border-radius:0 3px 3px 0;background:#F5C518;transform:translateY(-50%);opacity:{{ navTaller }};transition:opacity .25s;box-shadow:0 0 10px #F5C518;"></span><svg style="position:relative;z-index:1;flex:0 0 auto" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.3-.6-.6-2.3z"/></svg><span data-r="navlabel" style="position:relative;z-index:1">Taller</span></button>
+        </nav>
+        <div data-r="userbox" style="padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;">
+          <span style="width:34px;height:34px;border-radius:50%;background:#F5C518;color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;">{{ userInitial }}</span>
+          <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">{{ veh.owner }}</div><div style="font-size:11px;color:#7c786e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">juan.perez@gmail.com</div></div>
+          <button onClick="{{ goEntrada }}" title="Salir" style="background:transparent;border:none;color:#7c786e;cursor:pointer;padding:6px;border-radius:8px;" style-hover="color:#ff4d6a">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main data-r="main" style="position:absolute;left:266px;right:0;top:0;bottom:0;overflow-y:auto;padding:44px clamp(24px,4vw,56px) 72px;">
+        <div style="position:absolute;top:20px;right:clamp(24px,4vw,56px);z-index:18;display:flex;gap:10px;align-items:center;">
+          <button onClick="{{ openCart }}" title="Solicitar NFC" style="position:relative;width:46px;height:46px;border-radius:13px;border:1px solid rgba(245,197,24,0.35);background:rgba(20,20,20,0.8);backdrop-filter:blur(12px);color:#F5C518;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .16s;" style-hover="background:#F5C518;color:#111">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+            <sc-if value="{{ nfcBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#F5C518;color:#111;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #0a0a0a;">1</span></sc-if>
+          </button>
+          <button onClick="{{ openProfile }}" title="Perfil y ajustes" style="display:flex;align-items:center;gap:9px;padding:6px 14px 6px 6px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);background:rgba(20,20,20,0.8);backdrop-filter:blur(12px);color:#f5f3ec;cursor:pointer;transition:all .16s;" style-hover="border-color:rgba(245,197,24,0.5)">
+            <span style="width:34px;height:34px;border-radius:50%;background:#F5C518;color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px;">{{ userInitial }}</span>
+            <span style="font-size:13px;font-weight:600;">{{ veh.owner }}</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+
+        <!-- FICHA -->
+        <sc-if value="{{ isFicha }}" hint-placeholder-val="{{ true }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:1000px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Ficha técnica digital</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Estado del vehículo</h1>
+              <p style="color:#b6b2a6;margin:0 0 16px;max-width:60ch;">Tarjeta viva de mantenimiento. Se actualiza sola con cada servicio. Deslízala para ver quién te atendió.</p>
+            </div>
+
+            <!-- ===== TABLERO VEHICULAR ===== -->
+            <div style="position:relative;overflow:hidden;border-radius:22px;margin-bottom:20px;padding:22px;background:radial-gradient(130% 120% at 50% -10%,#20232b 0%,#111318 45%,#0a0b0e 100%);border:1px solid rgba(245,197,24,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 24px 60px rgba(0,0,0,.5);animation:textIn .5s .05s both;">
+              <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,rgba(255,255,255,0.02) 0 1px,transparent 1px 3px);opacity:.5;"></div>
+              <div style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;">
+                <div style="display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#F5C518;font-weight:800;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M12 3a9 9 0 0 0-9 9h3M12 3v3M21 12a9 9 0 0 0-9-9"/><path d="M18.4 6.6 15 10"/></svg>Tablero del vehículo</div>
+                <div style="display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;background:rgba(0,0,0,0.4);border:1px solid {{ urgentesColor }};"><span style="width:7px;height:7px;border-radius:50%;background:{{ urgentesColor }};box-shadow:0 0 8px {{ urgentesColor }};"></span><span style="font-size:11px;font-weight:700;color:{{ urgentesColor }};">{{ urgentesLabel }}</span></div>
+              </div>
+
+              <div style="position:relative;display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:16px;align-items:center;">
+                <!-- GAUGE: Vida del aceite -->
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                  <div style="position:relative;width:170px;height:170px;border-radius:50%;background:conic-gradient(from 135deg, {{ oilColor }} 0deg {{ gaugeDeg }}deg, rgba(255,255,255,0.07) {{ gaugeDeg }}deg 270deg, transparent 270deg 360deg);filter:drop-shadow(0 0 14px rgba(245,197,24,0.25));">
+                    <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#1a1d24,#0c0d11);border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="{{ oilColor }}" style="margin-bottom:2px;"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>
+                      <div style="font-family:'Anton',sans-serif;font-size:34px;line-height:1;color:{{ oilColor }};">{{ oilPct }}</div>
+                      <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-top:3px;">Vida aceite</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;font-size:12px;color:#b6b2a6;">{{ latest.lubType }}</div>
+                </div>
+
+                <!-- ODÓMETRO CENTRAL -->
+                <div style="text-align:center;">
+                  <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7c786e;font-weight:700;">Odómetro</div>
+                  <div style="display:inline-flex;align-items:baseline;gap:8px;margin:6px 0 4px;padding:10px 18px;border-radius:12px;background:#08090c;border:1px solid rgba(245,197,24,0.3);box-shadow:inset 0 2px 10px rgba(0,0,0,.7);"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:38px;letter-spacing:.08em;color:#F5C518;text-shadow:0 0 14px rgba(245,197,24,0.55);">{{ currentKmDigits }}</span><span style="font-size:14px;color:#7c786e;font-weight:600;">km</span></div>
+                  <div style="display:flex;justify-content:center;gap:10px;margin-top:14px;">
+                    <div style="flex:1;max-width:130px;padding:10px 12px;border-radius:12px;background:#101216;border:1px solid rgba(255,255,255,0.08);"><div style="font-family:'Anton',sans-serif;font-size:26px;line-height:1;color:#fff;">{{ totalServ }}</div><div style="font-size:10px;color:#7c786e;letter-spacing:.06em;">servicios</div></div>
+                    <div style="flex:1;max-width:130px;padding:10px 12px;border-radius:12px;background:#101216;border:1px solid rgba(255,255,255,0.08);"><div style="font-family:'Anton',sans-serif;font-size:26px;line-height:1;color:#fff;">{{ kmRun }}</div><div style="font-size:10px;color:#7c786e;letter-spacing:.06em;">km con CarLink</div></div>
+                  </div>
+                  <div style="display:flex;justify-content:center;gap:8px;margin-top:12px;">
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.4);font-size:10px;font-weight:700;color:#5be89a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>SOAT</span>
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.4);font-size:10px;font-weight:700;color:#ffcf5a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>RTM pronto</span>
+                  </div>
+                </div>
+
+                <!-- GAUGE: Salud del vehículo -->
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                  <div style="position:relative;width:170px;height:170px;border-radius:50%;background:conic-gradient(from 135deg, {{ healthColor }} 0deg {{ healthDeg }}deg, rgba(255,255,255,0.07) {{ healthDeg }}deg 270deg, transparent 270deg 360deg);">
+                    <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#1a1d24,#0c0d11);border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{ healthColor }}" stroke-width="1.8" style="margin-bottom:2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                      <div style="font-family:'Anton',sans-serif;font-size:34px;line-height:1;color:{{ healthColor }};">{{ healthPct }}</div>
+                      <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-top:3px;">Salud</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;font-size:12px;font-weight:700;color:{{ healthColor }};">{{ healthLabel }}</div>
+                </div>
+              </div>
+
+              <!-- Próximo mantenimiento + cuenta regresiva -->
+              <div style="position:relative;margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:210px;">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#a8a496;font-weight:700;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.9"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Próximo mantenimiento</div>
+                  <div style="font-size:15px;font-weight:700;color:#fff;margin:5px 0 8px;">{{ nextService }} km · faltan {{ kmToNext }} km</div>
+                  <div style="height:8px;border-radius:6px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="height:100%;width:{{ progWidth }};background:linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D);border-radius:6px;transition:width .7s cubic-bezier(0.22,1,0.36,1);"></div></div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <div style="text-align:center;background:rgba(0,0,0,0.4);border:1px solid rgba(245,197,24,0.25);border-radius:11px;padding:8px 12px;min-width:54px;"><div style="font-family:'Anton',sans-serif;font-size:26px;color:#F5C518;line-height:1;">{{ cd.d }}</div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">días</div></div>
+                  <div style="text-align:center;background:rgba(0,0,0,0.4);border:1px solid rgba(245,197,24,0.25);border-radius:11px;padding:8px 12px;min-width:54px;"><div style="font-family:'Anton',sans-serif;font-size:26px;color:#F5C518;line-height:1;">{{ cd.h }}</div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">hrs</div></div>
+                  <div style="text-align:center;background:rgba(0,0,0,0.4);border:1px solid rgba(245,197,24,0.25);border-radius:11px;padding:8px 12px;min-width:54px;"><div style="font-family:'Anton',sans-serif;font-size:26px;color:#F5C518;line-height:1;">{{ cd.m }}</div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">min</div></div>
+                  <div style="text-align:center;background:rgba(0,0,0,0.4);border:1px solid rgba(245,197,24,0.25);border-radius:11px;padding:8px 12px;min-width:54px;"><div style="font-family:'Anton',sans-serif;font-size:26px;color:#F5C518;line-height:1;">{{ cd.s }}</div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">seg</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div data-r="fichagrid" style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,0.85fr);gap:22px;align-items:start;">
+              <!-- FLIP CARD (rotateX real) -->
+              <div style="animation:textIn .5s .1s both;perspective:2200px;">
+                <div style="position:relative;min-height:486px;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:{{ flipTransition }};transform:{{ flipRotate }};will-change:transform;">
+                  <!-- FRONT -->
+                  <div ref="{{ fichaRef }}" style="position:relative;min-height:486px;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:24px;overflow:hidden;border:1px solid rgba(245,197,24,0.3);padding:24px;display:flex;flex-direction:column;background:{{ presetBg }};box-shadow:{{ flipShadow }};transition:box-shadow .5s;">
+                    {{ bgFrontEl }}
+                    <div style="position:relative;z-index:1;display:flex;flex-direction:column;flex:1;">
+                      <!-- FIDELITY MINI-CARD -->
+                      <div style="position:relative;overflow:hidden;border-radius:16px;padding:15px 17px;background:linear-gradient(115deg,#0f0f0f 0%,#241b05 55%,#0d0d0d 100%);border:1px solid rgba(245,197,24,0.4);box-shadow:0 10px 26px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);">
+                        <div style="position:absolute;top:-40%;left:-10%;width:55%;height:200%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.14) 48%,transparent 66%);transform:skewX(-18deg);pointer-events:none;"></div>
+                        <div style="position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                            <span style="width:42px;height:42px;flex:0 0 auto;border-radius:10px;overflow:hidden;background:#F5C518;display:flex;align-items:center;justify-content:center;color:#111;border:1.5px solid rgba(245,197,24,.6);"><sc-if value="{{ hasOilImg }}" hint-placeholder-val="{{ false }}">{{ oilImgFichaEl }}</sc-if><sc-if value="{{ noOilImgTop }}" hint-placeholder-val="{{ true }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg></sc-if></span>
+                            <div style="min-width:0;">
+                              <div style="font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#F5C518;font-weight:800;">CarLink Club · Socio</div>
+                              <div style="font-size:19px;font-weight:800;color:#fff;line-height:1.1;margin-top:2px;">{{ latest.lubBrand }}</div>
+                              <div style="font-size:12px;color:#d8c98a;">{{ latest.lubType }}</div>
+                            </div>
+                          </div>
+                          <button onClick="{{ flip }}" title="Dar vuelta a la ficha" style="flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:1px solid rgba(245,197,24,0.45);background:rgba(245,197,24,0.12);color:#F5C518;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;" style-hover="background:#F5C518;color:#111">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+                          </button>
+                        </div>
+                        <div style="position:relative;margin-top:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                          <div style="display:flex;gap:6px;">
+                            <sc-for list="{{ stamps }}" as="st" hint-placeholder-count="6"><span style="width:17px;height:17px;border-radius:50%;background:{{ st.bg }};border:1.5px solid rgba(245,197,24,.55);display:flex;align-items:center;justify-content:center;color:#111;"><sc-if value="{{ st.on }}" hint-placeholder-val="{{ true }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></sc-if></span></sc-for>
+                          </div>
+                          <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;">{{ totalServ }} sellos · Nivel Oro</div>
+                        </div>
+                      </div>
+
+                      <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;background:rgba(245,197,24,0.14);border:1px solid rgba(245,197,24,0.4);color:#c99a00;font-size:12px;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#F5C518;box-shadow:0 0 8px #F5C518;"></span>Mantenimiento al día</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:{{ cMuted }};font-weight:600;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>{{ latest.date }}</span></div>
+                      <div style="margin:18px 0 4px;">
+                        <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:{{ cMuted }};font-weight:700;">Kilometraje actual</div>
+                        <div style="font-family:'Anton',sans-serif;font-size:54px;letter-spacing:.01em;line-height:1;color:{{ cInk }};">{{ currentKm }}<span style="font-size:20px;color:{{ cMuted }};font-family:'Inter';font-weight:600;"> km</span></div>
+                      </div>
+                      <div style="margin:12px 0 6px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;color:{{ cSoft }};margin-bottom:7px;"><span>Próximo servicio</span><span style="color:{{ cInk }};font-weight:600;">{{ nextService }} km · faltan {{ kmToNext }} km</span></div>
+                        <div style="height:9px;border-radius:6px;background:{{ cChipBg }};overflow:hidden;"><div style="height:100%;width:{{ progWidth }};background:linear-gradient(90deg,#8a6a00,#F5C518,#FFD84D);border-radius:6px;transition:width .7s cubic-bezier(0.22,1,0.36,1);"></div></div>
+                      </div>
+                      <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:{{ cMuted }};font-weight:700;margin:16px 0 7px;">Servicios realizados · pasa el cursor para el detalle</div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;">
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:#c99a00;font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex:0 0 auto"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>Aceite</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">{{ latest.lubBrand }} · {{ latest.lubType }}. Filtro de aceite cambiado.</div></div>
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:#c99a00;font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M4 12h10a3 3 0 1 0-3-3M4 16h14a3 3 0 1 1-3 3"/></svg>Aire</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">Filtro de aire reemplazado y flujo verificado.</div></div>
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:#c99a00;font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M3 22h12V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"/><path d="M15 8h3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2"/></svg>Combustible</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">Filtro de combustible e inyección revisados.</div></div>
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:{{ cInk }};font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c99a00" stroke-width="1.9" style="flex:0 0 auto"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Frenos</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">{{ latest.brakes }}. Pastillas y discos inspeccionados.</div></div>
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:{{ cInk }};font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c99a00" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/></svg>Refrigerante</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">{{ latest.coolant }}. Nivel y temperatura correctos.</div></div>
+                        <div style="overflow:hidden;max-height:38px;background:{{ cChipBg }};border:1px solid {{ cChipBd }};border-radius:11px;padding:9px 11px;transition:max-height .3s cubic-bezier(0.22,1,0.36,1),border-color .18s,background .18s;" style-hover="max-height:96px;border-color:rgba(245,197,24,0.5);background:rgba(245,197,24,0.08)"><div style="display:flex;align-items:center;gap:6px;color:{{ cInk }};font-size:12px;font-weight:700;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c99a00" stroke-width="1.9" style="flex:0 0 auto"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg>Llantas</div><div style="font-size:11px;color:{{ cMuted }};margin-top:6px;line-height:1.35;">Presión y rotación verificadas. Labrado OK.</div></div>
+                      </div>
+                      <div style="flex:1;"></div>
+                      <div style="margin-top:16px;display:flex;align-items:center;gap:8px;font-size:11px;color:{{ cMuted }};justify-content:center;"><span style="font-family:'Anton',sans-serif;font-size:13px;color:#c99a00;letter-spacing:.02em;">CarLink</span><span>· ficha verificada · {{ plateText }}</span></div>
+                    </div>
+                  </div>
+                  <!-- BACK (misma info que sección Taller) -->
+                  <div style="position:absolute;inset:0;min-height:486px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:rotateY(180deg);border-radius:24px;overflow:hidden;border:1px solid rgba(245,197,24,0.28);padding:26px;background:linear-gradient(155deg,#1c1708 0%,#171307 60%,#0d0d0d 100%);display:flex;flex-direction:column;box-shadow:{{ flipShadow }};transition:box-shadow .5s;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                      <div style="display:flex;align-items:center;gap:14px;">
+                        <sc-if value="{{ tallerLogo }}" hint-placeholder-val="{{ false }}">{{ tallerLogoFicha }}</sc-if>
+                        <sc-if value="{{ noTallerLogo }}" hint-placeholder-val="{{ true }}"><span style="width:52px;height:52px;border-radius:14px;background:#F5C518;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#111;box-shadow:0 0 20px rgba(245,197,24,0.4);">TC</span></sc-if>
+                        <div><div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#F5C518;font-weight:800;">Tu taller de confianza</div><div style="font-size:19px;font-weight:700;">{{ taller.name }}</div><div style="display:flex;align-items:center;gap:5px;font-size:13px;color:#ffcf5a;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>{{ taller.rating }} <span style="color:#7c786e;">· {{ taller.reviews }} reseñas</span></div></div>
+                      </div>
+                      <button onClick="{{ flip }}" title="Volver a la ficha" style="flex:0 0 auto;width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:#b6b2a6;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;" style-hover="color:#fff;background:rgba(245,197,24,0.14)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+                      </button>
+                    </div>
+                    <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;font-size:13px;color:#b6b2a6;">
+                      <div style="display:flex;gap:10px;align-items:flex-start;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" style="margin-top:1px;flex:0 0 auto"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>{{ taller.address }}</div>
+                      <div style="display:flex;gap:10px;align-items:flex-start;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" style="margin-top:1px;flex:0 0 auto"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ taller.hours }}</div>
+                      <div style="display:flex;gap:10px;align-items:flex-start;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" style="margin-top:1px;flex:0 0 auto"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>{{ taller.phone }}</div>
+                      <div style="display:flex;gap:10px;align-items:flex-start;color:#F5C518;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-top:1px;flex:0 0 auto"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>{{ taller.web }}</div>
+                    </div>
+                    <div style="margin-top:14px;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(245,197,24,0.14),rgba(245,197,24,0.05));border:1px dashed rgba(245,197,24,0.4);display:flex;align-items:center;gap:12px;">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.6" style="flex:0 0 auto"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                      <div><div style="font-weight:700;color:#fff8e1;font-size:13px;">Sello de garantía</div><div style="font-size:12px;color:#d8c98a;">{{ taller.warranty }}</div></div>
+                    </div>
+                    <div style="flex:1;"></div>
+                    <div style="display:flex;gap:8px;margin-top:16px;">
+                      <a href="https://instagram.com" target="_blank" style="flex:0 0 auto;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4);color:#fff;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+                      <a href="https://facebook.com" target="_blank" style="flex:0 0 auto;width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#1877F2;color:#fff;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+                      <a href="https://tallerdeconfianza.com" target="_blank" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;background:#25D366;color:#062b12;font-weight:700;font-size:13px;text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6.5 9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.9 5c2.1.8 2.5.6 3 .6s1.4-.6 1.6-1.1.2-1 .1-1.1-.3-.1-.5-.2z"/></svg>WhatsApp</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- RIGHT COLUMN -->
+              <div style="display:flex;flex-direction:column;gap:16px;animation:textIn .5s .16s both;">
+                <div style="border-radius:20px;padding:22px;background:linear-gradient(155deg,rgba(245,197,24,0.14),rgba(20,20,20,0.6));border:1px solid rgba(245,197,24,0.28);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);">
+                  <div style="display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:#F5C518;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8.5a6 6 0 0 1 12 0"/><path d="M3.5 11a9 9 0 0 1 17 0"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>Vinculado a llavero NFC</div>
+                  <p style="margin:10px 0 16px;font-size:13px;color:#b6b2a6;line-height:1.55;">Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
+                  <button onClick="{{ addService }}" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 0 24px rgba(245,197,24,0.4);transition:all .2s;" style-hover="box-shadow:0 0 40px rgba(245,197,24,0.75);background:#FFD84D"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
+                  <sc-if value="{{ noNfc }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ pedirNfc }}" style="width:100%;margin-top:8px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:12px;border-radius:12px;border:1px solid rgba(245,197,24,0.4);background:rgba(245,197,24,0.06);color:#F5C518;font-weight:700;font-size:13px;cursor:pointer;transition:all .18s;" style-hover="background:rgba(245,197,24,0.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>Pedir llavero NFC a domicilio</button>
+                  </sc-if>
+                  <sc-if value="{{ nfcPreparing }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:8px;border-radius:12px;border:1px solid rgba(245,197,24,0.35);background:rgba(245,197,24,0.07);padding:13px 15px;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#F5C518;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.5 4.2M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>Pedido confirmado</div>
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">{{ nfc.id }}</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:10px;margin-top:11px;">
+                        <div style="width:22px;height:22px;flex:0 0 auto;border-radius:50%;border:2.5px solid rgba(245,197,24,.3);border-top-color:#F5C518;animation:spin .8s linear infinite;"></div>
+                        <div style="font-size:12px;color:#d8c98a;line-height:1.35;">Preparando y programando tu llavero. Se despacha en <b style="color:#fff;">{{ nfc.prepSecs }}s</b> — luego verás el tiempo de entrega.</div>
+                      </div>
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;"><span style="font-size:11px;color:#b6b2a6;">Entrega estimada {{ nfc.days }} días hábiles</span><button onClick="{{ cancelNfc }}" style="background:transparent;border:none;color:#7c786e;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;" style-hover="color:#ff4d6a">Cancelar</button></div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ nfcShipped }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:8px;border-radius:12px;border:1px solid rgba(245,197,24,0.4);background:linear-gradient(135deg,rgba(245,197,24,0.14),rgba(20,20,20,0.5));padding:13px 15px;">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                        <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#F5C518;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Envío en camino</div>
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">{{ nfc.id }}</span>
+                      </div>
+                      <div style="display:flex;gap:6px;margin-top:12px;">
+                        <div style="flex:1;text-align:center;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,24,0.25);border-radius:9px;padding:7px 4px;"><div style="font-family:'Anton',sans-serif;font-size:22px;color:#F5C518;line-height:1;">{{ nfc.d }}</div><div style="font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">días</div></div>
+                        <div style="flex:1;text-align:center;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,24,0.25);border-radius:9px;padding:7px 4px;"><div style="font-family:'Anton',sans-serif;font-size:22px;color:#F5C518;line-height:1;">{{ nfc.h }}</div><div style="font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">hrs</div></div>
+                        <div style="flex:1;text-align:center;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,24,0.25);border-radius:9px;padding:7px 4px;"><div style="font-family:'Anton',sans-serif;font-size:22px;color:#F5C518;line-height:1;">{{ nfc.m }}</div><div style="font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">min</div></div>
+                        <div style="flex:1;text-align:center;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,24,0.25);border-radius:9px;padding:7px 4px;"><div style="font-family:'Anton',sans-serif;font-size:22px;color:#F5C518;line-height:1;">{{ nfc.s }}</div><div style="font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;">seg</div></div>
+                      </div>
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;"><span style="font-size:11px;color:#b6b2a6;">Llega a domicilio</span><button onClick="{{ cancelNfc }}" style="background:transparent;border:none;color:#7c786e;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;" style-hover="color:#ff4d6a">Cancelar</button></div>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <!-- WALLET / PERSONALIZAR -->
+                <div style="border-radius:20px;padding:20px;background:#141414;border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);">
+                  <div style="display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:#F5C518;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.4" fill="currentColor" stroke="none"/></svg>Ficha para Wallet</div>
+                  <p style="margin:9px 0 14px;font-size:13px;color:#b6b2a6;line-height:1.5;">Descarga un pase con diseño de billetera digital, listo para guardar en tu teléfono.</p>
+                  <div style="font-size:11px;color:#a8a496;margin:0 0 8px;font-weight:600;">Fondo del pase</div>
+                  <div style="position:relative;">
+                    <button onClick="{{ toggleBgMenu }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:11px;cursor:pointer;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.14);color:#f5f3ec;font-size:13px;font-weight:600;transition:border-color .16s;" style-hover="border-color:#F5C518">
+                      <span style="width:34px;height:24px;flex:0 0 auto;border-radius:7px;background:{{ activeBgCss }};border:1px solid rgba(255,255,255,0.18);"></span>
+                      <span style="flex:1;text-align:left;">{{ activeBgLabel }}</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <sc-if value="{{ showBgMenu }}" hint-placeholder-val="{{ false }}">
+                      <div style="position:absolute;z-index:9;left:0;right:0;top:calc(100% + 6px);background:#1a1a1a;border:1px solid rgba(245,197,24,0.3);border-radius:12px;padding:10px;box-shadow:0 20px 50px rgba(0,0,0,.6);">
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
+                          <sc-for list="{{ bgPresets }}" as="bp" hint-placeholder-count="8">
+                            <button onClick="{{ bp.onClick }}" title="{{ bp.label }}" style="height:34px;border-radius:9px;cursor:pointer;background:{{ bp.css }};outline:2px solid {{ bp.ring }};outline-offset:1px;border:1px solid rgba(255,255,255,0.16);transition:outline .15s;"></button>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:14px;">
+                    <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:11px;border:1px dashed rgba(255,255,255,0.18);background:rgba(255,255,255,0.03);color:#c9c6ba;font-size:12px;font-weight:600;cursor:pointer;" style-hover="border-color:#F5C518;color:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>Fondo propio<input type="file" accept="image/*" onChange="{{ onBg }}" style="display:none"></label>
+                    <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:11px;border:1px dashed rgba(255,255,255,0.18);background:rgba(255,255,255,0.03);color:#c9c6ba;font-size:12px;font-weight:600;cursor:pointer;" style-hover="border-color:#F5C518;color:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10"/><path d="M2 19h20"/><circle cx="12" cy="8" r="2"/></svg>Logo<input type="file" accept="image/*" onChange="{{ onLogo }}" style="display:none"></label>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button onClick="{{ resetPers }}" style="flex:0 0 auto;padding:10px 14px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.03);color:#a8a496;font-size:12px;font-weight:600;cursor:pointer;" style-hover="color:#ff4d6a">Reset</button>
+                    <button onClick="{{ downloadWallet }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:11px;border:none;background:#F5C518;color:#111;font-size:13px;font-weight:800;cursor:pointer;transition:all .18s;" style-hover="background:#FFD84D"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Descargar pase</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- HISTORIAL -->
+        <sc-if value="{{ isHist }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div>
+                <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Línea de tiempo</div>
+                <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Historial de mantenimiento</h1>
+                <p style="color:#b6b2a6;margin:0;">Baraja de tarjetas acumulables — arrastra con el dedo para pasar. Empieza por la más reciente.</p>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button onClick="{{ histPrev }}" style="width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#f5f3ec;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(245,197,24,0.2);color:#111"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <button onClick="{{ histNext }}" style="width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#f5f3ec;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(245,197,24,0.2);color:#111"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:26px;align-items:start;animation:textIn .5s .1s both;">
+              <div style="position:relative;height:392px;user-select:none;-webkit-user-select:none;touch-action:pan-y;">
+                <div style="position:absolute;left:22px;right:22px;top:18px;height:2px;background:linear-gradient(90deg,rgba(245,197,24,0.1),rgba(245,197,24,0.5),rgba(245,197,24,0.1));"></div>
+                <div style="position:absolute;left:0;top:11px;width:14px;height:14px;border-radius:50%;background:#F5C518;box-shadow:0 0 12px #F5C518;border:3px solid #0a0a0a;"></div>
+                <div style="position:absolute;right:0;top:11px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 12px #fff;border:3px solid #0a0a0a;"></div>
+                <div style="position:absolute;left:34px;top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;">Más reciente</div>
+                <div style="position:absolute;right:34px;top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;">Origen</div>
+                <div style="position:absolute;left:0;right:0;top:56px;bottom:0;">
+                  <sc-for list="{{ histStack }}" as="h" hint-placeholder-count="5">
+                    <div style="{{ h.cardStyle }}" onPointerDown="{{ h.onDown }}" onPointerMove="{{ h.onMove }}" onPointerUp="{{ h.onUp }}" onPointerLeave="{{ h.onUp }}">
+                      <div style="border-radius:20px;padding:20px;background:linear-gradient(158deg,#191919 0%,#141414 60%,#0f0f0f 100%);border:1px solid rgba(245,197,24,0.28);box-shadow:0 24px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,0.06);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#F5C518;"><span style="width:8px;height:8px;border-radius:50%;background:#F5C518;box-shadow:0 0 8px #F5C518;"></span>{{ h.date }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#7c786e;">#{{ h.num }}</span></div>
+                        <div style="font-family:'Anton',sans-serif;font-size:40px;margin:8px 0 2px;line-height:1;">{{ h.kmFmt }} <span style="font-size:15px;color:#7c786e;font-family:'Inter';font-weight:600;">km</span></div>
+                        <div style="font-size:13px;color:#b6b2a6;margin-bottom:14px;">{{ h.taller }}</div>
+                        <div style="display:flex;align-items:center;gap:13px;padding:12px;border-radius:14px;background:rgba(245,197,24,0.06);border:1px solid rgba(245,197,24,0.18);margin-bottom:13px;">
+                          <span style="width:52px;height:52px;flex:0 0 auto;border-radius:12px;overflow:hidden;background:#F5C518;display:flex;align-items:center;justify-content:center;color:#111;border:1.5px solid rgba(245,197,24,.6);"><sc-if value="{{ h.hasOil }}" hint-placeholder-val="{{ false }}">{{ h.oilEl }}</sc-if><sc-if value="{{ h.noOil }}" hint-placeholder-val="{{ true }}"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg></sc-if></span>
+                          <div style="min-width:0;"><div style="font-size:15px;font-weight:700;color:#fff;">{{ h.lubBrand }}</div><div style="font-size:12px;color:#a8a496;">{{ h.lubType }}</div></div>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                          <sc-if value="{{ h.oil }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);color:#F5C518;">Filtro aceite</span></sc-if>
+                          <sc-if value="{{ h.air }}" hint-placeholder-val="{{ true }}"><span style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);color:#F5C518;">Filtro aire</span></sc-if>
+                          <sc-if value="{{ h.fuel }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(245,197,24,0.12);border:1px solid rgba(245,197,24,0.35);color:#F5C518;">Filtro combustible</span></sc-if>
+                        </div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="align-self:center;">
+                <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;">Tarjeta {{ histPos }} de {{ histCount }}</div>
+                <div style="font-family:'Anton',sans-serif;font-size:clamp(26px,3vw,38px);text-transform:uppercase;line-height:1.02;margin:8px 0 12px;">Recorre tu<br><span style="color:#F5C518;">línea de mantenimiento</span></div>
+                <p style="color:#b6b2a6;margin:0 0 16px;max-width:42ch;font-size:14px;line-height:1.5;">Cada tarjeta es un servicio, con su aceite aplicado. Arrástralas con el dedo o el mouse; al terminar la baraja vuelve a empezar por la actual.</p>
+                <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#7c786e;"><span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8l4 4-4 4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>Arrastra para pasar</span></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- DIAGNÓSTICO -->
+        <sc-if value="{{ isDiag }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:900px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Revisión técnica</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Centro de diagnóstico automotor</h1>
+              <p style="color:#b6b2a6;margin:0;max-width:62ch;">Resultados de tu última visita al CDA, con vencimiento y descarga del certificado.</p>
+            </div>
+            <div data-r="grid2" style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,0.95fr);gap:20px;align-items:start;animation:textIn .5s .1s both;">
+              <div ref="{{ diagRef }}" style="padding:24px;border-radius:22px;background:linear-gradient(155deg,#1c1708,#141414);border:1px solid rgba(245,197,24,0.24);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                  <div style="display:flex;align-items:center;gap:14px;"><span style="width:54px;height:54px;border-radius:14px;background:#F5C518;display:flex;align-items:center;justify-content:center;color:#111;box-shadow:0 0 22px rgba(245,197,24,.4);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5 2 7h10c0-2 2-4 2-7a7 7 0 0 0-7-7z"/><path d="M9 21h6M10 18v3M14 18v3"/></svg></span>
+                    <div><div style="font-size:20px;font-weight:700;">{{ cda.name }}</div><div style="font-size:13px;color:#b6b2a6;">{{ cda.date }} · {{ cda.km }} km</div></div>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;background:rgba(46,204,113,0.14);border:1px solid rgba(46,204,113,0.45);color:#5be89a;font-size:12px;font-weight:800;"><span style="width:7px;height:7px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71;"></span>APROBADO</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px;">
+                  <sc-for list="{{ diagChecks }}" as="dc" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"><span style="font-size:13px;color:#d8d4c8;">{{ dc.name }}</span><span style="font-size:12px;font-weight:700;color:#5be89a;">{{ dc.val }}</span></div>
+                  </sc-for>
+                </div>
+                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <button onClick="{{ downloadDiag }}" style="flex:1;min-width:150px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:13px;cursor:pointer;" style-hover="background:#FFD84D"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Descargar certificado</button>
+                  <button onClick="{{ pedirNfc }}" style="flex:1;min-width:150px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;border:1px solid rgba(245,197,24,0.4);background:rgba(245,197,24,0.06);color:#F5C518;font-weight:700;font-size:13px;cursor:pointer;" style-hover="background:rgba(245,197,24,0.14)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>NFC a domicilio</button>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="padding:18px;border-radius:18px;background:#141414;border:1px solid rgba(255,255,255,0.08);">
+                  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;">Certificado RTM</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#d8d4c8;margin:8px 0 4px;">{{ cda.code }}</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;"><span style="font-size:13px;color:#b6b2a6;">Vence</span><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;color:#ff8a3d;border:1px solid #ff8a3d;background:rgba(255,138,61,0.08);">{{ cda.expires }}</span></div>
+                </div>
+                <div style="padding:18px;border-radius:18px;background:#141414;border:1px solid rgba(255,255,255,0.08);">
+                  <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:8px;">Adjuntar certificado escaneado</div>
+                  <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:22px;border-radius:12px;border:1px dashed rgba(245,197,24,0.35);background:rgba(245,197,24,0.04);color:#c9c6ba;font-size:13px;font-weight:600;cursor:pointer;" style-hover="border-color:#F5C518;color:#fff">
+                    {{ diagDocEl }}
+                    <sc-if value="{{ noDiagDoc }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Subir imagen o PDF</span></sc-if>
+                    <input type="file" accept="image/*" onChange="{{ onDiagDoc }}" style="display:none">
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CONTROL DE PARTES -->
+        <sc-if value="{{ isPartes }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:960px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Predicciones inteligentes</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Control de partes</h1>
+              <p style="color:#b6b2a6;margin:0;max-width:62ch;">Predicciones de reemplazo calculadas según los intervalos del fabricante <b style="color:#f5f3ec;">{{ brand }}</b>, tu kilometraje y tu ritmo de uso.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;animation:textIn .5s .08s both;">
+              <span style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7c786e;font-weight:700;align-self:center;margin-right:4px;">Marca:</span>
+              <sc-for list="{{ brands }}" as="b" hint-placeholder-count="6">
+                <button onClick="{{ b.onClick }}" style="padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid {{ b.border }};background:{{ b.bg }};color:{{ b.fg }};transition:all .2s;">{{ b.name }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;animation:textIn .5s .12s both;">
+              <sc-for list="{{ parts }}" as="p" hint-placeholder-count="8">
+                <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 104px;gap:18px;align-items:center;padding:16px 20px;border-radius:16px;background:#141414;border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);">
+                  <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                    <span style="width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:{{ p.color }};box-shadow:0 0 10px {{ p.color }};"></span>
+                    <div style="min-width:0;"><div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.name }}</div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">cada {{ p.intervalFmt }} km</div></div>
+                  </div>
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:#9a968a;margin-bottom:7px;gap:8px;"><span style="white-space:nowrap;">Próximo: <b style="color:#d8d4c8;font-weight:600;">{{ p.nextFmt }} km</b></span><span style="white-space:nowrap;">Restan {{ p.remFmt }} km</span></div>
+                    <div style="height:8px;border-radius:6px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="height:100%;width:{{ p.lifePct }};background:{{ p.color }};border-radius:6px;transition:width .6s;box-shadow:0 0 8px {{ p.color }};"></div></div>
+                  </div>
+                  <div style="text-align:right;"><span style="display:inline-block;padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;color:{{ p.color }};background:rgba(255,255,255,0.04);border:1px solid {{ p.color }};">{{ p.estado }}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- GALERIA -->
+        <sc-if value="{{ isGal }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:960px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Evidencia visual</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Galería del vehículo</h1>
+              <p style="color:#b6b2a6;margin:0;">Arrastra o toca cada espacio para subir tus fotos.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;animation:textIn .5s .07s both;">
+              <span style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7c786e;font-weight:700;">Agregar vista:</span>
+              <sc-for list="{{ galCats }}" as="g" hint-placeholder-count="6"><button onClick="{{ g.onClick }}" style="padding:8px 14px;border-radius:999px;border:1px solid rgba(245,197,24,0.3);background:rgba(245,197,24,0.06);color:#F5C518;font-size:12px;font-weight:700;cursor:pointer;transition:all .16s;" style-hover="background:#F5C518;color:#111">+ {{ g.name }}</button></sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;animation:textIn .5s .1s both;">
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g1" shape="rect" placeholder="Vista frontal" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Vista frontal</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_01</span></div></div>
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g2" shape="rect" placeholder="Motor" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Motor</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_02</span></div></div>
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g3" shape="rect" placeholder="Tablero" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Tablero</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_03</span></div></div>
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g4" shape="rect" placeholder="Llantas" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Llantas</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_04</span></div></div>
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g5" shape="rect" placeholder="Factura aceite" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Factura aceite</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_05</span></div></div>
+              <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(255,255,255,0.08);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="veh-g6" shape="rect" placeholder="Agregar foto" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>Nueva</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">IMG_06</span></div></div>
+              <sc-for list="{{ galExtra }}" as="gx" hint-placeholder-count="0">
+                <div style="border-radius:18px;overflow:hidden;background:#141414;border:1px solid rgba(245,197,24,0.22);"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="{{ gx.id }}" shape="rect" placeholder="{{ gx.name }}" style="width:100%;height:172px;display:block;" hint-size="100%,172px"></x-import><div style="padding:11px 14px;display:flex;justify-content:space-between;font-size:13px;color:#b6b2a6;"><span>{{ gx.name }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c786e;">{{ gx.code }}</span></div></div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CERTIFICADOS -->
+        <sc-if value="{{ isCert }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:840px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Respaldo de compras</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Certificados y facturas</h1>
+              <p style="color:#b6b2a6;margin:0;">Toca el archivo para verlo ampliado. Usa el botón de subir para adjuntar la imagen.</p>
+            </div>
+            <div style="margin-bottom:14px;animation:textIn .5s .07s both;">
+              <button onClick="{{ addCert }}" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 0 20px rgba(245,197,24,0.35);transition:all .18s;" style-hover="background:#FFD84D"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Agregar factura</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;animation:textIn .5s .1s both;">
+              <sc-for list="{{ certs }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:16px;padding:14px 18px;border-radius:16px;background:#141414;border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);transition:border-color .18s;" style-hover="border-color:rgba(245,197,24,0.4)">
+                  <sc-if value="{{ c.img }}" hint-placeholder-val="{{ false }}"><div onClick="{{ c.onOpen }}" title="Ver ampliado" style="position:relative;width:48px;height:48px;flex:0 0 auto;border-radius:11px;overflow:hidden;cursor:pointer;">{{ c.imgEl }}<span style="position:absolute;inset:0;background:rgba(0,0,0,.45);opacity:0;display:flex;align-items:center;justify-content:center;color:#fff;transition:opacity .18s;" style-hover="opacity:1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></span></div></sc-if>
+                  <sc-if value="{{ c.noImg }}" hint-placeholder-val="{{ true }}"><label style="width:48px;height:48px;flex:0 0 auto;border-radius:12px;background:rgba(245,197,24,0.14);border:1px dashed rgba(245,197,24,0.4);display:flex;align-items:center;justify-content:center;color:#F5C518;cursor:pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 8h6M9 12h6"/></svg><input type="file" accept="image/*" onChange="{{ c.onUpload }}" style="display:none"></label></sc-if>
+                  <div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:600;">{{ c.title }}</div><div style="font-size:13px;color:#7c786e;">{{ c.taller }} · {{ c.date }}</div></div>
+                  <div style="text-align:right;"><div style="font-size:15px;font-weight:700;">{{ c.amount }}</div><span style="font-size:11px;color:{{ c.stColor }};">{{ c.stLabel }}</span></div>
+                  <label title="Subir / reemplazar" style="width:38px;height:38px;flex:0 0 auto;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#b6b2a6;display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="color:#111;background:#F5C518"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg><input type="file" accept="image/*" onChange="{{ c.onUpload }}" style="display:none"></label>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- DOCUMENTOS -->
+        <sc-if value="{{ isDoc }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:880px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Legales al día</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Documentos del vehículo</h1>
+              <p style="color:#b6b2a6;margin:0;">Toca cada documento para adjuntar la imagen o el PDF.</p>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;animation:textIn .5s .1s both;">
+              <sc-for list="{{ docs }}" as="d" hint-placeholder-count="4">
+                <div style="padding:18px;border-radius:18px;background:#141414;border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);transition:border-color .18s;" style-hover="border-color:rgba(245,197,24,0.4)">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="font-size:16px;font-weight:700;">{{ d.title }}</div><span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:700;color:{{ d.color }};background:rgba(255,255,255,0.04);border:1px solid {{ d.color }};"><span style="width:6px;height:6px;border-radius:50%;background:{{ d.color }};"></span>{{ d.status }}</span></div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#7c786e;margin:12px 0 4px;">{{ d.code }}</div>
+                  <div style="font-size:13px;color:#b6b2a6;">Vence: <b style="color:#f5f3ec;font-weight:600;">{{ d.expires }}</b></div>
+                  <div style="margin-top:14px;">
+                    <sc-if value="{{ d.img }}" hint-placeholder-val="{{ false }}"><div onClick="{{ d.onOpen }}" title="Ver ampliado" style="position:relative;cursor:pointer;border-radius:11px;overflow:hidden;">{{ d.imgEl }}<span style="position:absolute;inset:0;background:rgba(0,0,0,.4);opacity:0;display:flex;align-items:center;justify-content:center;gap:6px;color:#fff;font-size:12px;font-weight:700;transition:opacity .18s;" style-hover="opacity:1"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>Ampliar</span></div><label style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;padding:9px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#b6b2a6;font-size:12px;font-weight:600;cursor:pointer;" style-hover="color:#fff"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>Reemplazar<input type="file" accept="image/*" onChange="{{ d.onUpload }}" style="display:none"></label></sc-if>
+                    <sc-if value="{{ d.noImg }}" hint-placeholder-val="{{ true }}"><label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border-radius:11px;border:1px dashed rgba(245,197,24,0.35);background:rgba(245,197,24,0.04);color:#c9c6ba;font-size:12px;font-weight:600;cursor:pointer;" style-hover="border-color:#F5C518;color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Adjuntar documento<input type="file" accept="image/*" onChange="{{ d.onUpload }}" style="display:none"></label></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- TALLER -->
+        <sc-if value="{{ isTaller }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:sectionIn .55s cubic-bezier(0.22,1,0.36,1) both;max-width:960px;">
+            <div style="margin-bottom:22px;animation:textIn .5s .04s both;">
+              <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#F5C518;">Quién te atendió</div>
+              <h1 style="font-family:'Anton',sans-serif;font-size:clamp(30px,3.8vw,46px);letter-spacing:.01em;margin:8px 0 8px;text-transform:uppercase;">Tu taller de confianza</h1>
+            </div>
+            <div data-r="grid2" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;animation:textIn .5s .1s both;">
+              <div style="padding:26px;border-radius:22px;background:linear-gradient(155deg,#1c1708,#141414);border:1px solid rgba(245,197,24,0.22);box-shadow:inset 0 1px 0 rgba(255,255,255,0.06);">
+                <div style="display:flex;align-items:center;gap:16px;">
+                  <label style="position:relative;width:64px;height:64px;flex:0 0 auto;border-radius:16px;overflow:hidden;cursor:pointer;box-shadow:0 0 22px rgba(245,197,24,0.4);" title="Cambiar logo del taller">
+                    <sc-if value="{{ tallerLogo }}" hint-placeholder-val="{{ false }}">{{ tallerLogoSection }}</sc-if>
+                    <sc-if value="{{ noTallerLogo }}" hint-placeholder-val="{{ true }}"><span style="width:100%;height:100%;background:#F5C518;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;color:#111;">TC</span></sc-if>
+                    <span style="position:absolute;inset:0;background:rgba(0,0,0,0.5);opacity:0;display:flex;align-items:center;justify-content:center;color:#fff;transition:opacity .18s;" style-hover="opacity:1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg></span>
+                    <input type="file" accept="image/*" onChange="{{ onTallerLogo }}" style="display:none">
+                  </label>
+                  <div><div style="font-size:22px;font-weight:700;">{{ taller.name }}</div><div style="display:flex;align-items:center;gap:6px;font-size:14px;color:#ffcf5a;margin-top:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>{{ taller.rating }}<span style="color:#7c786e;font-size:13px;">· {{ taller.reviews }} reseñas</span></div>
+                    <div style="font-size:11px;color:#7c786e;margin-top:4px;">Toca el logo para cambiarlo</div></div>
+                </div>
+                <div style="margin-top:22px;display:flex;flex-direction:column;gap:13px;font-size:14px;color:#b6b2a6;">
+                  <div style="display:flex;gap:11px;align-items:flex-start;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.7" style="margin-top:1px;flex:0 0 auto"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>{{ taller.address }}</div>
+                  <div style="display:flex;gap:11px;align-items:flex-start;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.7" style="margin-top:1px;flex:0 0 auto"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ taller.hours }}</div>
+                  <div style="display:flex;gap:11px;align-items:flex-start;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.7" style="margin-top:1px;flex:0 0 auto"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>{{ taller.phone }}</div>
+                  <a href="https://tallerdeconfianza.com" target="_blank" style="display:flex;gap:11px;align-items:flex-start;color:#F5C518;text-decoration:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="margin-top:1px;flex:0 0 auto"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>{{ taller.web }}</a>
+                </div>
+                <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+                  <a href="https://instagram.com" target="_blank" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;border:none;background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4);color:#fff;font-size:13px;font-weight:700;text-decoration:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>Instagram</a>
+                  <a href="https://facebook.com" target="_blank" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;border:none;background:#1877F2;color:#fff;font-size:13px;font-weight:700;text-decoration:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>Facebook</a>
+                  <a href="https://tallerdeconfianza.com" target="_blank" style="flex:1;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;border:1px solid rgba(245,197,24,0.4);background:rgba(245,197,24,0.06);color:#F5C518;font-size:13px;font-weight:700;text-decoration:none;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>Sitio web</a>
+                </div>
+                <button style="margin-top:10px;width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px;border-radius:12px;border:none;background:#25D366;color:#062b12;font-weight:700;font-size:14px;cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6.5 9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.9 5c2.1.8 2.5.6 3 .6s1.4-.6 1.6-1.1.2-1 .1-1.1-.3-.1-.5-.2z"/></svg>Escribir por WhatsApp</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,rgba(245,197,24,0.12),rgba(245,197,24,0.04));border:1px dashed rgba(245,197,24,0.4);display:flex;align-items:center;gap:14px;">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.6" style="flex:0 0 auto"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                  <div><div style="font-weight:700;color:#fff8e1;">Taller verificado CarLink</div><div style="font-size:12px;color:#d8c98a;">{{ taller.warranty }}</div></div>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:#7c786e;letter-spacing:.05em;text-transform:uppercase;margin-top:4px;">Talleres que te atendieron</div>
+                <sc-for list="{{ tallerHist }}" as="th" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:14px;background:#141414;border:1px solid rgba(255,255,255,0.08);">
+                    <span style="width:40px;height:40px;flex:0 0 auto;border-radius:11px;background:{{ th.accent }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#111;">{{ th.initial }}</span>
+                    <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ th.name }}</div><div style="font-size:12px;color:#7c786e;">{{ th.visits }} visitas · última {{ th.lastDate }} · {{ th.lastKm }} km</div></div>
+                    <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#ffcf5a;flex:0 0 auto;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>{{ th.rating }}</span>
+                  </div>
+                </sc-for>
+                <div style="font-size:13px;font-weight:700;color:#7c786e;letter-spacing:.05em;text-transform:uppercase;margin-top:4px;">Reseñas recientes</div>
+                <sc-for list="{{ reviews }}" as="r" hint-placeholder-count="3">
+                  <div style="padding:16px 18px;border-radius:16px;background:#141414;border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:14px;font-weight:600;">{{ r.name }}</span><span style="color:#ffcf5a;font-size:12px;letter-spacing:1px;">{{ r.starStr }}</span></div>
+                    <p style="margin:8px 0 0;font-size:13px;color:#b6b2a6;line-height:1.5;">{{ r.text }}</p>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </main>
+    </section>
+  </div>
+
+  <!-- HIDDEN WALLET PASS (for download) -->
+  <div style="position:fixed;left:-4000px;top:0;z-index:-1;pointer-events:none;">
+    <div ref="{{ walletRef }}" style="position:relative;width:640px;border-radius:30px;overflow:hidden;background:{{ presetBg }};font-family:'Inter',sans-serif;box-shadow:0 0 0 1px rgba(245,197,24,.3);">
+      {{ bgWalletEl }}
+      <div style="position:relative;z-index:1;background:#F5C518;padding:22px 30px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          {{ logoImgWallet }}
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:11px;background:#111;color:#F5C518;"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h11l-2-3 6 5-6 5 2-3H3z"/></svg></span>
+          <div style="line-height:1;"><div style="font-family:'Anton',sans-serif;font-size:26px;color:#111;">CarLink</div><div style="font-size:11px;font-weight:800;letter-spacing:.16em;color:#5a4700;text-transform:uppercase;">Ficha de mantenimiento</div></div>
+        </div>
+        <div style="text-align:right;"><div style="font-family:'Anton',sans-serif;font-size:34px;color:#111;letter-spacing:.04em;">{{ plateText }}</div><div style="font-size:11px;font-weight:700;color:#5a4700;text-transform:uppercase;letter-spacing:.1em;">{{ city }}</div></div>
+      </div>
+      <div style="position:relative;z-index:1;padding:30px;color:#f5f3ec;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+          <div><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#a8a496;font-weight:700;">Kilometraje</div><div style="font-family:'Anton',sans-serif;font-size:60px;line-height:1;color:#F5C518;">{{ currentKm }}<span style="font-size:22px;color:#a8a496;font-family:Inter;font-weight:600;"> km</span></div></div>
+          <div style="text-align:right;"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#a8a496;font-weight:700;">Vehículo</div><div style="font-size:20px;font-weight:700;">{{ veh.modelo }}</div><div style="font-size:13px;color:#b6b2a6;">{{ veh.anio }} · {{ veh.color }}</div></div>
+        </div>
+        <div style="margin:22px 0;height:1px;background:rgba(255,255,255,0.12);"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+          <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a8a496;font-weight:700;">Aceite</div><div style="font-size:15px;font-weight:700;margin-top:3px;">{{ latest.lubBrand }}</div><div style="font-size:12px;color:#b6b2a6;">{{ latest.lubType }}</div></div>
+          <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a8a496;font-weight:700;">Próximo servicio</div><div style="font-size:15px;font-weight:700;margin-top:3px;">{{ nextService }} km</div><div style="font-size:12px;color:#b6b2a6;">faltan {{ kmToNext }} km</div></div>
+          <div><div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#a8a496;font-weight:700;">Último servicio</div><div style="font-size:15px;font-weight:700;margin-top:3px;">{{ latest.date }}</div><div style="font-size:12px;color:#b6b2a6;">{{ taller.name }}</div></div>
+        </div>
+        <div style="margin-top:26px;display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-radius:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(245,197,24,0.25);">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:64px;height:64px;background:#fff;border-radius:10px;padding:6px;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:2px;">
+              <sc-for list="{{ qr }}" as="q" hint-placeholder-count="25"><span style="background:{{ q }};border-radius:1px;"></span></sc-for>
+            </div>
+            <div><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;font-weight:800;">Toca para verificar</div><div style="font-size:12px;color:#b6b2a6;">Ficha vinculada a llavero NFC</div></div>
+          </div>
+          <div style="text-align:right;"><div style="font-family:'Anton',sans-serif;font-size:18px;color:#F5C518;">✓ AL DÍA</div><div style="font-size:11px;color:#7c786e;">{{ totalServ }} servicios</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD SERVICE MODAL (flujo completo) -->
+  <sc-if value="{{ showAdd }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAdd }}" style="position:fixed;inset:0;z-index:70;background:rgba(4,4,4,0.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div onClick="{{ stop }}" style="width:520px;max-width:94vw;max-height:90vh;overflow-y:auto;background:#141414;border:1px solid rgba(245,197,24,0.3);border-radius:22px;padding:24px;box-shadow:0 40px 90px rgba(0,0,0,.6);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-family:'Anton',sans-serif;font-size:24px;text-transform:uppercase;">Registrar servicio</div>
+          <button onClick="{{ closeAdd }}" style="width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:#b6b2a6;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:#fff"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <p style="margin:0 0 16px;font-size:13px;color:#b6b2a6;">Completa la ficha del mantenimiento. Se guardará en tu historial y actualizará el estado del vehículo.</p>
+
+        <!-- ¿Quién lo hizo? -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button onClick="{{ svcModeTaller }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:700;border:1.5px solid {{ svcTallerBd }};background:{{ svcTallerBg }};color:{{ svcTallerFg }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.3-.6-.6-2.3z"/></svg>Mecánico / taller</button>
+          <button onClick="{{ svcModeUser }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:700;border:1.5px solid {{ svcUserBd }};background:{{ svcUserBg }};color:{{ svcUserFg }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Yo mismo</button>
+        </div>
+
+        <sc-if value="{{ svcIsTaller }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:8px;">Buscar mecánico registrado</div>
+          <div style="position:relative;margin-bottom:9px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c786e" stroke-width="1.9" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input value="{{ svc.mechSearch }}" onChange="{{ svcSearch }}" placeholder="Nombre del taller o mecánico" style="width:100%;padding:11px 12px 11px 34px;border-radius:11px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px;max-height:168px;overflow-y:auto;">
+            <sc-for list="{{ svcMechs }}" as="m" hint-placeholder-count="4">
+              <button onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;cursor:pointer;text-align:left;background:{{ m.bg }};border:1.5px solid {{ m.border }};color:{{ m.fg }};">
+                <span style="width:30px;height:30px;flex:0 0 auto;border-radius:8px;background:{{ m.badge }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#111;">{{ m.initial }}</span>
+                <span style="flex:1;min-width:0;"><span style="display:block;font-size:14px;font-weight:600;">{{ m.name }}</span><span style="display:block;font-size:11px;color:#7c786e;">{{ m.city }}</span></span>
+                <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#ffcf5a;flex:0 0 auto;"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>{{ m.rating }}</span>
+              </button>
+            </sc-for>
+            <button onClick="{{ svcPickNew }}" style="display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:11px;cursor:pointer;text-align:left;background:{{ svcNewBg }};border:1.5px dashed {{ svcNewBd }};color:{{ svcNewFg }};font-size:14px;font-weight:600;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar taller nuevo</button>
+          </div>
+          <sc-if value="{{ svcIsNew }}" hint-placeholder-val="{{ false }}">
+            <input value="{{ svc.newTaller }}" onChange="{{ svcNewName }}" placeholder="Nombre del nuevo taller" style="width:100%;margin-top:9px;padding:11px 13px;border-radius:11px;border:1px solid rgba(245,197,24,0.35);background:rgba(245,197,24,0.05);color:#f5f3ec;font-size:14px;outline:none;">
+          </sc-if>
+        </sc-if>
+        <sc-if value="{{ svcIsUser }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:12px;background:rgba(245,197,24,0.06);border:1px dashed rgba(245,197,24,0.32);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" style="flex:0 0 auto"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <div style="font-size:13px;color:#d8c98a;">Se registrará como <b style="color:#fff;">Mantenimiento por el usuario</b> (sin factura de taller).</div>
+          </div>
+        </sc-if>
+
+        <div style="height:1px;background:rgba(255,255,255,0.08);margin:16px 0;"></div>
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;font-weight:700;margin-bottom:10px;">Datos de la ficha</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Kilometraje actual</label><input value="{{ svc.km }}" onChange="{{ svcKm }}" inputmode="numeric" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Próximo servicio (km)</label><input value="{{ svc.nextKm }}" onChange="{{ svcNextKm }}" inputmode="numeric" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Marca del lubricante</label><input value="{{ svc.lubBrand }}" onChange="{{ svcLubBrand }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Tipo / viscosidad</label><input value="{{ svc.lubType }}" onChange="{{ svcLubType }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+        </div>
+
+        <div style="font-size:11px;color:#9a968a;font-weight:600;margin:16px 0 8px;">Reemplazos realizados</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onClick="{{ svcToggleOil }}" style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;border:1.5px solid {{ svcOilBd }};background:{{ svcOilBg }};color:{{ svcOilFg }};"><span style="width:14px;height:14px;border-radius:4px;background:{{ svcOilFill }};display:flex;align-items:center;justify-content:center;"><sc-if value="{{ svcOilChk }}" hint-placeholder-val="{{ true }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></sc-if></span>Filtro de aceite</button>
+          <button onClick="{{ svcToggleAir }}" style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;border:1.5px solid {{ svcAirBd }};background:{{ svcAirBg }};color:{{ svcAirFg }};"><span style="width:14px;height:14px;border-radius:4px;background:{{ svcAirFill }};display:flex;align-items:center;justify-content:center;"><sc-if value="{{ svcAirChk }}" hint-placeholder-val="{{ true }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></sc-if></span>Filtro de aire</button>
+          <button onClick="{{ svcToggleFuel }}" style="display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;border:1.5px solid {{ svcFuelBd }};background:{{ svcFuelBg }};color:{{ svcFuelFg }};"><span style="width:14px;height:14px;border-radius:4px;background:{{ svcFuelFill }};display:flex;align-items:center;justify-content:center;"><sc-if value="{{ svcFuelChk }}" hint-placeholder-val="{{ false }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></sc-if></span>Filtro de combustible</button>
+        </div>
+
+        <div style="font-size:11px;color:#9a968a;font-weight:600;margin:16px 0 8px;">Foto del aceite aplicado</div>
+        <label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px dashed rgba(245,197,24,0.35);background:rgba(245,197,24,0.04);color:#c9c6ba;font-size:13px;font-weight:600;cursor:pointer;" style-hover="border-color:#F5C518;color:#fff">
+          <span style="width:46px;height:46px;flex:0 0 auto;border-radius:10px;overflow:hidden;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;color:#F5C518;"><sc-if value="{{ svcHasOilImg }}" hint-placeholder-val="{{ false }}">{{ svcOilImg }}</sc-if><sc-if value="{{ svcNoOilImg }}" hint-placeholder-val="{{ true }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg></sc-if></span>
+          <span style="flex:1;">{{ svcOilImgLabel }}</span>
+          <input type="file" accept="image/*" onChange="{{ svcOnOilImg }}" style="display:none">
+        </label>
+
+        <button onClick="{{ confirmAdd }}" style="width:100%;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 0 24px rgba(245,197,24,0.4);" style-hover="background:#FFD84D"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Guardar ficha del servicio</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- LIGHTBOX -->
+  <sc-if value="{{ hasLightbox }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeLightbox }}" style="position:fixed;inset:0;z-index:75;background:rgba(4,4,4,0.88);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;">
+      {{ lightboxImg }}
+      <div style="margin-top:16px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#fff;">{{ lightbox.title }}</div><div style="font-size:13px;color:#b6b2a6;margin-top:2px;">{{ lightbox.sub }}</div></div>
+      <button onClick="{{ closeLightbox }}" style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Cerrar</button>
+    </div>
+  </sc-if>
+
+  <!-- PROFILE / SETTINGS -->
+  <sc-if value="{{ showProfile }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeProfile }}" style="position:fixed;inset:0;z-index:72;background:rgba(4,4,4,0.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div onClick="{{ stop }}" style="width:460px;max-width:94vw;max-height:88vh;overflow-y:auto;background:#141414;border:1px solid rgba(245,197,24,0.3);border-radius:22px;padding:24px;box-shadow:0 40px 90px rgba(0,0,0,.6);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:12px;"><span style="width:48px;height:48px;border-radius:50%;background:#F5C518;color:#111;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:19px;">{{ userInitial }}</span><div><div style="font-family:'Anton',sans-serif;font-size:22px;text-transform:uppercase;line-height:1;">Mi perfil</div><div style="font-size:12px;color:#7c786e;">juan.perez@gmail.com</div></div></div>
+          <button onClick="{{ closeProfile }}" style="width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:#b6b2a6;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:#fff"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:10px;">Datos del usuario</div>
+        <div style="margin-bottom:18px;"><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Nombre completo</label><input value="{{ veh.owner }}" onChange="{{ setOwner }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#F5C518;font-weight:700;margin-bottom:10px;">Datos del vehículo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Modelo / línea</label><input value="{{ veh.modelo }}" onChange="{{ setModelo }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Tipo</label><select value="{{ veh.tipo }}" onChange="{{ setTipo }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;cursor:pointer;"><sc-for list="{{ vtypes }}" as="v" hint-placeholder-count="5"><option value="{{ v }}">{{ v }}</option></sc-for></select></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Año</label><select value="{{ veh.anio }}" onChange="{{ setAnio }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;cursor:pointer;"><sc-for list="{{ years }}" as="y" hint-placeholder-count="6"><option value="{{ y }}">{{ y }}</option></sc-for></select></div>
+          <div><label style="font-size:11px;color:#9a968a;font-weight:600;display:block;margin-bottom:5px;">Color</label><input value="{{ veh.color }}" onChange="{{ setColor }}" style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);color:#f5f3ec;font-size:14px;outline:none;"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(245,197,24,0.08);border:1px dashed rgba(245,197,24,0.32);">
+          <span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#7c786e;font-weight:700;">Placa</span><span style="font-family:'Anton',sans-serif;font-size:20px;color:#F5C518;letter-spacing:.05em;">{{ plateText }}</span><span style="width:4px;height:4px;border-radius:50%;background:#7c786e;"></span><span style="font-size:13px;color:#b6b2a6;">{{ city }}</span>
+        </div>
+        <button onClick="{{ closeProfile }}" style="margin-top:18px;width:100%;padding:13px;border-radius:12px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:14px;cursor:pointer;" style-hover="background:#FFD84D">Guardar cambios</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- CART / NFC CHECKOUT -->
+  <sc-if value="{{ showCart }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeCart }}" style="position:fixed;inset:0;z-index:74;background:rgba(4,4,4,0.74);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div onClick="{{ stop }}" style="width:460px;max-width:94vw;max-height:90vh;overflow-y:auto;background:#141414;border:1px solid rgba(245,197,24,0.3);border-radius:22px;padding:24px;box-shadow:0 40px 90px rgba(0,0,0,.6);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-family:'Anton',sans-serif;font-size:24px;text-transform:uppercase;">Solicitar llavero NFC</div>
+          <button onClick="{{ closeCart }}" style="width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:#b6b2a6;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="color:#fff"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <sc-if value="{{ hasNfc }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:20px;border-radius:16px;background:rgba(245,197,24,0.08);border:1px solid rgba(245,197,24,0.35);text-align:center;">
+            <div style="font-size:14px;font-weight:700;color:#F5C518;margin-bottom:6px;">Ya tienes un pedido en curso</div>
+            <div style="font-size:13px;color:#b6b2a6;">Sigue el estado y el conteo regresivo en tu ficha técnica. Pedido {{ nfc.id }}.</div>
+            <button onClick="{{ closeCart }}" style="margin-top:16px;padding:11px 22px;border-radius:11px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:13px;cursor:pointer;">Entendido</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noNfc }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:14px;align-items:center;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(245,197,24,0.14),rgba(20,20,20,0.6));border:1px solid rgba(245,197,24,0.28);margin:10px 0 16px;">
+            <span style="width:60px;height:60px;flex:0 0 auto;border-radius:14px;background:radial-gradient(circle at 40% 35%,#3a3a3a,#141414);border:2px solid #F5C518;display:flex;align-items:center;justify-content:center;color:#F5C518;box-shadow:0 0 22px rgba(245,197,24,0.35);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6M8.5 12a3.5 3.5 0 0 1 3.5-3.5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+            <div style="flex:1;"><div style="font-size:15px;font-weight:700;color:#fff;">Llavero NFC CarLink</div><div style="font-size:12px;color:#b6b2a6;">Aro metálico + chip programado con tu ficha. Envío a domicilio 3–5 días.</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;color:#b6b2a6;margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;"><span>Llavero NFC (1 und.)</span><span style="color:#f5f3ec;font-weight:600;">$59.900</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Programación + envío</span><span style="color:#5be89a;font-weight:600;">Gratis</span></div>
+            <div style="height:1px;background:rgba(255,255,255,0.1);margin:2px 0;"></div>
+            <div style="display:flex;justify-content:space-between;font-size:15px;"><span style="color:#fff;font-weight:700;">Total</span><span style="color:#F5C518;font-weight:800;font-family:'Anton',sans-serif;font-size:20px;">$59.900</span></div>
+          </div>
+          <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7c786e;font-weight:700;margin-bottom:9px;">Método de pago</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+            <sc-for list="{{ payOpts }}" as="p" hint-placeholder-count="3"><button onClick="{{ p.onClick }}" style="display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:left;font-size:14px;font-weight:600;background:{{ p.bg }};border:1.5px solid {{ p.border }};color:{{ p.fg }};"><span style="width:16px;height:16px;border-radius:50%;border:2px solid {{ p.dot }};flex:0 0 auto;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.dotFill }};"></span></span>{{ p.name }}</button></sc-for>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);margin-bottom:16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5C518" stroke-width="1.8" style="margin-top:1px;flex:0 0 auto"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <div style="font-size:12px;color:#b6b2a6;">Enviar a <b style="color:#f5f3ec;">{{ veh.owner }}</b> · Placa {{ plateText }} · {{ city }}</div>
+          </div>
+          <button onClick="{{ buyNfc }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px;border-radius:13px;border:none;background:#F5C518;color:#111;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 0 24px rgba(245,197,24,0.4);" style-hover="background:#FFD84D"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>Pagar $59.900</button>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- TOAST -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:34px;z-index:60;transform:translateX(-50%);animation:toastIn .4s cubic-bezier(0.22,1,0.36,1) both;display:flex;gap:11px;align-items:center;padding:14px 24px;border-radius:999px;background:rgba(16,16,16,0.94);backdrop-filter:blur(14px);border:1px solid rgba(245,197,24,0.5);box-shadow:0 0 34px rgba(245,197,24,0.28);color:#fff8e6;font-weight:600;font-size:14px;max-width:90vw;">
+      <span style="width:22px;height:22px;flex:0 0 auto;border-radius:50%;background:#F5C518;display:flex;align-items:center;justify-content:center;color:#111;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>{{ toast }}
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100vw&quot;,&quot;height&quot;:&quot;100vh&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.railRef = React.createRef();
+    this.bgRef = React.createRef();
+    this.fichaRef = React.createRef();
+    this.walletRef = React.createRef();
+    this.diagRef = React.createRef();
+    this.BG_PRESETS = [
+      {id:'noche', label:'Noche', dark:true, css:'linear-gradient(155deg,#1c1708 0%,#141414 55%,#0d0d0d 100%)'},
+      {id:'ambar', label:'Ámbar', dark:true, css:'linear-gradient(135deg,#4a3a08 0%,#1a1712 60%,#0d0d0d 100%)'},
+      {id:'humo', label:'Humo', dark:true, css:'linear-gradient(160deg,#2b2b2b 0%,#161616 55%,#0d0d0d 100%)'},
+      {id:'destello', label:'Destello', dark:true, css:'radial-gradient(120% 90% at 15% 0%,#3a2f08 0%,#141414 45%,#0b0b0b 100%)'},
+      {id:'nitro', label:'Nitro', dark:true, css:'linear-gradient(135deg,#04212b 0%,#0d1418 55%,#0a0a0a 100%)'},
+      {id:'blanco', label:'Blanco', dark:false, css:'linear-gradient(155deg,#ffffff 0%,#f3f1ea 60%,#e7e3d6 100%)'},
+      {id:'papel', label:'Marfil', dark:false, css:'linear-gradient(135deg,#fbf7ec 0%,#f1ead6 100%)'},
+      {id:'nieve', label:'Nieve', dark:false, css:'radial-gradient(120% 90% at 85% 0%,#fff7db 0%,#ffffff 45%,#eef0f2 100%)'},
+    ];
+    this.state = {
+      screen:'entrada', plateType:'particular',
+      plates:{particular:'GHK 472', moto:'DXR 45F', publico:'TSA 138', privado:'BWR 902', diplomatica:'CD 118'},
+      city:'Bogotá D.C.',
+      section:'ficha', flipped:false, loggingIn:false,
+      brand:'Mazda',
+      currentKm:48250,
+      toast:null,
+      now:Date.now(), targetTs:Date.now()+90*86400000,
+      cardBgPreset:'noche', bgImage:null, logoUrl:null, tallerLogo:null,
+      certImgs:{}, docImgs:{}, diagDoc:null,
+      nfcOrder:null,
+      showAdd:false, addTallerId:'t1', addNewTaller:'',
+      lightbox:null,
+      extraCerts:[],
+      galExtra:[],
+      showProfile:false, showCart:false, payMethod:'card',
+      showBgMenu:false,
+      histIndex:0, dragX:0, dragging:false,
+      svc:null,
+      vw: (typeof window!=='undefined'? window.innerWidth : 1200),
+      regName:'Juan Pérez', regBrand:'Mazda', regModel:'Mazda 3 Grand Touring', regYear:2021, regType:'Sedán', regColor:'Rojo Soul',
+      veh:{owner:'Juan Pérez', marca:'Mazda', modelo:'Mazda 3', anio:2021, tipo:'Sedán', color:'Rojo Soul'},
+      records:[
+        {id:1,num:1,date:'12 Mar 2023',km:25000,taller:'Tecnicentro La 80',lubType:'Mineral 20W-50',lubBrand:'Terpel',nextKm:30000,oil:true,air:true,fuel:true,brakes:'Revisado',coolant:'Óptimo'},
+        {id:2,num:2,date:'28 Sep 2023',km:30200,taller:'Tecnicentro La 80',lubType:'Semisintético 15W-40',lubBrand:'Mobil',nextKm:35200,oil:true,air:true,fuel:false,brakes:'Revisado',coolant:'Óptimo'},
+        {id:3,num:3,date:'19 Abr 2024',km:35400,taller:'Lubrimax Express',lubType:'Sintético 10W-30',lubBrand:'Castrol',nextKm:40400,oil:true,air:false,fuel:false,brakes:'Cambio de pastillas',coolant:'Rellenado'},
+        {id:4,num:4,date:'03 Nov 2024',km:41000,taller:'Tecnicentro La 80',lubType:'Sintético 5W-30',lubBrand:'Shell Helix',nextKm:46000,oil:true,air:true,fuel:false,brakes:'Óptimo',coolant:'Óptimo'},
+        {id:5,num:5,date:'22 May 2025',km:46200,taller:'Tecnicentro La 80',lubType:'Sintético 5W-30',lubBrand:'Mobil 1',nextKm:51200,oil:true,air:true,fuel:true,brakes:'Óptimo',coolant:'Óptimo'},
+      ],
+    };
+    this.PTYPES = {
+      particular:  {name:'Particular',  shape:'carro', bg:'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', ink:'#111116', sub:'#3a3a1e', label:'#141414', tag:''},
+      moto:        {name:'Moto',        shape:'moto',  bg:'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', ink:'#111116', sub:'#3a3a1e', label:'#141414', tag:''},
+      publico:     {name:'Público',     shape:'carro', bg:'linear-gradient(178deg,#ffffff 0%,#eef0f2 60%,#dde1e6 100%)', ink:'#0c1a12', sub:'#1b7a3f', label:'#0c1a12', tag:'PÚBLICO'},
+      privado:     {name:'Privado',     shape:'carro', bg:'linear-gradient(178deg,#F8D64B 0%,#F2C21A 62%,#E7B412 100%)', ink:'#111116', sub:'#3a3a1e', label:'#141414', tag:'PRIVADO'},
+      diplomatica: {name:'Diplomática', shape:'carro', bg:'linear-gradient(178deg,#2340d6 0%,#1531a8 60%,#0f2688 100%)', ink:'#ffffff', sub:'#cbd6ff', label:'#ffffff', tag:'CD'},
+    };
+    this.BRAND_TILES = [
+      {name:'Mazda',initial:'M',badge:'#c8102e'}, {name:'Toyota',initial:'T',badge:'#eb0a1e'},
+      {name:'Renault',initial:'R',badge:'#ffcc33'}, {name:'Chevrolet',initial:'C',badge:'#d1a642'},
+      {name:'Kia',initial:'K',badge:'#bb162b'}, {name:'Nissan',initial:'N',badge:'#c3002f'},
+      {name:'Volkswagen',initial:'V',badge:'#001e50'}, {name:'Ford',initial:'F',badge:'#003478'},
+      {name:'Suzuki',initial:'S',badge:'#e30613'},
+    ];
+    this.COLORS = [
+      {name:'Rojo Soul',dot:'#c8102e'},{name:'Blanco',dot:'#f2f2f2'},{name:'Negro',dot:'#141414'},
+      {name:'Gris',dot:'#8a8f96'},{name:'Azul',dot:'#1f4fd1'},{name:'Plata',dot:'#c7ccd1'},
+    ];
+    this.PARTS = [
+      {name:'Aceite de motor',interval:5000,lastKm:46200},
+      {name:'Filtro de aceite',interval:5000,lastKm:46200},
+      {name:'Filtro de aire',interval:15000,lastKm:34500},
+      {name:'Pastillas de freno',interval:40000,lastKm:14000},
+      {name:'Filtro de combustible',interval:40000,lastKm:25000},
+      {name:'Llantas',interval:50000,lastKm:20000},
+      {name:'Batería',interval:60000,lastKm:39000},
+      {name:'Bujías',interval:60000,lastKm:12000},
+      {name:'Refrigerante',interval:40000,lastKm:41000},
+      {name:'Correa de accesorios',interval:90000,lastKm:0},
+    ];
+    this.TALLER = {name:'Tecnicentro La 80',rating:4.8,reviews:214,address:'Cra 70 #80-24, Bogotá D.C.',phone:'+57 311 456 7890',hours:'Lun–Sáb · 7:00 a.m. a 6:00 p.m.',warranty:'Garantía 5.000 km / 6 meses',web:'tallerdeconfianza.com'};
+    this.TALLERES = [
+      {id:'t1',name:'Tecnicentro La 80',rating:4.8,city:'Bogotá D.C.',accent:'#F5C518'},
+      {id:'t2',name:'Lubrimax Express',rating:4.6,city:'Bogotá D.C.',accent:'#4cc2ff'},
+      {id:'t3',name:'Automundo Servicio',rating:4.7,city:'Medellín',accent:'#7be08a'},
+      {id:'t4',name:'MotorPro Taller',rating:4.5,city:'Cali',accent:'#ff9f45'},
+    ];
+    this.CDA = {name:'CDA AutoCheck Norte',date:'22 May 2025',km:'46.200',code:'RTM-2231-BG-2025',expires:'02 Ago 2025'};
+    this.DIAG_CHECKS=[{name:'Emisión de gases',val:'PASA'},{name:'Frenos',val:'PASA'},{name:'Suspensión',val:'PASA'},{name:'Luces',val:'PASA'},{name:'Dirección',val:'PASA'},{name:'Llantas',val:'PASA'}];
+    this.REVIEWS = [
+      {name:'Andrés M.',stars:5,text:'Excelente servicio, actualizaron mi ficha al instante con solo tocar el llavero.'},
+      {name:'Laura G.',stars:5,text:'Puntuales y totalmente transparentes con los repuestos que usaron.'},
+      {name:'Camilo R.',stars:4,text:'Muy buen trabajo. El recordatorio del próximo cambio es súper útil.'},
+    ];
+    this.CERTS = [
+      {id:'c1',title:'Cambio de aceite y filtro',taller:'Tecnicentro La 80',date:'22 May 2025',amount:'$185.000',type:'Factura'},
+      {id:'c2',title:'Juego de llantas (x4)',taller:'Automundo',date:'10 Feb 2025',amount:'$1.320.000',type:'Factura'},
+      {id:'c3',title:'Pastillas de freno delanteras',taller:'Lubrimax Express',date:'19 Abr 2024',amount:'$240.000',type:'Factura'},
+      {id:'c4',title:'Batería 12V 45Ah',taller:'MundoBaterías',date:'05 Ene 2024',amount:'$390.000',type:'Garantía'},
+    ];
+    this.DOCS = [
+      {id:'d1',title:'SOAT',status:'Vigente',expires:'14 Nov 2025',code:'SOAT-8842-XZ',color:'#F5C518'},
+      {id:'d2',title:'Revisión tecnomecánica',status:'Por vencer',expires:'02 Ago 2025',code:'RTM-2231-BG',color:'#ff8a3d'},
+      {id:'d3',title:'Tarjeta de propiedad',status:'Vigente',expires:'Permanente',code:'LIC-77120945',color:'#F5C518'},
+      {id:'d4',title:'Póliza todo riesgo',status:'Vigente',expires:'30 Sep 2025',code:'POL-SURA-4471',color:'#F5C518'},
+    ];
+    this.NAV=[
+      {id:'ficha',label:'Ficha técnica',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>'},
+      {id:'historial',label:'Historial',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>'},
+      {id:'diagnostico',label:'Diagnóstico',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5 2 7h10c0-2 2-4 2-7a7 7 0 0 0-7-7z"/><path d="M9 21h6M10 18v3M14 18v3"/></svg>'},
+      {id:'partes',label:'Control de partes',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l3.5-3.5"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>'},
+      {id:'galeria',label:'Galería',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg>'},
+      {id:'certificados',label:'Certificados',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><path d="M9 8h6M9 12h6"/></svg>'},
+      {id:'documentos',label:'Documentos',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>'},
+      {id:'taller',label:'Taller',icon:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2.3-.6-.6-2.3z"/></svg>'},
+    ];
+    this.CITIES = ['Bogotá D.C.','Medellín','Cali','Barranquilla','Cartagena','Bucaramanga','Pereira','Manizales','Cúcuta','Santa Marta','Ibagué','Villavicencio'];
+    this.YEARS=[]; for(let y=2026;y>=2005;y--) this.YEARS.push(y);
+    this.VTYPES=['Sedán','Hatchback','SUV','Camioneta','Pick-up','Motocicleta'];
+    this.QR = Array.from({length:25},(_,i)=> (((i*7+3)%5===0)||((i*3)%4===0)) ? '#111' : '#fff');
+  }
+
+  fmt(n){ return Math.round(n).toLocaleString('es-CO'); }
+  get mobile(){ return this.state.vw < 860; }
+
+  computeTarget(){
+    const s=this.state;
+    const latest=s.records[s.records.length-1];
+    const kmToNext=Math.max(0, latest.nextKm - s.currentKm);
+    const days=Math.max(1, Math.round(kmToNext/33));
+    return Date.now()+days*86400000;
+  }
+
+  plateT(){
+    const sc=this.state.screen; const m=this.mobile;
+    if(sc==='entrada') return m? 'translate(-50%,-50%) scale(0.56)' : 'translate(-50%,-50%) perspective(1400px) rotateY(-6deg) scale(0.92)';
+    if(sc==='login')   return m? 'translate(-50%,-50%) translateY(-30vh) scale(0.30)' : 'translate(-50%,-50%) translateY(-33vh) scale(0.36)';
+    if(sc==='registro')return m? 'translate(-50%,-50%) translateY(-30vh) scale(0.34)' : 'translate(-50%,-50%) translateY(-32vh) scale(0.42)';
+    return m? 'translate(-50%,-50%) scale(0.3)' : 'translate(-50%,-50%) translate(calc(-50vw + 133px), calc(-50vh + 118px)) scale(0.30)';
+  }
+
+  spin(el){
+    if(!el || this._spinning || this.state.screen!=='entrada') return;
+    this._spinning=true;
+    const a=el.animate([
+      {transform:'translateX(0) rotate(0deg)',opacity:1,offset:0,easing:'cubic-bezier(.55,0,.85,.4)'},
+      {transform:'translateX(175%) rotate(38deg)',opacity:0,offset:0.30,easing:'linear'},
+      {transform:'translateX(-175%) rotate(-48deg)',opacity:0,offset:0.32,easing:'ease-out'},
+      {transform:'translateX(-175%) rotate(-48deg)',opacity:1,offset:0.40,easing:'cubic-bezier(.16,1,.3,1)'},
+      {transform:'translateX(0) rotate(720deg)',opacity:1,offset:1},
+    ],{duration:1750,fill:'none'});
+    a.onfinish=()=>{ this._spinning=false; };
+    a.oncancel=()=>{ this._spinning=false; };
+  }
+
+  scrollRail(dir){ const el=this.railRef.current; if(el) el.scrollBy({left:dir*320,behavior:'smooth'}); }
+
+  fmtMoney(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
+
+  openAddService(){
+    const km=this.state.currentKm;
+    this.setState({showAdd:true, svc:{ mode:'taller', tallerId:'t1', newTaller:'', mechSearch:'', km:String(km+300), lubBrand:'Mobil 1', lubType:'Sintético 5W-30', nextKm:String(km+5300), oil:true, air:true, fuel:false, brakes:'Óptimo', coolant:'Óptimo', oilImg:null }});
+  }
+
+  confirmAddService(){
+    const s=this.state; const f=s.svc||{};
+    let tallerName;
+    if(f.mode==='user'){ tallerName='Mantenimiento por el usuario'; }
+    else if(f.tallerId==='new'){ tallerName=(f.newTaller||'').trim()||'Taller nuevo'; }
+    else { const t=this.TALLERES.find(t=>t.id===f.tallerId); tallerName=t?t.name:'Tecnicentro La 80'; }
+    if(f.mode==='taller' && f.tallerId==='new' && !this.TALLERES.some(t=>t.name.toLowerCase()===tallerName.toLowerCase())){
+      this.TALLERES=[...this.TALLERES,{id:'t'+(this.TALLERES.length+1),name:tallerName,rating:5.0,city:s.city,accent:'#F5C518',nuevo:true}];
+    }
+    const km = parseInt(String(f.km).replace(/\D/g,''),10) || (s.currentKm+300);
+    const nextKm = parseInt(String(f.nextKm).replace(/\D/g,''),10) || (km+5000);
+    const now = new Date();
+    const meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const date = String(now.getDate()).padStart(2,'0')+' '+meses[now.getMonth()]+' '+now.getFullYear();
+    const num = s.records.length+1;
+    const rec = {id:Date.now(),num,date,km,taller:tallerName,lubType:f.lubType||'Sintético 5W-30',lubBrand:f.lubBrand||'Genérico',nextKm,oil:!!f.oil,air:!!f.air,fuel:!!f.fuel,brakes:f.brakes||'Óptimo',coolant:f.coolant||'Óptimo',oilImg:f.oilImg||null,byUser:f.mode==='user'};
+    this.PARTS = this.PARTS.map(p=>{
+      if(p.name==='Aceite de motor'||p.name==='Filtro de aceite') return {...p,lastKm:km};
+      if(p.name==='Filtro de aire' && f.air) return {...p,lastKm:km};
+      if(p.name==='Filtro de combustible' && f.fuel) return {...p,lastKm:km};
+      return p;
+    });
+    const extra=[...s.extraCerts];
+    if(f.mode!=='user'){ const cost=175000+Math.floor(Math.random()*90000); extra.unshift({id:'svc'+rec.id, title:'Cambio de aceite y filtros', taller:tallerName, date, amount:this.fmtMoney(cost), type:'Factura', recId:rec.id}); }
+    this.setState({records:[...s.records,rec], currentKm:Math.max(km,s.currentKm), extraCerts:extra, showAdd:false, svc:null, histIndex:0}, ()=>this.setState({targetTs:this.computeTarget()}));
+    this.flash(f.mode==='user' ? 'Mantenimiento propio registrado en tu ficha e historial' : 'Servicio registrado en '+tallerName+' — ficha, historial y factura actualizados');
+  }
+  setSvc(patch){ this.setState(st=>({svc:{...st.svc,...patch}})); }
+  readSvcOil(e){ const file=e.target&&e.target.files&&e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>this.setSvc({oilImg:r.result}); r.readAsDataURL(file); }
+  advanceHist(dir){ const n=this.state.records.length; if(!n) return; this.setState(st=>({histIndex:((st.histIndex+dir)%n+n)%n, dragX:0, dragging:false})); }
+
+  reqNfc(){
+    if(this.state.nfcOrder) { this.flash('Ya tienes un envío en curso'); return; }
+    const days = 3 + Math.floor(Math.random()*3); // 3-5
+    const placed = Date.now();
+    const shipMs = placed + 9000; // se despacha ~9s después (demo): pasa de "preparando" a "en camino"
+    const eta = shipMs + days*86400000;
+    const order = {id:'NFC-'+Math.floor(100000+Math.random()*899999), eta, placed, shipMs, days};
+    try{ localStorage.setItem('carlink_nfc', JSON.stringify(order)); }catch(e){}
+    this.setState({nfcOrder:order});
+    this.flash('Pedido '+order.id+' confirmado — preparando tu envío');
+  }
+  cancelNfc(){ try{ localStorage.removeItem('carlink_nfc'); }catch(e){} this.setState({nfcOrder:null}); this.flash('Envío cancelado'); }
+
+  readImg(e, key, mapKey){
+    const f=e.target && e.target.files && e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      if(mapKey){ this.setState(st=>({[key]:{...st[key],[mapKey]:r.result}})); }
+      else { this.setState({[key]:r.result}); }
+      this.flash('Archivo cargado');
+    };
+    r.readAsDataURL(f);
+  }
+
+  capture(node, name){
+    if(!node){ this.flash('No se pudo capturar'); return; }
+    if(!window.html2canvas){ this.flash('Descarga no disponible aún, reintenta'); return; }
+    this.flash('Generando imagen…');
+    window.html2canvas(node,{backgroundColor:null,scale:2,useCORS:true,logging:false}).then(canvas=>{
+      const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      this.flash('Descarga lista');
+    }).catch(()=>this.flash('No se pudo generar la imagen'));
+  }
+
+  flash(msg){ clearTimeout(this._t); this.setState({toast:msg}); this._t=setTimeout(()=>this.setState({toast:null}),2600); }
+
+  componentDidMount(){
+    this._tick=setInterval(()=>this.setState({now:Date.now()}),1000);
+    this.setState({targetTs:this.computeTarget()});
+    try{ const o=localStorage.getItem('carlink_nfc'); if(o){ const ord=JSON.parse(o); if(ord && ord.eta>Date.now()) this.setState({nfcOrder:ord}); else localStorage.removeItem('carlink_nfc'); } }catch(e){}
+    this._onResize=()=>this.setState({vw:window.innerWidth});
+    window.addEventListener('resize',this._onResize);
+    const cv=this.bgRef.current; if(!cv) return;
+    const ctx=cv.getContext('2d');
+    let W=0,H=0,cx=0,cy=0;
+    const streaks=[], puffs=[];
+    const newStreak=(fresh)=>{ const a=Math.random()*Math.PI*2; return {a, r: fresh? Math.random()*20 : Math.random()*Math.hypot(W,H)*0.55, sp:0.9+Math.random()*2.2, w:0.6+Math.random()*1.5, yellow:Math.random()<0.14}; };
+    const resize=()=>{ const dpr=Math.min(window.devicePixelRatio||1,2); W=cv.clientWidth; H=cv.clientHeight; cv.width=Math.max(1,W*dpr); cv.height=Math.max(1,H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); cx=W/2; cy=H*0.46; };
+    resize(); window.addEventListener('resize',resize);
+    for(let i=0;i<170;i++) streaks.push(newStreak(false));
+    const mouse={x:cx,y:cy,px:cx,py:cy};
+    const onMove=(e)=>{
+      mouse.px=mouse.x; mouse.py=mouse.y; mouse.x=e.clientX; mouse.y=e.clientY;
+      const dx=mouse.x-mouse.px, dy=mouse.y-mouse.py; const sp=Math.hypot(dx,dy);
+      if(sp>1.2){ const n=Math.min(5,1+Math.floor(sp/7));
+        for(let k=0;k<n;k++){ puffs.push({x:mouse.x+(Math.random()-.5)*12, y:mouse.y+(Math.random()-.5)*12, vx:-dx*0.07+(Math.random()-.5)*0.6, vy:-dy*0.07-0.5-Math.random()*0.8, r:5+Math.random()*8, gr:0.55+Math.random()*1.1, life:1, decay:0.011+Math.random()*0.011, hue:34+Math.random()*20}); }
+      }
+    };
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('touchmove',(e)=>{ if(e.touches[0]) onMove(e.touches[0]); },{passive:true});
+    const loop=()=>{
+      if(cv.width===0){ this._raf=requestAnimationFrame(loop); return; }
+      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle='rgba(6,6,6,0.30)'; ctx.fillRect(0,0,W,H);
+      const lim=Math.hypot(W,H)*0.62;
+      for(const s of streaks){
+        const cosA=Math.cos(s.a), sinA=Math.sin(s.a);
+        const px=cx+cosA*s.r, py=cy+sinA*s.r;
+        s.r += s.sp*(1+s.r/lim*3.2);
+        const nx=cx+cosA*s.r, ny=cy+sinA*s.r;
+        const alpha=Math.min(0.55, (s.r/lim)*0.6);
+        ctx.strokeStyle = s.yellow? 'rgba(245,197,24,'+alpha+')' : 'rgba(205,205,205,'+(alpha*0.6)+')';
+        ctx.lineWidth=s.w; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(nx,ny); ctx.stroke();
+        if(s.r>lim) Object.assign(s,newStreak(true));
+      }
+      ctx.globalCompositeOperation='lighter';
+      for(let i=puffs.length-1;i>=0;i--){ const p=puffs[i];
+        p.x+=p.vx; p.y+=p.vy; p.vy-=0.006; p.vx*=0.99; p.r+=p.gr; p.life-=p.decay;
+        if(p.life<=0){ puffs.splice(i,1); continue; }
+        const a=Math.max(0,p.life)*0.15;
+        const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+        g.addColorStop(0,'hsla('+p.hue+',95%,62%,'+a+')');
+        g.addColorStop(0.45,'hsla('+(p.hue-12)+',85%,45%,'+(a*0.5)+')');
+        g.addColorStop(1,'hsla('+p.hue+',60%,28%,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.2832); ctx.fill();
+      }
+      if(puffs.length>180) puffs.splice(0,puffs.length-180);
+      this._raf=requestAnimationFrame(loop);
+    };
+    this._raf=requestAnimationFrame(loop);
+    this._cleanup=()=>{ window.removeEventListener('resize',resize); window.removeEventListener('mousemove',onMove); };
+  }
+
+  componentWillUnmount(){ cancelAnimationFrame(this._raf); clearInterval(this._tick); if(this._cleanup) this._cleanup(); if(this._onResize) window.removeEventListener('resize',this._onResize); clearTimeout(this._t); clearTimeout(this._l); }
+
+  renderVals(){
+    const s=this.state;
+    const T=this.PTYPES[s.plateType];
+    const plateText=s.plates[s.plateType];
+    const latest = s.records[s.records.length-1];
+    const nextService = latest.nextKm;
+    const kmToNext = Math.max(0, nextService - s.currentKm);
+    const interval = 5000;
+    const prog = Math.max(0, Math.min(1, (interval - kmToNext)/interval));
+
+    // ===== TABLERO: métricas derivadas =====
+    const oilLife = Math.max(0, Math.min(1, kmToNext/interval)); // vida útil de aceite restante
+    const partLifes = this.PARTS.map(p=>{ const rem=(p.lastKm+p.interval)-s.currentKm; return Math.max(0, Math.min(1, rem/p.interval)); });
+    const health = partLifes.length ? partLifes.reduce((a,b)=>a+b,0)/partLifes.length : 1;
+    const urgentes = this.PARTS.filter(p=>{ const rem=(p.lastKm+p.interval)-s.currentKm; return rem<=p.interval*0.12; }).length;
+    const gaugeDeg = Math.round(oilLife*270);            // arco de 270°
+    const healthDeg = Math.round(health*270);
+    const healthColor = health>0.5?'#2ecc71':(health>0.25?'#ffb020':'#ff4d6a');
+    const healthLabel = health>0.5?'Óptimo':(health>0.25?'Atención':'Crítico');
+    const oilColor = oilLife>0.4?'#F5C518':(oilLife>0.18?'#ffb020':'#ff4d6a');
+
+    let diff=Math.max(0, s.targetTs - s.now);
+    const dd=Math.floor(diff/86400000); diff-=dd*86400000;
+    const dh=Math.floor(diff/3600000); diff-=dh*3600000;
+    const dm=Math.floor(diff/60000); diff-=dm*60000;
+    const ds=Math.floor(diff/1000);
+    const pad=(n)=>String(n).padStart(2,'0');
+
+    const parts = this.PARTS.map(p=>{
+      const next = p.lastKm + p.interval;
+      const rem = next - s.currentKm;
+      const pct = Math.max(0, Math.min(1, rem/p.interval));
+      let estado, color;
+      if(rem<=0){ estado='Vencido'; color='#ff4d6a'; }
+      else if(pct<=0.12){ estado='Urgente'; color='#ff4d6a'; }
+      else if(pct<=0.30){ estado='Pronto'; color='#ffb020'; }
+      else { estado='Al día'; color='#2ecc71'; }
+      return {name:p.name,intervalFmt:this.fmt(p.interval),nextFmt:this.fmt(next),remFmt:this.fmt(Math.max(0,rem)),lifePct:Math.round(pct*100)+'%',estado,color};
+    });
+
+    const timeline = s.records.map(r=>{ const t=r.lubType.split(' '); return {...r,kmFmt:this.fmt(r.km),visc:t[t.length-1]}; });
+    const reviews = this.REVIEWS.map(r=>({...r,starStr:'★★★★★☆'.slice(5-r.stars,5-r.stars+5)}));
+
+    const brandList = ['Mazda','Toyota','Renault','Chevrolet','Kia','Nissan'];
+    const brands = brandList.map(b=>{ const active=s.brand===b; return {name:b, bg:active?'#F5C518':'rgba(255,255,255,0.05)', fg:active?'#111':'#b6b2a6', border:active?'#F5C518':'rgba(255,255,255,0.12)', onClick:()=>this.setState({brand:b})}; });
+
+    const typeList=[['particular','Particular'],['moto','Moto'],['publico','Público'],['privado','Privado'],['diplomatica','Diplomática']];
+    const ptypes=typeList.map(([id,name])=>{ const active=s.plateType===id; return {id,name, bg:active?'#F5C518':'rgba(255,255,255,0.05)', fg:active?'#111':'#b6b2a6', border:active?'#F5C518':'rgba(255,255,255,0.12)', onClick:()=>this.setState({plateType:id})}; });
+
+    const brandTiles=this.BRAND_TILES.map(b=>{ const active=s.regBrand===b.name; return {name:b.name, initial:b.initial, badge:b.badge, mark:'#fff', bg:active?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', border:active?'#F5C518':'rgba(255,255,255,0.1)', fg:active?'#fff':'#b6b2a6', onClick:()=>this.setState({regBrand:b.name,brand:b.name}) }; });
+    const colorTiles=this.COLORS.map(c=>{ const active=s.regColor===c.name; return {name:c.name, dot:c.dot, bg:active?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', border:active?'#F5C518':'rgba(255,255,255,0.1)', fg:active?'#fff':'#b6b2a6', onClick:()=>this.setState({regColor:c.name}) }; });
+
+    const presetObj=(this.BG_PRESETS.find(p=>p.id===s.cardBgPreset)||this.BG_PRESETS[0]);
+    const bgPresets=this.BG_PRESETS.map(p=>({ label:p.label, css:p.css, ring:(!s.bgImage && s.cardBgPreset===p.id)?'#F5C518':'transparent', onClick:()=>this.setState({cardBgPreset:p.id, bgImage:null, showBgMenu:false}) }));
+    const cardDark = s.bgImage ? true : !!presetObj.dark;
+    // bg as a style OBJECT (avoids semicolon-in-dataURI breaking style-string parsing)
+    const bgLayerStyle = { position:'absolute', inset:'0', borderRadius:'inherit', zIndex:0,
+      background: s.bgImage ? '#0d0d0d' : presetObj.css,
+      backgroundImage: s.bgImage ? ('linear-gradient(rgba(8,8,8,.55),rgba(8,8,8,.62)), url('+s.bgImage+')') : undefined,
+      backgroundSize:'cover', backgroundPosition:'center', backgroundRepeat:'no-repeat' };
+    const cardBg = s.bgImage ? '#0d0d0d' : presetObj.css; // wallet fallback
+    const cInk = cardDark ? '#ffffff' : '#161616';
+    const cMuted = cardDark ? '#a8a496' : '#6b675c';
+    const cSoft = cardDark ? '#c9c6ba' : '#4a473f';
+    const cChipBg = cardDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const cChipBd = cardDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.09)';
+
+    const E=React.createElement;
+    const mkImg=(src,style)=>src?E('img',{src,alt:'',style}):null;
+    const allCerts=[...s.extraCerts, ...this.CERTS];
+    const certs=allCerts.map(c=>{ const img=s.certImgs[c.id]||null; return {...c, img, noImg:!img, imgEl:mkImg(img,{width:'100%',height:'100%',objectFit:'cover'}), stLabel: img?'Ver ampliado':c.type, stColor: img?'#2ecc71':'#F5C518', onUpload:(e)=>this.readImg(e,'certImgs',c.id), onOpen: img?(()=>this.setState({lightbox:{src:img,title:c.title,sub:c.taller+' · '+c.date}})):null }; });
+    const docs=this.DOCS.map(d=>{ const img=s.docImgs[d.id]||null; return {...d, img, noImg:!img, imgEl:mkImg(img,{width:'100%',maxHeight:'150px',objectFit:'cover',display:'block'}), onUpload:(e)=>this.readImg(e,'docImgs',d.id), onOpen: img?(()=>this.setState({lightbox:{src:img,title:d.title,sub:d.code}})):null }; });
+    const bgFrag=(dim)=>s.bgImage?E(React.Fragment,null,E('img',{src:s.bgImage,alt:'',style:{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',zIndex:0}}),E('div',{style:{position:'absolute',inset:0,zIndex:0,background:'rgba(8,8,8,'+dim+')'}})):null;
+    const logoImgFicha=mkImg(s.logoUrl,{width:'46px',height:'46px',borderRadius:'11px',objectFit:'cover',border:'1px solid rgba(255,255,255,.18)',flex:'0 0 auto'});
+    const logoImgWallet=mkImg(s.logoUrl,{width:'44px',height:'44px',borderRadius:'11px',objectFit:'cover'});
+    const tallerLogoFicha=mkImg(s.tallerLogo,{width:'52px',height:'52px',borderRadius:'14px',objectFit:'cover',flex:'0 0 auto'});
+    const tallerLogoSection=mkImg(s.tallerLogo,{width:'100%',height:'100%',objectFit:'cover'});
+    const diagDocEl=mkImg(s.diagDoc,{maxHeight:'120px',borderRadius:'8px'});
+    const bgFrontEl=bgFrag('0.58'); const bgWalletEl=bgFrag('0.6');
+    const lightboxImg=s.lightbox?E('img',{src:s.lightbox.src,alt:'',style:{maxWidth:'92vw',maxHeight:'80vh',borderRadius:'14px',boxShadow:'0 30px 90px rgba(0,0,0,.7)',border:'1px solid rgba(245,197,24,0.3)'}}):null;
+
+    // NFC order — dos fases: preparando → en camino (con cuenta regresiva)
+    let nfc=null;
+    if(s.nfcOrder){
+      const o=s.nfcOrder; const shipMs=o.shipMs||o.placed;
+      const shipped = s.now >= shipMs;
+      let nd=Math.max(0, o.eta - s.now); const D=Math.floor(nd/86400000); nd-=D*86400000; const H=Math.floor(nd/3600000); nd-=H*3600000; const M=Math.floor(nd/60000); nd-=M*60000; const S=Math.floor(nd/1000);
+      let ps=Math.max(0, Math.ceil((shipMs - s.now)/1000));
+      nfc={id:o.id, d:D, h:pad(H), m:pad(M), s:pad(S), days:o.days, shipped, prepSecs:ps, delivered:(o.eta<=s.now)};
+    }
+
+    // talleres history (from records, most recent visit each)
+    const byTaller={};
+    s.records.forEach(r=>{ const k=r.taller; if(!byTaller[k]) byTaller[k]={name:k,visits:0,lastKm:0,lastDate:r.date}; byTaller[k].visits++; if(r.km>byTaller[k].lastKm){byTaller[k].lastKm=r.km; byTaller[k].lastDate=r.date;} });
+    const tallerHist=Object.values(byTaller).sort((a,b)=>b.lastKm-a.lastKm).map(t=>{ const cat=this.TALLERES.find(x=>x.name===t.name); return {name:t.name, visits:t.visits, lastKm:this.fmt(t.lastKm), lastDate:t.lastDate, accent:cat?cat.accent:'#F5C518', rating:cat?cat.rating:4.7, initial:t.name[0]}; });
+
+    // add-service modal taller options
+    const optStyle=(active)=>({bg:active?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', border:active?'#F5C518':'rgba(255,255,255,0.1)', fg:active?'#fff':'#b6b2a6', dot:active?'#F5C518':'#7c786e', dotFill:active?'#F5C518':'transparent'});
+    const addTallerOpts=this.TALLERES.map(t=>{ const a=s.addTallerId===t.id; return {id:t.id,name:t.name,...optStyle(a),onClick:()=>this.setState({addTallerId:t.id})}; })
+      .concat([(()=>{ const a=s.addTallerId==='new'; return {id:'new',name:'+ Otro taller',...optStyle(a),onClick:()=>this.setState({addTallerId:'new'})}; })()]);
+
+    const GAL_CATS=['Lateral','Trasera','Interior','Baúl','Techo','Detalle'];
+    const galCats=GAL_CATS.map(name=>({name, onClick:()=>{ const id='veh-x'+Date.now(); this.setState(st=>({galExtra:[...st.galExtra,{id,name,code:'IMG_'+String(7+st.galExtra.length).padStart(2,'0')}]})); this.flash('Vista "'+name+'" agregada a la galería'); }}));
+    const galExtra=s.galExtra;
+
+    const stampsOn=Math.min(6, s.records.length);
+    const stamps=Array.from({length:6},(_,i)=>({on:i<stampsOn, bg:i<stampsOn?'#F5C518':'transparent'}));
+
+    // Aceite aplicado (imagen) para la mini-tarjeta de fidelidad
+    const latestOilImg = latest.oilImg || null;
+    const oilImgFichaEl = latestOilImg ? E('img',{src:latestOilImg,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}) : null;
+
+    // Historial: baraja apilable, más reciente primero
+    const revRecords = s.records.slice().reverse().map(r=>{ const t=r.lubType.split(' '); return {...r,kmFmt:this.fmt(r.km),visc:t[t.length-1]}; });
+    const nStack = revRecords.length;
+    const histStack = revRecords.map((r,i)=>{
+      let rel = (i - s.histIndex % nStack + nStack) % nStack; // 0 = top
+      const isTop = rel===0;
+      const depth = Math.min(rel,3);
+      const ty = depth*16, sc = 1 - depth*0.05, op = rel>3?0:1;
+      let tx=0, rot=0, trans='transform .45s cubic-bezier(0.22,1,0.36,1),opacity .3s';
+      if(isTop && s.dragging){ tx=s.dragX; rot=s.dragX/28; trans='none'; }
+      const oilEl = r.oilImg ? E('img',{src:r.oilImg,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}) : null;
+      return {...r, oilEl, hasOil:!!r.oilImg, noOil:!r.oilImg,
+        z: 50 - rel, show: rel<=3,
+        cardStyle: `position:absolute;left:0;right:0;top:0;transform:translate(${tx}px,${ty}px) scale(${sc}) rotate(${rot}deg);opacity:${op};z-index:${50-rel};transition:${trans};${isTop?'cursor:grab;':'pointer-events:none;'}`,
+        isTop,
+        onDown: isTop?((e)=>{ const x=(e.touches?e.touches[0].clientX:e.clientX); this._dragStart=x; if(e.currentTarget&&e.currentTarget.setPointerCapture&&e.pointerId!=null){ try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}} this.setState({dragging:true,dragX:0}); }):null,
+        onMove: isTop?((e)=>{ if(!this.state.dragging) return; const x=(e.touches?e.touches[0].clientX:e.clientX); this.setState({dragX:x-this._dragStart}); }):null,
+        onUp: isTop?(()=>{ const dx=this.state.dragX; if(Math.abs(dx)>110){ this.advanceHist(dx<0?1:-1); } else { this.setState({dragging:false,dragX:0}); } }):null };
+    });
+    const histCount=nStack;
+    const histPos=(s.histIndex % (nStack||1))+1;
+
+    // Formulario de servicio
+    const f=s.svc||{};
+    const svcMechs=this.TALLERES.filter(t=> !f.mechSearch || t.name.toLowerCase().includes((f.mechSearch||'').toLowerCase()))
+      .map(t=>{ const a=f.tallerId===t.id&&f.mode==='taller'; return {id:t.id,name:t.name,city:t.city,rating:t.rating,initial:t.name[0], badge:t.accent||'#F5C518', bg:a?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', border:a?'#F5C518':'rgba(255,255,255,0.1)', fg:a?'#fff':'#b6b2a6', onClick:()=>this.setSvc({mode:'taller',tallerId:t.id})}; });
+    const modeBtn=(on)=>({bd:on?'#F5C518':'rgba(255,255,255,0.12)', bg:on?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', fg:on?'#fff':'#b6b2a6'});
+    const tB=modeBtn(f.mode!=='user'), uB=modeBtn(f.mode==='user');
+    const chip=(on)=>({bd:on?'#F5C518':'rgba(255,255,255,0.12)', bg:on?'rgba(245,197,24,0.12)':'rgba(255,255,255,0.04)', fg:on?'#F5C518':'#b6b2a6', fill:on?'#F5C518':'transparent'});
+    const cOil=chip(!!f.oil), cAir=chip(!!f.air), cFuel=chip(!!f.fuel);
+    const newSel=f.mode==='taller'&&f.tallerId==='new';
+
+    // Fondo del pase: color activo + menú
+    const activeBgLabel = s.bgImage ? 'Imagen propia' : presetObj.label;
+
+    const sec=s.section;
+    const firstKm = s.records[0].km;
+    const appMobileHidden = this.mobile && s.screen==='app';
+
+    return {
+      bgRef:this.bgRef, railRef:this.railRef, fichaRef:this.fichaRef, walletRef:this.walletRef, diagRef:this.diagRef,
+      isCarroShape:T.shape==='carro', isMotoShape:T.shape==='moto',
+      ptBg:T.bg, ptInk:T.ink, ptSub:T.sub, ptLabel:T.label, ptTag:T.tag,
+      plateText, city:s.city, cities:this.CITIES, veh:s.veh, ptypes,
+      plateTransform:this.plateT(), plateOpacity: appMobileHidden?0:1, platePE: appMobileHidden?'none':'auto',
+      filmTransform:`translateX(${s.screen==='entrada'?0:s.screen==='login'?-100:s.screen==='registro'?-200:-300}vw)`,
+      loggingIn:s.loggingIn,
+      userFirst:(s.regName||'').split(' ')[0]||'', userInitial:((s.veh.owner||'J')[0]||'J').toUpperCase(),
+      isFicha:sec==='ficha', isHist:sec==='historial', isDiag:sec==='diagnostico', isPartes:sec==='partes', isGal:sec==='galeria', isCert:sec==='certificados', isDoc:sec==='documentos', isTaller:sec==='taller',
+      navFicha:sec==='ficha'?1:0, navHist:sec==='historial'?1:0, navDiag:sec==='diagnostico'?1:0, navPartes:sec==='partes'?1:0, navGal:sec==='galeria'?1:0, navCert:sec==='certificados'?1:0, navDoc:sec==='documentos'?1:0, navTaller:sec==='taller'?1:0,
+      cFicha:sec==='ficha'?'#fff':'#9a968a', cHist:sec==='historial'?'#fff':'#9a968a', cDiag:sec==='diagnostico'?'#fff':'#9a968a', cPartes:sec==='partes'?'#fff':'#9a968a', cGal:sec==='galeria'?'#fff':'#9a968a', cCert:sec==='certificados'?'#fff':'#9a968a', cDoc:sec==='documentos'?'#fff':'#9a968a', cTaller:sec==='taller'?'#fff':'#9a968a',
+      goFicha:()=>this.setState({section:'ficha'}), goHist:()=>this.setState({section:'historial'}), goDiag:()=>this.setState({section:'diagnostico'}), goPartes:()=>this.setState({section:'partes'}), goGal:()=>this.setState({section:'galeria'}), goCert:()=>this.setState({section:'certificados'}), goDoc:()=>this.setState({section:'documentos'}), goTaller:()=>this.setState({section:'taller'}),
+      flipped:s.flipped, flipX:s.flipped?'-50%':'0%',
+      flipRotate:(s.flipped?'rotateY(180deg)':'rotateY(0deg)')+(s.flipping?' scale(0.9) translateY(-6px)':' scale(1)'),
+      flipTransition:s.flipping?'transform .72s cubic-bezier(0.5,0,0.2,1.25)':'transform .72s cubic-bezier(0.34,1.3,0.5,1)',
+      flipShadow:s.flipping?'0 55px 90px rgba(0,0,0,.7),0 0 90px rgba(245,197,24,0.28)':'0 30px 70px rgba(0,0,0,.55),0 0 60px rgba(245,197,24,0.1)',
+      cardBg, presetBg:presetObj.css, bgImage:s.bgImage, hasBgImage:!!s.bgImage, cardDark, cInk, cMuted, cSoft, cChipBg, cChipBd, logoUrl:s.logoUrl, bgPresets,
+      bgFrontEl, bgWalletEl, logoImgFicha, logoImgWallet, tallerLogoFicha, tallerLogoSection, diagDocEl, lightboxImg,
+      nfc, hasNfc:!!s.nfcOrder, noNfc:!s.nfcOrder,
+      tallerHist,
+      showAdd:s.showAdd, addTallerOpts, addNewTaller:s.addNewTaller, addIsNew:s.addTallerId==='new',
+      lightbox:s.lightbox, hasLightbox:!!s.lightbox,
+      tallerLogo:s.tallerLogo, noTallerLogo:!s.tallerLogo,
+      currentKm:this.fmt(s.currentKm), nextService:this.fmt(nextService), kmToNext:this.fmt(kmToNext), progWidth:Math.round(prog*100)+'%',
+      currentKmDigits:this.fmt(s.currentKm).replace(/\./g,' '),
+      gaugeDeg, healthDeg, healthColor, healthLabel, oilColor,
+      oilPct:Math.round(oilLife*100)+'%', oilPctNum:Math.round(oilLife*100),
+      healthPct:Math.round(health*100)+'%', healthPctNum:Math.round(health*100),
+      urgentes, urgentesLabel: urgentes===0?'Sin alertas':(urgentes+' por revisar'), urgentesColor: urgentes===0?'#2ecc71':'#ffb020',
+      soatOk:true, rtmWarn:true,
+      cd:{d:dd,h:pad(dh),m:pad(dm),s:pad(ds)}, stamps, galCats, galExtra,
+      oilImgFichaEl, hasOilImg:!!latestOilImg, noOilImgTop:!latestOilImg,
+      histStack, histCount, histPos,
+      histPrev:()=>this.advanceHist(-1), histNext:()=>this.advanceHist(1),
+      histDown:(e)=>{ const x=(e.touches?e.touches[0].clientX:e.clientX); this._dragStart=x; this.setState({dragging:true,dragX:0}); },
+      histMove:(e)=>{ if(!this.state.dragging) return; const x=(e.touches?e.touches[0].clientX:e.clientX); this.setState({dragX:x-this._dragStart}); },
+      histUp:()=>{ const dx=this.state.dragX; if(Math.abs(dx)>110){ this.advanceHist(dx<0?1:-1); } else { this.setState({dragging:false,dragX:0}); } },
+      svc:f, svcOpen:!!s.svc, svcIsUser:f.mode==='user', svcIsTaller:f.mode!=='user', svcIsNew:newSel, svcMechs,
+      svcTallerBd:tB.bd, svcTallerBg:tB.bg, svcTallerFg:tB.fg, svcUserBd:uB.bd, svcUserBg:uB.bg, svcUserFg:uB.fg,
+      svcNewBg:newSel?'rgba(245,197,24,0.1)':'rgba(255,255,255,0.03)', svcNewBd:newSel?'#F5C518':'rgba(245,197,24,0.35)', svcNewFg:newSel?'#fff':'#F5C518',
+      svcOilBd:cOil.bd, svcOilBg:cOil.bg, svcOilFg:cOil.fg, svcOilFill:cOil.fill,
+      svcAirBd:cAir.bd, svcAirBg:cAir.bg, svcAirFg:cAir.fg, svcAirFill:cAir.fill,
+      svcFuelBd:cFuel.bd, svcFuelBg:cFuel.bg, svcFuelFg:cFuel.fg, svcFuelFill:cFuel.fill,
+      svcNoOilImg:!f.oilImg, svcOilImgLabel: f.oilImg?'Imagen cargada — toca para cambiar':'Subir foto del aceite aplicado',
+      svcModeTaller:()=>this.setSvc({mode:'taller'}), svcModeUser:()=>this.setSvc({mode:'user'}),
+      svcPickNew:()=>this.setSvc({mode:'taller',tallerId:'new'}),
+      svcSearch:(e)=>this.setSvc({mechSearch:e.target.value}), svcNewName:(e)=>this.setSvc({newTaller:e.target.value}),
+      svcKm:(e)=>this.setSvc({km:e.target.value}), svcNextKm:(e)=>this.setSvc({nextKm:e.target.value}),
+      svcLubBrand:(e)=>this.setSvc({lubBrand:e.target.value}), svcLubType:(e)=>this.setSvc({lubType:e.target.value}),
+      svcToggleOil:()=>this.setSvc({oil:!f.oil}), svcToggleAir:()=>this.setSvc({air:!f.air}), svcToggleFuel:()=>this.setSvc({fuel:!f.fuel}),
+      svcOilImg: f.oilImg? E('img',{src:f.oilImg,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}):null, svcHasOilImg:!!f.oilImg,
+      svcOnOilImg:(e)=>this.readSvcOil(e),
+      svcOilChk:f.oil?1:0, svcAirChk:f.air?1:0, svcFuelChk:f.fuel?1:0,
+      showBgMenu:s.showBgMenu, toggleBgMenu:()=>this.setState(st=>({showBgMenu:!st.showBgMenu})), closeBgMenu:()=>this.setState({showBgMenu:false}),
+      activeBgLabel, activeBgCss: s.bgImage ? 'linear-gradient(135deg,#2a2a2a,#141414)' : presetObj.css,
+      nfcShipped: nfc?nfc.shipped:false, nfcPreparing: nfc?!nfc.shipped:false,
+      showProfile:s.showProfile, showCart:s.showCart, nfcBadge:s.nfcOrder?1:0,
+      payOpts:[{id:'card',name:'Tarjeta de crédito / débito'},{id:'pse',name:'PSE — débito bancario'},{id:'nequi',name:'Nequi'}].map(p=>{ const a=(s.payMethod||'card')===p.id; return {name:p.name, bg:a?'rgba(245,197,24,0.14)':'rgba(255,255,255,0.04)', border:a?'#F5C518':'rgba(255,255,255,0.1)', fg:a?'#fff':'#b6b2a6', dot:a?'#F5C518':'#7c786e', dotFill:a?'#F5C518':'transparent', onClick:()=>this.setState({payMethod:p.id}) }; }),
+      openProfile:()=>this.setState({showProfile:true}), closeProfile:()=>this.setState({showProfile:false}),
+      openCart:()=>this.setState({showCart:true}), closeCart:()=>this.setState({showCart:false}),
+      buyNfc:()=>{ this.setState({showCart:false}); this.flash('Pago aprobado — preparando tu envío'); setTimeout(()=>this.reqNfc(),400); },
+      setOwner:(e)=>this.setState(st=>({veh:{...st.veh,owner:e.target.value}})),
+      setModelo:(e)=>this.setState(st=>({veh:{...st.veh,modelo:e.target.value}})),
+      setTipo:(e)=>this.setState(st=>({veh:{...st.veh,tipo:e.target.value}})),
+      setAnio:(e)=>this.setState(st=>({veh:{...st.veh,anio:e.target.value}})),
+      setColor:(e)=>this.setState(st=>({veh:{...st.veh,color:e.target.value}})),
+      latest, totalServ:s.records.length, kmRun:this.fmt(s.currentKm-firstKm),
+      parts, timeline, reviews, certs, docs, taller:this.TALLER,
+      cda:this.CDA, diagChecks:this.DIAG_CHECKS, diagDoc:s.diagDoc, noDiagDoc:!s.diagDoc,
+      brand:s.brand, brands, brandTiles, colorTiles, years:this.YEARS, vtypes:this.VTYPES,
+      regName:s.regName, regModel:s.regModel, regYear:s.regYear, regType:s.regType,
+      qr:this.QR,
+      toast:s.toast,
+      plateSpin:(e)=>this.spin(e.currentTarget),
+      onPlate:(e)=>{ const v=e.target.value.toUpperCase(); this.setState(st=>({plates:{...st.plates,[st.plateType]:v}})); },
+      setCity:(e)=>this.setState({city:e.target.value}),
+      goLogin:()=>this.setState({screen:'login'}),
+      goEntrada:()=>this.setState({screen:'entrada',loggingIn:false}),
+      doLogin:()=>{ this.setState({loggingIn:true}); clearTimeout(this._l); this._l=setTimeout(()=>this.setState({screen:'app',section:'ficha',loggingIn:false}),1300); },
+      setRegName:(e)=>this.setState({regName:e.target.value}),
+      setRegModel:(e)=>this.setState({regModel:e.target.value}),
+      setRegYear:(e)=>this.setState({regYear:e.target.value}),
+      setRegType:(e)=>this.setState({regType:e.target.value}),
+      doRegister:()=>this.setState({screen:'app', section:'ficha', veh:{owner:s.regName, marca:s.regBrand, modelo:s.regModel, anio:s.regYear, tipo:s.regType, color:s.regColor}}),
+      flip:()=>{ clearTimeout(this._flipT); this.setState({flipped:!this.state.flipped, flipping:true}); this._flipT=setTimeout(()=>this.setState({flipping:false}),720); },
+      addService:()=>this.openAddService(),
+      closeAdd:()=>this.setState({showAdd:false, svc:null}),
+      confirmAdd:()=>this.confirmAddService(),
+      setAddNewTaller:(e)=>this.setState({addNewTaller:e.target.value}),
+      pedirNfc:()=>this.reqNfc(),
+      cancelNfc:()=>this.cancelNfc(),
+      closeLightbox:()=>this.setState({lightbox:null}),
+      stop:(e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); },
+      addCert:()=>{ const id='man'+Date.now(); this.setState(st=>({extraCerts:[{id,title:'Factura agregada',taller:'—',date:'Nueva',amount:'—',type:'Factura'},...st.extraCerts]})); this.flash('Factura agregada — toca para subir la imagen'); },
+      onLogo:(e)=>this.readImg(e,'logoUrl'),
+      onBg:(e)=>this.readImg(e,'bgImage'),
+      onTallerLogo:(e)=>this.readImg(e,'tallerLogo'),
+      onDiagDoc:(e)=>this.readImg(e,'diagDoc'),
+      resetPers:()=>this.setState({cardBgPreset:'noche',bgImage:null,logoUrl:null}),
+      downloadWallet:()=>this.capture(this.walletRef.current,'ficha-wallet-carlink-'+plateText.replace(/\s/g,'')+'.png'),
+      downloadDiag:()=>this.capture(this.diagRef.current,'certificado-cda-carlink.png'),
+      scrollPrev:()=>this.scrollRail(-1),
+      scrollNext:()=>this.scrollRail(1),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { useTheme } from '@/store/theme'
 import Plate3D from '@/components/Plate3D'
-import { CarLinkMark } from '@/lib/icons_new'
+import CarLinkLogo from '@/components/CarLinkLogo'
 import dynamic from 'next/dynamic'
 const ServiceHistoryMap = dynamic(() => import('@/components/ServiceHistoryMap'), { ssr: false })
 
@@ -294,10 +294,8 @@ export default function NfcPage() {
           }}>
             {/* Header: CarLink + Verificada */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <a href="/login" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9, background: '#F5C518', color: '#111' }}>
-                  <CarLinkMark size={18} />
-                </span>
+              <a href="/login" style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+                <CarLinkLogo size={41} />
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: 'var(--text-1)' }}>Car<span style={{ color: '#F5C518' }}>Link</span></span>
               </a>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', border: '1px solid rgba(245,197,24,0.4)', color: '#F5C518', fontSize: 11, fontWeight: 700 }}>

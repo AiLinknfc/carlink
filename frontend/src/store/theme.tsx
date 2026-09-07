@@ -23,6 +23,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    // Sync favicon with app theme
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"][sizes="48x48"]')
+    if (link) link.href = theme === 'light' ? '/favicon-light-48.png' : '/favicon-dark-48.png'
   }, [theme])
 
   const toggleTheme = useCallback(() => {

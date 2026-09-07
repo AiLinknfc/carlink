@@ -10,6 +10,7 @@ import PolicyModal, { PolicyTab } from '@/components/PolicyModal'
 import PqrsAgent from '@/components/PqrsAgent'
 import CartModal from '@/components/CartModal'
 import LandingSections from '@/components/LandingSections'
+import ComoFuncionaSection from '@/components/ComoFuncionaSection'
 import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
 import CarLinkLogo from '@/components/CarLinkLogo'
@@ -130,6 +131,7 @@ export default function LandingPage() {
     switchGlow: dark ? 'inset 0 1px 3px rgba(0,0,0,0.6), 0 0 14px rgba(245,197,24,0.25)' : 'inset 0 1px 3px rgba(17,17,17,0.12)',
     knobBg: dark ? 'radial-gradient(circle at 35% 30%,#fff7d6,#F5C518 60%,#c99a00 100%)' : '#fff',
     knobGlow: dark ? '0 0 12px rgba(245,197,24,0.85)' : 'none',
+    animBg: dark ? 'radial-gradient(120% 100% at 50% 100%,#1b1b24,#0e0e12)' : 'radial-gradient(120% 100% at 50% 100%,#e8e6df,#dcdad2)',
   }
 
   // Shop hero theme tokens
@@ -202,22 +204,24 @@ export default function LandingPage() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: tk.vignette }} />
 
       <style>{`
-        @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+        @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px) translateX(50px)} to{opacity:1;transform:translateX(50px)} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative}
         [data-r="shopHero-canvas"]{position:absolute;left:28%;right:0;top:0;bottom:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
+        [data-r="shopHero-canvas"] canvas{max-width:100%;max-height:calc(100vh - 40px);object-fit:contain}
         [data-r="shopHero-text"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:100px;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;width:clamp(320px,42vw,520px)}
         [data-r="shopHero-cta"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:380px;z-index:2;width:clamp(320px,42vw,520px)}
         @media(max-width:860px){
           [data-r="shopHero"] section{height:auto !important;min-height:100vh}
           [data-r="shopHero-inner"]{position:relative !important;height:auto !important;padding:100px clamp(16px,4vw,40px) 40px !important}
-          [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2}
-          [data-r="shopHero-canvas"] canvas{max-width:100% !important;height:auto !important}
-          [data-r="shopHero-text"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:0 auto;order:1}
-          [data-r="shopHero-cta"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:-30px auto 0 !important;order:3}
+          [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2;transform:none !important}
+          [data-r="shopHero-canvas"] canvas{max-width:100% !important;height:auto !important;max-height:none !important}
+          [data-r="shopHero-text"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:0 auto;order:1;transform:none !important}
+          [data-r="shopHero-cta"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:-30px auto 0 !important;order:3;transform:none !important}
+          [data-r="comoWrap"]{margin-top:0 !important}
         }
         @media(max-width:720px){
-          [data-r="keychainScrub"] canvas{min-height:360px !important}
+          [data-r="keychainScrub"] canvas{min-height:200px !important}
         }
       `}</style>
 
@@ -291,7 +295,7 @@ export default function LandingPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
               <Link href="#h-buyfob" style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$49.900</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
                 <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
               </div>
             </div>
@@ -303,6 +307,17 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ===== CÓMO FUNCIONA — movida arriba del hero de placa (2026-09-07).
+          marginTop:-140 hereda el mismo ajuste que "entrada" usaba antes para
+          pegarse al hero de venta: shopHero-inner centra su contenido dentro
+          de un contenedor fijo a 100vh, así que sobra espacio visual debajo
+          del texto/keychain aunque la caja del section termine ahí. Sin este
+          jalón hacia arriba, lo que sigue queda flotando lejos del contenido
+          visible de la sección 1 (no de la sección 1 en sí — esa no se toca). ===== */}
+      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -140, background: tk.pageBg }}>
+        <ComoFuncionaSection theme={theme} />
+      </div>
 
       {/* ===== HERO (original single-column layout) ===== */}
       <section data-r="entrada" className="hero-section" style={{
@@ -439,6 +454,104 @@ export default function LandingPage() {
             <p style={{ textAlign: 'center', color: tk.label, fontSize: 12, margin: '14px 0 0' }}>
               Al continuar accederás con tu cuenta de Google · Datos protegidos
             </p>
+          </div>
+        </div>
+      </section>
+
+      <style>{`
+        @keyframes bLift{0%{transform:translateY(10px) scale(.94);opacity:.35}45%,60%{transform:translateY(-9px) scale(1);opacity:1}100%{transform:translateY(10px) scale(.94);opacity:.35}}
+        @keyframes bCloudPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.07);opacity:1}}
+        @keyframes bBarRise{0%{transform:scaleY(.18)}55%,100%{transform:scaleY(1)}}
+        @keyframes bArrowUp{0%{transform:translate(0,6px);opacity:0}35%,80%{transform:translate(0,-2px);opacity:1}100%{transform:translate(0,-9px);opacity:0}}
+        @keyframes bStamp{0%{transform:translateY(-22px) rotate(-14deg) scale(1.3);opacity:0}30%{transform:translateY(0) rotate(0) scale(1);opacity:1}70%{transform:translateY(0) rotate(0) scale(1);opacity:1}100%{transform:translateY(-22px) rotate(-14deg) scale(1.3);opacity:0}}
+        @keyframes bStampRing{0%,26%{transform:scale(.4);opacity:0}34%{transform:scale(1);opacity:.7}60%{transform:scale(1.5);opacity:0}100%{transform:scale(1.5);opacity:0}}
+        @keyframes bWave{0%{transform:scale(.55);opacity:0}25%{opacity:.9}100%{transform:scale(1.55);opacity:0}}
+        @keyframes bTap{0%,100%{transform:translateX(0)}50%{transform:translateX(-9px)}}
+        @keyframes bScanLine{0%{top:12%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:84%;opacity:0}}
+        @keyframes bFileIn{0%{transform:translateY(-14px) rotate(-5deg);opacity:0}40%,72%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(12px) rotate(4deg);opacity:0}}
+        @keyframes bBell{0%,58%,100%{transform:rotate(0)}64%{transform:rotate(13deg)}70%{transform:rotate(-11deg)}76%{transform:rotate(8deg)}82%{transform:rotate(-5deg)}88%{transform:rotate(0)}}
+        @keyframes bDot{0%,55%{transform:scale(0);opacity:0}64%{transform:scale(1.25);opacity:1}75%,100%{transform:scale(1);opacity:1}}
+        [data-r="hBens"]:hover [data-r="hBens"] > div{border-color:rgba(245,197,24,0.42);transform:translateY(-4px)}
+        @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:1fr 1fr !important} }
+        @media(max-width:720px){ [data-r="hBens"]{grid-template-columns:1fr !important} }
+        @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} }
+      `}</style>
+
+      <section id="h-beneficios" style={{ maxWidth: 720, margin: '0 auto', width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
+          <div style={{ fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }}>Beneficios</div>
+          <h2 style={{ fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0' }}>Lo que ganas de verdad</h2>
+        </div>
+        <div data-r="hBens" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+              <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: 5, animation: 'bCloudPulse 3s ease-in-out infinite' }}><path d="M18 16.5a3.5 3.5 0 0 0-.7-6.93A5 5 0 0 0 7.6 10.6A3 3 0 0 0 8 16.5z" /></svg>
+              <div style={{ position: 'absolute', bottom: 6, animation: 'bLift 3s ease-in-out infinite' }}>
+                <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Nunca pierdes la información</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Todo queda guardado en la nube, asociado a tu placa — no a un papel que se moja o se pierde.</div>
+          </div>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
+              <div style={{ width: 10, height: 16, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.28)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out infinite' }} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', animation: 'bArrowUp 2.8s ease-out .3s infinite' }}><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>
+              <div style={{ width: 10, height: 25, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.5)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .16s infinite' }} />
+              <div style={{ width: 10, height: 34, borderRadius: '3px 3px 0 0', background: GOLD, transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .32s infinite' }} />
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Aumenta el valor de reventa</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Un historial verificable le da confianza inmediata al comprador y respalda tu precio.</div>
+          </div>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+              <div style={{ position: 'absolute', width: 40, height: 40, borderRadius: '50%', border: `2px solid ${GOLD}`, animation: 'bStampRing 2.6s ease-out infinite' }} />
+              <div style={{ width: 33, height: 33, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: `2px solid ${GOLD}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bStamp 2.6s cubic-bezier(0.34,1.56,0.64,1) infinite' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Demuestras el mantenimiento</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Cada servicio queda firmado por el taller que lo hizo. No es tu palabra: es un registro.</div>
+          </div>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
+              <div style={{ animation: 'bTap 2.2s ease-in-out infinite' }}>
+                <img src="/llavero.png" alt="" width={18} height={21} style={{ display: 'block', borderRadius: 3 }} />
+              </div>
+              <div style={{ position: 'relative', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ position: 'absolute', width: 22, height: 22, borderRadius: '50%', border: `1.6px solid ${GOLD}`, animation: 'bWave 2.2s ease-out infinite' }} />
+                <span style={{ position: 'absolute', width: 22, height: 22, borderRadius: '50%', border: `1.6px solid ${GOLD}`, animation: 'bWave 2.2s ease-out .55s infinite' }} />
+                <div style={{ width: 24, height: 40, borderRadius: 6, background: '#1a1a1a', border: '2px solid rgba(255,255,255,0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4, gap: 3 }}>
+                  <div style={{ width: 10, height: 2, borderRadius: 1, background: 'rgba(255,255,255,0.25)' }} />
+                  <div style={{ width: 16, height: 22, borderRadius: 3, background: '#050505' }} />
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Compartes en un segundo</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Un enlace o un toque del llavero y la otra persona ve toda la ficha.</div>
+          </div>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+              <div style={{ position: 'relative', width: 26, height: 34, borderRadius: 3, background: '#f5f3ec', padding: '4px 3px', display: 'flex', flexDirection: 'column', gap: 3, animation: 'bFileIn 3s ease-in-out infinite' }}>
+                <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1 }} />
+                <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1, width: '70%' }} />
+                <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1 }} />
+                <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1, width: '55%' }} />
+              </div>
+              <div style={{ position: 'absolute', left: '18%', right: '18%', height: 2, background: GOLD, boxShadow: `0 0 12px ${GOLD}`, animation: 'bScanLine 3s ease-in-out infinite' }} />
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Conservas todas las facturas</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Escaneas el recibo con la cámara y queda archivado junto al servicio correspondiente.</div>
+          </div>
+          <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+              <div style={{ position: 'relative' }}>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ transformOrigin: '50% 12%', animation: 'bBell 3.2s ease-in-out infinite' }}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+                <span style={{ position: 'absolute', top: -2, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: GOLD, color: '#111', fontSize: 8.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bDot 3.2s ease-out infinite' }}>3</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Recibes recordatorios</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Aceite, SOAT, tecnomecánica, llantas, frenos y batería — te avisamos antes de que se venza.</div>
           </div>
         </div>
       </section>
