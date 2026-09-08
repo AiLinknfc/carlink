@@ -133,7 +133,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   // La mini placa nunca debe verse vacía: si aún no hay letras ni números, mostramos el
   // ejemplo del tipo seleccionado; en cuanto la persona escribe algo, se ve lo escrito.
   const previewPlate = (plateLetters || plateNumbers) ? fullPlate : platePlaceholder
-  const productPrice = 49900
+  const productPrice = 29900
   const total = productPrice * qty
 
   const isTypeOk = typeConfirmed && selectedType !== ''

@@ -15,7 +15,6 @@ import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import KeychainScrub from '@/components/KeychainScrub'
-import Link from 'next/link'
 
 const GOLD = '#F5C518'
 const CHECK = (color = GOLD, size = 15) => (
@@ -88,16 +87,17 @@ export default function LandingPage() {
   const [policyTab, setPolicyTab] = useState<PolicyTab>('privacy')
   const [pqrsOpen, setPqrsOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const { theme, isDark: dark, toggleTheme } = useTheme()
+  const { theme, isDark: dark, toggleTheme, forceTheme } = useTheme()
   const cityRef = useRef<HTMLDivElement>(null)
 
-  // Forzar tema dark en el landing — cuando el usuario navegue a /app,
-  // ThemeProvider restaura el tema guardado en localStorage.
+  // Forzar tema dark en el landing — vía forceTheme (ver store/theme.tsx),
+  // no escribiendo el atributo del DOM a mano: esa escritura duplicada es
+  // justo lo que causaba el bug de texto de un tema sobre fondo del otro
+  // al volver del login/app por navegación sin recarga completa.
   useEffect(() => {
-    const prev = document.documentElement.dataset.theme
-    document.documentElement.dataset.theme = 'dark'
-    return () => { if (prev) document.documentElement.dataset.theme = prev }
-  }, [])
+    forceTheme('dark')
+    return () => forceTheme(null)
+  }, [forceTheme])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -285,15 +285,15 @@ export default function LandingPage() {
           {/* Text — floating left, overlapping canvas ~20% */}
           <div data-r="shopHero-text" style={{ animation: 'shopFadeUp .7s both' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />El pasaporte digital de tu vehículo
+              El pasaporte digital de tu vehículo
             </div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
             <p style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
           </div>
           {/* CTA + price + checklist — below canvas on mobile */}
           <div data-r="shopHero-cta" style={{ animation: 'shopFadeUp .7s both' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
-              <Link href="#h-buyfob" style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
+              <button onClick={() => setCartOpen(true)} style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</button>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
                 <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
@@ -322,8 +322,8 @@ export default function LandingPage() {
       {/* ===== HERO (original single-column layout) ===== */}
       <section data-r="entrada" className="hero-section" style={{
         position: 'relative', zIndex: 10,
-        width: '100vw', minHeight: '100vh', height: 'auto',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        width: '100vw', height: 'auto',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
         padding: '68px clamp(20px,5vw,64px) 26px',
       }}>
         <div style={{ textAlign: 'center', zIndex: 16, flex: '0 0 auto' }}>
@@ -477,7 +477,8 @@ export default function LandingPage() {
         @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} }
       `}</style>
 
-      <section id="h-beneficios" style={{ maxWidth: 720, margin: '0 auto', width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
+      <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={{ fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }}>Beneficios</div>
           <h2 style={{ fontSize: 'clamp(24px,3vw,34px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '10px 0 0' }}>Lo que ganas de verdad</h2>
@@ -490,18 +491,19 @@ export default function LandingPage() {
                 <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
               </div>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Nunca pierdes la información</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Todo queda guardado en la nube, asociado a tu placa — no a un papel que se moja o se pierde.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Nunca pierdes nada</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Guardado en la nube, atado a tu placa.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
             <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
               <div style={{ width: 10, height: 16, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.28)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out infinite' }} />
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', animation: 'bArrowUp 2.8s ease-out .3s infinite' }}><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>
               <div style={{ width: 10, height: 25, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.5)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .16s infinite' }} />
-              <div style={{ width: 10, height: 34, borderRadius: '3px 3px 0 0', background: GOLD, transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .32s infinite' }} />
+              <div style={{ position: 'relative', width: 10, height: 34, borderRadius: '3px 3px 0 0', background: GOLD, transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .32s infinite' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', animation: 'bArrowUp 2.8s ease-out .3s infinite' }}><path d="M12 19V5" /><path d="M6 11l6-6 6 6" /></svg>
+              </div>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Aumenta el valor de reventa</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Un historial verificable le da confianza inmediata al comprador y respalda tu precio.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Vale más al venderlo</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Historial verificable = precio respaldado.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
             <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
@@ -510,13 +512,13 @@ export default function LandingPage() {
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
               </div>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Demuestras el mantenimiento</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Cada servicio queda firmado por el taller que lo hizo. No es tu palabra: es un registro.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Firmado por el taller</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>No es tu palabra: es un registro.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
             <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
               <div style={{ animation: 'bTap 2.2s ease-in-out infinite' }}>
-                <img src="/llavero.png" alt="" width={18} height={21} style={{ display: 'block', borderRadius: 3 }} />
+                <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
               </div>
               <div style={{ position: 'relative', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ position: 'absolute', width: 22, height: 22, borderRadius: '50%', border: `1.6px solid ${GOLD}`, animation: 'bWave 2.2s ease-out infinite' }} />
@@ -527,8 +529,8 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Compartes en un segundo</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Un enlace o un toque del llavero y la otra persona ve toda la ficha.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Compartes en un toque</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Acerca el llavero y ya está.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
             <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
@@ -540,8 +542,8 @@ export default function LandingPage() {
               </div>
               <div style={{ position: 'absolute', left: '18%', right: '18%', height: 2, background: GOLD, boxShadow: `0 0 12px ${GOLD}`, animation: 'bScanLine 3s ease-in-out infinite' }} />
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Conservas todas las facturas</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Escaneas el recibo con la cámara y queda archivado junto al servicio correspondiente.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Escaneas la factura</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Queda archivada con su servicio.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
             <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
@@ -550,13 +552,14 @@ export default function LandingPage() {
                 <span style={{ position: 'absolute', top: -2, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: GOLD, color: '#111', fontSize: 8.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bDot 3.2s ease-out infinite' }}>3</span>
               </div>
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Recibes recordatorios</div>
-            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Aceite, SOAT, tecnomecánica, llantas, frenos y batería — te avisamos antes de que se venza.</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Te avisamos antes</div>
+            <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Aceite, SOAT, tecno, llantas y frenos.</div>
           </div>
+        </div>
         </div>
       </section>
 
-      <LandingSections theme={theme} onStart={openLoginModal} onOpenEmpresa={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} />
+      <LandingSections theme={theme} onStart={openLoginModal} onOpenEmpresa={openLoginModal} onOpenPolicy={openPolicy} onOpenPqrs={() => setPqrsOpen(true)} onOpenCart={() => setCartOpen(true)} />
 
       <LoginModal
         isOpen={loginModalOpen}

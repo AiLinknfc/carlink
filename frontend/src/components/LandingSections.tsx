@@ -5,7 +5,6 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
 import { reviewsApi, waitlistApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { NfcKeyIcon } from '@/lib/icons_new'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 
 type Theme = 'light' | 'dark'
@@ -27,31 +26,6 @@ const COMPARISON = [
   { feature: 'Resistencia del formato', without: 'Se rompe, se moja, se extravía en lavaderos', withCl: 'Impermeable e indestructible en tu llavero' },
   { feature: 'Costo mensual de almacenamiento', without: 'N/A', withCl: '$0 COP — pago único de por vida' },
 ]
-
-// Planes de pricing — mismos valores que shop/page.tsx (buildPlans).
-// Se arma con los tokens del tema del home.
-function buildPlans(border: string, textColor: string, isDark: boolean) {
-  return [
-    {
-      name: 'Conductor', price: 'Gratis', period: 'para siempre', tag: '',
-      border, priceColor: textColor,
-      features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'],
-      cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-    },
-    {
-      name: 'Llavero NFC CarLink', price: '$29.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
-      border: `2px solid ${GOLD}`, priceColor: GOLD, bg: isDark ? 'linear-gradient(165deg,#241f0c,#141418)' : 'linear-gradient(165deg,#fff6d9,#fffdf5)',
-      features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
-      cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
-    },
-    {
-      name: 'Taller aliado', price: '$79.900', period: '/mes · Pruebalo ya!', tag: '',
-      border: `1px solid rgba(245,197,24,0.28)`, priceColor: textColor,
-      features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'],
-      cta: 'Registrar mi taller', href: '/register?mode=empresa', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-    },
-  ]
-}
 
 /* ── Theme tokens (resolved from the design's light/dark palette) ── */
 function tokens(theme: Theme) {
@@ -95,10 +69,15 @@ const ARROW = (
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
 )
+// Mismo regex que el backend (waitlist.py: _EMAIL_RE) — el backend solo manda
+// el correo con el PDF si "contact" matchea esto; si no, no envía nada (no
+// hay integración de WhatsApp automático). Se usa acá para decidir qué le
+// mostramos/hacemos al usuario después de guardar el lead.
+const isEmailContact = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)
 
 type PolicyTab = 'warranty' | 'privacy' | 'support'
 
-export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenPolicy, onOpenPqrs }: { theme: Theme; onStart: () => void; onOpenEmpresa: (accountType?: 'user' | 'business') => void; onOpenPolicy: (tab: PolicyTab) => void; onOpenPqrs: () => void }) {
+export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenPolicy, onOpenPqrs, onOpenCart }: { theme: Theme; onStart: () => void; onOpenEmpresa: (accountType?: 'user' | 'business') => void; onOpenPolicy: (tab: PolicyTab) => void; onOpenPqrs: () => void; onOpenCart: () => void }) {
   const [faqOpen, setFaqOpen] = useState<number>(-1)
   const k = tokens(theme)
 
@@ -119,29 +98,34 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!leadContact.trim() || leadStatus === 'loading') return
+    const contact = leadContact.trim()
+    if (!contact || leadStatus === 'loading') return
     setLeadStatus('loading')
-    const res = await waitlistApi.create(leadContact.trim(), 'landing_guia_mantenimiento')
-    setLeadStatus(res ? 'done' : 'error')
+    const res = await waitlistApi.create(contact, 'landing_guia_mantenimiento')
+    if (!res) { setLeadStatus('error'); return }
+    // El backend solo envía el PDF por correo (ver isEmailContact) — no hay
+    // envío automático de WhatsApp. Para que dejar el celular "funcione" de
+    // verdad (no solo se guarde), abrimos WhatsApp con el pedido precargado
+    // en vez de mostrar un "enviado" falso.
+    if (!isEmailContact(contact)) {
+      window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
+    }
+    setLeadStatus('done')
   }
 
   const card = (border = k.glassBorder): React.CSSProperties => ({ background: k.glassBg, border: `1px solid ${border}` })
   const lead: React.CSSProperties = { fontWeight: 300, fontSize: 15, lineHeight: 1.6, color: k.muted, margin: 0 }
-  const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
-  const PLANS = buildPlans(k.cardBorder, k.text, theme !== 'light')
   const isDark = theme !== 'light'
-  const goldCardGradient = isDark ? 'linear-gradient(160deg,#17160f,#121216)' : 'linear-gradient(160deg,#fff8e1,#fdfaf2)'
-  const goldCtaGradient = isDark
-    ? 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)'
-    : 'radial-gradient(120% 100% at 50% 100%,#fff3c4 0%,#fbfaf6 58%,#ffffff 100%)'
   const softTint = (alpha: number) => isDark ? `rgba(255,255,255,${alpha})` : `rgba(17,17,17,${alpha})`
 
   return (
     <div style={{ position: 'relative', zIndex: 10, color: k.text }}>
       <style>{`
         @keyframes comunidad-marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        @keyframes waFabPulse { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.55);opacity:0} }
+        @media(prefers-reduced-motion:reduce){ [style*="waFabPulse"]{animation:none !important} }
         [data-r="comunidadTrack"]:hover [data-r="comunidadInner"]{ animation-play-state: paused }
-        @media(max-width:860px){ [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} [data-r="hPrecio"]{grid-template-columns:1fr !important} [data-r="hLeadGuia"]{grid-template-columns:1fr !important} [data-r="hCaptureLeads"]{grid-template-columns:1fr !important} }
+        @media(max-width:860px){ [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} [data-r="hProductos"]{grid-template-columns:1fr !important} [data-r="hCaptureLeads"]{grid-template-columns:1fr !important} }
         @media(max-width:1024px){ [data-r="footergrid"]{grid-template-columns:1fr 1fr !important} }
         @media(max-width:720px){ [data-r="diffScrollHint"]{display:flex !important} }
         @media(max-width:380px){ [data-r="diffTable"]{min-width:0 !important} [data-r="diffTable"] th,[data-r="diffTable"] td{padding:12px 10px !important;font-size:12px !important} [data-r="diffTable"] th{font-size:9px !important} [data-r="diffTable"] td:first-child{font-size:11.5px !important} }
@@ -194,30 +178,67 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         </div>
       </section>
 
-      {/* ===== PRECIO — Gratis para conductores, suscripción para talleres ===== */}
-      <section id="h-precio" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
-        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 52px' }}>
-          <div style={EYEBROW}>Precio</div>
-          <h2 style={H2}>Gratis para conductores, suscripción para talleres</h2>
+      {/* ===== PRODUCTOS — qué vas a recibir ===== */}
+      <section id="h-productos" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
+          <div style={EYEBROW}>Qué vas a recibir</div>
+          <h2 style={H2}>Elige tu llavero CarLink</h2>
+          <p style={{ fontSize: 15, color: k.muted, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Esto es exactamente lo que llega a tu puerta — sin sorpresas.</p>
         </div>
-        <div data-r="hPrecio" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, maxWidth: 1080, margin: '0 auto' }}>
-          {PLANS.map(pl => (
-            <div key={pl.name} data-r="hPlanCard" style={{ position: 'relative', padding: '36px 30px', borderRadius: 22, background: pl.bg ?? k.cardBg, border: pl.border, display: 'flex', flexDirection: 'column' }}>
-              {pl.tag && <span data-r="hPricingBadge" style={{ position: 'absolute', top: -13, left: 30, background: GOLD, color: '#111', fontSize: 11.5, fontWeight: 800, padding: '6px 16px', borderRadius: 999, letterSpacing: '.08em' }}>{pl.tag}</span>}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: pl.priceColor === GOLD ? GOLD : k.muted }}>
-                {pl.name.includes('Llavero') && <NfcKeyIcon size={15} />}
-                {pl.name}
-              </div>
-              <div data-r="hPlanPrice" style={{ fontFamily: 'var(--font-display)', fontSize: 46, color: pl.priceColor, lineHeight: 1, margin: '16px 0 5px' }}>{pl.price}</div>
-              <div style={{ fontSize: 14, color: k.muted }}>{pl.period}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '28px 0 26px', flex: 1 }}>
-                {pl.features.map(f => (
-                  <div key={f} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 14.5, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
-                ))}
-              </div>
-              <Link href={pl.href} style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 800, fontSize: 15, textAlign: 'center', textDecoration: 'none' }}>{pl.cta}</Link>
+        <div data-r="hProductos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, maxWidth: 1000, margin: '0 auto' }}>
+
+          {/* Llavero individual — el producto real, ya se puede comprar */}
+          <div data-r="hProductCard" style={{ padding: 'clamp(22px,3vw,30px)', borderRadius: 24, background: k.cardBg, border: `1px solid ${k.cardBorder}`, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 22, background: isDark ? '#0c0c10' : '#f0efe8' }}>
+              <img src="/empaque-final.png" alt="Llavero NFC CarLink en su empaque" style={{ width: '100%', display: 'block' }} />
             </div>
-          ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
+              <CarLinkLogo size={15} />Llavero NFC CarLink
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$29.900</div>
+            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>pago único · envío incluido</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
+              {['1 llavero NFC de alta resistencia', 'QR de respaldo', 'Acceso vitalicio a la plataforma'].map(f => (
+                <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
+              ))}
+            </div>
+            <button onClick={onOpenCart} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}>
+              Comprar mi llavero{ARROW}
+            </button>
+          </div>
+
+          {/* Kit — personalizado y hecho bajo pedido (3 chips NFC: llavero,
+              tarjeta y sticker; ver Kit.PNG). Sin SKU propio en el backend
+              todavía, así que el "comprar" es coordinar por WhatsApp en vez
+              de abrir el carrito de la placa individual — no simula un pago
+              que el sistema no sabe procesar. */}
+          <div data-r="hProductCard" style={{ position: 'relative', padding: 'clamp(22px,3vw,30px)', borderRadius: 24, background: k.cardBg, border: `1px solid ${GOLD}`, display: 'flex', flexDirection: 'column' }}>
+            <span style={{ position: 'absolute', top: -13, left: 30, display: 'inline-flex', alignItems: 'center', gap: 6, background: GOLD, color: '#111', fontSize: 11.5, fontWeight: 800, padding: '6px 16px', borderRadius: 999, letterSpacing: '.08em' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z" /></svg>
+              BAJO PEDIDO
+            </span>
+            <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 22, background: isDark ? '#0c0c10' : '#f0efe8' }}>
+              <img src="/kit-final.png" alt="Kit CarLink: llavero personalizado, tarjeta y sticker NFC" style={{ width: '100%', display: 'block' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
+              <CarLinkLogo size={15} />Kit CarLink
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$49.900</div>
+            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>accesorios para todo el carro, con 3 chips NFC</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
+              {['2 chips NFC — llavero y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', 'Acceso vitalicio a la plataforma'].map(f => (
+                <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
+              ))}
+            </div>
+            <a
+              href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
+            >
+              Pedir mi kit{ARROW}
+            </a>
+          </div>
+
         </div>
       </section>
 
@@ -327,95 +348,61 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         </div>
       </section>
 
-      {/* ===== BANNER WHATSAPP ===== */}
-      <section style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 48px' }}>
-        <div data-r="hWhatsappBanner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 'clamp(20px,3vw,28px)', borderRadius: 22, background: k.cardBg, border: `1px solid ${k.cardBorder}`, boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: k.text }}>¿Tienes alguna otra pregunta antes de pedir?</div>
-            <p style={{ fontSize: 12, color: k.muted, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en menos de 2 minutos.</p>
-          </div>
-          <a
-            href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
-            target="_blank" rel="noopener noreferrer"
-            style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#062b12', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
-            Hablar por WhatsApp
-          </a>
-        </div>
-      </section>
+      {/* ===== WHATSAPP FLOTANTE ===== */}
+      <a
+        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
+        target="_blank" rel="noopener noreferrer"
+        aria-label="Hablar por WhatsApp" title="Hablar por WhatsApp"
+        style={{
+          position: 'fixed', right: 'clamp(16px,4vw,28px)', bottom: 'clamp(16px,4vw,28px)', zIndex: 45,
+          width: 58, height: 58, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#25D366', color: '#062b12', textDecoration: 'none',
+          boxShadow: '0 10px 30px rgba(37,211,102,0.45)',
+        }}
+      >
+        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(37,211,102,0.55)', animation: 'waFabPulse 2.4s ease-out infinite' }} />
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
+      </a>
 
-      {/* ===== LEAD CAPTURE — Guía de Mantenimiento gratis ===== */}
-      <section style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 48px' }}>
-        <div data-r="hLeadGuia" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 28, alignItems: 'center', padding: 'clamp(24px,4vw,36px)', borderRadius: 24, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
+      {/* ===== WAITLIST — Captura de leads ===== */}
+      <section style={{ borderTop: `1px solid ${k.cardBorder}` }}>
+        <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: softTint(0.05), border: `1px solid ${k.cardBorder}`, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 10 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2 2M8.5 8.5l-2-2m11 11l-2-2M8.5 15.5l-2 2" /><circle cx="12" cy="12" r="3.5" /></svg>
-              Regalo gratis en PDF
-            </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px,3vw,30px)', textTransform: 'uppercase' as const, margin: '0 0 8px', lineHeight: 1.08 }}>
-              ¿Aún lo estás pensando? Recibe gratis la Guía de Mantenimiento
-            </h3>
-            <p style={{ fontSize: 14.5, color: k.muted, lineHeight: 1.55, margin: 0 }}>
-              Descarga sin costo el PDF "Lista de Chequeo para Vender tu Carro al Mayor Precio en Colombia" y recibe un bono de <strong style={{ color: GOLD }}>$5.000 COP de descuento adicional</strong> para tu primer llavero.
-            </p>
+            <div style={EYEBROW}>¿Aún lo estás pensando?.</div>
+            <h2 style={{ ...H2, margin: '12px 0 12px' }}>Recibe gratis la Guía de Mantenimiento</h2>
+            <p style={{ fontSize: 15.5, color: k.muted, lineHeight: 1.6, margin: 0 }}>Descarga sin costo el PDF "Lista de Chequeo para Vender tu Carro al Mayor Precio en Colombia"</p>
           </div>
-
           <div>
             {leadStatus === 'done' ? (
               <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>¡Guía enviada con éxito!</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{isEmailContact(leadContact) ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: k.muted }}>
-                  Revisa tu WhatsApp o correo. Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
+                  {isEmailContact(leadContact) ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <input
                   type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${k.cardBorder}`, background: k.cardBg, color: k.text, fontSize: 13.5, outline: 'none' }}
+                  style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = k.cardBorder }}
+                  onBlur={e => { e.currentTarget.style.borderColor = softTint(0.14) }}
                 />
-                <button type="submit" disabled={leadStatus === 'loading'} data-r="hLeadBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
-                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
+                <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía'}
                 </button>
-                {leadStatus === 'error' && <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+                {leadStatus === 'error' && <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
               </form>
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CTA FINAL ===== */}
-      <section style={{ background: goldCtaGradient, borderTop: '1px solid rgba(245,197,24,0.16)' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(56px,7vw,96px) clamp(20px,5vw,64px)', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(28px,3.6vw,42px)', fontWeight: 400, letterSpacing: '-0.01em', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
-          <p style={{ fontSize: 18, color: k.muted, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" data-r="hCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $29.900{ARROW}</Link>
-            <Link href="/register" data-r="hCtaSecondary" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ background: isDark ? '#0c0c10' : '#f7f6f2', borderTop: `1px solid ${k.cardBorder}` }}>
-        <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
-          <div>
-            <div style={EYEBROW}>¿Aún lo estás pensando?</div>
-            <h2 style={{ ...H2, margin: '12px 0 12px' }}>Te avisamos cuando salga el próximo lote</h2>
-            <p style={{ fontSize: 15.5, color: k.muted, lineHeight: 1.6, margin: 0 }}>Déjanos tu correo y te escribimos con el descuento de lanzamiento. Sin spam, solo cuando haya novedades.</p>
-          </div>
-          <div>
-            <div data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }} />
-              <button data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
-            </div>
             <div style={{ fontSize: 12.5, color: isDark ? '#6f6a5f' : '#8f8a7a', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
+          </div>
+        </div>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
       </section>
@@ -443,7 +430,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Tienda</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
               <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Llavero NFC CarLink</Link>
-              <Link href="#h-precio" style={{ color: k.muted, textDecoration: 'none' }}>Precios</Link>
+              <Link href="#h-productos" style={{ color: k.muted, textDecoration: 'none' }}>Precios</Link>
               <Link href="/shop#como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</Link>
               <Link href="/shop#faq" style={{ color: k.muted, textDecoration: 'none' }}>Preguntas frecuentes</Link>
             </div>

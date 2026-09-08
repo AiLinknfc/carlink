@@ -58,6 +58,13 @@ envío, es solo estético.
 - `DEEPSEEK_API_KEY` sigue sin estar en Railway (mencionado en pasadas anteriores) — sin ella, el
   escaneo de gastos funciona pero sin la estructuración automática por IA (degrada a que el usuario
   llene los campos a mano, no rompe nada).
+- **`SMTP_PASS` falta en `backend/.env` local** (2026-09-08): agregué `SMTP_HOST/PORT/USER` de
+  Hostinger al `.env` local (mismos valores que ya están en Railway), pero dejé `SMTP_PASS` vacío
+  a propósito — no tengo esa contraseña ni debo inventarla. Sin ella, el envío de correos
+  (guía de mantenimiento, notificaciones) se salta en silencio en local (`email_debug: "skipped..."`
+  en la respuesta de `POST /api/waitlist`), aunque el lead sí se guarda. En producción (Railway) sí
+  está configurado y verificado con un envío real. Completar con la contraseña de aplicación de
+  `business@carlink.com.co` y reiniciar el backend si se quiere probar envíos reales en local.
 
 **Ejecutado en la novena pasada**: responsive completo de la sección `/shop` y fix de overlap
 hero/Wallet/"Cómo funciona" en pantallas medianas:

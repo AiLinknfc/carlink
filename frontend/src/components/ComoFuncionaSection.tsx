@@ -74,7 +74,7 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
           <div style={{ overflow: 'hidden', width: '100%', marginTop: 32, WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)', maskImage: 'linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)' }}>
             <div style={{ display: 'flex', width: 'max-content', animation: 'tagsMarquee 24s linear infinite' }}>
               {MARQUEE_TAGS.map((t, i) => (
-                <span key={`${t}-${i}`} data-r="shopSolutionTag" style={{ padding: '10px 20px', borderRadius: 999, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.32)', color: GOLD, fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', marginRight: 11 }}>{t}</span>
+                <span key={`${t}-${i}`} data-r="shopSolutionTag" style={{ padding: '10px 18px', borderRadius: 999, background: GOLD, border: `1px solid ${GOLD}`, color: '#111', fontSize: 14, fontWeight: 700, transition: 'all .18s', whiteSpace: 'nowrap', marginRight: 11 }}>{t}</span>
               ))}
             </div>
           </div>

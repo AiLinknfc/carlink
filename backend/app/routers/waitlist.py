@@ -20,12 +20,19 @@ logger = logging.getLogger("carlink")
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 
-# El campo "contact" del formulario (shop/page.tsx, sección Guía de
-# Mantenimiento) acepta correo O WhatsApp indistintamente, sin distinguirlos
-# — no se tocó ese formulario acá, solo se detecta cuál de los dos es antes
-# de intentar mandar un correo. Si es un teléfono, no se envía nada por
-# ahora (ver docs/PENDIENTES.md si se quiere forzar el campo correo).
+# El campo "contact" del formulario (tanto shop/page.tsx como la landing,
+# sección Guía de Mantenimiento) acepta correo O WhatsApp indistintamente,
+# sin distinguirlos — no se tocó ese formulario acá, solo se detecta cuál de
+# los dos es antes de intentar mandar un correo. Si es un teléfono, no se
+# envía nada por ahora (ver docs/PENDIENTES.md — no hay integración de envío
+# de WhatsApp en el proyecto).
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Ambos orígenes disparan el mismo correo — antes solo se chequeaba
+# "shop_guia_mantenimiento", así que un lead dejado desde la landing
+# (source="landing_guia_mantenimiento") se guardaba pero nunca recibía el
+# correo con el PDF, aunque el frontend igual mostraba "enviado con éxito".
+_GUIDE_SOURCES = {"shop_guia_mantenimiento", "landing_guia_mantenimiento"}
 
 # Key fija en R2 donde vive el PDF de la guía — subido una sola vez, ver
 # docs/CONTEXTO.md. Si se reemplaza el PDF, se sube con la misma key.
@@ -48,7 +55,7 @@ async def create_waitlist_lead(
     # diagnosticar en vivo sin depender de los logs de Railway. Revertir
     # (junto con el campo en schemas.py) apenas se identifique la causa.
     email_debug: str | None = None
-    if body.source == "shop_guia_mantenimiento" and _EMAIL_RE.match(contact):
+    if body.source in _GUIDE_SOURCES and _EMAIL_RE.match(contact):
         # Best-effort: un fallo de SMTP nunca debe tumbar el guardado del
         # lead. email.send_guide_email es smtplib bloqueante — sin
         # run_in_threadpool, un Hostinger lento congela el event loop
