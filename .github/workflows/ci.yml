@@ -39,6 +39,11 @@ jobs:
           cd backend
           mypy app/ --ignore-missing-imports
 
+      - name: Test backend
+        run: |
+          cd backend
+          pytest tests/ -v
+
       - name: Install Node deps
         run: |
           cd frontend
@@ -48,6 +53,11 @@ jobs:
         run: |
           cd frontend
           npm run lint
+
+      - name: Test frontend
+        run: |
+          cd frontend
+          npx vitest run
 
       - name: Build frontend
         run: |

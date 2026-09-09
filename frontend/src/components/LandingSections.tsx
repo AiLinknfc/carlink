@@ -208,7 +208,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           </div>
 
           {/* Kit — personalizado y hecho bajo pedido (3 chips NFC: llavero,
-              tarjeta y sticker; ver Kit.PNG). Sin SKU propio en el backend
+              tarjeta y sticker; foto en public/kit-final.png, renderizada abajo). Sin SKU propio en el backend
               todavía, así que el "comprar" es coordinar por WhatsApp en vez
               de abrir el carrito de la placa individual — no simula un pago
               que el sistema no sabe procesar. */}

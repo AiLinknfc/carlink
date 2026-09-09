@@ -1,6 +1,71 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-08-30 (nfc_active default fix, migration 048, Plate3D responsive)._
+_Última actualización: 2026-09-09 (auditoría de arquitectura/organización, fix de deuda de
+tests real, CI ejecuta tests, limpieza de raíz, modelo de ramas)._
+
+**Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
+funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza
+archivos, proponé ramas para proteger producción"; verificado contra sistemas reales, no solo
+código — `pytest`, `vitest` y consulta directa a la Supabase real):
+
+- **✅ Deuda de tests real encontrada y arreglada — la cifra "41/41" de la pasada anterior
+  quedó vieja.** `pytest tests/` daba 43 passed / **4 failed**, no 0. Verificado contra la
+  Supabase real que no era un bug de producción: la migración `049_georeference_workshops.sql`
+  ya está aplicada (`vehicles.georeference_enabled` es `NOT NULL DEFAULT false` en la DB real) —
+  los 4 fallos eran el patrón ya conocido de mocks (`MagicMock(spec=Model)`) que no se
+  actualizaron cuando `049` agregó la columna y cuando `nfc.py::access_via_nfc` ganó una query
+  nueva (historial de servicio para la ficha pública). Arreglados los mocks de
+  `test_vehicles.py` y `test_nfc.py` — suite completa ahora en **47/47**.
+- **✅ CI nunca ejecutaba los tests — cerrado.** `.github/workflows/ci.yml` solo corría
+  lint/typecheck/build; los 47 tests de backend y el test de frontend (`plate.test.ts`, 29
+  assertions) nunca corrían en CI, solo cuando alguien se acordaba de correrlos a mano — así
+  pasó desapercibido el punto anterior. Se agregaron los steps `pytest tests/ -v` y
+  `npx vitest run` al workflow.
+- **✅ `backend/migrations/`-style artefacto muerto encontrado — `backend/carlink.db` (SQLite
+  vacío, gitignored, no referenciado en ningún lugar del código) borrado.** No es el mismo caso
+  que la carpeta huérfana de migraciones ya documentada en `DEPLOY.md` (esa ya se había
+  resuelto) — este era un archivo suelto de un experimento temprano antes de fijar
+  Supabase/Postgres como única DB.
+- **✅ Duplicados/clutter de raíz reorganizados**: `llavero.png` (raíz) era un duplicado
+  byte-idéntico de `frontend/public/llavero.png` sin ninguna referencia de código — borrado.
+  `check_braces.js` (script de debug de un solo uso) → `scripts/`.
+  `PRESENTATION_FUNDRAISING.md`/`PRESENTATION_M&A.md` (material de negocio, no docs de
+  desarrollo) → siguen en `docs/` (es la convención ya existente del proyecto — plano, sin
+  subcarpetas, con prefijo por tipo de documento igual que `PLAN_*`), pero el segundo se
+  renombró a `PRESENTATION_M_AND_A.md` — el `&` sin escapar en un nombre de archivo rompió un
+  comando (`git mv`) durante esta misma auditoría, mala práctica confirmada en la práctica, no
+  solo en teoría. `Kit.PNG`/`EmpaqueFinal.png` (fotos de referencia sin versionar, en la raíz) se
+  compararon visualmente contra `frontend/public/kit-final.png`/`empaque-final.png` — son la
+  misma foto, solo en mayor resolución sin optimizar; como la app ya usa las versiones
+  optimizadas (`LandingSections.tsx`), las de mayor resolución se descartaron en vez de
+  archivarlas en `docs/` — no había necesidad real de mantener una copia de referencia aparte.
+- **✅ `docs/DEPLOY.md` desincronizado con `supabase/migrations/` — cerrado.** El checklist de
+  `\i` llegaba hasta la `046`; le faltaban las líneas de `047`/`048`/`049` (violando su propia
+  regla de "cada migración nueva suma su línea en el mismo PR"). Confirmado contra la DB real que
+  las tres ya estaban aplicadas — se agregaron las líneas faltantes, sin volver a correrlas.
+- **✅ Se encontró y arregló una carpeta `Plataforma/` (canvas de Claude Design, 21 archivos:
+  `.dc.html`, bundles JS, manual de marca) committeada en el repo (`ba8ef1b`, 2026-09-07) pero
+  ya borrada del disco** — quedaba como 21 borrados sin confirmar en `git status`. Al menos un
+  archivo (`CarLink Landing.html`) ya se había adaptado al código real (comentario en
+  `shop/page.tsx`), así que cumplió su propósito. Confirmado con el usuario y comiteado el
+  borrado, no restaurada.
+- **Revisión de duplicación funcional — sin hallazgos nuevos.** Los helpers de autorización
+  (`_has_ficha_access`, `verify_vehicle`, `verify_workshop`) y los wrappers de API del frontend
+  (`api.ts`/`upload.ts`) ya están centralizados, no reimplementados por módulo. El único caso de
+  duplicación conceptual (`CITIES` compartida entre "ciudad de la placa" y "ciudad de envío") ya
+  estaba anotado en el ítem 14 de abajo — no es código repetido, es una decisión de producto.
+- **Modelo de ramas `master` protegido + `develop` documentado y adoptado** — ver
+  `docs/DEPLOY.md` → "Modelo de ramas". Rama `develop` creada localmente. Activar la protección
+  real en GitHub (Settings → Branches) y pushear `develop` requiere que lo haga el usuario (acceso
+  admin al repo, no disponible desde este entorno) — pasos exactos en `DEPLOY.md`. Esto es
+  independiente y no bloqueado por la separación de ambientes del ítem 9 de abajo (que sigue
+  bloqueada en que el usuario cree un proyecto Supabase nuevo).
+- **Cobertura de tests medida (no solo contada por archivo)**: backend 8 archivos de test para
+  57 módulos en `app/` (9 routers de taller/empresa sin ningún test unitario, ver ítem 10);
+  frontend 1 archivo (`plate.test.ts`, 29 tests) para 108 archivos en `src/` — 0% de cobertura de
+  componentes/hooks. Sin `--cov` corriendo en ningún lado; recomendado correr
+  `pytest --cov=app --cov-report=term-missing` una vez antes de priorizar más tests, para tener
+  una cifra real por gap en vez de intuición (no ejecutado en esta pasada).
 
 **Ejecutado en la undécima pasada**:
 

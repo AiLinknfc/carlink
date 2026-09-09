@@ -30,6 +30,8 @@ def _fake_vehicle(id: str, owner_id: str, nfc_active: bool = True) -> MagicMock:
     v.sell_phone = ""
     v.sell_description = ""
     v.vehicle_condition = "usado"
+    v.lost_keychain_enabled = False
+    v.georeference_enabled = False
     v.created_at = datetime.now(timezone.utc)
     v.updated_at = datetime.now(timezone.utc)
     return v
@@ -173,6 +175,11 @@ async def test_public_nfc_endpoint_visible_when_active(
     count_result = MagicMock()
     count_result.scalar.return_value = 0
 
+    # Full service history (last 20 records) for the public ficha — no
+    # maintenance records for this fake vehicle, so an empty list.
+    history_result = MagicMock()
+    history_result.scalars.return_value.all.return_value = []
+
     mock_db.execute = AsyncMock(
         side_effect=[
             token_result,
@@ -181,6 +188,7 @@ async def test_public_nfc_endpoint_visible_when_active(
             personal_result,
             maintenance_result,
             count_result,
+            history_result,
         ]
     )
     mock_db.flush = AsyncMock()

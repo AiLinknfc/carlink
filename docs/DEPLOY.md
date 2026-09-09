@@ -175,7 +175,21 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/044_customer_reviews.sql
 \i supabase/migrations/045_review_context.sql
 \i supabase/migrations/046_shop_orders_payment_method.sql
+\i supabase/migrations/047_lost_keychain_toggle.sql
+\i supabase/migrations/048_fix_nfc_active_defaults.sql
+\i supabase/migrations/049_georeference_workshops.sql
 ```
+
+**Nota sobre 049 (2026-09-07, confirmada aplicada 2026-09-09)**: agrega `workshops.latitude`/
+`workshops.longitude` (georreferenciación para mostrar talleres en mapa) y
+`vehicles.georeference_enabled` (toggle de la ficha pública, `NOT NULL DEFAULT false`). Aditiva.
+**Esta línea y la de 047/048 faltaban en este checklist** — las tres ya estaban aplicadas contra
+la base real (confirmado por consulta directa a `information_schema.columns` para la 049; 047/048
+ya documentadas en `docs/CONTEXTO.md`/`docs/PENDIENTES.md`), pero nunca se agregó su `\i` acá,
+violando la regla de abajo. Corregido en la auditoría de 2026-09-09.
+
+**Nota sobre 048/047**: ver `docs/CONTEXTO.md` (`nfc_active` default fix, toggle de llavero
+perdido) — aplicadas y verificadas en su momento, solo faltaba esta línea.
 
 **Nota sobre 046 (2026-08-12)**: agrega `payment_method` (`wompi`|`cod`) a `shop_orders` — antes
 no había forma de distinguir un pedido contraentrega de uno pagado con Wompi, así que un pedido
@@ -248,6 +262,29 @@ El estado actual (una sola base de datos para los tres entornos) es la causa ra�
 1. Crear un proyecto Supabase separado para desarrollo/staging (plan free sirve).
 2. `local` y `staging` apuntan al proyecto nuevo; solo `production` (Railway prod + Vercel prod) apunta al proyecto actual.
 3. Adoptar `supabase migration up` (o Alembic) en vez de `\i` manual, para que las migraciones aplicadas queden registradas en una tabla y el comando sea idempotente/rastreable por entorno.
+
+### Modelo de ramas: `master` protegido + `develop` (adoptado 2026-09-09)
+
+Hasta ahora existía una sola rama (`master`), sin protección — la única barrera contra un push
+directo a producción era la disciplina (regla ya vigente: nunca pushear sin autorización fresca
+del usuario). Esto reduce el riesgo a nivel de código, en paralelo e independiente de la
+separación de DB de arriba (que sigue bloqueada en que el usuario cree el proyecto Supabase
+nuevo — el modelo de ramas no depende de eso).
+
+- **`master`** = siempre desplegable, es lo que Railway/Vercel producción sirven. Nunca se le
+  hace push directo — solo vía PR desde `develop` (o un hotfix puntual), con CI en verde.
+- **`develop`** = integración del trabajo en curso. Ramas `feature/*` se mergean acá primero.
+- Flujo: `feature/algo` → PR a `develop` (CI en verde) → merge → cuando `develop` tiene algo
+  listo para producción → PR de `develop` a `master` (CI en verde) → merge → deploy automático.
+
+**Pendiente de configurar por el usuario** (requiere acceso admin al repo en GitHub — no se
+puede hacer desde un entorno de agente sin `gh` autenticado con esos permisos):
+1. Push de la rama `develop` a `origin` (con autorización fresca — no asumida por este doc).
+2. GitHub → Settings → Branches → Branch protection rules → agregar regla para `master`:
+   exigir PR antes de merge, exigir que el check de CI (`.github/workflows/ci.yml`) pase, y
+   opcionalmente exigir 1 aprobación.
+3. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
+   apunten ahí en vez de a `master`.
 
 ## Lecciones del despliegue de la reactivación NFC (2026-07-27)
 

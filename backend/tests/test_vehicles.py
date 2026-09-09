@@ -52,6 +52,7 @@ async def _refresh(vehicle):
     vehicle.sell_phone = ""
     vehicle.sell_description = ""
     vehicle.lost_keychain_enabled = False
+    vehicle.georeference_enabled = False
     vehicle.vehicle_condition = "usado"
     vehicle.created_at = datetime.now(timezone.utc)
     vehicle.updated_at = datetime.now(timezone.utc)

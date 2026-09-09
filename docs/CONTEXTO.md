@@ -1,6 +1,18 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-08-11._
+_Última actualización: 2026-09-09._
+
+## Rediseño de landing + georreferenciación de talleres (2026-08-30 → 2026-09-09)
+
+5 commits sin documentar hasta esta pasada (`19c3a96`…`9602e71`): animación scroll-scrub del
+llavero en el hero, overlay de texto flotante, frames transparentes/layout responsive, reorden de
+CTA en mobile, logos/favicons estandarizados, y secciones de producto nuevas en la landing con el
+carrito conectado. **Georreferenciación** (migración `049_georeference_workshops.sql`, confirmada
+aplicada contra la Supabase real): `workshops.latitude`/`longitude` (mapa de talleres) y
+`vehicles.georeference_enabled` (toggle nuevo de la ficha pública, default `False`, expuesto en
+`GET /nfc/{token}` y `GET /nfc/tokens`). Detalle de auditoría/verificación de esta pasada
+(incluye el fix de 4 tests que este trabajo rompió sin que nadie lo notara): `docs/PENDIENTES.md`
+→ "Ejecutado en la duodécima pasada".
 
 ## Estado actual
 
