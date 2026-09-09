@@ -405,6 +405,29 @@ ya no repiten listas de pendientes, solo enlazan aquí.
       `user_email`/`user_name`/`claimed_by_email`/`claimed_by_name` de los `*Out` de NFC.
     **Acción**: revisar cada grupo con calma (no en bloque), arreglar, y solo entonces quitar
     `continue-on-error` de `ci.yml` para que mypy vuelva a ser bloqueante.
+12b. **Causa raíz encontrada y corregida (misma sesión, mismo PR): `ci.yml` instalaba
+    `ruff`/`mypy` sin fijar versión (`pip install ruff mypy` = siempre la última de PyPI en
+    el momento del run) — por eso el ítem 12a se descubrió recién ahora, y por eso lo que se
+    arregla localmente puede no predecir lo que pasa en CI.** Se reprodujo en vivo: el mismo
+    PR pasó de fallar por 2 errores de lint (`app/config.py`/`app/main.py`) a fallar por
+    **55** al simular la instalación exacta de CI (`ruff` `0.15.20` local → `0.16.6` en CI,
+    resuelto el mismo día) — 24 `BLE001` (except genérico), 11 `I001` (imports), 10 `UP017`
+    (`datetime.timezone.utc`), **4 `B008`** (esto es un falso positivo conocido en cualquier
+    proyecto FastAPI real: marca `Depends(...)` como "llamada de función en argumento por
+    defecto", que es el patrón obligatorio del framework — nunca debería estar habilitado
+    acá), 3 `G201` (logging), 2 `DTZ*` (datetime sin timezone), 1 `UP011`. Ninguno era
+    `E4`/`E7`/`E9`/`F` (el set que ya se había limpiado y verificado en el ítem anterior de
+    esta misma pasada) — los 55 eran **categorías nuevas que ruff empezó a exigir por
+    defecto solo por el número de versión**, no código que cambió. **Fix real (no un
+    parche)**: `backend/pyproject.toml` ahora fija `[tool.ruff.lint] select = ["E4", "E7",
+    "E9", "F"]` explícito — desacopla "qué reglas se exigen" de "qué versión instaló `pip`
+    hoy" — y `ci.yml` fija `ruff==0.16.6 mypy==2.3.1` en vez de dejarlos flotantes. mypy
+    con la versión nueva sigue dando los mismos 29 errores del ítem 12a (no cambió), así
+    que ese pendiente queda igual. **Pendiente real que sigue abierto, a propósito**: las
+    51 reglas nuevas de `ruff` que no son `B008` (`I001`/`UP017`/`UP011`/`BLE001`/`G201`/
+    `DTZ*`) son mejoras legítimas de estilo/robustez, no ruido — vale la pena adoptarlas
+    en una pasada dedicada (revisando cada categoría, no `--fix` en bloque), no como
+    efecto secundario de un upgrade de versión.
 
 ## 🟢 Prioridad baja / opcional
 
