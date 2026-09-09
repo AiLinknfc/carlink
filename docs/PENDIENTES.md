@@ -428,6 +428,31 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     `DTZ*`) son mejoras legítimas de estilo/robustez, no ruido — vale la pena adoptarlas
     en una pasada dedicada (revisando cada categoría, no `--fix` en bloque), no como
     efecto secundario de un upgrade de versión.
+12c. **`next lint` nunca corrió ni una sola vez en este proyecto — no había ningún config de
+    ESLint (ni `.eslintrc.json` ni `eslint.config.mjs`), ni `eslint`/`eslint-config-next` en
+    `package.json`.** El paso "Lint frontend" de `ci.yml` existía desde antes de esta sesión
+    pero literalmente nunca pasó: sin config, `next lint` abre un wizard interactivo
+    ("¿Cómo configurar ESLint?") que en CI (sin terminal) aborta con exit code 1 — mismo
+    patrón que los ítems 12a/12b: un paso de CI que aparenta existir pero nunca se verificó
+    de verdad. Se agregó `frontend/.eslintrc.json` (`next/core-web-vitals` + `next/typescript`,
+    el setup "Strict" que ofrece el wizard) y `eslint@8.57.1`/`eslint-config-next@15.5.25`
+    fijos como devDependencies. Al correrlo por primera vez salió un backlog real de 214
+    hallazgos en todo `src/` (91 `@typescript-eslint/no-explicit-any`, 59 `no-unused-vars`
+    —advertencia, no error—, 26 `react/no-unescaped-entities`, 18 `no-img-element`
+    —advertencia—, 10 `exhaustive-deps` —advertencia—, 1 `no-unused-expressions`, 1
+    `no-page-custom-font`, 1 `no-html-link-for-pages`). Se dejó `continue-on-error: true` en
+    ese step (mismo criterio que mypy en 12a) — arreglar 214 cosas a las apuradas para
+    destrabar un PR de un toggle de tema no es la forma correcta de pagar esta deuda.
+    **Hallazgo real, no solo de estilo, que amerita mirar con cuidado aparte**:
+    `src/app/(public)/shop/page.tsx:1073,1195` — `react-hooks/rules-of-hooks`, `useState`
+    llamado dentro de una función anónima autoejecutada (`(() => { ... })()`) en medio del
+    JSX de la sección "Histórico vehicular", no en el cuerpo de un componente — viola las
+    reglas de Hooks de verdad (confirmado leyendo el código, no solo el mensaje del linter).
+    Bajo impacto real hoy (es una sección de demo con datos hardcodeados, no funcionalidad
+    real), pero la forma correcta es extraer esa sección a un componente propio. El resto
+    del backlog (91 `no-explicit-any`, 26 comillas sin escapar, 1 `<a>` que debería ser
+    `<Link>`) es mecánico y de bajo riesgo — candidato a arreglar en la misma pasada
+    dedicada que el ítem 12b, no en bloque con `--fix` sin revisar.
 
 ## 🟢 Prioridad baja / opcional
 
