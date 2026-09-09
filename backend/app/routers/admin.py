@@ -62,7 +62,7 @@ async def get_nfc_stats(
 ):
     total = (await db.execute(select(func.count(NfcToken.id)))).scalar() or 0
     active = (await db.execute(
-        select(func.count(NfcToken.id)).where(NfcToken.is_active == True)
+        select(func.count(NfcToken.id)).where(NfcToken.is_active)
     )).scalar() or 0
 
     from datetime import datetime, timedelta
@@ -73,7 +73,7 @@ async def get_nfc_stats(
 
     total_alerts = (await db.execute(select(func.count(NfcAlert.id)))).scalar() or 0
     unresolved = (await db.execute(
-        select(func.count(NfcAlert.id)).where(NfcAlert.resolved == False)
+        select(func.count(NfcAlert.id)).where(~NfcAlert.resolved)
     )).scalar() or 0
 
     whitelist_count = (await db.execute(select(func.count(NfcTokenWhitelist.id)))).scalar() or 0
