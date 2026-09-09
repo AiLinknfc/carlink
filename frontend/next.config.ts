@@ -3,6 +3,16 @@ import path from 'path'
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
+  // No hay ningún config de ESLint hasta la auditoría de 2026-09-09 (ver
+  // docs/PENDIENTES.md ítem 12c) — antes, sin config, `next build` saltaba el lint en
+  // silencio (por eso nunca rompió un deploy real). Con el config nuevo, `next build`
+  // SÍ lo aplica y frena la compilación con el backlog de 214 hallazgos que nunca se
+  // había revisado — se mantiene el build desacoplado del lint a propósito, igual que
+  // ya estaba (de facto) hasta ahora, mientras ese backlog se paga en una pasada
+  // dedicada. El paso "Lint frontend" de CI sigue corriendo (no bloqueante) para verlo.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     serverActions: { bodySizeLimit: '10mb' },
   },

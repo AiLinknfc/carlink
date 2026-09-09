@@ -453,6 +453,17 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     del backlog (91 `no-explicit-any`, 26 comillas sin escapar, 1 `<a>` que debería ser
     `<Link>`) es mecánico y de bajo riesgo — candidato a arreglar en la misma pasada
     dedicada que el ítem 12b, no en bloque con `--fix` sin revisar.
+    **Riesgo real de producción encontrado y corregido en el camino**: `next build` (el
+    mismo comando que corre Vercel) también lintea por dentro — sin ningún config, lo
+    salteaba en silencio (por eso ningún deploy real se rompió nunca por esto); apenas se
+    agregó el config, `next build` empezó a aplicar el mismo backlog de 214 hallazgos como
+    error de compilación (`Failed to compile`, verificado corriendo el build real en un
+    worktree aislado, no solo leyendo el mensaje). Si esto se hubiera mergeado a `master`
+    tal cual, **el próximo deploy real en Vercel se habría roto**. Corregido con
+    `eslint.ignoreDuringBuilds = true` en `next.config.ts` — mismo comportamiento que ya
+    existía de facto (build nunca bloqueado por lint), ahora explícito en vez de accidental
+    por ausencia de config. Reverificado: build real completo, `EXIT_CODE=0`, todas las
+    rutas compilan.
 
 ## 🟢 Prioridad baja / opcional
 
