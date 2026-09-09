@@ -87,17 +87,15 @@ export default function LandingPage() {
   const [policyTab, setPolicyTab] = useState<PolicyTab>('privacy')
   const [pqrsOpen, setPqrsOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const { theme, isDark: dark, toggleTheme, forceTheme } = useTheme()
+  // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-09-09) — antes forzaba
+  // dark con forceTheme() sin importar la preferencia guardada, pero el propio landing
+  // renderiza un switch real de "Cambiar apariencia" (más abajo) que aparentaba funcionar
+  // y en realidad no podía: forceTheme('dark') le ganaba a toggleTheme() en cada render, así
+  // que el switch se quedaba visualmente pegado en oscuro sin importar el click. Mismo
+  // criterio ya aplicado en /shop (commit f57e23c) — el resto de esta página ya calcula sus
+  // estilos desde `dark`/`tk` (abajo), así que no hace falta ningún otro cambio.
+  const { theme, isDark: dark, toggleTheme } = useTheme()
   const cityRef = useRef<HTMLDivElement>(null)
-
-  // Forzar tema dark en el landing — vía forceTheme (ver store/theme.tsx),
-  // no escribiendo el atributo del DOM a mano: esa escritura duplicada es
-  // justo lo que causaba el bug de texto de un tema sobre fondo del otro
-  // al volver del login/app por navegación sin recarga completa.
-  useEffect(() => {
-    forceTheme('dark')
-    return () => forceTheme(null)
-  }, [forceTheme])
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

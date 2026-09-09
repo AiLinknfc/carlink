@@ -141,7 +141,7 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
         select(NfcToken).where(
             NfcToken.vehicle_id == vehicle_id,
             NfcToken.token_type == "personal",
-            NfcToken.is_active == True,
+            NfcToken.is_active,
             NfcToken.status == "active",
         )
     )
@@ -213,7 +213,7 @@ async def activate_nfc_token(
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
             NfcToken.vehicle_id == vehicle.id,
-            NfcToken.is_active == True,
+            NfcToken.is_active,
         )
     )
     active_count = count_result.scalar() or 0
@@ -301,7 +301,7 @@ async def get_my_token_limit(
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
             NfcToken.vehicle_id == vehicle.id,
-            NfcToken.is_active == True,
+            NfcToken.is_active,
         )
     )
     active_count = count_result.scalar() or 0
@@ -461,7 +461,7 @@ async def reactivate_nfc_token(
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
             NfcToken.vehicle_id == vehicle.id,
-            NfcToken.is_active == True,
+            NfcToken.is_active,
         )
     )
     active_count = count_result.scalar() or 0
@@ -657,7 +657,7 @@ async def access_via_nfc(
 
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     result = await db.execute(
-        select(NfcToken).where(NfcToken.token_hash == token_hash, NfcToken.is_active == True)
+        select(NfcToken).where(NfcToken.token_hash == token_hash, NfcToken.is_active)
     )
     nfc_token = result.scalar_one_or_none()
     if not nfc_token:

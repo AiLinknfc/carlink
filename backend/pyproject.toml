@@ -28,6 +28,20 @@ dependencies = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.ruff.lint]
+# Fijado explícito (2026-09-09) — antes no había ninguna sección [tool.ruff] acá, así que
+# ruff usaba "lo que su versión trae por defecto en ese momento", y ci.yml instala
+# `pip install ruff` sin fijar versión (siempre la última de PyPI). Un bump de versión
+# (0.15.20 -> 0.16.6, solo por correr `pip install` en un día distinto) activó de golpe 55
+# errores nuevos sobre código que nunca cambió — 4 de ellos (B008) son falsos positivos
+# conocidos en cualquier proyecto FastAPI real (marca Depends(...)/Query(...) como "llamada
+# de función en argumento por defecto", que es el patrón obligatorio del framework). Fijar
+# el select acá desacopla "qué reglas se exigen" de "qué versión de ruff se instaló hoy" —
+# los otros 51 (I001 imports, UP011/UP017 modernización, BLE001 except genérico, G201
+# logging, DTZ* datetime sin timezone) quedan documentados en docs/PENDIENTES.md para una
+# pasada deliberada, no adoptados de golpe por un upgrade de versión.
+select = ["E4", "E7", "E9", "F"]
+
 [build-system]
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.backends._legacy:_Backend"

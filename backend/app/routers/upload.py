@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, Response
-from starlette.background import BackgroundTask
 
 from app.dependencies import get_current_user
 from app.services.storage import delete_file, upload_file, get_file

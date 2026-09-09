@@ -375,6 +375,111 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 12. **Frontend: cero tests más allá de `plate.test.ts`** — no implementado en esta sesión (fuera del
     alcance de "implementa todo" dado el tiempo disponible: componentes/hooks/E2E son un esfuerzo
     grande aparte). Ver checklist heredado de `TESTS_PLAN.md` en la sección de abajo.
+12a. **29 errores de `mypy` pre-existentes, encontrados al abrir el primer PR real bajo el
+    modelo de ramas nuevo (2026-09-09, PR #25 develop→master).** El `ruff check` del mismo PR
+    también falló primero — 20 errores reales, ya arreglados en ese mismo commit (13
+    auto-fixables + 7 `== True`/`== False` en filtros SQLAlchemy de `nfc.py`/`admin.py`,
+    corregidos a mano y no con `--unsafe-fixes` porque uno de ellos, `NfcAlert.resolved ==
+    False` → `not NfcAlert.resolved`, compila a `WHERE false` en vez de `WHERE NOT resolved`
+    — confirmado compilando el SQL real antes de aplicar, no asumido; el fix correcto es
+    `~NfcAlert.resolved`). mypy, en cambio, se dejó **temporalmente no bloqueante**
+    (`continue-on-error: true` en `.github/workflows/ci.yml`) — arreglar 29 errores de tipos
+    a las apuradas para destrabar un PR de un toggle de tema no es la forma correcta de
+    pagar esta deuda. Pendiente real, con el detalle completo para la próxima pasada:
+    - `app/database.py:25` — tipo de retorno de un generador async.
+    - `app/services/ocr.py:63` — asignación de tipos incompatible (`Image` vs `ImageFile`).
+    - `app/routers/workshops.py:106,306-308` — acceso a atributo de `Profile | None` sin
+      chequear `None`; listas de modelos ORM pasadas donde se esperaba su `*Out` (Pydantic).
+    - `app/routers/upload.py:29`, `app/routers/ocr.py:34,56`, `app/routers/expenses.py:39` —
+      mismo patrón repetido: `str | None` pasado donde se espera `str` en `run_in_threadpool`.
+    - **`app/routers/reviews.py:89,98,101,112,116,118,146,218` — el más sospechoso, amerita
+      mirarlo con cuidado aparte**: mezcla los tipos `Review`/`WorkshopReview` en la misma
+      variable (`WorkshopReview` sin los atributos `context`/`target_type`/`updated_at` que sí
+      tiene `Review`) — podría ser solo un tipo de variable mal anotado, o el síntoma de una
+      rama de código que trata dos tablas distintas como intercambiables. No investigado a
+      fondo todavía.
+    - `app/routers/found_requests.py:38,39,122,143,149` — `owner_name`/`owner_email`
+      `str | None` vs `str`; y una variable local que pisa el tipo `Request` de FastAPI
+      (línea 122) — revisar si es solo el nombre o hay una confusión real de tipos ahí.
+    - `app/routers/admin.py:121,122,158,159,262,263` — mismo patrón `str | None` vs `str` en
+      `user_email`/`user_name`/`claimed_by_email`/`claimed_by_name` de los `*Out` de NFC.
+    **Acción**: revisar cada grupo con calma (no en bloque), arreglar, y solo entonces quitar
+    `continue-on-error` de `ci.yml` para que mypy vuelva a ser bloqueante.
+12b. **Causa raíz encontrada y corregida (misma sesión, mismo PR): `ci.yml` instalaba
+    `ruff`/`mypy` sin fijar versión (`pip install ruff mypy` = siempre la última de PyPI en
+    el momento del run) — por eso el ítem 12a se descubrió recién ahora, y por eso lo que se
+    arregla localmente puede no predecir lo que pasa en CI.** Se reprodujo en vivo: el mismo
+    PR pasó de fallar por 2 errores de lint (`app/config.py`/`app/main.py`) a fallar por
+    **55** al simular la instalación exacta de CI (`ruff` `0.15.20` local → `0.16.6` en CI,
+    resuelto el mismo día) — 24 `BLE001` (except genérico), 11 `I001` (imports), 10 `UP017`
+    (`datetime.timezone.utc`), **4 `B008`** (esto es un falso positivo conocido en cualquier
+    proyecto FastAPI real: marca `Depends(...)` como "llamada de función en argumento por
+    defecto", que es el patrón obligatorio del framework — nunca debería estar habilitado
+    acá), 3 `G201` (logging), 2 `DTZ*` (datetime sin timezone), 1 `UP011`. Ninguno era
+    `E4`/`E7`/`E9`/`F` (el set que ya se había limpiado y verificado en el ítem anterior de
+    esta misma pasada) — los 55 eran **categorías nuevas que ruff empezó a exigir por
+    defecto solo por el número de versión**, no código que cambió. **Fix real (no un
+    parche)**: `backend/pyproject.toml` ahora fija `[tool.ruff.lint] select = ["E4", "E7",
+    "E9", "F"]` explícito — desacopla "qué reglas se exigen" de "qué versión instaló `pip`
+    hoy" — y `ci.yml` fija `ruff==0.16.6 mypy==2.3.1` en vez de dejarlos flotantes. mypy
+    con la versión nueva sigue dando los mismos 29 errores del ítem 12a (no cambió), así
+    que ese pendiente queda igual. **Pendiente real que sigue abierto, a propósito**: las
+    51 reglas nuevas de `ruff` que no son `B008` (`I001`/`UP017`/`UP011`/`BLE001`/`G201`/
+    `DTZ*`) son mejoras legítimas de estilo/robustez, no ruido — vale la pena adoptarlas
+    en una pasada dedicada (revisando cada categoría, no `--fix` en bloque), no como
+    efecto secundario de un upgrade de versión.
+12c. **`next lint` nunca corrió ni una sola vez en este proyecto — no había ningún config de
+    ESLint (ni `.eslintrc.json` ni `eslint.config.mjs`), ni `eslint`/`eslint-config-next` en
+    `package.json`.** El paso "Lint frontend" de `ci.yml` existía desde antes de esta sesión
+    pero literalmente nunca pasó: sin config, `next lint` abre un wizard interactivo
+    ("¿Cómo configurar ESLint?") que en CI (sin terminal) aborta con exit code 1 — mismo
+    patrón que los ítems 12a/12b: un paso de CI que aparenta existir pero nunca se verificó
+    de verdad. Se agregó `frontend/.eslintrc.json` (`next/core-web-vitals` + `next/typescript`,
+    el setup "Strict" que ofrece el wizard) y `eslint@8.57.1`/`eslint-config-next@15.5.25`
+    fijos como devDependencies. Al correrlo por primera vez salió un backlog real de 214
+    hallazgos en todo `src/` (91 `@typescript-eslint/no-explicit-any`, 59 `no-unused-vars`
+    —advertencia, no error—, 26 `react/no-unescaped-entities`, 18 `no-img-element`
+    —advertencia—, 10 `exhaustive-deps` —advertencia—, 1 `no-unused-expressions`, 1
+    `no-page-custom-font`, 1 `no-html-link-for-pages`). Se dejó `continue-on-error: true` en
+    ese step (mismo criterio que mypy en 12a) — arreglar 214 cosas a las apuradas para
+    destrabar un PR de un toggle de tema no es la forma correcta de pagar esta deuda.
+    **Hallazgo real, no solo de estilo, que amerita mirar con cuidado aparte**:
+    `src/app/(public)/shop/page.tsx:1073,1195` — `react-hooks/rules-of-hooks`, `useState`
+    llamado dentro de una función anónima autoejecutada (`(() => { ... })()`) en medio del
+    JSX de la sección "Histórico vehicular", no en el cuerpo de un componente — viola las
+    reglas de Hooks de verdad (confirmado leyendo el código, no solo el mensaje del linter).
+    Bajo impacto real hoy (es una sección de demo con datos hardcodeados, no funcionalidad
+    real), pero la forma correcta es extraer esa sección a un componente propio. El resto
+    del backlog (91 `no-explicit-any`, 26 comillas sin escapar, 1 `<a>` que debería ser
+    `<Link>`) es mecánico y de bajo riesgo — candidato a arreglar en la misma pasada
+    dedicada que el ítem 12b, no en bloque con `--fix` sin revisar.
+    **Riesgo real de producción encontrado y corregido en el camino**: `next build` (el
+    mismo comando que corre Vercel) también lintea por dentro — sin ningún config, lo
+    salteaba en silencio (por eso ningún deploy real se rompió nunca por esto); apenas se
+    agregó el config, `next build` empezó a aplicar el mismo backlog de 214 hallazgos como
+    error de compilación (`Failed to compile`, verificado corriendo el build real en un
+    worktree aislado, no solo leyendo el mensaje). Si esto se hubiera mergeado a `master`
+    tal cual, **el próximo deploy real en Vercel se habría roto**. Corregido con
+    `eslint.ignoreDuringBuilds = true` en `next.config.ts` — mismo comportamiento que ya
+    existía de facto (build nunca bloqueado por lint), ahora explícito en vez de accidental
+    por ausencia de config. Reverificado: build real completo, `EXIT_CODE=0`, todas las
+    rutas compilan.
+12d. **Bloqueado en el usuario — `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    nunca se configuraron como secrets del repo en GitHub (2026-09-09, mismo PR #1
+    develop→master).** Con lint/build ya destrabados (12a-12c), "Build frontend" llegó por
+    primera vez en la historia del repo hasta `next build` de verdad — y ahí falló con
+    `Error: supabaseUrl is required` al recolectar datos de
+    `/api/vehicles/transfers/[id]/validate` (`frontend/src/lib/supabase.ts` crea el cliente
+    de Supabase al cargar el módulo, sin ninguna env var seteada en ese paso de CI).
+    **No es un bug de código ni se tocó `lib/supabase.ts`/`transfers/**`** — es
+    deliberadamente la parte más sensible del proyecto (`docs/SECURITY.md`: habla directo a
+    Supabase, RLS es el límite real, cualquier cambio ahí requiere verificación con
+    simulación de rol real, no solo "hacerlo andar"). **Acción, solo la puede hacer el
+    usuario**: GitHub → repo → Settings → Secrets and variables → Actions → agregar
+    `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` con los mismos valores que
+    ya están en Vercel (`docs/DEPLOY.md` → sección "Frontend (Vercel)") — son las
+    variables `NEXT_PUBLIC_*`, pensadas para ir al bundle del navegador, no secretos que
+    requieran rotación. Una vez agregadas, re-correr el job de CI del PR.
 
 ## 🟢 Prioridad baja / opcional
 
