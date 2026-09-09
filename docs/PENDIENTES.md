@@ -464,6 +464,22 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     existía de facto (build nunca bloqueado por lint), ahora explícito en vez de accidental
     por ausencia de config. Reverificado: build real completo, `EXIT_CODE=0`, todas las
     rutas compilan.
+12d. **Bloqueado en el usuario — `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    nunca se configuraron como secrets del repo en GitHub (2026-09-09, mismo PR #1
+    develop→master).** Con lint/build ya destrabados (12a-12c), "Build frontend" llegó por
+    primera vez en la historia del repo hasta `next build` de verdad — y ahí falló con
+    `Error: supabaseUrl is required` al recolectar datos de
+    `/api/vehicles/transfers/[id]/validate` (`frontend/src/lib/supabase.ts` crea el cliente
+    de Supabase al cargar el módulo, sin ninguna env var seteada en ese paso de CI).
+    **No es un bug de código ni se tocó `lib/supabase.ts`/`transfers/**`** — es
+    deliberadamente la parte más sensible del proyecto (`docs/SECURITY.md`: habla directo a
+    Supabase, RLS es el límite real, cualquier cambio ahí requiere verificación con
+    simulación de rol real, no solo "hacerlo andar"). **Acción, solo la puede hacer el
+    usuario**: GitHub → repo → Settings → Secrets and variables → Actions → agregar
+    `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` con los mismos valores que
+    ya están en Vercel (`docs/DEPLOY.md` → sección "Frontend (Vercel)") — son las
+    variables `NEXT_PUBLIC_*`, pensadas para ir al bundle del navegador, no secretos que
+    requieran rotación. Una vez agregadas, re-correr el job de CI del PR.
 
 ## 🟢 Prioridad baja / opcional
 
