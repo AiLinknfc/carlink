@@ -5,6 +5,16 @@
 
 export const SUPPORT_WHATSAPP = '573164976104' // +57 316 497 6104
 
+// Ventas del llavero NFC pausadas temporalmente (pedido explícito del
+// usuario, 2026-09-11). CartModal.tsx — el único punto de entrada real al
+// checkout, reusado por la landing (app/page.tsx), el modo cliente
+// (app/app/page.tsx) y FichaTab.tsx — muestra un aviso en vez del flujo de
+// compra mientras esto sea `false`. El backend (POST /shop/orders, ver
+// app/routers/shop_orders.py::SHOP_PURCHASES_ENABLED) también rechaza
+// órdenes nuevas de forma independiente — este flag solo controla la UI, no
+// es la única defensa. Para reactivar ventas, volver ambos flags a `true`.
+export const SHOP_PURCHASE_ENABLED = false
+
 export interface FobProduct {
   id: string
   name: string

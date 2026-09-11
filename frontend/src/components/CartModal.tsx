@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
-import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, SHOP_PURCHASE_ENABLED } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, type PlateType } from '@/lib/plate'
 import { apiGet, apiPost } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
@@ -284,6 +284,41 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const stepIdx = step === 'customize' ? 0 : step === 'shipping' ? 1 : step === 'payment' ? 2 : 3
 
   const miniPlateConfig = PLATE_TYPES.find(t => t.id === selectedType)
+
+  // Ventas pausadas temporalmente (ver lib/checkout.ts) — se corta acá, antes
+  // de cualquier paso real de compra, para que sea el único lugar que hay que
+  // tocar sin importar desde dónde se abrió este modal (landing, /app,
+  // FichaTab — ver los 4 imports de CartModal en el repo).
+  if (!SHOP_PURCHASE_ENABLED) {
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(8px,3vw,20px)' }}>
+            <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} />
+            <motion.div initial={{ opacity: 0, y: 30, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+              style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420, background: bg, border: `1px solid ${border}`, borderRadius: 18, boxShadow: '0 40px 100px rgba(0,0,0,.6)', color: text, padding: '28px 24px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(245,197,24,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: GOLD }}>
+                <Icon type="Hourglass" size={26} strokeWidth={1.6} />
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>Ventas pausadas por el momento</div>
+              <div style={{ fontSize: 13, color: muted, lineHeight: 1.5, marginBottom: 22 }}>
+                No estamos tomando pedidos nuevos del llavero NFC en este momento. Si querés que te avisemos apenas se reactiven, o tenés una consulta puntual, escríbenos por WhatsApp.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cerrar</button>
+                <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('¡Hola CarLink! Quiero que me avisen cuando reactiven las ventas del llavero NFC.')}`} target="_blank" rel="noopener noreferrer"
+                  style={{ flex: 2, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Icon type="MessageCircle" size={16} strokeWidth={2} />Escribir por WhatsApp
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
 
   return (
     <AnimatePresence>
