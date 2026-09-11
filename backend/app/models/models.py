@@ -490,9 +490,26 @@ class WaitlistLead(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contact: Mapped[str] = mapped_column(Text)
+    contact_type: Mapped[str] = mapped_column(Text)  # "email" o "phone" — ver app/services/contact_validation.py
     source: Mapped[str] = mapped_column(Text, default="landing")
     notified: Mapped[bool] = mapped_column(Boolean, default=False)
     notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WhatsappClick(Base):
+    """Tracking mínimo de clicks en los botones de WhatsApp (wa.me) — sin
+    esto no había ninguna forma de saber cuántos mensajes llegan ni por qué
+    motivo antes de que alguien conteste a mano. Migración 051, pensado para
+    medir volumen real durante la primera campaña de publicidad
+    (docs/PENDIENTES.md) antes de decidir si vale la pena automatizar algún
+    flujo con la API de WhatsApp Business."""
+    __tablename__ = "whatsapp_clicks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    intent: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text, default="")
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

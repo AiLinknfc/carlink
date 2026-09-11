@@ -3,7 +3,7 @@
 import React, { useState, useEffect, type FormEvent } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
-import { reviewsApi, waitlistApi } from '@/lib/api'
+import { reviewsApi, waitlistApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
 import { SUPPORT_WHATSAPP, KIT_ORDER_ENABLED } from '@/lib/checkout'
 import { checkContact } from '@/lib/contactValidation'
@@ -122,6 +122,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
     // guarde), abrimos WhatsApp con el pedido precargado en vez de mostrar
     // un "enviado" falso.
     if (res.lead.contact_type === 'phone') {
+      analyticsApi.trackWhatsappClick('guide_phone_lead', 'landing')
       window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
     }
     setLeadStatus('done')
@@ -248,6 +249,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <a
                 href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
                 target="_blank" rel="noopener noreferrer"
+                onClick={() => analyticsApi.trackWhatsappClick('kit_order', 'landing')}
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
               >
                 Pedir mi kit{ARROW}
@@ -377,6 +379,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       <a
         href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
         target="_blank" rel="noopener noreferrer"
+        onClick={() => analyticsApi.trackWhatsappClick('general_question', 'landing')}
         aria-label="Hablar por WhatsApp" title="Hablar por WhatsApp"
         style={{
           position: 'fixed', right: 'clamp(16px,4vw,28px)', bottom: 'clamp(16px,4vw,28px)', zIndex: 45,

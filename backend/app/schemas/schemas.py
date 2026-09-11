@@ -1554,12 +1554,48 @@ class WaitlistLeadCreate(BaseModel):
 class WaitlistLeadOut(BaseModel):
     id: UUID
     contact: str
+    contact_type: str
     source: str
     notified: bool
     notified_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# =========== WhatsApp click tracking ===========
+# Intents fijos a propósito (Literal, no str libre) — son los botones reales
+# que ya existen en el frontend (ver docs/PENDIENTES.md); agregar uno nuevo
+# es agregarlo acá, no dejar que cualquier string llegue sin control.
+WhatsappClickIntent = Literal[
+    "cart_pay_whatsapp",       # CartModal — "Coordinar pago por WhatsApp"
+    "cart_plate_duplicate",    # CartModal — placa ya registrada
+    "guide_phone_lead",        # Guía de mantenimiento, contacto tipo celular
+    "kit_order",                # LandingSections — "Pedir mi kit"
+    "general_question",        # Pregunta general sobre el llavero
+    "keychain_replacement",    # /app — llavero de repuesto/duplicado
+]
+WhatsappClickSource = Literal["landing", "shop", "app", "cart"]
+
+
+class WhatsappClickCreate(BaseModel):
+    intent: WhatsappClickIntent
+    source: WhatsappClickSource = "landing"
+
+
+class WhatsappClickOut(BaseModel):
+    id: UUID
+    intent: str
+    source: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WhatsappClickSummaryOut(BaseModel):
+    total: int
+    by_intent: dict[str, int]
+    by_source: dict[str, int]
 
 
 # =========== NFC Tag Inventory ===========

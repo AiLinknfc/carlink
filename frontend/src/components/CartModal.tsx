@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, type PlateType } from '@/lib/plate'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiGet, apiPost, analyticsApi } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
 import Plate3D from '@/components/Plate3D'
 import { Icon } from '@/lib/icons_new'
@@ -244,6 +244,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       if (payMethod === 'whatsapp') {
         const plateLine = skipPlateStep ? '• Placa: se vincula luego en la app' : `• Placa: ${fullPlate} (${plateCity})`
         const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n${plateLine}\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
+        analyticsApi.trackWhatsappClick('cart_pay_whatsapp', 'cart')
         window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank')
         setOrderId(created.reference)
         setStep('done')
@@ -514,7 +515,8 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                           ? 'Ya tienes esta placa registrada en tu cuenta. Si necesitas un llavero de reemplazo o es un pedido duplicado, '
                           : 'Esta placa ya está registrada por otra cuenta. Verifica tu cuenta para continuar — si crees que es un error, '}
                         <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`¡Hola CarLink! Quiero comprar un llavero NFC para la placa ${fullPlate} y el sistema me dice que ya está registrada. ¿Me ayudan a verificarlo?`)}`}
-                          target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: '#ef4444' }}>
+                          target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: '#ef4444' }}
+                          onClick={() => analyticsApi.trackWhatsappClick('cart_plate_duplicate', 'cart')}>
                           contáctanos
                         </a>.
                       </span>

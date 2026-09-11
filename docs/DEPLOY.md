@@ -178,7 +178,26 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/047_lost_keychain_toggle.sql
 \i supabase/migrations/048_fix_nfc_active_defaults.sql
 \i supabase/migrations/049_georeference_workshops.sql
+\i supabase/migrations/050_waitlist_leads_contact_type.sql
+\i supabase/migrations/051_whatsapp_click_tracking.sql
 ```
+
+**Nota sobre 050 (2026-09-11, confirmada aplicada contra la base real)**: agrega
+`waitlist_leads.contact_type` (`email`|`phone`, `NOT NULL`) para poder segmentar leads por canal en
+campañas de marketing. Backfill de las 24 filas existentes por heurística (`@` → email, si no
+→ phone; 23 email / 1 phone) — ver `app/services/contact_validation.py` para la validación real
+que corre en el backend desde ahora en adelante. Aditiva, ya aplicada — verificado por consulta
+directa a `information_schema.columns` (columna presente, `NOT NULL`) más el índice
+`idx_waitlist_leads_contact_type`.
+
+**Nota sobre 051 (2026-09-11, confirmada aplicada contra la base real)**: tabla nueva
+`whatsapp_clicks` (`intent`, `source`, `user_id` opcional, `created_at`) — tracking mínimo de los 8
+botones/links `wa.me` reales de la app (`POST /api/analytics/whatsapp-click`, público, best-effort)
+para medir volumen real por motivo antes de la primera campaña de publicidad, ver
+`docs/PENDIENTES.md`. Resumen agregado en `GET /api/analytics/whatsapp-clicks/summary`
+(admin-only). Aditiva, ya aplicada — verificado por consulta directa a
+`information_schema.columns` + `pg_indexes`, y con 6 clicks de prueba reales (uno por cada
+`intent`) contra el backend local, confirmados en la tabla y borrados después.
 
 **Nota sobre 049 (2026-09-07, confirmada aplicada 2026-09-09)**: agrega `workshops.latitude`/
 `workshops.longitude` (georreferenciación para mostrar talleres en mapa) y

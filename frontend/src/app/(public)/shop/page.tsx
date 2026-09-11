@@ -4,10 +4,11 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import Link from 'next/link'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import { NfcKeyIcon } from '@/lib/icons_new'
-import { waitlistApi, reviewsApi } from '@/lib/api'
+import { waitlistApi, reviewsApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { useTheme } from '@/store/theme'
+import { checkContact } from '@/lib/contactValidation'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -226,6 +227,10 @@ export default function ShopPage() {
   const [faqOpen, setFaqOpen] = useState(-1)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  // 'invalid_contact' = el backend rechazó el formato (422, lo resuelve la
+  // persona corrigiendo lo que escribió); 'network' = cualquier otra falla.
+  const [leadErrorReason, setLeadErrorReason] = useState<'invalid_contact' | 'network' | null>(null)
+  const [leadContactType, setLeadContactType] = useState<'email' | 'phone' | null>(null)
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
   const mapRef = useRef<HTMLIFrameElement>(null)
@@ -253,12 +258,35 @@ export default function ShopPage() {
     return () => clearTimeout(t)
   }, [activeCard])
 
+  const leadContactCheck = checkContact(leadContact)
+
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!leadContact.trim() || leadStatus === 'loading') return
+    if (leadContactCheck.status !== 'valid') {
+      setLeadStatus('error')
+      setLeadErrorReason('invalid_contact')
+      return
+    }
     setLeadStatus('loading')
+    setLeadErrorReason(null)
     const res = await waitlistApi.create(leadContact.trim(), 'shop_guia_mantenimiento')
-    setLeadStatus(res ? 'done' : 'error')
+    if (!res.ok) {
+      setLeadStatus('error')
+      setLeadErrorReason(res.reason)
+      return
+    }
+    setLeadContactType(res.lead.contact_type)
+    // El backend solo manda el PDF por correo — si dejó celular, no hay
+    // envío automático de WhatsApp, así que lo abrimos acá con el mensaje
+    // precargado (mismo criterio que la sección equivalente de la landing,
+    // LandingSections.tsx) en vez de prometerle "revisa tu WhatsApp" y que
+    // no llegue nada.
+    if (res.lead.contact_type === 'phone') {
+      analyticsApi.trackWhatsappClick('guide_phone_lead', 'shop')
+      window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
+    }
+    setLeadStatus('done')
   }
 
   const jsonLd = {
@@ -947,6 +975,7 @@ export default function ShopPage() {
           <a
             href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
             target="_blank" rel="noopener noreferrer"
+            onClick={() => analyticsApi.trackWhatsappClick('general_question', 'shop')}
             style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#062b12', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
@@ -975,25 +1004,38 @@ export default function ShopPage() {
             {leadStatus === 'done' ? (
               <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>¡Guía enviada con éxito!</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{leadContactType === 'email' ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: MUTED }}>
-                  Revisa tu WhatsApp o correo. Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
+                  {leadContactType === 'email' ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
+                  {' '}Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
                 </p>
               </div>
             ) : (
               <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <input
-                  type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
+                  type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
+                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = BORDER }}
+                  onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER }}
                 />
                 <button type="submit" disabled={leadStatus === 'loading'} data-r="shopCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
                   {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
                 </button>
-                {leadStatus === 'error' && <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+                {leadContactCheck.status === 'valid' && (
+                  <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
+                    {CHECK('#5be89a', 13)} {leadContactCheck.type === 'email' ? 'Correo válido' : 'Celular válido'}
+                  </p>
+                )}
+                {leadContactCheck.status === 'invalid' && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a3d' }}>
+                    Revisa el correo o el celular — si es de otro país, incluí el indicativo (ej. +57 300 1234567).
+                  </p>
+                )}
+                {leadStatus === 'error' && leadErrorReason === 'network' && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>
+                )}
               </form>
             )}
           </div>

@@ -405,6 +405,31 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    negocio que existe), 7 decisiones de producto que hacen falta del usuario antes de construir
    nada, y plan de fases propuesto: `docs/PLAN_ALINEACION_MODELO_NEGOCIO.md`. Sin código de negocio
    tocado en esta pasada — es solo el plan de revisión pedido.
+9. **Tracking mínimo de clicks en WhatsApp (2026-09-11) — preparación para la primera campaña de
+   publicidad.** Antes de esto, ninguno de los botones/links `wa.me` de la app dejaba rastro en la
+   base — no había forma de saber cuántos mensajes llegaban ni por qué motivo. Migración `051`
+   (`whatsapp_clicks`: `intent`, `source`, `user_id` opcional, `created_at`), endpoint público
+   best-effort `POST /api/analytics/whatsapp-click` (nunca bloquea la apertura del link si falla) y
+   resumen admin-only `GET /api/analytics/whatsapp-clicks/summary`. Cablea los 8 puntos reales de
+   la app (`CartModal.tsx` ×2, `LandingSections.tsx` ×3, `shop/page.tsx` ×2, `app/page.tsx` ×1) —
+   los helpers equivalentes de `lib/shop.ts`/`lib/checkout.ts` (`shopWhatsappUrl`, `startPayment`)
+   quedaron fuera a propósito: son parte del clúster de componentes huérfanos
+   (`CartDrawer`/`ProductCustomizer`/`CheckoutClient`/`OrdersClient`) que no renderiza ninguna
+   página real — instrumentarlos habría sido puro ruido. `intent` es un `Literal` fijo en ambos
+   lados (backend `schemas.py`, frontend `api.ts`) — agregar un botón de WhatsApp nuevo requiere
+   agregarlo explícitamente en los dos, no un string libre. Verificado con los 6 intents reales
+   contra el backend local (201 cada uno, filas confirmadas en la tabla real y borradas después —
+   la tabla queda vacía, lista para datos reales de la campaña).
+   **No incluido, a propósito** (era "tracking mínimo", no un dashboard): no hay ninguna pantalla en
+   Admin para ver el resumen — hoy se consulta pegándole directo a
+   `GET /api/analytics/whatsapp-clicks/summary` con sesión de admin. Si el uso real lo justifica,
+   vale la pena agregar una pestaña simple en `/admin` más adelante.
+   **Recordatorio del porqué**: esto no reemplaza la recomendación de esa misma conversación de no
+   automatizar WhatsApp todavía — es exactamente el dato que falta para decidirlo con evidencia en
+   vez de intuición una vez que la campaña esté corriendo. Mensajes de bienvenida/ausencia/
+   respuestas rápidas para WhatsApp Business App (mientras no hay bot): `docs/WHATSAPP_SOPORTE.md`
+   — incluye una inconsistencia real a resolver (el banner de `/shop` promete "menos de 2 minutos",
+   sin definir todavía qué tiempo de respuesta real se va a sostener con tráfico de campaña).
 
 ## 🟡 Prioridad media
 
