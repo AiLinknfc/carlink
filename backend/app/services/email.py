@@ -47,6 +47,15 @@ def _send_email(to_email: str, subject: str, html: str, *, log_label: str) -> bo
         response.raise_for_status()
         print(f"[email] Sent {log_label} to {to_email}")
         return True
+    except httpx.HTTPStatusError as e:
+        # raise_for_status() por sí solo solo deja el código de estado en el
+        # log (ej. "403 Forbidden"), sin el cuerpo — y ahí es donde Resend
+        # manda el motivo real del rechazo (dominio no verificado, key con
+        # permisos restringidos, etc.). Verificado en incidente 2026-09-11:
+        # un 403 sin cuerpo obligó a ir a adivinar entre dos causas posibles
+        # en el dashboard de Resend en vez de leerlo directo del log.
+        print(f"[email] Failed to send {log_label}: {e} — response body: {e.response.text}")
+        return False
     except Exception as e:
         print(f"[email] Failed to send {log_label}: {e}")
         return False
