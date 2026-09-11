@@ -5,15 +5,15 @@
 
 export const SUPPORT_WHATSAPP = '573164976104' // +57 316 497 6104
 
-// Ventas del llavero NFC pausadas temporalmente (pedido explícito del
-// usuario, 2026-09-11). CartModal.tsx — el único punto de entrada real al
-// checkout, reusado por la landing (app/page.tsx), el modo cliente
-// (app/app/page.tsx) y FichaTab.tsx — muestra un aviso en vez del flujo de
-// compra mientras esto sea `false`. El backend (POST /shop/orders, ver
-// app/routers/shop_orders.py::SHOP_PURCHASES_ENABLED) también rechaza
-// órdenes nuevas de forma independiente — este flag solo controla la UI, no
-// es la única defensa. Para reactivar ventas, volver ambos flags a `true`.
-export const SHOP_PURCHASE_ENABLED = false
+// Pedidos del "Kit CarLink" (bundle BAJO PEDIDO — 2 chips NFC + tarjeta
+// grabada + llavero personalizado, ver LandingSections.tsx) pausados
+// temporalmente (pedido explícito del usuario, 2026-09-11). A diferencia del
+// llavero individual, el Kit no tiene SKU propio en el backend — su "Pedir
+// mi kit" es siempre un link directo a WhatsApp, nunca pasa por
+// CartModal/shop_orders — así que esto solo controla si ese link se muestra
+// habilitado o como "no disponible". No toca el checkout del llavero
+// individual (CartModal), que sigue activo sin cambios.
+export const KIT_ORDER_ENABLED = false
 
 export interface FobProduct {
   id: string

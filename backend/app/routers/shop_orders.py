@@ -34,19 +34,6 @@ router = APIRouter(prefix="/shop", tags=["shop"])
 # también el de la UI o el total mostrado quedará desalineado del cobrado.
 PRODUCT_PRICE_COP = 49_900
 
-# Ventas del llavero NFC pausadas temporalmente (pedido explícito del
-# usuario, 2026-09-11) — solo bloquea POST /shop/orders (órdenes nuevas).
-# El resto del router sigue funcionando sin cambios: pedidos ya creados se
-# siguen pudiendo confirmar/pagar/consultar/despachar (GET /orders,
-# /confirm, el webhook, mark-paid, fulfillment) — esto no es un modo de
-# mantenimiento del checkout completo, solo corta la entrada de pedidos
-# nuevos. Espejo del flag de UI en frontend/src/lib/checkout.ts
-# (SHOP_PURCHASE_ENABLED) — ese controla que no se muestre el flujo de
-# compra; este es la defensa real del lado servidor, independiente de que
-# alguien le pegue directo a la API. Para reactivar ventas, volver ambos a
-# True/true.
-SHOP_PURCHASES_ENABLED = False
-
 # Estados que puede devolver Wompi (result.transaction.status del widget,
 # data.transaction.status del webhook, o data.status de GET /transactions/{id})
 # mapeados 1:1 a minúscula para la columna `status` de shop_orders.
@@ -143,12 +130,6 @@ async def create_shop_order(
     resto de este carrito), pero si hay un usuario logueado la orden queda
     linkeada a su cuenta. El monto SIEMPRE se calcula acá, nunca se confía en
     un precio mandado por el cliente."""
-    if not SHOP_PURCHASES_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Las ventas del llavero NFC están pausadas temporalmente",
-        )
-
     reference = f"CLK-{uuid.uuid4().hex[:16].upper()}"
     amount_in_cents = PRODUCT_PRICE_COP * body.quantity * 100
 

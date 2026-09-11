@@ -576,6 +576,11 @@ export default function LandingPage() {
         plateText={plateText}
         plateType={type}
         city={city}
+        // Landing pública, sin sesión — se salta el paso de placa para bajar
+        // la fricción de compra; la placa se vincula después, adentro de la
+        // app, al activar el llavero (ver comentario de la prop en
+        // CartModal.tsx).
+        skipPlateStep
       />
 
       <PolicyModal

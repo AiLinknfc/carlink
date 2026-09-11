@@ -5,7 +5,8 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
 import { reviewsApi, waitlistApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, KIT_ORDER_ENABLED } from '@/lib/checkout'
+import { checkContact } from '@/lib/contactValidation'
 
 type Theme = 'light' | 'dark'
 
@@ -69,12 +70,6 @@ const ARROW = (
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
 )
-// Mismo regex que el backend (waitlist.py: _EMAIL_RE) — el backend solo manda
-// el correo con el PDF si "contact" matchea esto; si no, no envía nada (no
-// hay integración de WhatsApp automático). Se usa acá para decidir qué le
-// mostramos/hacemos al usuario después de guardar el lead.
-const isEmailContact = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)
-
 type PolicyTab = 'warranty' | 'privacy' | 'support'
 
 export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenPolicy, onOpenPqrs, onOpenCart }: { theme: Theme; onStart: () => void; onOpenEmpresa: (accountType?: 'user' | 'business') => void; onOpenPolicy: (tab: PolicyTab) => void; onOpenPqrs: () => void; onOpenCart: () => void }) {
@@ -89,6 +84,13 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
   const [realTestimonials, setRealTestimonials] = useState<Review[] | null>(null)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  // 'invalid_contact' viene del backend rechazando el formato (422); 'network'
+  // es cualquier otra falla — mensajes distintos porque una la resuelve la
+  // persona (corregir lo que escribió), la otra no (reintentar).
+  const [leadErrorReason, setLeadErrorReason] = useState<'invalid_contact' | 'network' | null>(null)
+  // Tipo confirmado por el backend (no una suposición del cliente) — decide
+  // qué mensaje de éxito mostrar (correo enviado vs. abrir WhatsApp).
+  const [leadContactType, setLeadContactType] = useState<'email' | 'phone' | null>(null)
   useEffect(() => {
     reviewsApi.list({ targetType: 'platform', sort: 'mejores', limit: 6 }).then(list => {
       const withComment = (list || []).filter(r => r.rating >= 4 && r.comment.trim().length > 0)
@@ -96,18 +98,30 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
     })
   }, [])
 
+  const leadContactCheck = checkContact(leadContact)
+
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const contact = leadContact.trim()
-    if (!contact || leadStatus === 'loading') return
+    if (!leadContact.trim() || leadStatus === 'loading') return
+    if (leadContactCheck.status !== 'valid') {
+      setLeadStatus('error')
+      setLeadErrorReason('invalid_contact')
+      return
+    }
     setLeadStatus('loading')
-    const res = await waitlistApi.create(contact, 'landing_guia_mantenimiento')
-    if (!res) { setLeadStatus('error'); return }
-    // El backend solo envía el PDF por correo (ver isEmailContact) — no hay
-    // envío automático de WhatsApp. Para que dejar el celular "funcione" de
-    // verdad (no solo se guarde), abrimos WhatsApp con el pedido precargado
-    // en vez de mostrar un "enviado" falso.
-    if (!isEmailContact(contact)) {
+    setLeadErrorReason(null)
+    const res = await waitlistApi.create(leadContact.trim(), 'landing_guia_mantenimiento')
+    if (!res.ok) {
+      setLeadStatus('error')
+      setLeadErrorReason(res.reason)
+      return
+    }
+    setLeadContactType(res.lead.contact_type)
+    // El backend solo envía el PDF por correo — no hay envío automático de
+    // WhatsApp. Para que dejar el celular "funcione" de verdad (no solo se
+    // guarde), abrimos WhatsApp con el pedido precargado en vez de mostrar
+    // un "enviado" falso.
+    if (res.lead.contact_type === 'phone') {
       window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
     }
     setLeadStatus('done')
@@ -230,13 +244,24 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
-            <a
-              href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
-            >
-              Pedir mi kit{ARROW}
-            </a>
+            {KIT_ORDER_ENABLED ? (
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
+              >
+                Pedir mi kit{ARROW}
+              </a>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ width: '100%', padding: 15, borderRadius: 12, border: `1px solid ${k.cardBorder}`, background: 'transparent', color: k.muted, fontWeight: 700, fontSize: 14 }}>
+                  No disponible por el momento
+                </div>
+                <div style={{ fontSize: 11.5, color: k.muted, marginTop: 8 }}>
+                  Pausado mientras ajustamos la producción — el llavero individual sigue disponible arriba.
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -377,24 +402,36 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             {leadStatus === 'done' ? (
               <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{isEmailContact(leadContact) ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{leadContactType === 'email' ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: k.muted }}>
-                  {isEmailContact(leadContact) ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
+                  {leadContactType === 'email' ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
                 </p>
               </div>
             ) : (
               <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <input
-                  type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
+                  type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }}
+                  style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = softTint(0.14) }}
+                  onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14) }}
                 />
                 <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía'}
                 </button>
-                {leadStatus === 'error' && <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+                {leadContactCheck.status === 'valid' && (
+                  <p style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
+                    {CHECK('#5be89a', 13)} {leadContactCheck.type === 'email' ? 'Correo válido' : 'Celular válido'}
+                  </p>
+                )}
+                {leadContactCheck.status === 'invalid' && (
+                  <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff8a3d' }}>
+                    Revisa el correo o el celular — si es de otro país, incluí el indicativo (ej. +57 300 1234567).
+                  </p>
+                )}
+                {leadStatus === 'error' && leadErrorReason === 'network' && (
+                  <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff4d6a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>
+                )}
               </form>
             )}
             <div style={{ fontSize: 12.5, color: isDark ? '#6f6a5f' : '#8f8a7a', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
