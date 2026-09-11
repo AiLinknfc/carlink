@@ -5,7 +5,7 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
 import { reviewsApi, waitlistApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { SUPPORT_WHATSAPP, KIT_ORDER_ENABLED } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, KIT_ORDER_ENABLED } from '@/lib/checkout'
 import { checkContact } from '@/lib/contactValidation'
 
 type Theme = 'light' | 'dark'
@@ -505,7 +505,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300, color: k.muted }}>
               <a href="https://maps.google.com/?q=Cra+70+%2380-24+Bogotá" target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>Cra 70 #80-24, Bogotá D.C., Colombia</a>
               <a href="mailto:business@carlink.com.co" style={{ color: k.muted, textDecoration: 'none' }}>business@carlink.com.co</a>
-              <a href="tel:+573164976104" style={{ color: k.muted, textDecoration: 'none' }}>+57 316 497 6104</a>
+              <a href={`tel:+${SUPPORT_WHATSAPP}`} style={{ color: k.muted, textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <a href="https://www.instagram.com/ailink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -514,7 +514,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <a href="https://www.facebook.com/people/AiLink/61578774262078/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
               </a>
-              <a href="https://wa.me/573164976104" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>
+              <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6.5 9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.9 5c2.1.8 2.5.6 3 .6s1.4-.6 1.6-1.1.2-1 .1-1.1-.3-.1-.5-.2z" /></svg>
               </a>
             </div>

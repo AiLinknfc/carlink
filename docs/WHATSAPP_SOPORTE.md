@@ -10,16 +10,19 @@ interfaz (`docs/DESIGN_GUIDELINES.md`).
 
 ---
 
-## Antes de pegar esto: un dato a decidir
+## Número de WhatsApp (actualizado 2026-09-11)
 
-`src/app/(public)/shop/page.tsx` (banner de WhatsApp) ya promete **"responde por WhatsApp en menos
-de 2 minutos"** — si el mensaje de bienvenida de abajo promete horas, quedan dos promesas
-contradictorias en la misma app. Elegí una de las dos antes de publicar:
-- Si de verdad vas a estar respondiendo casi al instante durante la campaña → dejá el banner como
-  está y ajustá el mensaje de bienvenida de abajo a ese mismo tiempo real.
-- Si no podés garantizar 2 minutos con volumen de campaña activo → hay que bajarle la expectativa
-  al banner del `/shop` también (no solo acá), para no prometer algo que no se sostiene el primer
-  día de tráfico pago.
+Único número: **+57 312 403 3960**. Vive como `SUPPORT_WHATSAPP`/`SUPPORT_WHATSAPP_DISPLAY` en
+`frontend/src/lib/checkout.ts` — todos los links `wa.me`/`tel:` y textos de contacto de la app
+(7 archivos) lo importan de ahí; cambiarlo de nuevo en el futuro es editar esas dos constantes una
+sola vez, no buscar el número viejo a mano por el repo.
+
+**Tiempo de respuesta ya resuelto (2026-09-11)**: 15 a 30 minutos, ya reflejado en el banner de
+`/shop` (antes decía "menos de 2 minutos" — corregido) y en el mensaje de bienvenida de abajo.
+**Queda un tercer lugar con una promesa distinta, sin tocar todavía**: el PDF de soporte que arma
+`PolicyModal.tsx` dice "Nuestro equipo tecnico responde en menos de 2 horas habiles" — decidí si
+esa también debería bajar a 15–30 minutos, o si tiene sentido que el PDF (para incidencias ya
+registradas) tenga un SLA distinto al chat espontáneo.
 
 ---
 
@@ -28,11 +31,9 @@ contradictorias en la misma app. Elegí una de las dos antes de publicar:
 Se dispara automático la primera vez que alguien escribe, o después de 14 días sin contacto.
 
 ```
-¡Hola! Gracias por escribirle a CarLink. Te respondemos en menos de [X] en horario laboral
+¡Hola! Gracias por escribirle a CarLink. Te respondemos en 15 a 30 minutos en horario laboral
 (lunes a viernes, 8am–6pm). Contanos en qué te podemos ayudar y te contactamos apenas podamos.
 ```
-
-Reemplazá `[X]` por el tiempo real que puedas sostener (ver nota de arriba).
 
 ## 2. Mensaje de ausencia
 

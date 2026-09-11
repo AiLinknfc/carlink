@@ -3,7 +3,13 @@
 // Configura los links en variables de entorno (ver getStripeLink). Mientras no
 // existan, se ofrece un cierre de compra por WhatsApp como respaldo de confianza.
 
-export const SUPPORT_WHATSAPP = '573164976104' // +57 316 497 6104
+// Único número de WhatsApp/soporte de toda la app (2026-09-11) — antes
+// estaba hardcodeado suelto en 6 archivos más (PolicyModal.tsx, q-invalido/
+// page.tsx, trabaja/page.tsx, LandingSections.tsx x2) además de acá, así que
+// cambiarlo significaba tocar 7 lugares a mano. Ahora todos importan estas
+// dos constantes — cambiar el número es cambiarlo una sola vez, acá.
+export const SUPPORT_WHATSAPP = '573124033960' // E.164 sin "+", para wa.me/ y tel:
+export const SUPPORT_WHATSAPP_DISPLAY = '+57 312 403 3960' // para mostrarlo en pantalla/PDF
 
 // Pedidos del "Kit CarLink" (bundle BAJO PEDIDO — 2 chips NFC + tarjeta
 // grabada + llavero personalizado, ver LandingSections.tsx) pausados

@@ -970,7 +970,7 @@ export default function ShopPage() {
         <div data-r="shopWhatsappBanner" style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 'clamp(20px,3vw,28px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>¿Tienes alguna otra pregunta antes de pedir?</div>
-            <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en menos de 2 minutos.</p>
+            <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en 15 a 30 minutos.</p>
           </div>
           <a
             href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
