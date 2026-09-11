@@ -51,25 +51,17 @@ async def create_waitlist_lead(
     await db.flush()
     await db.refresh(lead)
 
-    # TEMPORAL — se guarda el resultado en email_debug (schemas.py) para
-    # diagnosticar en vivo sin depender de los logs de Railway. Revertir
-    # (junto con el campo en schemas.py) apenas se identifique la causa.
-    email_debug: str | None = None
     if body.source in _GUIDE_SOURCES and _EMAIL_RE.match(contact):
-        # Best-effort: un fallo de SMTP nunca debe tumbar el guardado del
-        # lead. email.send_guide_email es smtplib bloqueante — sin
-        # run_in_threadpool, un Hostinger lento congela el event loop
-        # entero, no solo este request (visto en vivo: ~2 min de hang).
+        # Best-effort: un fallo de envío nunca debe tumbar el guardado del
+        # lead. run_in_threadpool porque email.send_guide_email hace una
+        # llamada HTTP bloqueante (API de Resend, ver app/services/email.py).
         try:
             settings = get_settings()
             guide_url = f"{settings.frontend_url}/api/upload/files/{_GUIDE_PDF_KEY}"
-            sent = await run_in_threadpool(email.send_guide_email, contact, guide_url)
-            email_debug = "sent" if sent else "skipped (SMTP_USER/SMTP_PASS vacíos en este proceso)"
+            await run_in_threadpool(email.send_guide_email, contact, guide_url)
         except Exception as e:
             logger.error(f"send_guide_email failed for lead {lead.id}: {e}")
-            email_debug = f"error: {e}"[:300]
 
-    lead.email_debug = email_debug  # type: ignore[attr-defined]
     return lead
 
 

@@ -98,38 +98,73 @@ para el detalle completo de investigación/decisiones):
   registrado a mano) y un `VehicleExpense` (recibo escaneado) del mismo evento — si se solapan,
   el total los cuenta dos veces. No hay mecanismo para esto todavía.
 - **Guía de Mantenimiento**: PDF subido a R2, el `.html` se descartó. Correo armado
-  (`send_guide_email`) y **verificado con un envío real en producción** (ver nota SMTP abajo).
+  (`send_guide_email`) — **la afirmación original de esta línea ("verificado con un envío real en
+  producción") era falsa, corregida el 2026-09-10**: el usuario confirmó directamente que el
+  correo nunca llegó a destino, ninguna vez. Ver "Email: migrado de SMTP a Resend" más abajo para
+  la investigación completa y la causa real.
 - **Banner de WhatsApp** en `/shop` después del FAQ (la pregunta de agua/caídas ya existía, no
   hubo que agregarla).
 - **SEO/IA**: `robots.txt`, `sitemap.xml`, `llms.txt`, JSON-LD (`Organization`/`Product`/`FAQPage`),
   metadata específica de `/shop` (antes heredaba el title/description genérico de todo el sitio).
 
-**SMTP de Hostinger — configurado y verificado en producción (2026-08-12)**: `SMTP_HOST/PORT/USER/PASS`,
-`FROM_EMAIL`, `ADMIN_EMAIL` seteados en Railway (`smtp.hostinger.com:465`, cuenta
-`business@carlink.com.co`). El código traía STARTTLS sin condicionar por puerto — el 465 es SSL
-directo, no STARTTLS — arreglado con `_smtp_client()` en `email.py` (ver commit "Email: SMTP
-Hostinger"). Primer intento de configuración tuvo un typo en `SMTP_USER`
-(`465ss@carlink.com.co` en vez de `business@carlink.com.co`, mezclado con el valor del puerto al
-escribir) — corregido. Verificado con envío real: log de Railway confirmó
-`[email] Sent guide email to ailink.nfc@gmail.com` contra `POST /api/waitlist`
-(`source=shop_guia_mantenimiento`) en producción. **Pendiente menor**: `FROM_EMAIL` quedó como
-`business@carlink.com.co` pelado — debería ser `CarLink <business@carlink.com.co>` (con nombre de
-marca) para que no le aparezca al destinatario la dirección cruda como remitente; no rompe el
-envío, es solo estético.
+**Email: migrado de SMTP (Hostinger) a la API de Resend (2026-09-10) — nunca había funcionado.**
+El pendiente arrancó como "el correo de la guía de mantenimiento nunca llega" (reporte directo del
+usuario, contradice la línea vieja de este documento que decía "verificado en producción
+2026-08-12" — esa verificación anterior fue un falso positivo, no se investigó a fondo). Cadena de
+investigación completa, contra sistemas reales:
+1. `POST /api/waitlist` real contra producción (`api.carlink.com.co`) devolvía
+   `email_debug: "skipped (SMTP_USER/SMTP_PASS vacíos)"` — parecía credenciales faltantes en
+   Railway, aunque el usuario las veía cargadas en el dashboard.
+2. Se descartaron, uno por uno, con verificación real en cada paso: variables mal escritas (`env |
+   grep SMTP` desde la Console de Railway confirmó las 4 correctas), dominio custom apuntando a
+   otro servicio (mismo resultado pegándole directo al dominio `*.up.railway.app`), múltiples
+   réplicas (1 sola, confirmado en Settings), múltiples environments (1 solo, "production").
+3. **La pista real estaba en el log de Railway, no en `email_debug`**: el log mostraba
+   `[email] Failed to send guide email: timed out` — un timeout de red, no credenciales vacías.
+   Acá se encontró que el campo `email_debug` (ya marcado `TEMPORAL` desde que se agregó) tenía su
+   propio bug: asumía que cualquier fallo de envío era por credenciales vacías, sin distinguir
+   otras excepciones — **revertido junto con el hallazgo** (`waitlist.py`/`schemas.py`), ya cumplió
+   su propósito de diagnóstico.
+4. Con el timeout real identificado, se probó conectividad SMTP directa desde la Console de
+   Railway (puertos 465/587/25, con y sin IPv4 forzado): todo timeout, salvo un control a
+   `google.com:443` que sí conectó — descartando un bloqueo de red general de Railway.
+5. Soporte de Hostinger (chat con su agente de IA) confirmó que de su lado el buzón no está
+   bloqueado y que MX/SPF/DKIM/DMARC de `carlink.com.co` están bien — pero también confirmó que no
+   hacen whitelisting de IPs puntuales para SMTP saliente y que una IP de Railway puede cambiar.
+   Ninguna de las dos partes tiene visibilidad de un eventual firewall de red intermedio (muy
+   probablemente del lado Hostinger, contra rangos de IP de proveedores cloud/hosting — patrón
+   común antispam) que descarta el tráfico SMTP antes de llegar a la capa de aplicación de
+   cualquiera de los dos lados.
+6. **Decisión (con el usuario)**: en vez de seguir insistiendo con un firewall que ninguna de las
+   dos partes puede diagnosticar ni controlar, migrar a **Resend** (envío por API HTTPS, puerto
+   443 — el mismo protocolo que ya se confirmó que funciona sin problema desde Railway). El usuario
+   creó la cuenta gratis y verificó el dominio `carlink.com.co` por DNS (mismo lugar donde ya
+   vivía el SPF de Hostinger — el dominio se compró y su DNS se administra en Hostinger, aunque los
+   nameservers muestren `dns-parking.com`).
+
+**Código cambiado**: `backend/app/services/email.py` reescrito completo — se sacaron
+`smtplib`/`socket`/`_force_ipv4()`/`_smtp_client()` y las 8 funciones de envío (que repetían cada
+una su propio bloque `MIMEMultipart` + try/except) ahora arman solo `subject`/`html` y delegan a un
+único `_send_email()` que hace `POST https://api.resend.com/emails` vía `httpx` (ya en
+`requirements.txt`, no hubo que agregar dependencia nueva). Variable nueva: `RESEND_API_KEY`
+(reemplaza `SMTP_HOST/PORT/USER/PASS`, que ya no se usan en ningún lado — confirmado con grep).
+`FROM_EMAIL`/`ADMIN_EMAIL` se mantienen igual. Suite de tests corrida contra el `.venv` real del
+proyecto tras el cambio: **47/47, sin fallos** (ningún test mockeaba SMTP directo, así que no hubo
+que tocar ninguno).
 
 **Pendiente — bloqueado en el usuario**:
+- **`RESEND_API_KEY` en Railway**: el usuario la agrega directo en el dashboard (pedido explícito
+  suyo de no pasarla por el chat, incluso después de haber pegado la contraseña de SMTP antes en la
+  investigación — se respetó para esta). Falta confirmar que la pegó y volver a probar el envío
+  real contra producción antes de dar esto por cerrado.
+- **`RESEND_API_KEY` falta en `backend/.env` local** — vacía a propósito, mismo criterio que la de
+  Railway (no se pidió ni se inventó). Sin ella, el envío se salta en silencio en local, el lead se
+  guarda igual. Completar si se quiere probar envíos reales desde la máquina local.
 - **PostHog**: falta que Andres cree la cuenta y pase el API key para instrumentar frontend
   (`posthog-js`) y backend (`posthog-python`) — nada de esto se construyó todavía.
 - `DEEPSEEK_API_KEY` sigue sin estar en Railway (mencionado en pasadas anteriores) — sin ella, el
   escaneo de gastos funciona pero sin la estructuración automática por IA (degrada a que el usuario
   llene los campos a mano, no rompe nada).
-- **`SMTP_PASS` falta en `backend/.env` local** (2026-09-08): agregué `SMTP_HOST/PORT/USER` de
-  Hostinger al `.env` local (mismos valores que ya están en Railway), pero dejé `SMTP_PASS` vacío
-  a propósito — no tengo esa contraseña ni debo inventarla. Sin ella, el envío de correos
-  (guía de mantenimiento, notificaciones) se salta en silencio en local (`email_debug: "skipped..."`
-  en la respuesta de `POST /api/waitlist`), aunque el lead sí se guarda. En producción (Railway) sí
-  está configurado y verificado con un envío real. Completar con la contraseña de aplicación de
-  `business@carlink.com.co` y reiniciar el backend si se quiere probar envíos reales en local.
 
 **Ejecutado en la novena pasada**: responsive completo de la sección `/shop` y fix de overlap
 hero/Wallet/"Cómo funciona" en pantallas medianas:

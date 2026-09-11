@@ -1,61 +1,55 @@
 from __future__ import annotations
 
 import os
-import socket
-import smtplib
-from contextlib import contextmanager
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
+import httpx
+
+# Migrado de SMTP directo (Hostinger) a la API HTTP de Resend el 2026-09-10.
+# Causa: Railway nunca logra completar el handshake TCP con
+# smtp.hostinger.com en ningún puerto (465/587/25), con o sin IPv4 forzado —
+# siempre termina en timeout, nunca en un error de autenticación. Verificado
+# desde ambos lados: soporte de Hostinger confirmó que el buzón no está
+# bloqueado y que MX/SPF/DKIM/DMARC de carlink.com.co están bien; Railway no
+# bloquea salida general (un socket a google.com:443 conecta sin problema).
+# Conclusión: algún firewall de red intermedio (probablemente del lado
+# Hostinger, contra rangos de IP de proveedores cloud/hosting) descarta el
+# tráfico SMTP antes de que llegue a la capa de aplicación — invisible para
+# el soporte de buzón de cualquiera de los dos lados. Resend manda por HTTPS
+# (puerto 443), el mismo protocolo que ya sabíamos que funciona sin
+# problema desde este contenedor. Ver docs/PENDIENTES.md para el detalle
+# completo de la investigación (incluye que la afirmación previa de "email
+# verificado en producción, 2026-08-12" era falsa — nunca había funcionado).
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_API_URL = "https://api.resend.com/emails"
 FROM_EMAIL = os.getenv("FROM_EMAIL", "CarLink <noreply@carlink.com>")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
-
-_SMTP_TIMEOUT = 15  # segundos — sin esto, un Hostinger lento/caído puede colgar
-# la conexión indefinidamente (smtplib no tiene timeout por defecto).
+_HTTP_TIMEOUT = 15  # segundos
 
 
-@contextmanager
-def _force_ipv4():
-    """Fuerza resolución DNS a solo-IPv4 mientras dura la conexión SMTP.
+def _send_email(to_email: str, subject: str, html: str, *, log_label: str) -> bool:
+    """Único punto de envío real — las funciones de abajo solo arman
+    subject/html y delegan acá. Antes cada una repetía su propio bloque
+    smtplib con try/except; con una llamada HTTP no hace falta repetirlo."""
+    if not RESEND_API_KEY:
+        print(f"[email] RESEND_API_KEY not configured — skipping {log_label}")
+        return False
+    if not to_email:
+        return False
 
-    Visto en producción (Railway, 2026-08-13): smtp.hostinger.com resuelve a
-    IPv6 *y* IPv4, y getaddrinfo() devuelve la IPv6 primero. El contenedor
-    de Railway no tiene salida IPv6, así que ese intento falla con [Errno
-    101] Network is unreachable. socket.create_connection() sí reintenta con
-    la siguiente dirección (la IPv4) — pero si por lo que sea ese segundo
-    intento también falla, Python reporta el error del *primer* intento
-    (la IPv6), no el real. Forzar IPv4 acá elimina la ambigüedad y el salto
-    en falso a IPv6 en un solo paso. Alcance mínimo: solo se activa durante
-    la conexión (smtplib.SMTP/SMTP_SSL __init__), se restaura enseguida."""
-    original = socket.getaddrinfo
-
-    def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
-        return original(host, port, socket.AF_INET, type, proto, flags)
-
-    socket.getaddrinfo = _ipv4_only
     try:
-        yield
-    finally:
-        socket.getaddrinfo = original
-
-
-def _smtp_client() -> smtplib.SMTP:
-    """Conexión SMTP lista para usar con `with`. El puerto 465 (Hostinger) es
-    SSL directo desde el saludo inicial — STARTTLS ahí falla porque STARTTLS
-    negocia el cifrado DESPUÉS de conectar en texto plano, y un server que
-    espera SSL directo corta la conexión antes de llegar a esa negociación.
-    Cualquier otro puerto (587 típico) sigue usando STARTTLS como antes."""
-    with _force_ipv4():
-        if SMTP_PORT == 465:
-            return smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=_SMTP_TIMEOUT)
-        server.starttls()
-        return server
+        response = httpx.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={"from": FROM_EMAIL, "to": [to_email], "subject": subject, "html": html},
+            timeout=_HTTP_TIMEOUT,
+        )
+        response.raise_for_status()
+        print(f"[email] Sent {log_label} to {to_email}")
+        return True
+    except Exception as e:
+        print(f"[email] Failed to send {log_label}: {e}")
+        return False
 
 
 def send_found_request_email(
@@ -67,10 +61,6 @@ def send_found_request_email(
     vehicle_plate: str,
 ) -> bool:
     """Send email to vehicle owner when someone reports finding their key."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping email send")
-        return False
-
     subject = f"CarLink — Alguien encontró el llavero de tu {vehicle_plate}"
 
     html = f"""
@@ -97,22 +87,7 @@ def send_found_request_email(
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = owner_email
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, owner_email, msg.as_string())
-        print(f"[email] Sent found-request email to {owner_email}")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send: {e}")
-        return False
+    return _send_email(owner_email, subject, html, log_label="found-request email")
 
 
 def send_guide_email(to_email: str, guide_url: str) -> bool:
@@ -121,10 +96,6 @@ def send_guide_email(to_email: str, guide_url: str) -> bool:
     tiene forma de correo (ver app/routers/waitlist.py). El PDF vive en R2
     (docs/CONTEXTO.md); acá se linkea, no se adjunta — un adjunto de ~1.4MB
     dispara más filtros de spam y algunos clientes de correo lo recortan."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping guide email")
-        return False
-
     subject = "CarLink — Tu Guía de Mantenimiento Preventivo"
     html = f"""
     <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
@@ -148,49 +119,14 @@ def send_guide_email(to_email: str, guide_url: str) -> bool:
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to_email
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[email] Sent guide email to {to_email}")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send guide email: {e}")
-        return False
+    return _send_email(to_email, subject, html, log_label="guide email")
 
 
 def send_generic_email(to_email: str, subject: str, html_body: str) -> bool:
     """Envío genérico usado por el panel de negocio del taller (notificaciones
     a clientes: cita, vehículo listo, etc. — docs/PLAN_MIGRACION_TALLERPRO.md).
-    Mismo patrón SMTP que el resto de este módulo, sin plantilla fija."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping email send")
-        return False
-    if not to_email:
-        return False
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = to_email
-    msg.attach(MIMEText(html_body, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[email] Sent generic email to {to_email}")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send generic email: {e}")
-        return False
+    Sin plantilla fija — el llamador arma su propio HTML."""
+    return _send_email(to_email, subject, html_body, log_label="generic email")
 
 
 def send_job_application_email(
@@ -203,9 +139,6 @@ def send_job_application_email(
     cv_url: str | None = None,
 ) -> bool:
     """Send email to admin when someone submits a job application."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping job application email")
-        return False
     if not ADMIN_EMAIL:
         print("[email] ADMIN_EMAIL not configured — skipping job application email")
         return False
@@ -243,22 +176,7 @@ def send_job_application_email(
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = ADMIN_EMAIL
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
-        print(f"[email] Sent job application email to {ADMIN_EMAIL}")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send job application email: {e}")
-        return False
+    return _send_email(ADMIN_EMAIL, subject, html, log_label="job application email")
 
 
 # ── Checkout del llavero NFC (app/routers/shop_orders.py) ──
@@ -297,10 +215,6 @@ def send_order_received_email(
     /shop/orders/{reference}/mark-paid, ver app/routers/shop_orders.py). Los
     pedidos Wompi no la reciben: ya les llega send_order_confirmed_email
     apenas se aprueba el pago, que alcanza como confirmación."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping order-received email")
-        return False
-
     subject = "CarLink — Recibimos tu pedido, coordinamos el pago por WhatsApp"
     html = f"""
     <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
@@ -326,22 +240,7 @@ def send_order_received_email(
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = customer_email
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
-        print(f"[email] Sent order-received email to {customer_email} ({reference})")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send order-received email: {e}")
-        return False
+    return _send_email(customer_email, subject, html, log_label=f"order-received email ({reference})")
 
 
 def send_order_confirmed_email(
@@ -355,10 +254,6 @@ def send_order_confirmed_email(
 ) -> bool:
     """Al cliente, apenas Wompi confirma el pago (transición a 'approved') —
     ver app/routers/shop_orders.py."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping order-confirmed email")
-        return False
-
     subject = "CarLink — Pago confirmado, tu llavero NFC va en camino"
     html = f"""
     <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
@@ -384,22 +279,7 @@ def send_order_confirmed_email(
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = customer_email
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
-        print(f"[email] Sent order-confirmed email to {customer_email} ({reference})")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send order-confirmed email: {e}")
-        return False
+    return _send_email(customer_email, subject, html, log_label=f"order-confirmed email ({reference})")
 
 
 def send_order_shipped_email(
@@ -411,10 +291,6 @@ def send_order_shipped_email(
 ) -> bool:
     """Al cliente, cuando el admin marca la orden como enviada desde 'Mis
     pedidos' (PATCH /shop/orders/{reference}/fulfillment)."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping order-shipped email")
-        return False
-
     subject = "CarLink — Tu llavero NFC ya salió"
     tracking_line = f'<div style="margin-top:12px;"><strong>Seguimiento:</strong> {tracking_note}</div>' if tracking_note else ""
     html = f"""
@@ -434,22 +310,7 @@ def send_order_shipped_email(
       </div>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = customer_email
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, customer_email, msg.as_string())
-        print(f"[email] Sent order-shipped email to {customer_email} ({reference})")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send order-shipped email: {e}")
-        return False
+    return _send_email(customer_email, subject, html, log_label=f"order-shipped email ({reference})")
 
 
 def send_order_admin_notification_email(
@@ -466,9 +327,6 @@ def send_order_admin_notification_email(
 ) -> bool:
     """Al admin (ADMIN_EMAIL), apenas Wompi confirma un pago — todo lo que
     hace falta para preparar y despachar el llavero."""
-    if not SMTP_USER or not SMTP_PASS:
-        print("[email] SMTP not configured — skipping order admin-notification email")
-        return False
     if not ADMIN_EMAIL:
         print("[email] ADMIN_EMAIL not configured — skipping order admin-notification email")
         return False
@@ -497,19 +355,4 @@ def send_order_admin_notification_email(
       </p>
     </div>
     """
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = FROM_EMAIL
-    msg["To"] = ADMIN_EMAIL
-    msg.attach(MIMEText(html, "html"))
-
-    try:
-        with _smtp_client() as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, ADMIN_EMAIL, msg.as_string())
-        print(f"[email] Sent order admin-notification email to {ADMIN_EMAIL} ({reference})")
-        return True
-    except Exception as e:
-        print(f"[email] Failed to send order admin-notification email: {e}")
-        return False
+    return _send_email(ADMIN_EMAIL, subject, html, log_label=f"order admin-notification email ({reference})")
