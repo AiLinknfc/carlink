@@ -328,6 +328,37 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    reenviar sin `context` (ej. editar después desde "Calificar") lo deja vacío — es el
    comportamiento esperado, no un bug: refleja el origen del envío más reciente, no un historial.
    Verificado con E2E desechable, 8/8 checks.
+6. **Ventas del llavero NFC pausadas temporalmente (2026-09-11, pedido explícito del usuario).**
+   `CartModal.tsx` (único punto de entrada real al checkout — reusado por la landing, `/app/app` y
+   `FichaTab.tsx`) muestra un aviso de "ventas pausadas" con link a WhatsApp en vez del flujo de
+   compra, controlado por `SHOP_PURCHASE_ENABLED` en `frontend/src/lib/checkout.ts`. El backend
+   rechaza órdenes nuevas de forma independiente (`SHOP_PURCHASES_ENABLED` en
+   `backend/app/routers/shop_orders.py::create_shop_order`, 403) — no depende solo de la UI.
+   Verificado contra el backend local real corriendo (`POST /api/shop/orders` → 403). El resto del
+   flujo de un pedido ya creado sigue intacto (confirmación, webhook, despacho, "Mis pedidos") —
+   esto solo bloquea pedidos nuevos. **Para reactivar ventas**: volver ambos flags a
+   `true`/`True`.
+7. **Verificado (2026-09-11): el contacto (correo o WhatsApp) que deja alguien al pedir la Guía de
+   Mantenimiento queda registrado siempre**, sea cual sea el tipo — confirmado con un envío real
+   contra `POST /api/waitlist` (`source=shop_guia_mantenimiento`) y consulta directa a la tabla
+   `waitlist_leads` en la Supabase real: el correo se guarda con `contact_type='email'` y el
+   celular normalizado a E.164 con `contact_type='phone'` (filas de prueba borradas después de
+   verificar). El correo con el PDF solo se manda para `contact_type='email'`
+   (`app/routers/waitlist.py`); para `phone` la UI abre WhatsApp con el pedido precargado en vez de
+   mostrar un "enviado" falso (`LandingSections.tsx`/`shop/page.tsx`, `handleLeadSubmit`) — ambos
+   casos quedan igual de registrados en la base, la diferencia es solo el canal de entrega de la
+   guía. No se encontró ningún caso donde el contacto se pierda.
+8. **Alineación con `docs/MODELO_NEGOCIO.md` — plan de revisión creado, decisiones pendientes del
+   usuario (2026-09-11).** El documento describe un sistema de planes Básico/Premium (persona) +
+   validación RUES/reputación + suscripción mensual (empresa/taller) que **no existe hoy** más allá
+   de un trial de 7 días para cuentas taller — y ese trial mismo funciona distinto de lo que
+   describe el documento (bloquea todo en vez de dejar "estado restringido", y no tiene ninguna
+   fuente de verdad en el backend: se calcula 100% en el cliente desde `profile.created_at`, hallazgo
+   nuevo de esta verificación). Detalle completo del gap sección por sección, mapeo de
+   terminología ("Empresa" del documento = cuenta `taller`, ya es el único tipo de cuenta de
+   negocio que existe), 7 decisiones de producto que hacen falta del usuario antes de construir
+   nada, y plan de fases propuesto: `docs/PLAN_ALINEACION_MODELO_NEGOCIO.md`. Sin código de negocio
+   tocado en esta pasada — es solo el plan de revisión pedido.
 
 ## 🟡 Prioridad media
 
