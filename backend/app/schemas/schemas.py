@@ -108,6 +108,7 @@ class MaintenanceCreate(BaseModel):
     cost: Decimal = Field(default=Decimal(0))
     lubricant_brand: str = ""
     lubricant_type: str = ""
+    lubricant_product: str = ""
     next_service_mileage: int | None = None
 
 
@@ -123,6 +124,7 @@ class MaintenanceOut(BaseModel):
     cost: Decimal
     lubricant_brand: str
     lubricant_type: str
+    lubricant_product: str
     next_service_mileage: int | None
     source_work_order_id: UUID | None = None
     created_at: datetime

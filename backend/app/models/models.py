@@ -114,6 +114,9 @@ class MaintenanceRecord(Base):
     cost: Mapped[Decimal] = mapped_column(DECIMAL(12, 2), default=0)
     lubricant_brand: Mapped[str] = mapped_column(Text, default="")
     lubricant_type: Mapped[str] = mapped_column(Text, default="")
+    # Migración 052 (aplicada 2026-09-12) — producto exacto del catálogo elegido
+    # en el wizard de 3 pasos de Aceite (ServiceFormModal.tsx + oilCatalog.ts).
+    lubricant_product: Mapped[str] = mapped_column(Text, default="")
     next_service_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     # Migración 034 — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3: idempotencia

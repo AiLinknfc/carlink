@@ -430,6 +430,23 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    respuestas rápidas para WhatsApp Business App (mientras no hay bot): `docs/WHATSAPP_SOPORTE.md`
    — incluye una inconsistencia real a resolver (el banner de `/shop` promete "menos de 2 minutos",
    sin definir todavía qué tiempo de respuesta real se va a sostener con tráfico de campaña).
+10. **✅ Resuelto (2026-09-12) — migración `052_maintenance_lubricant_product.sql` aplicada.** El
+    wizard de 3 pasos para registrar Aceite (`ServiceFormModal.tsx`, catálogo en
+    `frontend/src/lib/oilCatalog.ts`) ya persiste `lubricant_product` (producto exacto elegido del
+    catálogo, ej. "Mobil 1 ESP 5W-30") de punta a punta. El entorno automático bloqueó aplicar la
+    migración por clasificarla como "Production Deploy" (correcto — local/staging/prod comparten la
+    misma base); el usuario la corrió a mano y se verificó contra la Supabase real
+    (`information_schema.columns` + lectura de filas Aceite existentes, `lubricant_product = ''`
+    por default, sin backfill necesario) antes de volver a agregar el campo en `models.py` y
+    `schemas.py::MaintenanceCreate/MaintenanceOut` (no en `NfcTokenInfoPublic`, decisión deliberada
+    del diseño). **Nota del susto de en medio**: al escribir el modelo del backend antes de que la
+    migración existiera, `uvicorn --reload` local recargó contra la DB real sin la columna y rompió
+    toda consulta a `maintenance_records` — detectado y revertido en el momento (verificado con
+    `pytest`: 13 tests de `test_maintenance.py` fallando → 70/70 tras revertir). Lección para la
+    próxima: cuando un cambio de esquema depende de una migración que el entorno automático no
+    puede aplicar, no dejar el modelo del ORM apuntando a la columna nueva hasta confirmar que la
+    migración ya corrió — local comparte la misma base que producción, así que un `--reload` local
+    puede romper en caliente igual que un deploy. Detalle completo en `docs/DEPLOY.md` (nota 052).
 
 ## 🟡 Prioridad media
 

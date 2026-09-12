@@ -34,6 +34,7 @@ def _fake_record(overrides: dict | None = None) -> MagicMock:
     r.cost = Decimal("150.00")
     r.lubricant_brand = ""
     r.lubricant_type = ""
+    r.lubricant_product = ""
     r.next_service_mileage = None
     r.source_work_order_id = None
     r.created_at = datetime.now(timezone.utc)
