@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   // — este title ya incluye la marca, se duplicaba ("... | CarLink").
   title: { absolute: 'Llavero NFC CarLink — Historial de tu vehículo en un toque' },
   description:
-    'Llavero NFC/QR resistente al agua y caídas: escanéalo para ver el historial de mantenimiento de tu vehículo, o para que un taller registre un servicio. $29.900 COP, envío a toda Colombia.',
+    'Llavero NFC/QR resistente al agua y caídas: escanéalo para ver el historial de mantenimiento de tu vehículo, o para que un taller registre un servicio. $39.900 COP, envío a toda Colombia.',
   openGraph: {
     title: 'Llavero NFC CarLink — Historial de tu vehículo en un toque',
     description:

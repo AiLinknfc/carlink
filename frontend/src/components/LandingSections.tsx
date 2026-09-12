@@ -46,6 +46,7 @@ function tokens(theme: Theme) {
 }
 
 const SECTION_MAX: React.CSSProperties = { maxWidth: 1160, margin: '0 auto', width: '100%' }
+const SECTION_NARROW: React.CSSProperties = { maxWidth: 820, margin: '0 auto', width: '100%' }
 const EYEBROW: React.CSSProperties = {
   fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD,
 }
@@ -54,10 +55,11 @@ const H2: React.CSSProperties = {
 }
 
 const FAQS = [
-  { q: '¿Qué incluye cada servicio del taller?', a: 'Cada visita queda registrada con fecha, kilometraje, tall mecánico, los repuestos cambiados y una foto del comprobante. El historial es inmutable y verificable.' },
-  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — cada visita nueva simplemente se agrega con el nombre de quien te atendió.' },
-  { q: '¿Cómo verifico que el historial no esté adulterado?', a: 'Cada registro tiene un hash de integridad y la ubicación GPS del taller. Si alguien intenta editar un servicio pasado, la app marca la inconsistencia.' },
-  { q: '¿Necesito descargar alguna aplicación?', a: 'No. CarLink funciona con la tecnología NFC nativa de todos los smartphones (iPhone y Android). Al acercar tu celular al llavero, se abre automáticamente tu navegador seguro con la bitácora digital de tu vehículo.' },
+  { q: '¿Necesita batería?', a: 'No. El llavero NFC funciona sin batería y sin mantenimiento — dura toda la vida del vehículo.' },
+  { q: '¿Necesita Internet?', a: 'Solo para consultar la información. El escaneo del llavero es instantáneo; la ficha se carga desde la nube.' },
+  { q: '¿Qué pasa si pierdo el llavero?', a: 'Puedes desactivarlo desde la app en segundos y asociar uno nuevo. Tu historial nunca se pierde: vive en tu cuenta, no en el llavero.' },
+  { q: '¿El llavero reemplaza el SOAT o la tecnomecánica?', a: 'No — los complementa. CarLink es tu ficha de mantenimiento; SOAT y RTM siguen siendo trámites oficiales, aunque también puedes guardarlos en tu sección de Documentos.' },
+  { q: '¿El llavero es resistente al agua, caídas y roces de llaves?', a: 'Depende del modelo. Algunos llaveros vienen encapsulados en resina polimérica industrial IP68 impermeable, resistente a caídas de más de 3 metros, salpicaduras de gasolina, aceite y el friccionamiento continuo con otras llaves metálicas. Consulta las especificaciones de cada modelo para verificar su nivel de resistencia.' },
   { q: '¿Mis datos son públicos?', a: 'No. Tu ficha solo es visible para quien tú compartas el enlace o acerque el llavero — no aparece en buscadores ni se comparte con terceros.' },
   { q: '¿Cuánto cuesta para un conductor?', a: 'Nada. Crear tu ficha, ver tu historial y descargar tu pase de Wallet es gratis para siempre.' },
 ]
@@ -148,7 +150,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       `}</style>
 
       {/* ===== LA DIFERENCIA — ¿Realmente necesitas CarLink? ===== */}
-      <section id="h-diferencia" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-diferencia" style={{ ...SECTION_NARROW, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 40px' }}>
           <div style={EYEBROW}>La diferencia</div>
           <h2 style={H2}>¿Realmente necesitas CarLink?</h2>
@@ -194,7 +196,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PRODUCTOS — qué vas a recibir ===== */}
-      <section id="h-productos" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-productos" style={{ ...SECTION_NARROW, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>Qué vas a recibir</div>
           <h2 style={H2}>Elige tu llavero CarLink</h2>
@@ -210,7 +212,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
               <CarLinkLogo size={15} />Llavero NFC CarLink
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$29.900</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$39.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>pago único · envío incluido</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
               {['1 llavero NFC de alta resistencia', 'QR de respaldo', 'Acceso vitalicio a la plataforma'].map(f => (
@@ -238,7 +240,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
               <CarLinkLogo size={15} />Kit CarLink
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$49.900</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$59.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>accesorios para todo el carro, con 3 chips NFC</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
               {['2 chips NFC — llavero y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', 'Acceso vitalicio a la plataforma'].map(f => (
@@ -247,7 +249,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             </div>
             {KIT_ORDER_ENABLED ? (
               <a
-                href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
+                href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($59.900)')}`}
                 target="_blank" rel="noopener noreferrer"
                 onClick={() => analyticsApi.trackWhatsappClick('kit_order', 'landing')}
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
@@ -356,7 +358,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PQRS · Agente conversacional ===== */}
-      <section id="h-pqrs" style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 48px' }}>
+      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
@@ -441,7 +443,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           </div>
         </div>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -10 }}>
             <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>

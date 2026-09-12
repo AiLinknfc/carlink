@@ -204,6 +204,8 @@ export default function LandingPage() {
       <style>{`
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px) translateX(50px)} to{opacity:1;transform:translateX(50px)} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes scrollBounce { 0%,100%{transform:translateY(0);opacity:.7} 50%{transform:translateY(10px);opacity:1} }
+        @media(max-width:860px){ [data-r="scrollArrow"]{display:none !important} }
         [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative}
         [data-r="shopHero-canvas"]{position:absolute;left:28%;right:0;top:0;bottom:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
         [data-r="shopHero-canvas"] canvas{max-width:100%;max-height:calc(100vh - 40px);object-fit:contain}
@@ -293,7 +295,7 @@ export default function LandingPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
               <button onClick={() => setCartOpen(true)} style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</button>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
                 <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
               </div>
             </div>
@@ -313,7 +315,19 @@ export default function LandingPage() {
           del texto/keychain aunque la caja del section termine ahí. Sin este
           jalón hacia arriba, lo que sigue queda flotando lejos del contenido
           visible de la sección 1 (no de la sección 1 en sí — esa no se toca). ===== */}
-      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -140, background: tk.pageBg }}>
+      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -200 }}>
+        {/* Scroll-down arrow */}
+        <div
+          data-r="scrollArrow"
+          onClick={() => document.getElementById('h-como')?.scrollIntoView({ behavior: 'smooth' })}
+          style={{ display: 'flex', justifyContent: 'center', marginTop: -60, cursor: 'pointer' }}
+        >
+          <div style={{ animation: 'scrollBounce 1.8s ease-in-out infinite' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 8px rgba(245,197,24,0.4))' }}>
+              <path d="M12 5v14M19 12l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
         <ComoFuncionaSection theme={theme} />
       </div>
 
@@ -472,7 +486,7 @@ export default function LandingPage() {
         [data-r="hBens"]:hover [data-r="hBens"] > div{border-color:rgba(245,197,24,0.42);transform:translateY(-4px)}
         @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:1fr 1fr !important} }
         @media(max-width:720px){ [data-r="hBens"]{grid-template-columns:1fr !important} }
-        @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} }
+        @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} [data-r="scrollArrow"]{animation:none !important} }
       `}</style>
 
       <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
@@ -553,6 +567,11 @@ export default function LandingPage() {
             <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Te avisamos antes</div>
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Aceite, SOAT, tecno, llantas y frenos.</div>
           </div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 28 }}>
+          <button onClick={() => document.getElementById('h-como')?.scrollIntoView({ behavior: 'smooth' })} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>
+            Pruébalo gratis{ARROW}
+          </button>
         </div>
         </div>
       </section>

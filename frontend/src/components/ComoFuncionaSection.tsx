@@ -67,7 +67,7 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
         @keyframes tagsMarquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         @media(max-width:860px){ [data-r="nfcScenes"]{grid-template-columns:1fr !important} [data-r="nfcScenes"]>div{padding:10px 0 !important} [data-r="nfcScenes"]>div>div:first-child{min-height:190px !important} [data-r="nfcArrow"]{display:none !important} }
       `}</style>
-      <section id="h-como" style={{ ...SECTION_MAX, padding: '48px clamp(20px,5vw,64px)' }}>
+      <section id="h-como" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)' }}>
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 36px' }}>
           <div style={EYEBROW}>Cómo funciona</div>
           <h2 style={{ ...H2, margin: '14px auto 0', maxWidth: '20ch' }}>Escaneas. Y ves <span style={{ color: GOLD }}>absolutamente todo</span>.</h2>
@@ -79,10 +79,7 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
             </div>
           </div>
         </div>
-        <div style={{ position: 'relative', borderRadius: 28, padding: '24px clamp(16px,3.5vw,34px)', maxWidth: 930, margin: '0 auto', background: isDark ? 'radial-gradient(130% 120% at 50% -10%,#20232b 0%,#111318 45%,#0a0b0e 100%)' : 'radial-gradient(130% 120% at 50% -10%,#f0efe8 0%,#eae8e0 45%,#e4e2da 100%)', border: isDark ? '1px solid rgba(245,197,24,0.22)' : '1px solid rgba(17,17,17,0.1)', boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.06),0 24px 60px rgba(0,0,0,.5)' : 'inset 0 1px 0 rgba(255,255,255,0.8),0 24px 60px rgba(17,17,17,0.1)', overflow: 'hidden' }}>
-          {/* scanline overlay */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: isDark ? 'repeating-linear-gradient(90deg,rgba(255,255,255,0.02) 0 1px,transparent 1px 3px)' : 'repeating-linear-gradient(90deg,rgba(0,0,0,0.02) 0 1px,transparent 1px 3px)', opacity: .4 }} />
-          <div data-r="nfcScenes" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto 1fr auto 1fr', gap: 16, alignItems: 'center' }}>
+        <div data-r="nfcScenes" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto 1fr', gap: 16, alignItems: 'center', maxWidth: 930, margin: '0 auto' }}>
 
             {/* ESCENA 1 — Ingresa tu placa */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
@@ -171,9 +168,8 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
               </div>
             </div>
 
-          </div>
-          <p style={{ textAlign: 'center', fontWeight: 300, fontSize: 13.5, lineHeight: 1.6, color: muted, margin: '18px auto 0', maxWidth: 580 }}>Acerca tu llavero NFC al teléfono, verifica con Google en segundos y observa cómo tu ficha de mantenimiento se arma sola — siempre alerta al cuidado de tu vehículo.</p>
         </div>
+        <p style={{ textAlign: 'center', fontWeight: 300, fontSize: 13.5, lineHeight: 1.6, color: muted, margin: '24px auto 0', maxWidth: 580 }}>Acerca tu llavero NFC al teléfono, verifica con Google en segundos y observa cómo tu ficha de mantenimiento se arma sola — siempre alerta al cuidado de tu vehículo.</p>
       </section>
     </>
   )
