@@ -150,7 +150,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       `}</style>
 
       {/* ===== LA DIFERENCIA — ¿Realmente necesitas CarLink? ===== */}
-      <section id="h-diferencia" style={{ ...SECTION_NARROW, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-diferencia" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 40px' }}>
           <div style={EYEBROW}>La diferencia</div>
           <h2 style={H2}>¿Realmente necesitas CarLink?</h2>
@@ -196,7 +197,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PRODUCTOS — qué vas a recibir ===== */}
-      <section id="h-productos" style={{ ...SECTION_NARROW, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-productos" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>Qué vas a recibir</div>
           <h2 style={H2}>Elige tu llavero CarLink</h2>
@@ -272,7 +274,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== COMUNIDAD CARLINK ===== */}
-      <section id="h-comunidad" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-comunidad" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 36px' }}>
           <div style={EYEBROW}>Comunidad</div>
           <h2 style={H2}>Conductores en Colombia que ya protegen su vehículo</h2>
@@ -336,7 +339,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== FAQ ===== */}
-      <section id="h-faq" style={{ maxWidth: 820, margin: '0 auto', width: '100%', padding: '48px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-faq" style={{ maxWidth: 820, margin: '0 auto', width: '100%', position: 'relative', padding: '48px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={EYEBROW}>Preguntas frecuentes</div>
           <h2 style={H2}>Resolvemos tus dudas</h2>
@@ -358,7 +362,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PQRS · Agente conversacional ===== */}
-      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
@@ -396,7 +400,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </a>
 
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ ...SECTION_MAX, paddingBottom: 40, borderTop: `1px solid ${k.thinBorder}` }}>
+      <section style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?.</div>

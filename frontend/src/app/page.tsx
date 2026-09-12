@@ -340,6 +340,7 @@ export default function LandingPage() {
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         padding: '68px clamp(20px,5vw,64px) 26px',
       }}>
+        <div style={{ position: 'absolute', top: 34, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 820, borderTop: `1px solid ${tk.thinBorder}` }} />
         <div style={{ textAlign: 'center', zIndex: 16, flex: '0 0 auto' }}>
           <div style={{ fontSize: 12, letterSpacing: '.28em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518', animation: 'fadeUp .7s both' }}>
             Plataforma de mantenimiento vehicular
@@ -491,7 +492,8 @@ export default function LandingPage() {
         @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} [data-r="scrollArrow"]{animation:none !important} }
       `}</style>
 
-      <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
+      <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, maxWidth: 820, margin: '0 auto', width: '100%', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${tk.thinBorder}` }} />
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={{ fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }}>Beneficios</div>
