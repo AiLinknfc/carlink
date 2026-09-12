@@ -107,9 +107,16 @@ export function ServiceLogo({ type, size = 48 }: { type: string; size?: number }
   const logos: Record<string, ReactNode> = {
     Aceite: (
       <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
-        {/* Gota de aceite — presentación CarLink */}
-        <path d="M24 6s12 13 12 21a12 12 0 0 1-24 0C12 19 24 6 24 6z" stroke="#F5C518" strokeWidth="2.5" fill="#F5C518" fillOpacity="0.12" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="24" cy="24" r="4.5" stroke="#F5C518" strokeWidth="2" fill="#F5C518" fillOpacity="0.25" />
+        {/* Presión de aceite — testigo tablero, presentación CarLink */}
+        {/* Cuerpo del medidor */}
+        <path d="M6 16 L18 10 L17 18 L4 20 Z" stroke="#F5C518" strokeWidth="1.8" fill="#F5C518" fillOpacity="0.15" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Líneas del indicador */}
+        <path d="M21 9 L30 9" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M25.5 7 L25.5 19" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
+        {/* Cubo del aceite */}
+        <path d="M14 20 L34 20 L37 26 L44 18 L46 22 L40 28 L38 38 L14 38 Z" stroke="#F5C518" strokeWidth="1.8" fill="#F5C518" fillOpacity="0.08" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Gota de aceite */}
+        <path d="M42 32 C42 32 40 36 40 38 a4 4 0 0 0 8 0 c0-2-2-6-2-6 Z" fill="#F5C518" stroke="none" />
       </svg>
     ),
     Refrigerante: (
