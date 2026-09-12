@@ -5,8 +5,8 @@ const svgIcon = (children: ReactNode, size: number, strokeWidth = 1.7): ReactNod
 )
 
 const SERVICE_PATHS: Record<string, ReactNode> = {
-  /* Aceite: lámpara de Aladino — forma clásica de vasija con pico y llama */
-  Aceite: <><path d="M10 3c-.6 1.2-1 2.6-1 4 0 3.3 2.7 6 6 6 .3 0 .7 0 1-.1" /><path d="M16 8l2.5-1.5c.8-.5.8-1.7 0-2.2L16 3" /><path d="M15 13c-1.3 1.4-2 3.3-2 5.3 0 1.7 1.3 3 3 3s3-1.3 3-3c0-2-.7-3.9-2-5.3" /><path d="M14 16.5c-2.4 0-4.5-1-5.5-2.5" /><path d="M8.5 14c-1.7-.5-3-2-3-3.8 0-.8.3-1.6.7-2.2" /><circle cx="13" cy="3.5" r="1.5" fill="currentColor" stroke="none" /></>,
+  /* Aceite: gota de aceite — presentación CarLink (mantenimiento 5.000 km) */
+  Aceite: <><path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z" /></>,
 
   /* Aire: hélice/turbina de aire — tres palas rotando */
   Aire: <><path d="M12 12c-3-3-7-4-7-4s1-4 4-7c3 3 7 4 7 4s-1 4-4 7z" /><path d="M12 12c3 3 4 7 4 7s4-1 7-4c-3-3-4-7-4-7s-4 1-7 4z" /><path d="M12 12c0 3.3-1.3 6-3 6s-3-2.7-3-6c0-3.3 1.3-6 3-6s3 2.7 3 6z" /><circle cx="12" cy="12" r="2" /></>,

@@ -525,7 +525,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ position: 'relative', width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(from 135deg, ${oilColorDyn} 0deg ${oilDegDyn}deg, ${gaugeTrack} ${oilDegDyn}deg 270deg, transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 14px rgba(245,197,24,0.25))' }}>
               <div style={{ position: 'absolute', inset: 12, borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill={oilColorDyn} style={{ marginBottom: 2 }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill={oilColorDyn} style={{ marginBottom: 2 }}><path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z"/></svg>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1, color: oilColorDyn }}>{oilPctDyn}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 2 }}>Vida aceite</div>
               </div>

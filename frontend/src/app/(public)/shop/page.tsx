@@ -44,7 +44,7 @@ function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSi
 }
 
 const PROBLEMS = [
-  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /> },
+  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z" /> },
   { text: '¿Perdiste la factura del taller?', icon: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 12h6M9 16h4" /></> },
   { text: '¿Compraste un carro usado y no sabes si le hicieron mantenimiento?', icon: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M21 21l-4.35-4.35" /></> },
   { text: '¿Olvidaste cuándo vence el SOAT?', icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M12 14v3M12 19h.01" /></> },
