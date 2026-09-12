@@ -107,15 +107,9 @@ export function ServiceLogo({ type, size = 48 }: { type: string; size?: number }
   const logos: Record<string, ReactNode> = {
     Aceite: (
       <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
-        {/* Lámpara de Aladino */}
-        <ellipse cx="24" cy="34" rx="10" ry="7" fill="#F5C518" opacity="0.15" />
-        <path d="M18 28c0-8 3-14 6-16 3 2 6 8 6 16" stroke="#F5C518" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        <path d="M16 28c-2 0-4-1-4-3s2-3 4-3h16c2 0 4 1 4 3s-2 3-4 3" stroke="#F5C518" strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M24 12l-4 8" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M24 12l4 8" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
-        <ellipse cx="24" cy="9" rx="3" ry="4" fill="#F5C518" opacity="0.7" />
-        <ellipse cx="24" cy="8" rx="1.5" ry="2.5" fill="#fff" opacity="0.6" />
-        <path d="M18 31c0 3 2.7 5 6 5s6-2 6-5" stroke="#F5C518" strokeWidth="1.8" fill="none" />
+        {/* Gota de aceite — presentación CarLink */}
+        <path d="M24 6s12 13 12 21a12 12 0 0 1-24 0C12 19 24 6 24 6z" stroke="#F5C518" strokeWidth="2.5" fill="#F5C518" fillOpacity="0.12" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="24" cy="24" r="4.5" stroke="#F5C518" strokeWidth="2" fill="#F5C518" fillOpacity="0.25" />
       </svg>
     ),
     Refrigerante: (
