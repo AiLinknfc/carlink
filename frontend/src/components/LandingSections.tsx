@@ -396,7 +396,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </a>
 
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ paddingBottom: 40, borderTop: `1px solid ${k.thinBorder}` }}>
+      <section style={{ ...SECTION_MAX, paddingBottom: 40, borderTop: `1px solid ${k.thinBorder}` }}>
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?.</div>
