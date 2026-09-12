@@ -76,7 +76,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
   const goldBorder = 'rgba(245,197,24,0.35)'
 
   const validate = useCallback(() => {
-    if (!acceptedTerms) {
+    if (mode === 'signup' && !acceptedTerms) {
       setShowTermsError(true)
       return false
     }
@@ -89,7 +89,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       return false
     }
     return true
-  }, [acceptedTerms, email, password])
+  }, [mode, acceptedTerms, email, password])
 
   const handleEmailAuth = useCallback(async () => {
     setError(null)
@@ -128,7 +128,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
   const handleGoogle = useCallback(() => {
     setError(null)
-    if (!acceptedTerms) {
+    if (mode === 'signup' && !acceptedTerms) {
       setShowTermsError(true)
       return
     }
@@ -140,7 +140,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     }
     onClose()
     requestAnimationFrame(() => signIn())
-  }, [acceptedTerms, signIn, onClose, accountType])
+  }, [mode, acceptedTerms, signIn, onClose, accountType])
 
   if (!isOpen) return null
 
