@@ -358,7 +358,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PQRS · Agente conversacional ===== */}
-      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
+      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px', borderTop: `1px solid ${k.thinBorder}` }}>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
@@ -396,7 +396,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </a>
 
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ borderTop: `1px solid ${k.cardBorder}` }}>
+      <section style={{ paddingBottom: 40, borderTop: `1px solid ${k.thinBorder}` }}>
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?.</div>
@@ -443,7 +443,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           </div>
         </div>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -10 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
             <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
