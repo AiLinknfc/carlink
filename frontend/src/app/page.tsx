@@ -499,7 +499,7 @@ export default function LandingPage() {
         </div>
         <div data-r="hBens" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: 5, animation: 'bCloudPulse 3s ease-in-out infinite' }}><path d="M18 16.5a3.5 3.5 0 0 0-.7-6.93A5 5 0 0 0 7.6 10.6A3 3 0 0 0 8 16.5z" /></svg>
               <div style={{ position: 'absolute', bottom: 6, animation: 'bLift 3s ease-in-out infinite' }}>
                 <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
@@ -509,7 +509,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Guardado en la nube, atado a tu placa.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
               <div style={{ width: 10, height: 16, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.28)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out infinite' }} />
               <div style={{ width: 10, height: 25, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.5)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .16s infinite' }} />
               <div style={{ position: 'relative', width: 10, height: 34, borderRadius: '3px 3px 0 0', background: GOLD, transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .32s infinite' }}>
@@ -520,7 +520,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Historial verificable = precio respaldado.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'absolute', width: 40, height: 40, borderRadius: '50%', border: `2px solid ${GOLD}`, animation: 'bStampRing 2.6s ease-out infinite' }} />
               <div style={{ width: 33, height: 33, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: `2px solid ${GOLD}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bStamp 2.6s cubic-bezier(0.34,1.56,0.64,1) infinite' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -530,7 +530,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>No es tu palabra: es un registro.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
               <div style={{ animation: 'bTap 2.2s ease-in-out infinite' }}>
                 <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
               </div>
@@ -547,7 +547,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Acerca el llavero y ya está.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'relative', width: 26, height: 34, borderRadius: 3, background: '#f5f3ec', padding: '4px 3px', display: 'flex', flexDirection: 'column', gap: 3, animation: 'bFileIn 3s ease-in-out infinite' }}>
                 <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1 }} />
                 <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1, width: '70%' }} />
@@ -560,7 +560,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Queda archivada con su servicio.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'relative' }}>
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ transformOrigin: '50% 12%', animation: 'bBell 3.2s ease-in-out infinite' }}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
                 <span style={{ position: 'absolute', top: -2, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: GOLD, color: '#111', fontSize: 8.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bDot 3.2s ease-out infinite' }}>3</span>

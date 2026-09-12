@@ -100,8 +100,8 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 14px', borderRadius: 999, ...stepPill(0) }}>
-                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>01</span>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Ingresa tu placa</span>
+                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#111' }}>01</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#111' }}>Ingresa tu placa</span>
               </div>
             </div>
 
@@ -135,8 +135,8 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 14px', borderRadius: 999, ...stepPill(1) }}>
-                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>02</span>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Activa tus indicadores</span>
+                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#111' }}>02</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#111' }}>Activa tus indicadores</span>
               </div>
             </div>
 
@@ -163,8 +163,8 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 14px', borderRadius: 999, ...stepPill(2) }}>
-                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#F5C518' }}>03</span>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#F5C518' }}>Publica tu ficha</span>
+                <span style={{ width: 20, height: 20, flex: '0 0 auto', borderRadius: 6, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#111' }}>03</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#111' }}>Publica tu ficha</span>
               </div>
             </div>
 
