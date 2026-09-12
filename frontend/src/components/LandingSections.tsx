@@ -381,24 +381,6 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         </div>
       </section>
 
-      {/* ===== WHATSAPP FLOTANTE ===== */}
-      <a
-        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
-        target="_blank" rel="noopener noreferrer"
-        onClick={() => analyticsApi.trackWhatsappClick('general_question', 'landing')}
-        aria-label="Hablar por WhatsApp" title="Hablar por WhatsApp"
-        style={{
-          position: 'fixed', right: 'clamp(16px,4vw,28px)', bottom: 'clamp(16px,4vw,28px)', zIndex: 45,
-          width: 58, height: 58, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: '#25D366', color: '#062b12', textDecoration: 'none',
-          boxShadow: '0 10px 30px rgba(37,211,102,0.45)',
-        }}
-      >
-        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(37,211,102,0.55)', animation: 'waFabPulse 2.4s ease-out infinite' }} />
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
-      </a>
-
       {/* ===== WAITLIST — Captura de leads ===== */}
       <section style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
         <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />

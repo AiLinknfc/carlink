@@ -109,7 +109,7 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    const el = document.getElementById('h-comunidad')
+    const el = document.getElementById('h-productos')
     if (!el) return
     const obs = new IntersectionObserver(
       ([entry]) => setShowWaFloat(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
@@ -586,7 +586,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{ textAlign: 'center', marginTop: 28 }}>
-          <button onClick={() => document.getElementById('h-como')?.scrollIntoView({ behavior: 'smooth' })} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>
+          <button onClick={() => openLoginModal()} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>
             Explora los beneficios{ARROW}
           </button>
         </div>

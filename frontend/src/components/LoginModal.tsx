@@ -45,7 +45,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [acceptedTerms, setAcceptedTerms] = useState(true)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsError, setShowTermsError] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,6 +60,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     } else {
       setMode(initialMode)
       setAccountType(initialAccountType)
+      setAcceptedTerms(false)
     }
   }, [isOpen, initialMode, initialAccountType])
 
