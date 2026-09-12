@@ -314,7 +314,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
+    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh', overflowX: 'hidden' }}>
       {/* Datos estructurados: reusa el mismo array FAQS que ya se pinta más
           abajo, no contenido inventado aparte. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -1298,7 +1298,7 @@ export default function ShopPage() {
                             <span style={{ fontSize: 10, fontWeight: 600, color: hovered === i ? GOLD : MUTED, letterSpacing: '.08em', textTransform: 'uppercase', transition: 'color 0.25s' }}>{ind.l}</span>
                             <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, opacity }}>{ind.v.toLocaleString('es-CO')} {ind.unit}</span>
                           </div>
-                          <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ height: 3, borderRadius: 2, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(17,17,17,0.06)', overflow: 'hidden' }}>
                             <div style={{ width: `${ind.pct}%`, height: '100%', borderRadius: 2, background: GOLD, opacity, transition: 'width 0.6s ease' }} />
                           </div>
                         </div>

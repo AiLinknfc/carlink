@@ -223,6 +223,8 @@ export default function LandingPage() {
         @media(max-width:720px){
           [data-r="keychainScrub"] canvas{min-height:200px !important}
         }
+        @media(max-height:800px){ [data-r="comoWrap"]{margin-top:-120px !important} }
+        @media(max-height:680px){ [data-r="comoWrap"]{margin-top:0 !important} }
       `}</style>
 
       {/* ===== HEADER ===== */}

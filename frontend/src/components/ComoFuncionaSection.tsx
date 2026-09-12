@@ -48,8 +48,8 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
   })
   const stepPill = (i: number): React.CSSProperties => ({
     transition: 'background .45s ease, border-color .45s ease, box-shadow .45s ease',
-    background: activeStep === i ? 'rgba(245,197,24,0.16)' : 'rgba(255,255,255,0.03)',
-    border: `1px solid ${activeStep === i ? 'rgba(245,197,24,0.55)' : 'rgba(255,255,255,0.08)'}`,
+    background: activeStep === i ? 'rgba(245,197,24,0.16)' : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(17,17,17,0.03)'),
+    border: `1px solid ${activeStep === i ? 'rgba(245,197,24,0.55)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)')}`,
     boxShadow: activeStep === i ? '0 0 20px rgba(245,197,24,0.22)' : 'none',
   })
   // Flechas se activan en los pasos intermedios: paso 1→flecha1(1), paso 2→flecha2(3)
@@ -115,7 +115,7 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
               <div style={{ position: 'relative', height: 210, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                 {/* gauge */}
                 <div style={{ position: 'relative', width: 96, height: 96, flex: '0 0 auto', animation: 'comoGaugeBreathe 3.2s ease-in-out infinite', ...stepPop(1) }}>
-                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'conic-gradient(from 135deg,#F5C518 0deg 190deg,rgba(255,255,255,0.08) 190deg 270deg,transparent 270deg 360deg)', filter: 'drop-shadow(0 0 10px rgba(245,197,24,0.35))' }} />
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `conic-gradient(from 135deg,#F5C518 0deg 190deg,${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)'} 190deg 270deg,transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 10px rgba(245,197,24,0.35))' }} />
                   <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', background: isDark ? 'radial-gradient(circle at 50% 35%,#1a1d24,#0c0d11)' : 'radial-gradient(circle at 50% 35%,#f0efe8,#e4e2da)', border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(17,17,17,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'box-shadow .45s ease', boxShadow: activeStep === 1 ? '0 0 24px rgba(245,197,24,0.4)' : '0 0 0 rgba(245,197,24,0)' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="#F5C518"><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /></svg>
                   </div>
@@ -153,7 +153,7 @@ export default function ComoFuncionaSection({ theme }: { theme: Theme }) {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 800, color: '#F5C518', letterSpacing: '.05em' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F5C518', boxShadow: '0 0 8px #F5C518' }} />Ficha publicada</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: muted }}>ABC 123</span>
                   </div>
-                  <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '10px 0' }} />
+                  <div style={{ height: 1, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)', margin: '10px 0' }} />
                   <div>
                     <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: muted, fontWeight: 700 }}>Kilometraje actual</div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#F5C518', lineHeight: 1.1 }}>41.200<span style={{ fontSize: 11, color: muted, fontFamily: 'var(--font-ui)', fontWeight: 600 }}> km</span></div>
