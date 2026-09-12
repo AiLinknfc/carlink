@@ -337,6 +337,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     )}
 
                     {/* Terms */}
+                    {mode === 'signup' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                         <input
@@ -357,6 +358,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         </span>
                       )}
                     </div>
+                    )}
 
                     {/* Primary (email) button */}
                     <button
