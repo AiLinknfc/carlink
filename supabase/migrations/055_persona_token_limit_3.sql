@@ -1,0 +1,12 @@
+-- Allow up to 3 active NFC keychains per vehicle for persona accounts —
+-- needed for the Kit CarLink (3 chips, one vehicle) to actually work once
+-- it gets a real checkout SKU (see docs/PENDIENTES.md "Kit CarLink pausado"),
+-- and for the support-mediated "extra llavero for a family member" case
+-- (docs/PENDIENTES.md item 9 — confirmed by the user: bajo pedido, not
+-- self-service, no separate permission model built yet).
+--
+-- History: 014 set the default to 1. 017 bumped it to 2, 018 reverted it to
+-- 1 the same month with no documented reason. Confirmed with the user
+-- (2026-09-13) there was no real incident behind that revert — safe to
+-- raise again, now to 3 (the Kit's exact size, not an arbitrary bump).
+UPDATE nfc_token_limits SET max_tokens_per_vehicle = 3 WHERE account_type = 'persona';
