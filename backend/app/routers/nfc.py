@@ -548,12 +548,13 @@ async def my_ficha_preview(
 
     service_history, workshops_profiles = await _build_service_history(all_records, db)
 
+    # No owner_name here on purpose — this payload reaches an unauthenticated
+    # scanner (see docs/PENDIENTES.md, "owner_name público sin autenticar en
+    # la ficha NFC"). owner_whatsapp is the only owner-identifying field, and
+    # only because the owner explicitly opted in (whatsapp_enabled).
     owner_whatsapp = ""
-    owner_name = ""
-    if owner:
-        owner_name = owner.full_name or ""
-        if owner.whatsapp_enabled:
-            owner_whatsapp = owner.whatsapp_number or ""
+    if owner and owner.whatsapp_enabled:
+        owner_whatsapp = owner.whatsapp_number or ""
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
@@ -581,7 +582,6 @@ async def my_ficha_preview(
         vehicle_condition=vehicle.vehicle_condition or "usado",
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
-        owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
         # Sellos / garantía
         stamps_required=stamps_required,
@@ -742,12 +742,13 @@ async def access_via_nfc(
     service_history, workshops_profiles = await _build_service_history(all_records, db)
 
     # Owner WhatsApp info (owner already fetched above for the access check)
+    # No owner_name here on purpose — this payload reaches an unauthenticated
+    # scanner (see docs/PENDIENTES.md, "owner_name público sin autenticar en
+    # la ficha NFC"). owner_whatsapp is the only owner-identifying field, and
+    # only because the owner explicitly opted in (whatsapp_enabled).
     owner_whatsapp = ""
-    owner_name = ""
-    if owner:
-        owner_name = owner.full_name or ""
-        if owner.whatsapp_enabled:
-            owner_whatsapp = owner.whatsapp_number or ""
+    if owner and owner.whatsapp_enabled:
+        owner_whatsapp = owner.whatsapp_number or ""
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
@@ -778,7 +779,6 @@ async def access_via_nfc(
         vehicle_condition=vehicle.vehicle_condition or "usado",
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
-        owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
         # Sellos / garantía
         stamps_required=stamps_required,

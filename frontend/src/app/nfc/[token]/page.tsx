@@ -37,7 +37,6 @@ interface NfcVehicle {
   vehicle_condition: string
   published_at: string | null
   owner_whatsapp: string
-  owner_name: string
   lost_keychain_enabled: boolean
   stamps_required: number
   promotion_description: string

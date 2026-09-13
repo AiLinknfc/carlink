@@ -1228,7 +1228,6 @@ class NfcTokenInfoPublic(BaseModel):
     vehicle_condition: str = "usado"
     published_at: str | None = None
     owner_whatsapp: str = ""
-    owner_name: str = ""
     lost_keychain_enabled: bool = False
     # Sellos / garantía (from workshop config)
     stamps_required: int = 6
