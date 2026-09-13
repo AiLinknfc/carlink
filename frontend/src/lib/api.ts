@@ -479,6 +479,12 @@ export const adminApi = {
   updatePartner: (id: string, data: { quota_total?: number; status?: string; notes?: string }) =>
     request<PartnerAdminView>('PATCH', `/admin/nfc/partners/${id}`, data),
   partnerBatches: (id: string) => request<PartnerBatch[]>('GET', `/admin/nfc/partners/${id}/batches`),
+  // Pausar/restaurar en bloque los códigos `available` ya emitidos a un
+  // partner, sin tocar su status — updatePartner({status:'suspended'}) ya
+  // hace esto automáticamente; estos son para pausar el cupo sin suspender
+  // al partner en sí (ej. mientras se investiga algo puntual).
+  suspendPartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/suspend`),
+  reactivatePartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/reactivate`),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta

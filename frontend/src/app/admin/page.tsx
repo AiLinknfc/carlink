@@ -297,8 +297,22 @@ export default function AdminPage() {
 
   async function togglePartnerStatus(p: PartnerAdminView) {
     const nextStatus = p.status === 'active' ? 'suspended' : 'active'
-    const updated = await adminApi.updatePartner(p.id, { status: nextStatus })
-    if (updated) setPartners(prev => prev.map(x => x.id === p.id ? updated : x))
+    const apply = async () => {
+      const updated = await adminApi.updatePartner(p.id, { status: nextStatus })
+      if (updated) setPartners(prev => prev.map(x => x.id === p.id ? updated : x))
+    }
+    // Suspender/reactivar el partner arrastra también sus códigos
+    // `available` ya emitidos (pausados, no borrados — reactivar los
+    // restaura tal cual). Confirmar solo al suspender, para que quede claro
+    // que no es solo cortarle la api key.
+    if (nextStatus === 'suspended') {
+      setConfirmModal({
+        message: `Se va a suspender a ${p.name} y pausar todos los códigos de activación que ya emitió y todavía no se reclamaron (no se borran — reactivarlo los restaura igual).`,
+        onConfirm: async () => { await apply(); setConfirmModal(null) },
+      })
+    } else {
+      await apply()
+    }
   }
 
   async function toggleBatchesFor(p: PartnerAdminView) {

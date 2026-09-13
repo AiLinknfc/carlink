@@ -1382,8 +1382,16 @@ class NfcWhitelistOut(BaseModel):
     provisioned_by_partner_id: UUID | None = None
     partner_batch_id: UUID | None = None
     partner_name: str = ""
+    # Paused (not deleted) — see docs/PENDIENTES.md item 3. Only ever set on
+    # rows with provisioned_by_partner_id != null.
+    suspended_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class WhitelistBulkActionOut(BaseModel):
+    """How many nfc_token_whitelist rows a bulk suspend/reactivate touched."""
+    count: int
 
 
 class NfcWhitelistCreate(BaseModel):

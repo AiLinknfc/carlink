@@ -906,6 +906,7 @@ export interface NfcWhitelistEntry {
   provisioned_by_partner_id: string | null;
   partner_batch_id: string | null;
   partner_name: string;
+  suspended_at: string | null;
 }
 
 export interface NfcWhitelistProvisionResult {

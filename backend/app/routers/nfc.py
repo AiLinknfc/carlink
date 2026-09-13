@@ -226,11 +226,15 @@ async def activate_nfc_token(
     # Atomic claim: the UPDATE only matches rows still 'available', so a
     # concurrent replay of the same code (e.g. leaked/shared) loses the row
     # lock race and gets 0 rows back instead of double-activating.
+    # `suspended_at IS NULL` closes the partner-suspension gap (see
+    # docs/PENDIENTES.md item 3): a partner's already-issued codes stop being
+    # claimable the moment they're paused, without deleting/regenerating
+    # anything — reactivating just clears suspended_at on the same rows.
     claim_result = await db.execute(
         text(
             "UPDATE nfc_token_whitelist "
             "SET status = 'claimed', claimed_by = :uid, claimed_vehicle_id = :vid, claimed_at = now() "
-            "WHERE activation_code_hash = :code_hash AND status = 'available' "
+            "WHERE activation_code_hash = :code_hash AND status = 'available' AND suspended_at IS NULL "
             "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug"
         ),
         {"uid": str(uid), "vid": str(vehicle.id), "code_hash": code_hash},

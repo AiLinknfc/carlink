@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -47,6 +47,7 @@ from app.schemas.schemas import (
     PartnerCreateOut,
     PartnerOut,
     PartnerUpdate,
+    WhitelistBulkActionOut,
 )
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
@@ -265,6 +266,7 @@ async def list_whitelist(
             provisioned_by_partner_id=e.provisioned_by_partner_id,
             partner_batch_id=e.partner_batch_id,
             partner_name=partner_names.get(e.provisioned_by_partner_id, "") if e.provisioned_by_partner_id else "",
+            suspended_at=e.suspended_at,
         ))
     return out
 
@@ -491,6 +493,66 @@ async def delete_tag_inventory(
 
 # ── Partners (rol de aprovisionamiento escopeado, ver docs/PLAN_PARTNER_MODEL.md) ──
 
+async def _set_partner_whitelist_suspension(partner_id: UUID, db: AsyncSession, suspend: bool) -> int:
+    """Bulk-pauses or restores a partner's already-issued, still-unclaimed
+    codes — never deletes/regenerates anything, just flips `suspended_at` on
+    the same rows (migration 053). Only touches status='available' rows:
+    a code already `claimed` became a real nfc_tokens row for a real user,
+    untouched by a partner's suspension. See docs/PENDIENTES.md item 3."""
+    if suspend:
+        result = await db.execute(
+            text(
+                "UPDATE nfc_token_whitelist SET suspended_at = now() "
+                "WHERE provisioned_by_partner_id = :pid AND status = 'available' AND suspended_at IS NULL"
+            ),
+            {"pid": str(partner_id)},
+        )
+    else:
+        result = await db.execute(
+            text(
+                "UPDATE nfc_token_whitelist SET suspended_at = NULL "
+                "WHERE provisioned_by_partner_id = :pid AND status = 'available' AND suspended_at IS NOT NULL"
+            ),
+            {"pid": str(partner_id)},
+        )
+    return result.rowcount or 0
+
+
+@router.post("/partners/{partner_id}/whitelist/suspend", response_model=WhitelistBulkActionOut)
+async def suspend_partner_whitelist(
+    partner_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Pausa en bloque los códigos `available` ya emitidos a este partner,
+    sin tocar su `status` (independiente de suspender el partner en sí —
+    útil para pausar cupo mientras se investiga algo, sin cortarle ya mismo
+    la api key). Ver también: suspender el partner (PATCH .../partners/{id})
+    hace esto mismo automáticamente."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Partner not found")
+    count = await _set_partner_whitelist_suspension(partner_id, db, suspend=True)
+    await db.flush()
+    return WhitelistBulkActionOut(count=count)
+
+
+@router.post("/partners/{partner_id}/whitelist/reactivate", response_model=WhitelistBulkActionOut)
+async def reactivate_partner_whitelist(
+    partner_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Inverso de suspend_partner_whitelist — restaura los mismos códigos
+    (mismos hashes, sin regenerar nada) a `available`."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Partner not found")
+    count = await _set_partner_whitelist_suspension(partner_id, db, suspend=False)
+    await db.flush()
+    return WhitelistBulkActionOut(count=count)
+
+
 @router.post("/partners", response_model=PartnerCreateOut, status_code=status.HTTP_201_CREATED)
 async def create_partner(
     body: PartnerCreate,
@@ -544,7 +606,17 @@ async def update_partner(
     if body.status is not None:
         if body.status not in ("active", "suspended"):
             raise HTTPException(status_code=400, detail="status debe ser 'active' o 'suspended'")
+        previous_status = partner.status
         partner.status = body.status
+        # Cierra el gap de por sí: suspender/reactivar el partner arrastra
+        # sus códigos `available` ya emitidos, sin que haga falta un paso
+        # aparte. Mismo efecto que llamar a los endpoints
+        # /whitelist/suspend|reactivate de abajo — se exponen igual por si
+        # se quiere pausar el cupo sin tocar el status del partner.
+        if body.status == "suspended" and previous_status != "suspended":
+            await _set_partner_whitelist_suspension(partner.id, db, suspend=True)
+        elif body.status == "active" and previous_status == "suspended":
+            await _set_partner_whitelist_suspension(partner.id, db, suspend=False)
     if body.notes is not None:
         partner.notes = body.notes
     await db.flush()
