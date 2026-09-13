@@ -270,10 +270,35 @@ def send_order_confirmed_email(
     quantity: int,
     amount_in_cents: int,
     currency: str = "COP",
+    activation_codes_ready_in_app: bool = False,
+    guest_activation_codes: list[str] | None = None,
 ) -> bool:
     """Al cliente, apenas Wompi confirma el pago (transición a 'approved') —
-    ver app/routers/shop_orders.py."""
+    ver app/routers/shop_orders.py.
+
+    Entrega digital del código de activación (docs/PENDIENTES.md item 5,
+    reemplaza el impreso): si el comprador tiene cuenta CarLink
+    (`activation_codes_ready_in_app`), el código nunca viaja en este correo
+    en texto plano — solo se avisa que ya está listo para verlo en la app.
+    Si compró como invitado, sin cuenta (`guest_activation_codes`), no hay
+    otro canal donde mostrárselo — ahí sí va en el correo."""
     subject = "CarLink — Pago confirmado, tu llavero NFC va en camino"
+    activation_block = ""
+    if activation_codes_ready_in_app:
+        activation_block = """
+        <div style="background: rgba(245,197,24,0.1); border: 1px solid rgba(245,197,24,0.3); border-radius: 12px; padding: 16px; margin-top: 16px; font-size: 14px; color: #333;">
+          <strong>Tu código de activación ya está listo.</strong> Entrá a tu cuenta CarLink → "Mis pedidos" para verlo cuando quieras — no lo mandamos por correo por seguridad.
+        </div>
+        """
+    elif guest_activation_codes:
+        codes_html = "".join(f'<div style="font-family: monospace; font-size: 16px; font-weight: 700; margin: 4px 0;">{c}</div>' for c in guest_activation_codes)
+        activation_block = f"""
+        <div style="background: rgba(245,197,24,0.1); border: 1px solid rgba(245,197,24,0.3); border-radius: 12px; padding: 16px; margin-top: 16px; font-size: 14px; color: #333;">
+          <strong>Tu código de activación:</strong>
+          {codes_html}
+          <div style="margin-top: 8px; color: #666;">Guardá este correo — lo vas a necesitar para activar tu llavero en la app. Si creás una cuenta CarLink con este mismo correo, también vas a poder verlo ahí.</div>
+        </div>
+        """
     body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Gracias, {customer_name}!</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
@@ -287,6 +312,7 @@ def send_order_confirmed_email(
           <strong>Total:</strong> {_format_cop(amount_in_cents)} {currency}<br>
           <strong>Entrega estimada:</strong> 5 días hábiles
         </div>
+        {activation_block}
     """
     html = _email_shell(body, footer_text="Te avisamos por acá apenas salga hacia tu dirección.")
     return _send_email(customer_email, subject, html, log_label=f"order-confirmed email ({reference})")

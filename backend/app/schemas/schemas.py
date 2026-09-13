@@ -1737,6 +1737,11 @@ class ShopOrderDetailOut(ShopOrderOut):
     shipped_at: datetime | None = None
     delivered_at: datetime | None = None
     tracking_note: str
+    # Códigos de activación asignados a este pedido, descifrados al vuelo —
+    # solo lo llena GET /shop/orders (el propio comprador viendo "Mis
+    # pedidos"), nunca la cola de despacho de admin. Ver
+    # docs/PENDIENTES.md item 5.
+    activation_codes: list[str] = []
 
 
 class ShopOrderFulfillmentUpdate(BaseModel):

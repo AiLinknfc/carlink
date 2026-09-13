@@ -7,12 +7,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
-from app.models.models import ShopOrder
+from app.models.models import NfcTokenWhitelist, ShopOrder
 from app.schemas.schemas import (
     ShopOrderConfirm,
     ShopOrderCreate,
@@ -23,6 +23,7 @@ from app.schemas.schemas import (
     ShopOrderStatsOut,
 )
 from app.services import email, wompi
+from app.services.crypto import decrypt_url
 
 logger = logging.getLogger("carlink")
 
@@ -77,7 +78,42 @@ def _apply_transaction_data(order: ShopOrder, txn: dict) -> bool:
     return True
 
 
-async def _notify_order_approved(order: ShopOrder) -> None:
+async def _assign_activation_codes(order: ShopOrder, db: AsyncSession) -> list[str]:
+    """Reserva hasta `order.quantity` códigos de activación ya provisionados
+    (chip físico ya fabricado, sentado en inventario — ver migración 057)
+    para este pedido, y devuelve los códigos en texto plano, descifrados al
+    vuelo. Nunca se persisten en texto plano en ningún lado.
+
+    Best-effort y parcial a propósito: si no hay stock elegible suficiente
+    (todo lo provisionado antes de esta feature no tiene
+    `activation_code_encrypted`, o simplemente no queda stock), asigna lo
+    que haya — el resto de las unidades de ese pedido siguen el camino de
+    siempre (código impreso en el paquete). Nunca bloquea la aprobación del
+    pago por esto."""
+    already = (await db.execute(
+        select(func.count()).select_from(NfcTokenWhitelist).where(NfcTokenWhitelist.shop_order_id == order.id)
+    )).scalar() or 0
+    remaining = order.quantity - already
+    if remaining <= 0:
+        return []
+
+    result = await db.execute(
+        text(
+            "UPDATE nfc_token_whitelist SET shop_order_id = :oid "
+            "WHERE id IN ("
+            "  SELECT id FROM nfc_token_whitelist "
+            "  WHERE status = 'available' AND shop_order_id IS NULL "
+            "    AND activation_code_encrypted IS NOT NULL AND provisioned_by_partner_id IS NULL "
+            "  ORDER BY created_at LIMIT :n FOR UPDATE SKIP LOCKED"
+            ") RETURNING activation_code_encrypted"
+        ),
+        {"oid": str(order.id), "n": remaining},
+    )
+    codes = [decrypt_url(row[0]) for row in result.all()]
+    return [c for c in codes if c]
+
+
+async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
     """Correo al cliente ("pago confirmado") + al admin ("hay que
     despachar"), disparado una sola vez por orden — el caller solo debe
     llamar esto cuando detecta la transición a 'approved' (was_approved era
@@ -88,6 +124,12 @@ async def _notify_order_approved(order: ShopOrder) -> None:
     email.send_* es smtplib bloqueante (sync) — correrlo directo acá
     congelaría el event loop entero (no solo este request) si Hostinger
     tarda o no responde. run_in_threadpool lo saca a un hilo aparte."""
+    codes = await _assign_activation_codes(order, db)
+    # Con cuenta CarLink (order.user_id): el código se ve en "Mis pedidos",
+    # el correo solo avisa que está listo — nunca lo incluye en texto
+    # plano. Compra de invitado (sin cuenta, order.user_id es null): no hay
+    # ningún otro canal donde mostrárselo, así que el correo sí lo incluye
+    # — es el único lugar al que el comprador tiene acceso.
     try:
         await run_in_threadpool(
             email.send_order_confirmed_email,
@@ -98,6 +140,8 @@ async def _notify_order_approved(order: ShopOrder) -> None:
             quantity=order.quantity,
             amount_in_cents=order.amount_in_cents,
             currency=order.currency,
+            activation_codes_ready_in_app=bool(codes) and order.user_id is not None,
+            guest_activation_codes=codes if (codes and order.user_id is None) else None,
         )
     except Exception as e:
         logger.error(f"send_order_confirmed_email failed for {order.reference}: {e}")
@@ -198,7 +242,26 @@ async def list_shop_orders(
         .order_by(ShopOrder.created_at.desc())
         .limit(200)
     )
-    return result.scalars().all()
+    orders = list(result.scalars().all())
+
+    codes_by_order: dict[uuid.UUID, list[str]] = {}
+    order_ids = [o.id for o in orders]
+    if order_ids:
+        rows = await db.execute(
+            select(NfcTokenWhitelist.shop_order_id, NfcTokenWhitelist.activation_code_encrypted)
+            .where(NfcTokenWhitelist.shop_order_id.in_(order_ids))
+        )
+        for oid, encrypted in rows.all():
+            code = decrypt_url(encrypted) if encrypted else None
+            if code:
+                codes_by_order.setdefault(oid, []).append(code)
+
+    out = []
+    for o in orders:
+        detail = ShopOrderDetailOut.model_validate(o)
+        detail.activation_codes = codes_by_order.get(o.id, [])
+        out.append(detail)
+    return out
 
 
 @router.get("/admin/orders", response_model=list[ShopOrderDetailOut])
@@ -274,7 +337,7 @@ async def mark_shop_order_paid(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Order status is '{order.status}', not 'pending'")
 
     order.status = "approved"
-    await _notify_order_approved(order)
+    await _notify_order_approved(order, db)
 
     await db.flush()
     await db.refresh(order)
@@ -344,7 +407,7 @@ async def confirm_shop_order(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction does not match this order")
 
     if not was_approved and order.status == "approved":
-        await _notify_order_approved(order)
+        await _notify_order_approved(order, db)
 
     await db.flush()
     await db.refresh(order)
@@ -376,6 +439,6 @@ async def wompi_webhook(request: Request, db: Annotated[AsyncSession, Depends(ge
     was_approved = order.status == "approved"
     _apply_transaction_data(order, txn)
     if not was_approved and order.status == "approved":
-        await _notify_order_approved(order)
+        await _notify_order_approved(order, db)
     await db.flush()
     return {"ok": True}

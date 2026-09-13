@@ -1053,6 +1053,7 @@ export interface ShopOrderDetail {
   shipped_at: string | null;
   delivered_at: string | null;
   tracking_note: string;
+  activation_codes: string[];
 }
 
 export interface ShopOrderStats {

@@ -49,6 +49,7 @@ from app.schemas.schemas import (
     PartnerUpdate,
     WhitelistBulkActionOut,
 )
+from app.services.crypto import encrypt_url
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
 router = APIRouter(prefix="/admin/nfc", tags=["admin-nfc"])
@@ -340,6 +341,11 @@ async def provision_whitelist_entry(
         label=body.label,
         added_by=uuid.UUID(admin),
         activation_code_hash=activation_code_hash,
+        # Igual patrón que token_url_encrypted: permite volver a mostrarle
+        # el código al comprador (docs/PENDIENTES.md item 5) sin guardarlo
+        # en texto plano — el hash de arriba sigue siendo lo único que
+        # valida POST /nfc/activate.
+        activation_code_encrypted=encrypt_url(activation_code),
         token_hash=generated.token_hash,
         token_prefix=generated.token_prefix,
         token_url_encrypted=generated.token_url_encrypted,

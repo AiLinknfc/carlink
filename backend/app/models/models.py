@@ -413,6 +413,11 @@ class NfcTokenWhitelist(Base):
     # admin, igual que siempre.
     provisioned_by_partner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("partners.id", ondelete="SET NULL"), nullable=True)
     partner_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Entrega digital del código (docs/PENDIENTES.md item 5, migración 057).
+    # Igual patrón que token_url_encrypted: cifrado en reposo, nunca texto
+    # plano — solo se guarda en llaveros provisionados de acá en adelante.
+    activation_code_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shop_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id", ondelete="SET NULL"), nullable=True)
     # Paused without deleting — a suspended partner's still-`available` codes
     # land here (migration 053) instead of getting deleted, so reactivating
     # the partner restores the exact same codes (same hashes), no regen.

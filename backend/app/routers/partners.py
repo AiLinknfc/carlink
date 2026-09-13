@@ -21,6 +21,7 @@ from app.schemas.schemas import (
     PartnerTokenOut,
     WhitelistBulkActionOut,
 )
+from app.services.crypto import encrypt_url
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
 router = APIRouter(prefix="/partners", tags=["partners"])
@@ -75,6 +76,7 @@ async def provision_batch(
             tag_uid=tag_uid,
             label=body.batch_note,
             activation_code_hash=activation_code_hash,
+            activation_code_encrypted=encrypt_url(activation_code),
             token_hash=generated.token_hash,
             token_prefix=generated.token_prefix,
             token_url_encrypted=generated.token_url_encrypted,
