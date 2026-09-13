@@ -181,6 +181,10 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/050_waitlist_leads_contact_type.sql
 \i supabase/migrations/051_whatsapp_click_tracking.sql
 \i supabase/migrations/052_maintenance_lubricant_product.sql
+\i supabase/migrations/053_partner_whitelist_suspension.sql
+\i supabase/migrations/054_partner_batch_distributed_at.sql
+\i supabase/migrations/055_persona_token_limit_3.sql
+\i supabase/migrations/057_shop_order_activation_delivery.sql
 ```
 
 **Nota sobre 052 (2026-09-12, confirmada aplicada contra la base real)**: agrega
