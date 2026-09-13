@@ -71,6 +71,11 @@ export async function POST(
     }
 
     const transferData = transfer.transfer_data || {}
+    // token.id -> true ("va con el vehículo", se reasigna) | false/ausente
+    // ("me lo quedo", se revoca — default seguro). Ver docs/PENDIENTES.md
+    // ítem 11: antes esto era un solo checkbox global que revocaba TODOS
+    // los llaveros activos o ninguno, sin poder elegir por llavero.
+    const nfcTokenChoices: Record<string, boolean> = transferData.nfcTokenChoices || {}
 
     // Update vehicle ownership
     const { error: vehicleError } = await supabase
@@ -89,6 +94,49 @@ export async function POST(
       return NextResponse.json({ error: 'Error actualizando vehículo' }, { status: 500 })
     }
 
+    // Llaveros: hecho DESPUÉS de mover vehicles.owner_id (arriba) y
+    // ANTES de marcar la transferencia 'completed' (abajo) — orden real,
+    // no cosmético. La política RLS ya existente de nfc_tokens
+    // ("Users can update own vehicle tokens", migración 041) autoriza por
+    // `vehicles.owner_id = auth.uid()`, así que recién funciona una vez que
+    // el paso de arriba ya puso al comprador como dueño del vehículo — no
+    // hizo falta ninguna política nueva. Confirmado con simulación de rol
+    // real (SET LOCAL role authenticated + request.jwt.claims) contra la
+    // base: en el orden correcto el comprador puede reasignar/revocar; en
+    // el orden invertido (llaveros antes que el vehículo) queda bloqueado,
+    // igual que un tercero ajeno a la transferencia — ver docs/PENDIENTES.md
+    // ítem 11.
+    //
+    // Un llavero activo sobre un vehículo que ya no es tuyo no debería
+    // sobrevivir a la transferencia — por eso cualquier token que el
+    // vendedor no haya marcado explícitamente "va con el vehículo" se
+    // revoca, nunca queda activo bajo el dueño anterior (mismo criterio
+    // para uno que el vendedor se quedó, uno que se le olvidó, o uno
+    // perdido sin revocar). Solo alcanza a llaveros personales — los trial
+    // son de cuentas taller, no de compraventa entre personas.
+    const { data: activeTokens } = await supabase
+      .from('nfc_tokens')
+      .select('id')
+      .eq('vehicle_id', vehicle.id)
+      .eq('is_active', true)
+      .eq('token_type', 'personal')
+
+    for (const token of activeTokens || []) {
+      if (nfcTokenChoices[token.id]) {
+        const { error: reassignError } = await supabase
+          .from('nfc_tokens')
+          .update({ user_id: user.id })
+          .eq('id', token.id)
+        if (reassignError) console.error('NFC token reassign error:', token.id, reassignError)
+      } else {
+        const { error: revokeError } = await supabase
+          .from('nfc_tokens')
+          .update({ is_active: false, status: 'revoked' })
+          .eq('id', token.id)
+        if (revokeError) console.error('NFC token revoke error:', token.id, revokeError)
+      }
+    }
+
     // Update transfer status
     const { error: transferUpdateError } = await supabase
       .from('vehicle_transfers')
@@ -101,15 +149,6 @@ export async function POST(
 
     if (transferUpdateError) {
       console.error('Transfer update error:', transferUpdateError)
-    }
-
-    // Handle NFC token if revocation requested
-    if (transferData.revokeNfc) {
-      await supabase
-        .from('nfc_tokens')
-        .update({ is_active: false, status: 'revoked' })
-        .eq('vehicle_id', vehicle.id)
-        .eq('is_active', true)
     }
 
     // Notify sender (could be an in-app notification or email)

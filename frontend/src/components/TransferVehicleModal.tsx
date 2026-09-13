@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { apiGet } from '@/lib/api'
+import type { NfcToken } from '@/lib/types'
 
 interface Props {
   vehicle: {
@@ -20,18 +22,35 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
   const [step, setStep] = useState<'form' | 'loading' | 'confirm' | 'done'>('form')
   const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerName, setBuyerName] = useState('')
-  const [transferData, setTransferData] = useState({
-    keepMaintenance: true,
-    keepDocuments: true,
-    keepParts: true,
-    keepNfc: true,
-    revokeNfc: false,
-    price: '',
-    notes: '',
-  })
+  // Historial de mantenimiento y documentos siempre viajan con el vehículo —
+  // no son elegibles (ver docs/PENDIENTES.md ítem 11: los 4 checkboxes que
+  // había acá antes eran decorativos, no tocaban nada en accept/route.ts).
+  // Lo único que sí requiere una elección real es, llavero por llavero, si
+  // se va con el auto o el vendedor lo revoca — nfcChoices mapea
+  // token.id -> true ("va con el vehículo") | false ("me lo quedo",
+  // default seguro).
+  const [transferData, setTransferData] = useState({ price: '', notes: '' })
+  const [nfcTokens, setNfcTokens] = useState<NfcToken[]>([])
+  const [nfcTokensLoading, setNfcTokensLoading] = useState(true)
+  const [nfcChoices, setNfcChoices] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [transferId, setTransferId] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    apiGet<NfcToken[]>(`/nfc/tokens?vehicle_id=${vehicle.id}`).then(tokens => {
+      if (cancelled) return
+      const active = (tokens || []).filter(t => t.is_active)
+      setNfcTokens(active)
+      // Default seguro: ninguno marcado "va con el vehículo" hasta que el
+      // vendedor lo elija explícitamente — un llavero que se pasa por alto
+      // se revoca, nunca queda colgado bajo el dueño anterior.
+      setNfcChoices(Object.fromEntries(active.map(t => [t.id, false])))
+      setNfcTokensLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [vehicle.id])
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
@@ -56,7 +75,7 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
         body: JSON.stringify({
           buyerEmail: buyerEmail.trim().toLowerCase(),
           buyerName: buyerName.trim() || undefined,
-          transferData,
+          transferData: { ...transferData, nfcTokenChoices: nfcChoices },
         }),
       })
 
@@ -124,11 +143,13 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
           <p><strong>Expira:</strong> {expiresAt ? formatDate(expiresAt) : '—'}</p>
           <p><strong>Incluye:</strong></p>
           <ul style={styles.list}>
-            {transferData.keepMaintenance && <li>Historial de mantenimiento</li>}
-            {transferData.keepDocuments && <li>Documentos (SOAT, RTM, etc.)</li>}
-            {transferData.keepParts && <li>Control de partes</li>}
-            {transferData.keepNfc && <li>Llavero NFC activo</li>}
-            {transferData.revokeNfc && <li>Llavero NFC será revocado</li>}
+            <li>Historial de mantenimiento y control de partes</li>
+            <li>Documentos (SOAT, RTM, facturas, tarjeta de propiedad)</li>
+            {nfcTokens.map(t => (
+              <li key={t.id}>
+                Llavero {t.label || t.token_prefix}: {nfcChoices[t.id] ? 'se transfiere al comprador' : 'se revoca (el vendedor lo conserva)'}
+              </li>
+            ))}
             {transferData.price && <li>Precio de venta: {transferData.price}</li>}
           </ul>
         </div>
@@ -197,27 +218,9 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
             </svg>
             Qué se transfiere con el vehículo
           </label>
-          <div style={styles.checkboxGrid}>
-            {[
-              { key: 'keepMaintenance', label: 'Historial de mantenimiento', desc: 'Todos los servicios y kilometrajes' },
-              { key: 'keepDocuments', label: 'Documentos legales', desc: 'SOAT, RTM, facturas, tarjeta de propiedad' },
-              { key: 'keepParts', label: 'Control de partes', desc: 'Estado de componentes mecánicos' },
-              { key: 'keepNfc', label: 'Llavero NFC activo', desc: 'El llavero actual seguirá funcionando' },
-            ].map(item => (
-              <label key={item.key} style={styles.checkboxItem}>
-                <input
-                  type="checkbox"
-                  checked={transferData[item.key as keyof typeof transferData] as boolean}
-                  onChange={e => setTransferData(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                  style={styles.checkbox}
-                />
-                <div>
-                  <span style={styles.checkboxLabel}>{item.label}</span>
-                  <span style={styles.checkboxDesc}>{item.desc}</span>
-                </div>
-              </label>
-            ))}
-          </div>
+          <p style={styles.checkboxDesc}>
+            El historial de mantenimiento, el control de partes y los documentos (SOAT, RTM, facturas, tarjeta de propiedad) siempre se transfieren con el vehículo.
+          </p>
         </div>
 
         <div style={styles.section}>
@@ -226,22 +229,36 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <path d="M9 12l2 2 4-4" />
             </svg>
-            Opciones adicionales
+            Llaveros NFC activos
           </label>
-          <div style={styles.checkboxGrid}>
-            <label style={styles.checkboxItem}>
-              <input
-                type="checkbox"
-                checked={transferData.revokeNfc}
-                onChange={e => setTransferData(prev => ({ ...prev, revokeNfc: e.target.checked }))}
-                style={styles.checkbox}
-              />
-              <div>
-                <span style={styles.checkboxLabel}>Revocar llavero NFC actual</span>
-                <span style={styles.checkboxDesc}>El comprador deberá solicitar uno nuevo</span>
-              </div>
-            </label>
-          </div>
+          {nfcTokensLoading ? (
+            <div style={styles.checkboxDesc}>Cargando llaveros...</div>
+          ) : nfcTokens.length === 0 ? (
+            <div style={styles.checkboxDesc}>Este vehículo no tiene ningún llavero activo.</div>
+          ) : (
+            <div style={styles.checkboxGrid}>
+              {nfcTokens.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div>
+                    <span style={styles.checkboxLabel}>{t.label || 'Llavero NFC'} · {t.token_prefix}</span>
+                    <span style={styles.checkboxDesc}>{nfcChoices[t.id] ? 'Se transfiere al comprador, sigue funcionando sin cambios' : 'Se revoca al completar la transferencia — el vendedor lo conserva desactivado'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+                    <button type="button"
+                      onClick={() => setNfcChoices(prev => ({ ...prev, [t.id]: false }))}
+                      style={nfcChoices[t.id] ? styles.toggleBtnOff : styles.toggleBtnOn}>
+                      Me lo quedo
+                    </button>
+                    <button type="button"
+                      onClick={() => setNfcChoices(prev => ({ ...prev, [t.id]: true }))}
+                      style={nfcChoices[t.id] ? styles.toggleBtnOn : styles.toggleBtnOff}>
+                      Va con el vehículo
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={styles.section}>
@@ -343,6 +360,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   checkboxLabel: { display: 'block', fontSize: 13, fontWeight: 600, color: '#f5f3ec', marginBottom: 2 },
   checkboxDesc: { display: 'block', fontSize: 11, color: '#8f8a7a' },
+  toggleBtnOn: {
+    padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+    border: '1px solid #F5C518', background: 'rgba(245,197,24,0.15)', color: '#F5C518',
+  },
+  toggleBtnOff: {
+    padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+    border: '1px solid var(--input-border, rgba(255,255,255,0.14))', background: 'transparent', color: '#8f8a7a',
+  },
   details: { 
     background: 'rgba(245,197,24,0.05)', border: '1px solid rgba(245,197,24,0.1)', 
     borderRadius: 12, padding: 16, marginBottom: 20, fontSize: 13, color: '#d8d4c8', lineHeight: 1.8 
