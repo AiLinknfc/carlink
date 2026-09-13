@@ -1271,13 +1271,14 @@ class FoundRequestOut(BaseModel):
     finder_name: str
     status: str
     created_at: datetime
-    # Joined data
+    # Joined data. Deliberately no owner_name/owner_email/owner_whatsapp —
+    # this response reaches the finder (unauthenticated on /public), who
+    # must never learn the vehicle owner's identity. See
+    # docs/PENDIENTES.md, "Filtración de PII sin autenticación en
+    # found_requests.py".
     vehicle_plate: str = ""
     vehicle_brand: str = ""
     vehicle_model: str = ""
-    owner_name: str = ""
-    owner_email: str = ""
-    owner_whatsapp: str = ""
 
     model_config = {"from_attributes": True}
 

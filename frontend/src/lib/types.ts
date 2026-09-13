@@ -547,9 +547,6 @@ export interface FoundRequest {
   vehicle_plate: string;
   vehicle_brand: string;
   vehicle_model: string;
-  owner_name: string;
-  owner_email: string;
-  owner_whatsapp: string;
 }
 
 export interface NfcTokenPublicInfo {
