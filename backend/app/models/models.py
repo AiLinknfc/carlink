@@ -417,6 +417,10 @@ class NfcTokenWhitelist(Base):
     # land here (migration 053) instead of getting deleted, so reactivating
     # the partner restores the exact same codes (same hashes), no regen.
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set once, in bulk, when a partner/admin confirms a batch physically
+    # went out (migration 054). Feeds the "activated before distributed"
+    # alert in activate_nfc_token — detection, not a barrier.
+    distributed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Partner(Base):

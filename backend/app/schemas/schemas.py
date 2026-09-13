@@ -1385,6 +1385,8 @@ class NfcWhitelistOut(BaseModel):
     # Paused (not deleted) — see docs/PENDIENTES.md item 3. Only ever set on
     # rows with provisioned_by_partner_id != null.
     suspended_at: datetime | None = None
+    # Marked by hand when the batch physically went out — see item 4.
+    distributed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -1500,6 +1502,9 @@ class PartnerBatchOut(BaseModel):
     total: int
     claimed: int
     note: str = ""
+    # Marcado a mano cuando el lote salió de verdad a repartirse — null si
+    # todavía nadie lo confirmó. Ver docs/PENDIENTES.md item 4.
+    distributed_at: datetime | None = None
 
 
 class PartnerTokenOut(BaseModel):
@@ -1516,6 +1521,7 @@ class PartnerTokenOut(BaseModel):
     qr_url: str | None = None
     partner_batch_id: UUID | None = None
     created_at: datetime
+    distributed_at: datetime | None = None
 
 
 class NfcStatsOut(BaseModel):

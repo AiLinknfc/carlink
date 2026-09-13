@@ -907,6 +907,7 @@ export interface NfcWhitelistEntry {
   partner_batch_id: string | null;
   partner_name: string;
   suspended_at: string | null;
+  distributed_at: string | null;
 }
 
 export interface NfcWhitelistProvisionResult {
@@ -989,6 +990,7 @@ export interface PartnerBatch {
   total: number;
   claimed: number;
   note: string;
+  distributed_at: string | null;
 }
 
 export interface PartnerToken {
@@ -999,6 +1001,7 @@ export interface PartnerToken {
   qr_url: string | null;
   partner_batch_id: string | null;
   created_at: string;
+  distributed_at: string | null;
 }
 
 export interface PartnerAdminView {

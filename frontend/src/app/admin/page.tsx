@@ -966,8 +966,19 @@ export default function AdminPage() {
                       {partnerBatches.length === 0 ? (
                         <div style={{ fontSize: 12, color: c.muted }}>Sin lotes todavía.</div>
                       ) : partnerBatches.map(b => (
-                        <div key={b.batch_id} style={{ fontSize: 12, color: c.muted, padding: '4px 0' }}>
-                          {new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} reclamados{b.note ? ` · ${b.note}` : ''}
+                        <div key={b.batch_id} style={{ fontSize: 12, color: c.muted, padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span>{new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} reclamados{b.note ? ` · ${b.note}` : ''}</span>
+                          {b.distributed_at ? (
+                            <span style={{ color: '#2ecc71' }}>· distribuido {new Date(b.distributed_at).toLocaleDateString()}</span>
+                          ) : (
+                            <button onClick={async () => {
+                              await adminApi.markBatchDistributed(p.id, b.batch_id)
+                              const fresh = await adminApi.partnerBatches(p.id)
+                              if (fresh) setPartnerBatches(fresh)
+                            }} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'none', color: c.accent, cursor: 'pointer' }}>
+                              Marcar distribuido
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

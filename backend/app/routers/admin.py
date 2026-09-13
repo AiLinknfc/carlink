@@ -267,6 +267,7 @@ async def list_whitelist(
             partner_batch_id=e.partner_batch_id,
             partner_name=partner_names.get(e.provisioned_by_partner_id, "") if e.provisioned_by_partner_id else "",
             suspended_at=e.suspended_at,
+            distributed_at=e.distributed_at,
         ))
     return out
 
@@ -640,12 +641,38 @@ async def list_partner_batches_admin(
             func.min(NfcTokenWhitelist.label).label("note"),
             func.count().label("total"),
             func.count().filter(NfcTokenWhitelist.status != "available").label("claimed"),
+            func.max(NfcTokenWhitelist.distributed_at).label("distributed_at"),
         )
         .where(NfcTokenWhitelist.provisioned_by_partner_id == partner_id)
         .group_by(NfcTokenWhitelist.partner_batch_id)
         .order_by(func.min(NfcTokenWhitelist.created_at).desc())
     )
     return [
-        PartnerBatchOut(batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total, claimed=row.claimed, note=row.note or "")
+        PartnerBatchOut(
+            batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total,
+            claimed=row.claimed, note=row.note or "", distributed_at=row.distributed_at,
+        )
         for row in result.all()
     ]
+
+
+@router.post("/partners/{partner_id}/batches/{batch_id}/mark-distributed", response_model=WhitelistBulkActionOut)
+async def mark_batch_distributed_admin(
+    partner_id: UUID,
+    batch_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Confirma que un lote salió físicamente a repartirse — alimenta la
+    alerta 'activated_before_distributed' en activate_nfc_token (ver
+    docs/PENDIENTES.md item 4). Idempotente: solo toca filas que todavía no
+    tenían distributed_at."""
+    result = await db.execute(
+        text(
+            "UPDATE nfc_token_whitelist SET distributed_at = now() "
+            "WHERE partner_batch_id = :bid AND provisioned_by_partner_id = :pid AND distributed_at IS NULL"
+        ),
+        {"bid": str(batch_id), "pid": str(partner_id)},
+    )
+    await db.flush()
+    return WhitelistBulkActionOut(count=result.rowcount or 0)

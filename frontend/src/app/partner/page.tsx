@@ -215,16 +215,29 @@ export default function PartnerPage() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {batches.map(b => (
-                        <button key={b.batch_id}
-                          onClick={() => { const next = tokensBatchFilter === b.batch_id ? null : b.batch_id; setTokensBatchFilter(next); loadTokens(next) }}
-                          style={{
-                            textAlign: 'left', fontSize: 12.5, padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
-                            border: `1px solid ${tokensBatchFilter === b.batch_id ? c.accent : c.border}`,
-                            background: tokensBatchFilter === b.batch_id ? 'rgba(245,197,24,0.1)' : 'transparent',
-                            color: tokensBatchFilter === b.batch_id ? c.accent : c.text,
-                          }}>
-                          {new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} activados{b.note ? ` · ${b.note}` : ''}
-                        </button>
+                        <div key={b.batch_id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => { const next = tokensBatchFilter === b.batch_id ? null : b.batch_id; setTokensBatchFilter(next); loadTokens(next) }}
+                            style={{
+                              flex: 1, textAlign: 'left', fontSize: 12.5, padding: '8px 10px', borderRadius: 9, cursor: 'pointer',
+                              border: `1px solid ${tokensBatchFilter === b.batch_id ? c.accent : c.border}`,
+                              background: tokensBatchFilter === b.batch_id ? 'rgba(245,197,24,0.1)' : 'transparent',
+                              color: tokensBatchFilter === b.batch_id ? c.accent : c.text,
+                            }}>
+                            {new Date(b.created_at).toLocaleString()} · {b.claimed}/{b.total} activados{b.note ? ` · ${b.note}` : ''}
+                          </button>
+                          {b.distributed_at ? (
+                            <span style={{ fontSize: 10.5, color: '#2ecc71', whiteSpace: 'nowrap' }}>distribuido</span>
+                          ) : (
+                            <button onClick={async () => {
+                              await partnerApi.markBatchDistributed(apiKey, b.batch_id)
+                              const fresh = await partnerApi.batches(apiKey)
+                              if (fresh.data) setBatches(fresh.data)
+                            }} style={{ fontSize: 10.5, padding: '4px 8px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'none', color: c.muted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              Marcar distribuido
+                            </button>
+                          )}
+                        </div>
                       ))}
                       {tokensBatchFilter && (
                         <button onClick={() => { setTokensBatchFilter(null); loadTokens(null) }} style={{ alignSelf: 'flex-start', fontSize: 11.5, color: c.muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: '2px 0' }}>

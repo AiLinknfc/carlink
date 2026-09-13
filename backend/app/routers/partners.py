@@ -5,7 +5,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     PartnerProvisionOut,
     PartnerProvisionRequest,
     PartnerTokenOut,
+    WhitelistBulkActionOut,
 )
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
@@ -117,15 +118,40 @@ async def list_partner_batches(
             func.min(NfcTokenWhitelist.label).label("note"),
             func.count().label("total"),
             func.count().filter(NfcTokenWhitelist.status != "available").label("claimed"),
+            func.max(NfcTokenWhitelist.distributed_at).label("distributed_at"),
         )
         .where(NfcTokenWhitelist.provisioned_by_partner_id == partner.id)
         .group_by(NfcTokenWhitelist.partner_batch_id)
         .order_by(func.min(NfcTokenWhitelist.created_at).desc())
     )
     return [
-        PartnerBatchOut(batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total, claimed=row.claimed, note=row.note or "")
+        PartnerBatchOut(
+            batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total,
+            claimed=row.claimed, note=row.note or "", distributed_at=row.distributed_at,
+        )
         for row in result.all()
     ]
+
+
+@router.post("/me/batches/{batch_id}/mark-distributed", response_model=WhitelistBulkActionOut)
+async def mark_own_batch_distributed(
+    batch_id: uuid.UUID,
+    partner: Annotated[Partner, Depends(get_current_partner)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """El propio partner confirma que un lote suyo salió a repartirse —
+    alimenta la alerta 'activated_before_distributed'. Solo toca lotes
+    propios (scopeado por provisioned_by_partner_id = partner.id, igual que
+    el resto de /partners/me/*)."""
+    result = await db.execute(
+        text(
+            "UPDATE nfc_token_whitelist SET distributed_at = now() "
+            "WHERE partner_batch_id = :bid AND provisioned_by_partner_id = :pid AND distributed_at IS NULL"
+        ),
+        {"bid": str(batch_id), "pid": str(partner.id)},
+    )
+    await db.flush()
+    return WhitelistBulkActionOut(count=result.rowcount or 0)
 
 
 @router.get("/me/tokens", response_model=list[PartnerTokenOut])
@@ -153,6 +179,7 @@ async def list_partner_tokens(
             id=e.id, tag_uid=e.tag_uid, label=e.label, status=e.status,
             qr_url=f"{frontend_url}/nfc/q/{e.qr_slug}" if e.qr_slug else None,
             partner_batch_id=e.partner_batch_id, created_at=e.created_at,
+            distributed_at=e.distributed_at,
         )
         for e in entries
     ]

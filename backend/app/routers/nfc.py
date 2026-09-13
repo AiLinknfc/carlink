@@ -17,6 +17,7 @@ from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import (
     MaintenanceRecord,
     NfcAccessLog,
+    NfcAlert,
     NfcToken,
     NfcTokenLimit,
     Profile,
@@ -235,7 +236,8 @@ async def activate_nfc_token(
             "UPDATE nfc_token_whitelist "
             "SET status = 'claimed', claimed_by = :uid, claimed_vehicle_id = :vid, claimed_at = now() "
             "WHERE activation_code_hash = :code_hash AND status = 'available' AND suspended_at IS NULL "
-            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug"
+            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug, "
+            "provisioned_by_partner_id, distributed_at"
         ),
         {"uid": str(uid), "vid": str(vehicle.id), "code_hash": code_hash},
     )
@@ -243,7 +245,8 @@ async def activate_nfc_token(
     if not row:
         raise HTTPException(status_code=404, detail="Código inválido o ya utilizado.")
 
-    tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug = row
+    (tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug,
+     provisioned_by_partner_id, distributed_at) = row
     if not token_hash or not token_prefix:
         raise HTTPException(status_code=500, detail="Este llavero no fue provisionado correctamente. Contacta a soporte.")
 
@@ -258,6 +261,20 @@ async def activate_nfc_token(
     )
     db.add(nfc_token)
     await db.flush()
+
+    # Detección, no barrera (docs/PENDIENTES.md item 4): un llavero de
+    # partner que se activa antes de que alguien confirme que el lote salió
+    # a repartirse es una señal para revisar, no algo que bloqueamos acá —
+    # el partner deshonesto igual podría auto-activarse antes de repartir,
+    # esto solo deja rastro para auditar después.
+    if provisioned_by_partner_id and not distributed_at:
+        db.add(NfcAlert(
+            token_id=nfc_token.id,
+            alert_type="activated_before_distributed",
+            severity="warning",
+            message="Llavero de partner activado antes de que se marcara el lote como distribuido.",
+        ))
+        await db.flush()
 
     if token_url_encrypted:
         await db.execute(

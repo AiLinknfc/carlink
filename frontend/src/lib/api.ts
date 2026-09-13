@@ -485,6 +485,10 @@ export const adminApi = {
   // al partner en sí (ej. mientras se investiga algo puntual).
   suspendPartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/suspend`),
   reactivatePartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/reactivate`),
+  // Confirma que un lote salió a repartirse — alimenta la alerta
+  // "activated_before_distributed" (docs/PENDIENTES.md item 4).
+  markBatchDistributed: (partnerId: string, batchId: string) =>
+    request<{ count: number }>('POST', `/admin/nfc/partners/${partnerId}/batches/${batchId}/mark-distributed`),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta
@@ -525,4 +529,8 @@ export const partnerApi = {
   // de un solo uso, así que se puede volver a pedir cuando haga falta.
   tokens: (apiKey: string, batchId?: string) =>
     partnerRequest<PartnerToken[]>('GET', `/partners/me/tokens${batchId ? `?batch_id=${batchId}` : ''}`, apiKey),
+  // Confirma que un lote propio salió a repartirse — alimenta la alerta
+  // "activated_before_distributed" (docs/PENDIENTES.md item 4).
+  markBatchDistributed: (apiKey: string, batchId: string) =>
+    partnerRequest<{ count: number }>('POST', `/partners/me/batches/${batchId}/mark-distributed`, apiKey),
 }
