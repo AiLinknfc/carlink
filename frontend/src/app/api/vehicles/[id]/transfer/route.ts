@@ -54,6 +54,26 @@ export async function POST(
       return NextResponse.json({ error: 'El vehículo no está disponible para transferencia' }, { status: 400 })
     }
 
+    // Requisito de negocio confirmado (2026-09-13, docs/PENDIENTES.md item
+    // 11): sin RUNT todavía, la validación más cercana a una identidad real
+    // que existe es que el vendedor tenga cargada su tarjeta de propiedad
+    // (Documentos, tipo 'propiedad') — la tiene físicamente en el momento
+    // de la venta real, el comprador recién la recibe después. Bloquea
+    // crear la transferencia, no solo aviso.
+    const { data: propertyCard } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('vehicle_id', vehicleId)
+      .eq('type', 'propiedad')
+      .limit(1)
+      .maybeSingle()
+
+    if (!propertyCard) {
+      return NextResponse.json({
+        error: 'Necesitás cargar la tarjeta de propiedad del vehículo (sección Documentos) antes de poder transferirlo.',
+      }, { status: 400 })
+    }
+
     // Check for existing pending transfer
     const { data: existingTransfer } = await supabase
       .from('vehicle_transfers')
