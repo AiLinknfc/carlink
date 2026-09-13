@@ -33,6 +33,13 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    improvisar el protocolo cada vez. En particular: verificar el fix contra el proceso local ya
    reiniciado (o el dominio real con `curl`) antes de pedir/dar el push — que compile y pase
    tsc/vitest no es lo mismo que haber probado el fix en sí.
+6. **Nunca publicar un Artifact (preview visual, landing, mockup, etc.) sin que el usuario lo haya
+   pedido explícitamente.** Si armar uno ayudaría (ej. mostrar un cambio visual antes de
+   desplegarlo), preguntar primero qué se va a mostrar y esperar el OK — no publicar y avisar
+   después (2026-09-11: se publicó una preview sin pedirla; el usuario aclaró que decide él si
+   quiere ese tipo de página, no algo que se ofrece solo). Nota aparte: el Artifact tool no tiene
+   acción para borrar/despublicar algo ya publicado — si hay que revertir uno, hay que decírselo al
+   usuario en vez de asumir que se puede deshacer.
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
 solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.
