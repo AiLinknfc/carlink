@@ -45,7 +45,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [acceptedTerms, setAcceptedTerms] = useState(true)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsError, setShowTermsError] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,6 +60,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     } else {
       setMode(initialMode)
       setAccountType(initialAccountType)
+      setAcceptedTerms(false)
     }
   }, [isOpen, initialMode, initialAccountType])
 
@@ -75,7 +76,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
   const goldBorder = 'rgba(245,197,24,0.35)'
 
   const validate = useCallback(() => {
-    if (!acceptedTerms) {
+    if (mode === 'signup' && !acceptedTerms) {
       setShowTermsError(true)
       return false
     }
@@ -88,7 +89,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       return false
     }
     return true
-  }, [acceptedTerms, email, password])
+  }, [mode, acceptedTerms, email, password])
 
   const handleEmailAuth = useCallback(async () => {
     setError(null)
@@ -127,7 +128,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
   const handleGoogle = useCallback(() => {
     setError(null)
-    if (!acceptedTerms) {
+    if (mode === 'signup' && !acceptedTerms) {
       setShowTermsError(true)
       return
     }
@@ -139,7 +140,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     }
     onClose()
     requestAnimationFrame(() => signIn())
-  }, [acceptedTerms, signIn, onClose, accountType])
+  }, [mode, acceptedTerms, signIn, onClose, accountType])
 
   if (!isOpen) return null
 
@@ -336,6 +337,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     )}
 
                     {/* Terms */}
+                    {mode === 'signup' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                         <input
@@ -356,6 +358,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         </span>
                       )}
                     </div>
+                    )}
 
                     {/* Primary (email) button */}
                     <button
@@ -427,12 +430,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         {mode === 'signin' ? 'Crear una' : 'Iniciar sesión'}
                       </span>
                     </p>
-
-                    {/* Security badge */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, color: textMuted }}>
-                      <ShieldCheck width={14} height={14} style={{ color: '#2ecc71' }} />
-                      <span>Conexión cifrada SSL de CarLink</span>
-                    </div>
                   </motion.div>
                 )}
 
@@ -530,15 +527,6 @@ function traducirError(msg: string): string {
 
 /* ---------- Icons ---------- */
 type IconProps = { width?: number; height?: number; style?: React.CSSProperties }
-
-function ShieldCheck({ width = 14, height = 14, style }: IconProps) {
-  return (
-    <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={style}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      <path d="M9 12l2 2 4-4"/>
-    </svg>
-  )
-}
 
 function XIcon({ width = 18, height = 18, style }: IconProps) {
   return (

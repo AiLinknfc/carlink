@@ -15,6 +15,7 @@ import Plate3D from '@/components/Plate3D'
 import BgParticles from '@/components/BgParticles'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import KeychainScrub from '@/components/KeychainScrub'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 
 const GOLD = '#F5C518'
 const CHECK = (color = GOLD, size = 15) => (
@@ -87,6 +88,7 @@ export default function LandingPage() {
   const [policyTab, setPolicyTab] = useState<PolicyTab>('privacy')
   const [pqrsOpen, setPqrsOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [showWaFloat, setShowWaFloat] = useState(false)
   // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-09-09) — antes forzaba
   // dark con forceTheme() sin importar la preferencia guardada, pero el propio landing
   // renderiza un switch real de "Cambiar apariencia" (más abajo) que aparentaba funcionar
@@ -104,6 +106,17 @@ export default function LandingPage() {
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  useEffect(() => {
+    const el = document.getElementById('h-productos')
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => setShowWaFloat(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
+      { threshold: 0 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
   }, [])
   const tk = {
     pageBg: dark ? '#060606' : '#f7f6f2',
@@ -204,6 +217,8 @@ export default function LandingPage() {
       <style>{`
         @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px) translateX(50px)} to{opacity:1;transform:translateX(50px)} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        @keyframes scrollBounce { 0%,100%{transform:translateY(0);opacity:.7} 50%{transform:translateY(10px);opacity:1} }
+        @media(max-width:860px){ [data-r="scrollArrow"]{display:none !important} }
         [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative}
         [data-r="shopHero-canvas"]{position:absolute;left:28%;right:0;top:0;bottom:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
         [data-r="shopHero-canvas"] canvas{max-width:100%;max-height:calc(100vh - 40px);object-fit:contain}
@@ -221,6 +236,8 @@ export default function LandingPage() {
         @media(max-width:720px){
           [data-r="keychainScrub"] canvas{min-height:200px !important}
         }
+        @media(max-height:800px){ [data-r="comoWrap"]{margin-top:-120px !important} }
+        @media(max-height:680px){ [data-r="comoWrap"]{margin-top:0 !important} }
       `}</style>
 
       {/* ===== HEADER ===== */}
@@ -293,7 +310,7 @@ export default function LandingPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
               <button onClick={() => setCartOpen(true)} style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</button>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
                 <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
               </div>
             </div>
@@ -313,7 +330,19 @@ export default function LandingPage() {
           del texto/keychain aunque la caja del section termine ahí. Sin este
           jalón hacia arriba, lo que sigue queda flotando lejos del contenido
           visible de la sección 1 (no de la sección 1 en sí — esa no se toca). ===== */}
-      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -140, background: tk.pageBg }}>
+      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -200 }}>
+        {/* Scroll-down arrow */}
+        <div
+          data-r="scrollArrow"
+          onClick={() => document.getElementById('h-como')?.scrollIntoView({ behavior: 'smooth' })}
+          style={{ display: 'flex', justifyContent: 'center', marginTop: -60, cursor: 'pointer' }}
+        >
+          <div style={{ animation: 'scrollBounce 1.8s ease-in-out infinite' }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 8px rgba(245,197,24,0.4))' }}>
+              <path d="M12 5v14M19 12l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
         <ComoFuncionaSection theme={theme} />
       </div>
 
@@ -324,6 +353,7 @@ export default function LandingPage() {
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         padding: '68px clamp(20px,5vw,64px) 26px',
       }}>
+        <div style={{ position: 'absolute', top: 34, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 820, borderTop: `1px solid ${tk.thinBorder}` }} />
         <div style={{ textAlign: 'center', zIndex: 16, flex: '0 0 auto' }}>
           <div style={{ fontSize: 12, letterSpacing: '.28em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518', animation: 'fadeUp .7s both' }}>
             Plataforma de mantenimiento vehicular
@@ -472,10 +502,11 @@ export default function LandingPage() {
         [data-r="hBens"]:hover [data-r="hBens"] > div{border-color:rgba(245,197,24,0.42);transform:translateY(-4px)}
         @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:1fr 1fr !important} }
         @media(max-width:720px){ [data-r="hBens"]{grid-template-columns:1fr !important} }
-        @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} }
+        @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} [data-r="scrollArrow"]{animation:none !important} }
       `}</style>
 
-      <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, width: '100%', padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${tk.thinBorder}` }}>
+      <section id="h-beneficios" style={{ position: 'relative', zIndex: 10, maxWidth: 820, margin: '0 auto', width: '100%', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${tk.thinBorder}` }} />
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={{ fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD }}>Beneficios</div>
@@ -483,7 +514,7 @@ export default function LandingPage() {
         </div>
         <div data-r="hBens" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: 5, animation: 'bCloudPulse 3s ease-in-out infinite' }}><path d="M18 16.5a3.5 3.5 0 0 0-.7-6.93A5 5 0 0 0 7.6 10.6A3 3 0 0 0 8 16.5z" /></svg>
               <div style={{ position: 'absolute', bottom: 6, animation: 'bLift 3s ease-in-out infinite' }}>
                 <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
@@ -493,7 +524,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Guardado en la nube, atado a tu placa.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 5, paddingBottom: 13, marginBottom: 11 }}>
               <div style={{ width: 10, height: 16, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.28)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out infinite' }} />
               <div style={{ width: 10, height: 25, borderRadius: '3px 3px 0 0', background: 'rgba(245,197,24,0.5)', transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .16s infinite' }} />
               <div style={{ position: 'relative', width: 10, height: 34, borderRadius: '3px 3px 0 0', background: GOLD, transformOrigin: 'bottom', animation: 'bBarRise 2.8s ease-out .32s infinite' }}>
@@ -504,7 +535,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Historial verificable = precio respaldado.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'absolute', width: 40, height: 40, borderRadius: '50%', border: `2px solid ${GOLD}`, animation: 'bStampRing 2.6s ease-out infinite' }} />
               <div style={{ width: 33, height: 33, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', border: `2px solid ${GOLD}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bStamp 2.6s cubic-bezier(0.34,1.56,0.64,1) infinite' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -514,7 +545,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>No es tu palabra: es un registro.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 11 }}>
               <div style={{ animation: 'bTap 2.2s ease-in-out infinite' }}>
                 <img src="/llavero.png" alt="" width={24} height={28} style={{ display: 'block', borderRadius: 3 }} />
               </div>
@@ -531,7 +562,7 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Acerca el llavero y ya está.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'relative', width: 26, height: 34, borderRadius: 3, background: '#f5f3ec', padding: '4px 3px', display: 'flex', flexDirection: 'column', gap: 3, animation: 'bFileIn 3s ease-in-out infinite' }}>
                 <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1 }} />
                 <span style={{ height: 2, background: '#c9c6ba', borderRadius: 1, width: '70%' }} />
@@ -544,15 +575,20 @@ export default function LandingPage() {
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Queda archivada con su servicio.</div>
           </div>
           <div style={{ padding: '13px 12px', borderRadius: 14, background: tk.menuBg, border: `1px solid ${tk.divider}`, transition: 'border-color .18s, transform .18s' }}>
-            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: tk.animBg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
+            <div style={{ position: 'relative', height: 64, borderRadius: 10, background: 'transparent', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 11 }}>
               <div style={{ position: 'relative' }}>
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ transformOrigin: '50% 12%', animation: 'bBell 3.2s ease-in-out infinite' }}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
-                <span style={{ position: 'absolute', top: -2, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: GOLD, color: '#111', fontSize: 8.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bDot 3.2s ease-out infinite' }}>3</span>
+                <span style={{ position: 'absolute', top: -2, right: -4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 999, background: '#25D366', color: '#fff', fontSize: 8.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bDot 3.2s ease-out infinite' }}>3</span>
               </div>
             </div>
             <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25, marginBottom: 4 }}>Te avisamos antes</div>
             <div style={{ fontSize: 11.5, fontWeight: 300, color: tk.muted, lineHeight: 1.4 }}>Aceite, SOAT, tecno, llantas y frenos.</div>
           </div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 28 }}>
+          <button onClick={() => openLoginModal()} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>
+            Explora los beneficios{ARROW}
+          </button>
         </div>
         </div>
       </section>
@@ -576,6 +612,11 @@ export default function LandingPage() {
         plateText={plateText}
         plateType={type}
         city={city}
+        // Landing pública, sin sesión — se salta el paso de placa para bajar
+        // la fricción de compra; la placa se vincula después, adentro de la
+        // app, al activar el llavero (ver comentario de la prop en
+        // CartModal.tsx).
+        skipPlateStep
       />
 
       <PolicyModal
@@ -594,6 +635,26 @@ export default function LandingPage() {
         plate={plateText}
         city={city}
       />
+
+      {showWaFloat && (
+        <a
+          href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+            width: 52, height: 52, borderRadius: '50%',
+            background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(37,211,102,0.35)',
+            transition: 'opacity .3s, transform .3s',
+            opacity: showWaFloat ? 1 : 0,
+            transform: showWaFloat ? 'scale(1)' : 'scale(0.8)',
+            pointerEvents: showWaFloat ? 'auto' : 'none',
+          }}
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+        </a>
+      )}
     </div>
   )
 }

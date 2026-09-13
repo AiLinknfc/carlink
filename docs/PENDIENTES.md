@@ -328,6 +328,125 @@ ya no repiten listas de pendientes, solo enlazan aquí.
    reenviar sin `context` (ej. editar después desde "Calificar") lo deja vacío — es el
    comportamiento esperado, no un bug: refleja el origen del envío más reciente, no un historial.
    Verificado con E2E desechable, 8/8 checks.
+6. **"Kit CarLink" pausado (2026-09-11), corregido de un primer intento que pausó lo que no era.**
+   El pedido original ("bloquea la posibilidad de comprar el kit CarLink") se implementó primero
+   pausando *todo* `CartModal.tsx` — equivocado: el usuario aclaró después que no se refería al
+   carrito del llavero individual, sino a la sección/botón "Pedir mi kit" de
+   `LandingSections.tsx` (`id="h-productos"`, tarjeta "Kit CarLink" — bundle BAJO PEDIDO de 2 chips
+   + tarjeta grabada + llavero personalizado, $49.900). Ese botón **nunca pasó por
+   `CartModal`/`shop_orders`** — siempre fue un link directo a WhatsApp (comentario ya existente en
+   el código: "sin SKU propio en el backend todavía"), así que "bloquearlo" no toca ningún endpoint,
+   solo la UI: `KIT_ORDER_ENABLED` (`frontend/src/lib/checkout.ts`) cambia el link por un estado
+   "No disponible por el momento". El pause/revert del carrito del llavero individual (backend
+   `SHOP_PURCHASES_ENABLED` y el flag `SHOP_PURCHASE_ENABLED` del frontend) se sacó por completo —
+   ese checkout **sigue activo sin cambios**, verificado con un `POST /api/shop/orders` real contra
+   el backend local (201, orden creada y luego borrada).
+
+   **Además — mismo pedido, cambio nuevo sobre el carrito del llavero individual**: cuando
+   `CartModal` se abre desde fuera de la app (landing pública `/`, sin sesión — prop
+   `skipPlateStep` en `app/page.tsx`), el paso 1 (placa/tipo/ciudad) se salta — el checkout arranca
+   directo en "Envío". Dentro de la app (`app/app/page.tsx`) el paso 1 sigue intacto, sin cambios.
+   Análisis de impacto (pedido explícito del usuario — seguridad/trazabilidad/riesgo):
+   - **El vínculo real chip↔vehículo nunca depende de lo que se escriba en este formulario.** Pasa
+     en `POST /nfc/activate`, adentro de la app, con sesión real y un `vehicle_id` de la propia
+     cuenta del usuario (`verify_vehicle`, fix crítico de 2026-08-12) — la placa del checkout es
+     dato descriptivo del pedido (email/dispatch/dedup), no la fuente de verdad de la seguridad.
+   - **El llavero individual no se personaliza físicamente con la placa** (a diferencia del Kit,
+     que sí — "Llavero personalizado con tu placa" en su lista de features; el individual solo
+     lista "1 llavero NFC de alta resistencia, QR de respaldo, acceso vitalicio") — confirmado
+     leyendo `LandingSections.tsx`. No hay ninguna producción/grabado que dependa de este dato.
+   - **La única pérdida real es el chequeo de placa duplicada en el momento de comprar**
+     (`GET /vehicles/plate-check`, que hoy corre en el paso 1 y avisa "ya tenés esta placa" antes
+     de pagar). Sin el paso 1, esa alerta temprana no aparece — pero la protección que sí importa
+     (que nadie active un chip sobre un vehículo que no es suyo) sigue intacta en la activación. El
+     `plate-check` de todos modos **no es una garantía global de unicidad** hoy (confirmado
+     leyendo `vehicles.py::create_vehicle` — el `409` por placa duplicada solo compara contra
+     vehículos de la MISMA cuenta, `owner_id == uid`; no hay constraint `UNIQUE` de placa a nivel
+     de toda la tabla), así que quitarlo del checkout externo no borra una garantía que existía —
+     solo adelanta al momento de activación una alerta que antes se mostraba (parcialmente) al
+     comprar.
+   - **Trazabilidad del pedido en sí no se pierde**: nombre, correo, teléfono y dirección de envío
+     siguen siendo obligatorios en el paso "Envío" sin importar `skipPlateStep` — lo único que se
+     manda vacío a `POST /shop/orders` es `plate_text`/`plate_type`/`plate_city` (antes `fullPlate`
+     con campos vacíos mandaba literalmente `"-"`, ahora manda `""`). Verificado con un pedido real
+     (`payment_method=cod`, campos de placa vacíos) contra el backend local — `201`, aceptado sin
+     error de validación, borrado después de confirmar.
+   - **Riesgo controlado, en resumen**: no se debilita la seguridad ni el vínculo chip-vehículo
+     (que vive enteramente en `/nfc/activate`, sin tocar); se pierde solo una advertencia temprana
+     de "placa duplicada" en un checkout que hoy tampoco era 100% autoritativo.
+
+   **Hallazgo aparte, no relacionado con este pedido, encontrado verificando el checkout en vivo**:
+   `PRODUCT_PRICE_COP` en `backend/app/routers/shop_orders.py` vale **$49.900**, pero el frontend
+   (`CartModal.tsx::productPrice`, y el precio mostrado en `LandingSections.tsx`) muestra
+   **$29.900** para el mismo llavero individual — el backend es quien manda de verdad (comentario
+   ya existente en el propio código lo dice), así que **hoy se le está cobrando a cada comprador
+   $49.900 en vez de los $29.900 que ve en pantalla**. Confirmado con una orden de prueba real
+   (`amount_in_cents: 4990000` = $49.900). No se tocó — es una discrepancia de precio real con
+   plata de por medio, hay que confirmar con el usuario cuál de los dos números es el correcto
+   antes de cambiar cualquiera.
+7. **Verificado (2026-09-11): el contacto (correo o WhatsApp) que deja alguien al pedir la Guía de
+   Mantenimiento queda registrado siempre**, sea cual sea el tipo — confirmado con un envío real
+   contra `POST /api/waitlist` (`source=shop_guia_mantenimiento`) y consulta directa a la tabla
+   `waitlist_leads` en la Supabase real: el correo se guarda con `contact_type='email'` y el
+   celular normalizado a E.164 con `contact_type='phone'` (filas de prueba borradas después de
+   verificar). El correo con el PDF solo se manda para `contact_type='email'`
+   (`app/routers/waitlist.py`); para `phone` la UI abre WhatsApp con el pedido precargado en vez de
+   mostrar un "enviado" falso (`LandingSections.tsx`/`shop/page.tsx`, `handleLeadSubmit`) — ambos
+   casos quedan igual de registrados en la base, la diferencia es solo el canal de entrega de la
+   guía. No se encontró ningún caso donde el contacto se pierda.
+8. **Alineación con `docs/MODELO_NEGOCIO.md` — plan de revisión creado, decisiones pendientes del
+   usuario (2026-09-11).** El documento describe un sistema de planes Básico/Premium (persona) +
+   validación RUES/reputación + suscripción mensual (empresa/taller) que **no existe hoy** más allá
+   de un trial de 7 días para cuentas taller — y ese trial mismo funciona distinto de lo que
+   describe el documento (bloquea todo en vez de dejar "estado restringido", y no tiene ninguna
+   fuente de verdad en el backend: se calcula 100% en el cliente desde `profile.created_at`, hallazgo
+   nuevo de esta verificación). Detalle completo del gap sección por sección, mapeo de
+   terminología ("Empresa" del documento = cuenta `taller`, ya es el único tipo de cuenta de
+   negocio que existe), 7 decisiones de producto que hacen falta del usuario antes de construir
+   nada, y plan de fases propuesto: `docs/PLAN_ALINEACION_MODELO_NEGOCIO.md`. Sin código de negocio
+   tocado en esta pasada — es solo el plan de revisión pedido.
+9. **Tracking mínimo de clicks en WhatsApp (2026-09-11) — preparación para la primera campaña de
+   publicidad.** Antes de esto, ninguno de los botones/links `wa.me` de la app dejaba rastro en la
+   base — no había forma de saber cuántos mensajes llegaban ni por qué motivo. Migración `051`
+   (`whatsapp_clicks`: `intent`, `source`, `user_id` opcional, `created_at`), endpoint público
+   best-effort `POST /api/analytics/whatsapp-click` (nunca bloquea la apertura del link si falla) y
+   resumen admin-only `GET /api/analytics/whatsapp-clicks/summary`. Cablea los 8 puntos reales de
+   la app (`CartModal.tsx` ×2, `LandingSections.tsx` ×3, `shop/page.tsx` ×2, `app/page.tsx` ×1) —
+   los helpers equivalentes de `lib/shop.ts`/`lib/checkout.ts` (`shopWhatsappUrl`, `startPayment`)
+   quedaron fuera a propósito: son parte del clúster de componentes huérfanos
+   (`CartDrawer`/`ProductCustomizer`/`CheckoutClient`/`OrdersClient`) que no renderiza ninguna
+   página real — instrumentarlos habría sido puro ruido. `intent` es un `Literal` fijo en ambos
+   lados (backend `schemas.py`, frontend `api.ts`) — agregar un botón de WhatsApp nuevo requiere
+   agregarlo explícitamente en los dos, no un string libre. Verificado con los 6 intents reales
+   contra el backend local (201 cada uno, filas confirmadas en la tabla real y borradas después —
+   la tabla queda vacía, lista para datos reales de la campaña).
+   **No incluido, a propósito** (era "tracking mínimo", no un dashboard): no hay ninguna pantalla en
+   Admin para ver el resumen — hoy se consulta pegándole directo a
+   `GET /api/analytics/whatsapp-clicks/summary` con sesión de admin. Si el uso real lo justifica,
+   vale la pena agregar una pestaña simple en `/admin` más adelante.
+   **Recordatorio del porqué**: esto no reemplaza la recomendación de esa misma conversación de no
+   automatizar WhatsApp todavía — es exactamente el dato que falta para decidirlo con evidencia en
+   vez de intuición una vez que la campaña esté corriendo. Mensajes de bienvenida/ausencia/
+   respuestas rápidas para WhatsApp Business App (mientras no hay bot): `docs/WHATSAPP_SOPORTE.md`
+   — incluye una inconsistencia real a resolver (el banner de `/shop` promete "menos de 2 minutos",
+   sin definir todavía qué tiempo de respuesta real se va a sostener con tráfico de campaña).
+10. **✅ Resuelto (2026-09-12) — migración `052_maintenance_lubricant_product.sql` aplicada.** El
+    wizard de 3 pasos para registrar Aceite (`ServiceFormModal.tsx`, catálogo en
+    `frontend/src/lib/oilCatalog.ts`) ya persiste `lubricant_product` (producto exacto elegido del
+    catálogo, ej. "Mobil 1 ESP 5W-30") de punta a punta. El entorno automático bloqueó aplicar la
+    migración por clasificarla como "Production Deploy" (correcto — local/staging/prod comparten la
+    misma base); el usuario la corrió a mano y se verificó contra la Supabase real
+    (`information_schema.columns` + lectura de filas Aceite existentes, `lubricant_product = ''`
+    por default, sin backfill necesario) antes de volver a agregar el campo en `models.py` y
+    `schemas.py::MaintenanceCreate/MaintenanceOut` (no en `NfcTokenInfoPublic`, decisión deliberada
+    del diseño). **Nota del susto de en medio**: al escribir el modelo del backend antes de que la
+    migración existiera, `uvicorn --reload` local recargó contra la DB real sin la columna y rompió
+    toda consulta a `maintenance_records` — detectado y revertido en el momento (verificado con
+    `pytest`: 13 tests de `test_maintenance.py` fallando → 70/70 tras revertir). Lección para la
+    próxima: cuando un cambio de esquema depende de una migración que el entorno automático no
+    puede aplicar, no dejar el modelo del ORM apuntando a la columna nueva hasta confirmar que la
+    migración ya corrió — local comparte la misma base que producción, así que un `--reload` local
+    puede romper en caliente igual que un deploy. Detalle completo en `docs/DEPLOY.md` (nota 052).
 
 ## 🟡 Prioridad media
 

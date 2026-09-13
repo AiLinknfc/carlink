@@ -380,15 +380,63 @@ export const jobApplicationApi = {
 export interface WaitlistLead {
   id: string
   contact: string
+  contact_type: 'email' | 'phone'
   source: string
   notified: boolean
   notified_at: string | null
   created_at: string
 }
 
+export type WaitlistCreateResult =
+  | { ok: true; lead: WaitlistLead }
+  | { ok: false; reason: 'invalid_contact' | 'network' }
+
 export const waitlistApi = {
-  create: (contact: string, source = 'landing') =>
-    request<WaitlistLead>('POST', '/waitlist', { contact, source }),
+  // No usa el `request()` genérico de arriba (que colapsa cualquier fallo a
+  // `null`) porque acá sí importa distinguir "el backend rechazó el
+  // contacto por inválido" (422) de un error de red/servidor — el
+  // formulario necesita decirle a la persona cuál de las dos cosas pasó.
+  create: async (contact: string, source = 'landing'): Promise<WaitlistCreateResult> => {
+    try {
+      const token = await getAccessToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ contact, source }),
+      })
+      if (res.status === 422) return { ok: false, reason: 'invalid_contact' }
+      if (!res.ok) return { ok: false, reason: 'network' }
+      const lead = (await res.json()) as WaitlistLead
+      return { ok: true, lead }
+    } catch {
+      return { ok: false, reason: 'network' }
+    }
+  },
+}
+
+// Intents fijos, en espejo de WhatsappClickIntent en backend/app/schemas/schemas.py
+// — agregar un botón de WhatsApp nuevo significa agregarlo en los dos lados,
+// no mandar un string libre que el backend rechazaría con 422 igual.
+export type WhatsappClickIntent =
+  | 'cart_pay_whatsapp'
+  | 'cart_plate_duplicate'
+  | 'guide_phone_lead'
+  | 'kit_order'
+  | 'general_question'
+  | 'keychain_replacement'
+export type WhatsappClickSource = 'landing' | 'shop' | 'app' | 'cart'
+
+export const analyticsApi = {
+  // Tracking mínimo de clicks en los botones de WhatsApp (docs/PENDIENTES.md
+  // — medir volumen real antes de decidir si automatizar algo). Fire-and-forget
+  // a propósito: nunca se espera ni se revisa el resultado en el llamador,
+  // para que un fallo de red no demore ni bloquee la apertura de WhatsApp
+  // (apiPost ya nunca lanza excepción — ver request() más arriba).
+  trackWhatsappClick: (intent: WhatsappClickIntent, source: WhatsappClickSource) => {
+    void apiPost('/analytics/whatsapp-click', { intent, source })
+  },
 }
 
 export const adminApi = {

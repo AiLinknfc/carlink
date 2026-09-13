@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, type PlateType } from '@/lib/plate'
-import { apiGet, apiPost } from '@/lib/api'
+import { apiGet, apiPost, analyticsApi } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
 import Plate3D from '@/components/Plate3D'
 import { Icon } from '@/lib/icons_new'
@@ -34,6 +34,14 @@ interface Props {
   plateText: string
   plateType: string
   city: string
+  // true cuando este modal se abre desde fuera de la app (landing pública,
+  // sin sesión) — oculta el paso 1 (placa) para no exigirle ese dato a
+  // alguien que todavía no tiene cuenta ni vehículo cargado. La placa real
+  // se vincula después, adentro de la app, al activar el llavero
+  // (POST /nfc/activate ya exige vehicle_id de una cuenta propia — es ahí
+  // donde de verdad se ata el chip a un vehículo, no en este formulario).
+  // Ver docs/PENDIENTES.md para el análisis de seguridad/trazabilidad.
+  skipPlateStep?: boolean
 }
 
 const PLATE_TYPES = [
@@ -64,7 +72,7 @@ const PAYMENT_METHODS = [
   { id: 'whatsapp', name: 'Coordinar pago por WhatsApp', icon: 'MessageCircle' as const },
 ]
 
-export default function CartModal({ isOpen, onClose, theme, plateText: initialPlateText, plateType: initialPlateType, city: initialCity }: Props) {
+export default function CartModal({ isOpen, onClose, theme, plateText: initialPlateText, plateType: initialPlateType, city: initialCity, skipPlateStep = false }: Props) {
   const isDark = theme === 'dark'
   const bg = isDark ? 'rgba(14,14,14,0.98)' : 'rgba(255,255,255,0.99)'
   const border = isDark ? 'rgba(245,197,24,0.18)' : 'rgba(17,17,17,0.1)'
@@ -79,7 +87,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const menuHover = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(17,17,17,0.05)'
   const citySelect = isDark ? '#f5f3ec' : '#17171a'
 
-  const [step, setStep] = useState<Step>('customize')
+  const [step, setStep] = useState<Step>(skipPlateStep ? 'shipping' : 'customize')
   const [selectedType, setSelectedType] = useState('')
   const [plateLetters, setPlateLetters] = useState('')
   const [plateNumbers, setPlateNumbers] = useState('')
@@ -211,11 +219,19 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setPaying(true)
     try {
       // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
-      // calcula el backend (29.900 * cantidad), nunca se manda un precio
+      // calcula el backend (39.900 * cantidad), nunca se manda un precio
       // desde acá. Devuelve la referencia + la firma de integridad que el
       // widget de Wompi necesita para no dejar alterar el monto.
       const created = await withTimeout(apiPost<{ order_id: string; reference: string; amount_in_cents: number; currency: string; integrity_signature: string }>('/shop/orders', {
-        plate_text: fullPlate, plate_type: selectedType, plate_city: plateCity, quantity: qty,
+        // Sin placa cuando se compra desde afuera de la app (skipPlateStep) —
+        // se manda vacío en vez de "-" (lo que daría fullPlate sin datos). No
+        // es el dato que de verdad ata el chip a un vehículo — eso pasa en
+        // POST /nfc/activate, adentro de la app, con vehicle_id real. Ver el
+        // comentario de la prop skipPlateStep más arriba.
+        plate_text: skipPlateStep ? '' : fullPlate,
+        plate_type: skipPlateStep ? '' : selectedType,
+        plate_city: skipPlateStep ? '' : plateCity,
+        quantity: qty,
         customer_name: name.trim(), customer_email: email.trim(), customer_phone: phone,
         shipping_address: address.trim(), shipping_city: shipCity.trim(), notes: notes.trim(),
         // Distingue contraentrega de Wompi desde la creación — sin esto el
@@ -226,7 +242,9 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       if (!created) throw new Error('No se pudo crear la orden')
 
       if (payMethod === 'whatsapp') {
-        const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n• Placa: ${fullPlate} (${plateCity})\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
+        const plateLine = skipPlateStep ? '• Placa: se vincula luego en la app' : `• Placa: ${fullPlate} (${plateCity})`
+        const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n${plateLine}\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
+        analyticsApi.trackWhatsappClick('cart_pay_whatsapp', 'cart')
         window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank')
         setOrderId(created.reference)
         setStep('done')
@@ -263,7 +281,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   }
 
   const reset = () => {
-    setStep('customize')
+    setStep(skipPlateStep ? 'shipping' : 'customize')
     setSelectedType('')
     setPlateLetters('')
     setPlateNumbers('')
@@ -280,8 +298,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setShowErrors(false)
   }
 
-  const stepLabels = ['Tu placa', 'Envío', 'Pago', 'Listo']
-  const stepIdx = step === 'customize' ? 0 : step === 'shipping' ? 1 : step === 'payment' ? 2 : 3
+  const stepLabels = skipPlateStep ? ['Envío', 'Pago', 'Listo'] : ['Tu placa', 'Envío', 'Pago', 'Listo']
+  const stepIdx = skipPlateStep
+    ? (step === 'shipping' ? 0 : step === 'payment' ? 1 : 2)
+    : (step === 'customize' ? 0 : step === 'shipping' ? 1 : step === 'payment' ? 2 : 3)
 
   const miniPlateConfig = PLATE_TYPES.find(t => t.id === selectedType)
 
@@ -303,7 +323,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                 </span>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 800 }}>Comprar llavero NFC</div>
-                  <div style={{ fontSize: 11, color: muted }}>Confirma los datos de tu placa</div>
+                  <div style={{ fontSize: 11, color: muted }}>{skipPlateStep ? 'Completa tus datos de envío' : 'Confirma los datos de tu placa'}</div>
                 </div>
               </div>
               <button onClick={() => { reset(); onClose() }} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${subtle}`, background: 'transparent', color: muted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -495,7 +515,8 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                           ? 'Ya tienes esta placa registrada en tu cuenta. Si necesitas un llavero de reemplazo o es un pedido duplicado, '
                           : 'Esta placa ya está registrada por otra cuenta. Verifica tu cuenta para continuar — si crees que es un error, '}
                         <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`¡Hola CarLink! Quiero comprar un llavero NFC para la placa ${fullPlate} y el sistema me dice que ya está registrada. ¿Me ayudan a verificarlo?`)}`}
-                          target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: '#ef4444' }}>
+                          target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: '#ef4444' }}
+                          onClick={() => analyticsApi.trackWhatsappClick('cart_plate_duplicate', 'cart')}>
                           contáctanos
                         </a>.
                       </span>
@@ -521,7 +542,11 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
               ) : step === 'shipping' ? (
                 /* ─── STEP 2: SHIPPING ─── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ fontSize: 12, color: muted, marginBottom: 2 }}>La ciudad de envío puede ser diferente a la ciudad de la placa ({plateCity}).</div>
+                  {skipPlateStep ? (
+                    <div style={{ fontSize: 12, color: muted, marginBottom: 2 }}>Vincularás la placa de tu vehículo más adelante, al activar el llavero desde la app.</div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: muted, marginBottom: 2 }}>La ciudad de envío puede ser diferente a la ciudad de la placa ({plateCity}).</div>
+                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="grid2">
                     <div>
                       <div style={fieldLabel}>Nombre <span style={{ color: GOLD }}>*</span></div>
@@ -603,8 +628,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Barrio, conjunto, apto, torre, indicaciones de acceso..." style={inputStyle} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setStep('customize')} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Atrás</button>
-                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: 2, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Al pago</button>
+                    {!skipPlateStep && (
+                      <button onClick={() => setStep('customize')} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Atrás</button>
+                    )}
+                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: skipPlateStep ? undefined : 2, width: skipPlateStep ? '100%' : undefined, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Al pago</button>
                   </div>
                 </div>
               ) : (
@@ -613,18 +640,24 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                   {/* Order summary */}
                   <div style={{ padding: 12, borderRadius: 12, background: cardBg, border: `1px solid ${subtle}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Plate3D
-                        plate={fullPlate}
-                        city={plateCity}
-                        bg={pBg.bg}
-                        inkColor={pBg.ink}
-                        labelColor={pBg.label}
-                        showLabel={false}
-                        size="sm"
-                      />
+                      {skipPlateStep ? (
+                        <span style={{ width: 46, height: 34, borderRadius: 8, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+                        </span>
+                      ) : (
+                        <Plate3D
+                          plate={fullPlate}
+                          city={plateCity}
+                          bg={pBg.bg}
+                          inkColor={pBg.ink}
+                          labelColor={pBg.label}
+                          showLabel={false}
+                          size="sm"
+                        />
+                      )}
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>Llavero NFC CarLink</div>
-                        <div style={{ fontSize: 11, color: muted }}>Placa {fullPlate} · {plateCity} · x{qty}</div>
+                        <div style={{ fontSize: 11, color: muted }}>{skipPlateStep ? `Placa a vincular en la app · x${qty}` : `Placa ${fullPlate} · ${plateCity} · x${qty}`}</div>
                       </div>
                       <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: GOLD }}>{COP(total)}</div>
                     </div>

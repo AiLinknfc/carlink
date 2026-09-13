@@ -4,10 +4,11 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import Link from 'next/link'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import { NfcKeyIcon } from '@/lib/icons_new'
-import { waitlistApi, reviewsApi } from '@/lib/api'
+import { waitlistApi, reviewsApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { useTheme } from '@/store/theme'
+import { checkContact } from '@/lib/contactValidation'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -43,7 +44,7 @@ function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSi
 }
 
 const PROBLEMS = [
-  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z" /> },
+  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z" /> },
   { text: '¿Perdiste la factura del taller?', icon: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 12h6M9 16h4" /></> },
   { text: '¿Compraste un carro usado y no sabes si le hicieron mantenimiento?', icon: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M21 21l-4.35-4.35" /></> },
   { text: '¿Olvidaste cuándo vence el SOAT?', icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M12 14v3M12 19h.01" /></> },
@@ -98,7 +99,7 @@ function buildPlans(isDark: boolean, border: string, textColor: string) {
       cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
     },
     {
-      name: 'Llavero NFC CarLink', price: '$29.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
+      name: 'Llavero NFC CarLink', price: '$39.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
       border: `2px solid ${GOLD}`, priceColor: GOLD, bg: isDark ? 'linear-gradient(165deg,#241f0c,#141418)' : 'linear-gradient(165deg,#fff6d9,#fffdf5)',
       features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
       cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
@@ -143,12 +144,10 @@ const TESTIMONIALS = [
 ]
 
 const FAQS = [
-  { q: '¿Necesita batería?', a: 'No. El llavero NFC funciona sin batería y sin mantenimiento — dura toda la vida del vehículo.' },
-  { q: '¿Necesita Internet?', a: 'Solo para consultar la información. El escaneo del llavero es instantáneo; la ficha se carga desde la nube.' },
-  { q: '¿Qué pasa si pierdo el llavero?', a: 'Puedes desactivarlo desde la app en segundos y asociar uno nuevo. Tu historial nunca se pierde: vive en tu cuenta, no en el llavero.' },
-  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — el llavero simplemente registra la nueva visita con el nombre del taller que te atendió.' },
-  { q: '¿El llavero reemplaza el SOAT o la tecnomecánica?', a: 'No — los complementa. CarLink es tu ficha de mantenimiento; SOAT y RTM siguen siendo trámites oficiales, aunque también puedes guardarlos en tu sección de Documentos.' },
-  { q: '¿El llavero es resistente al agua, caídas y roces de llaves?', a: 'Totalmente. CarLink está encapsulado en resina polimérica industrial IP68 impermeable, resistente a caídas de más de 3 metros, salpicaduras de gasolina, aceite y el friccionamiento continuo con otras llaves metálicas.' },
+  { q: '¿Qué incluye cada servicio del taller?', a: 'Cada visita queda registrada con fecha, kilometraje, tall mecánico, los repuestos cambiados y una foto del comprobante. El historial es inmutable y verificable.' },
+  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — cada visita nueva simplemente se agrega con el nombre de quien te atendió.' },
+  { q: '¿Cómo verifico que el historial no esté adulterado?', a: 'Cada registro tiene un hash de integridad y la ubicación GPS del taller. Si alguien intenta editar un servicio pasado, la app marca la inconsistencia.' },
+  { q: '¿Necesito descargar alguna aplicación?', a: 'No. CarLink funciona con la tecnología NFC nativa de todos los smartphones (iPhone y Android). Al acercar tu celular al llavero, se abre automáticamente tu navegador seguro con la bitácora digital de tu vehículo.' },
 ]
 
 const TRUST = [
@@ -180,7 +179,7 @@ const MARKET_PREVIEW = [
 ]
 
 export default function ShopPage() {
-  const { isDark } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
 
   // Antes eran const a nivel de módulo, fijas en oscuro. GOLD no cambia
   // (mismo valor que --accent en globals.css para ambos temas). El resto sí,
@@ -226,6 +225,10 @@ export default function ShopPage() {
   const [faqOpen, setFaqOpen] = useState(-1)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  // 'invalid_contact' = el backend rechazó el formato (422, lo resuelve la
+  // persona corrigiendo lo que escribió); 'network' = cualquier otra falla.
+  const [leadErrorReason, setLeadErrorReason] = useState<'invalid_contact' | 'network' | null>(null)
+  const [leadContactType, setLeadContactType] = useState<'email' | 'phone' | null>(null)
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
   const mapRef = useRef<HTMLIFrameElement>(null)
@@ -253,12 +256,35 @@ export default function ShopPage() {
     return () => clearTimeout(t)
   }, [activeCard])
 
+  const leadContactCheck = checkContact(leadContact)
+
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!leadContact.trim() || leadStatus === 'loading') return
+    if (leadContactCheck.status !== 'valid') {
+      setLeadStatus('error')
+      setLeadErrorReason('invalid_contact')
+      return
+    }
     setLeadStatus('loading')
+    setLeadErrorReason(null)
     const res = await waitlistApi.create(leadContact.trim(), 'shop_guia_mantenimiento')
-    setLeadStatus(res ? 'done' : 'error')
+    if (!res.ok) {
+      setLeadStatus('error')
+      setLeadErrorReason(res.reason)
+      return
+    }
+    setLeadContactType(res.lead.contact_type)
+    // El backend solo manda el PDF por correo — si dejó celular, no hay
+    // envío automático de WhatsApp, así que lo abrimos acá con el mensaje
+    // precargado (mismo criterio que la sección equivalente de la landing,
+    // LandingSections.tsx) en vez de prometerle "revisa tu WhatsApp" y que
+    // no llegue nada.
+    if (res.lead.contact_type === 'phone') {
+      analyticsApi.trackWhatsappClick('guide_phone_lead', 'shop')
+      window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
+    }
+    setLeadStatus('done')
   }
 
   const jsonLd = {
@@ -288,7 +314,7 @@ export default function ShopPage() {
   }
 
   return (
-    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh' }}>
+    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh', overflowX: 'hidden' }}>
       {/* Datos estructurados: reusa el mismo array FAQS que ya se pinta más
           abajo, no contenido inventado aparte. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -379,19 +405,12 @@ export default function ShopPage() {
         @media(max-width:860px){ .grid2{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} }
       `}</style>
 
-      {/* NAV — el logo ya vuelve al inicio, pero se agrega un link explícito
-          porque en una landing de campaña no todos lo dan por hecho. */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px clamp(20px,5vw,64px)', background: navBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,197,24,0.14)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 6, color: MUTED, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
-            onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
-            onMouseLeave={e => { e.currentTarget.style.color = MUTED }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-            <span data-r="shopBackLabel">Volver a la app</span>
-          </Link>
-          <span style={{ width: 1, height: 22, background: BORDER }} />
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={18} iconSize={33} textColor={textColor} />
+      {/* NAV */}
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '8px clamp(16px,4vw,40px)', background: navBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,197,24,0.14)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em' }}>
+          <Link href="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <CarLinkLogo size={33} />
+            <span>Car<span style={{ color: GOLD }}>Link</span></span>
           </Link>
         </div>
         <nav data-r="shopNavLinks" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
@@ -400,7 +419,17 @@ export default function ShopPage() {
           <a href="#precio" style={{ color: 'inherit', textDecoration: 'none' }}>Precio</a>
           <a href="#faq" style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</a>
         </nav>
-        <Link href="/#h-buyfob" data-r="shopNavCta" style={{ padding: '11px 22px', borderRadius: 999, background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap', textDecoration: 'none' }}>Quiero mi CarLink</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Link href="/register" style={{ padding: '6px 12px', borderRadius: 9, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: 'transparent', color: MUTED, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Registrar</Link>
+          <Link href="/login" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
+          <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" style={{ position: 'relative', width: 56, height: 28, borderRadius: 999, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 3px', transition: 'all .25s' }}>
+            <span style={{ position: 'absolute', left: 7, fontSize: 10, opacity: isDark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
+            <span style={{ position: 'absolute', right: 6, color: '#111', opacity: isDark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2a1 1 0 0 0-1 1v3.06A8 8 0 0 0 4 13a1 1 0 0 0 1 1h1l1 6h10l1-6h1a1 1 0 0 0 1-1 8 8 0 0 0-4-6.94V3a1 1 0 0 0-1-1z" /></svg>
+            </span>
+            <span style={{ position: 'relative', zIndex: 1, width: 22, height: 22, borderRadius: '50%', background: isDark ? '#f5f3ec' : '#111', boxShadow: '0 2px 6px rgba(0,0,0,.35)', transform: `translateX(${isDark ? 28 : 0}px)`, transition: 'transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s' }} />
+          </button>
+        </div>
       </header>
 
       {/* HERO */}
@@ -415,7 +444,7 @@ export default function ShopPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
             <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$29.900</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
               <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>pago único · envío incluido</div>
             </div>
           </div>
@@ -682,7 +711,7 @@ export default function ShopPage() {
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 44px' }}>
           <div style={EYEBROW}>Transparencia total</div>
           <h2 style={H2}>¿Qué llega exactamente en tu caja?</h2>
-          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $29.900 COP recibes la experiencia completa lista para usar.</p>
+          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Sin sorpresas ni cobros ocultos. Por tu pago único de $39.900 COP recibes la experiencia completa lista para usar.</p>
         </div>
 
         <div data-r="shopBox" style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 48, alignItems: 'center', maxWidth: 1080, margin: '0 auto' }}>
@@ -710,7 +739,7 @@ export default function ShopPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 38 }}>
-          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Recibir todo el kit por $29.900 COP{ARROW}</Link>
+          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Recibir todo el kit por $39.900 COP{ARROW}</Link>
         </div>
       </section>
 
@@ -942,11 +971,12 @@ export default function ShopPage() {
         <div data-r="shopWhatsappBanner" style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 'clamp(20px,3vw,28px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, boxShadow: '0 20px 50px rgba(0,0,0,.3)' }}>
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>¿Tienes alguna otra pregunta antes de pedir?</div>
-            <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en menos de 2 minutos.</p>
+            <p style={{ fontSize: 12, color: MUTED, margin: '3px 0 0' }}>Nuestro equipo de soporte en Colombia responde por WhatsApp en 15 a 30 minutos.</p>
           </div>
           <a
             href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
             target="_blank" rel="noopener noreferrer"
+            onClick={() => analyticsApi.trackWhatsappClick('general_question', 'shop')}
             style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#062b12', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
@@ -975,25 +1005,38 @@ export default function ShopPage() {
             {leadStatus === 'done' ? (
               <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>¡Guía enviada con éxito!</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{leadContactType === 'email' ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: MUTED }}>
-                  Revisa tu WhatsApp o correo. Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
+                  {leadContactType === 'email' ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
+                  {' '}Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
                 </p>
               </div>
             ) : (
               <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <input
-                  type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
+                  type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
+                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = BORDER }}
+                  onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER }}
                 />
                 <button type="submit" disabled={leadStatus === 'loading'} data-r="shopCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
                   {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
                 </button>
-                {leadStatus === 'error' && <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+                {leadContactCheck.status === 'valid' && (
+                  <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
+                    {CHECK('#5be89a', 13)} {leadContactCheck.type === 'email' ? 'Correo válido' : 'Celular válido'}
+                  </p>
+                )}
+                {leadContactCheck.status === 'invalid' && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a3d' }}>
+                    Revisa el correo o el celular — si es de otro país, incluí el indicativo (ej. +57 300 1234567).
+                  </p>
+                )}
+                {leadStatus === 'error' && leadErrorReason === 'network' && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>
+                )}
               </form>
             )}
           </div>
@@ -1006,7 +1049,7 @@ export default function ShopPage() {
           <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
           <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $29.900{ARROW}</Link>
+            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $39.900{ARROW}</Link>
             <Link href="/register" data-r="shopCtaSecondary" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
@@ -1255,7 +1298,7 @@ export default function ShopPage() {
                             <span style={{ fontSize: 10, fontWeight: 600, color: hovered === i ? GOLD : MUTED, letterSpacing: '.08em', textTransform: 'uppercase', transition: 'color 0.25s' }}>{ind.l}</span>
                             <span style={{ fontSize: 12, fontWeight: 700, color: GOLD, opacity }}>{ind.v.toLocaleString('es-CO')} {ind.unit}</span>
                           </div>
-                          <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ height: 3, borderRadius: 2, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(17,17,17,0.06)', overflow: 'hidden' }}>
                             <div style={{ width: `${ind.pct}%`, height: '100%', borderRadius: 2, background: GOLD, opacity, transition: 'width 0.6s ease' }} />
                           </div>
                         </div>
@@ -1473,7 +1516,7 @@ export default function ShopPage() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg> Predictivo</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg> Expediente</span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>$29.900</div>
+              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>$39.900</div>
               <div style={{ fontSize: 12, color: MUTED, marginBottom: 18 }}>Envío incluido · Llega en 5 días hábiles</div>
               <Link href="/#h-buyfob" style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'opacity 0.2s', textAlign: 'center', textDecoration: 'none', display: 'block' }}>Comprar ahora</Link>
             </div>

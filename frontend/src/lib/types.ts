@@ -37,6 +37,12 @@ export interface MaintenanceRecord {
   cost: number;
   lubricant_brand: string;
   lubricant_type: string;
+  /** Producto exacto del catálogo elegido en el wizard de Aceite (ej. "Mobil 1 ESP
+   * 5W-30"), o "" si se escribió libre / no es un registro de Aceite. Migración
+   * 052 aplicada 2026-09-12. Solo lo muestra el propio formulario; el resto de
+   * pantallas (historial, ficha, escaneo NFC) siguen usando
+   * lubricant_brand/lubricant_type como siempre. */
+  lubricant_product: string;
   next_service_mileage: number | null;
   /** Presente si un taller lo creó solo al entregar/cobrar una orden — el
    * frontend lo muestra sin edición. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
@@ -589,6 +595,7 @@ export type MaintenanceCreate = {
   cost?: number;
   lubricant_brand?: string;
   lubricant_type?: string;
+  lubricant_product?: string;
   next_service_mileage?: number;
 };
 export type MaintenanceUpdate = Partial<MaintenanceCreate>;

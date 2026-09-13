@@ -24,6 +24,22 @@ RESEND_API_URL = "https://api.resend.com/emails"
 FROM_EMAIL = os.getenv("FROM_EMAIL", "CarLink <noreply@carlink.com>")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
+# Mismo default que app/config.py (Settings.frontend_url) — en Railway ya
+# está seteada al dominio real (confirmada funcionando: send_guide_email arma
+# guide_url con esta misma variable, ver app/routers/waitlist.py). Usada acá
+# solo para la URL absoluta del logo — los clientes de correo no pueden
+# resolver rutas relativas.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# logo-email.png se genera con cairosvg a partir de frontend/public/logo-light.svg
+# (la versión "fondo claro" del logo, no logo-dark.svg — las tarjetas de estos
+# correos son fondo claro/blanco, y logo-dark.svg tiene detalles en blanco que
+# quedarían invisibles ahí). PNG en vez de SVG: soporte de <img> con SVG es
+# inconsistente entre clientes de correo (Outlook desktop no lo renderiza),
+# PNG es universal. Regenerar con:
+#   python3 -c "import cairosvg; cairosvg.svg2png(url='frontend/public/logo-light.svg', write_to='frontend/public/logo-email.png', output_width=256, output_height=256)"
+_LOGO_URL = f"{FRONTEND_URL}/logo-email.png"
+
 _HTTP_TIMEOUT = 15  # segundos
 
 
@@ -47,9 +63,49 @@ def _send_email(to_email: str, subject: str, html: str, *, log_label: str) -> bo
         response.raise_for_status()
         print(f"[email] Sent {log_label} to {to_email}")
         return True
+    except httpx.HTTPStatusError as e:
+        # raise_for_status() por sí solo solo deja el código de estado en el
+        # log (ej. "403 Forbidden"), sin el cuerpo — y ahí es donde Resend
+        # manda el motivo real del rechazo (dominio no verificado, key con
+        # permisos restringidos, etc.). Verificado en incidente 2026-09-11:
+        # un 403 sin cuerpo obligó a ir a adivinar entre dos causas posibles
+        # en el dashboard de Resend en vez de leerlo directo del log.
+        print(f"[email] Failed to send {log_label}: {e} — response body: {e.response.text}")
+        return False
     except Exception as e:
         print(f"[email] Failed to send {log_label}: {e}")
         return False
+
+
+def _email_shell(body_html: str, footer_text: str = "") -> str:
+    """Envoltorio único de las 8 plantillas de abajo: header con el logo real
+    de la app + wordmark, tarjeta con el contenido propio de cada correo,
+    footer opcional. Centralizado acá en vez de repetido en cada función
+    (antes cada una traía su propio bloque de header/tarjeta calcado —
+    mismo criterio de "un solo lugar" que _send_email()).
+
+    Colores/tipografía tomados de docs/DESIGN_GUIDELINES.md: #F5C518 como
+    acento dorado (el mismo de la app), Anton para el wordmark (con fallback
+    a sans-serif — la mayoría de clientes de correo no cargan fuentes
+    externas, así que el fallback es el caso común) e Inter/system-ui para
+    el cuerpo."""
+    footer_block = (
+        f'<p style="font-size:12px;color:#999;text-align:center;margin:20px 0 0;">{footer_text}</p>'
+        if footer_text
+        else ""
+    )
+    return f"""
+    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px 24px;">
+      <div style="text-align: center; margin-bottom: 28px;">
+        <img src="{_LOGO_URL}" alt="CarLink" width="40" height="40" style="display: block; margin: 0 auto 10px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 22px; color: #111; letter-spacing: 0.01em;">Car<span style="color: #F5C518;">Link</span></span>
+      </div>
+      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee; border-top: 3px solid #F5C518;">
+        {body_html}
+      </div>
+      {footer_block}
+    </div>
+    """
 
 
 def send_found_request_email(
@@ -62,13 +118,7 @@ def send_found_request_email(
 ) -> bool:
     """Send email to vehicle owner when someone reports finding their key."""
     subject = f"CarLink — Alguien encontró el llavero de tu {vehicle_plate}"
-
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Alguien encontró tu llavero</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
           <strong>{finder_name}</strong> encontró el llavero de tu vehículo <strong>{vehicle_plate}</strong>.
@@ -81,12 +131,8 @@ def send_found_request_email(
           <div style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">Teléfono de contacto</div>
           <div style="font-size: 16px; color: #F5C518; font-weight: 700;">{finder_phone}</div>
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        Abre CarLink para ver esta notificación y contactar a {finder_name}.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text=f"Abre CarLink para ver esta notificación y contactar a {finder_name}.")
     return _send_email(owner_email, subject, html, log_label="found-request email")
 
 
@@ -97,12 +143,7 @@ def send_guide_email(to_email: str, guide_url: str) -> bool:
     (docs/CONTEXTO.md); acá se linkea, no se adjunta — un adjunto de ~1.4MB
     dispara más filtros de spam y algunos clientes de correo lo recortan."""
     subject = "CarLink — Tu Guía de Mantenimiento Preventivo"
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Acá está tu guía</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 20px;">
           Mantenimiento preventivo, historial documentado y normativa vehicular en Colombia —
@@ -113,12 +154,8 @@ def send_guide_email(to_email: str, guide_url: str) -> bool:
             Descargar la guía (PDF)
           </a>
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        ¿Preguntas? Responde a este correo o escríbenos por WhatsApp.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text="¿Preguntas? Responde a este correo o escríbenos por WhatsApp.")
     return _send_email(to_email, subject, html, log_label="guide email")
 
 
@@ -148,17 +185,12 @@ def send_job_application_email(
     message_line = f"<br><br><strong>Mensaje:</strong><br>{message}" if message else ""
     cv_line = f"<br><br><a href='{cv_url}' style='color:#F5C518;font-weight:700;'>Ver hoja de vida</a>" if cv_url else ""
 
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Nueva postulación recibida</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
           <strong>{applicant_name}</strong> se postuló para un puesto en el equipo CarLink.
         </p>
-        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; margin-bottom: 12px;">
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee;">
           <div style="font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">Datos del candidato</div>
           <div style="font-size: 14px; color: #333; line-height: 1.8;">
             <strong>Nombre:</strong> {applicant_name}<br>
@@ -170,12 +202,8 @@ def send_job_application_email(
             {cv_line}
           </div>
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        Revisa las postulaciones en el panel de administración de CarLink.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text="Revisa las postulaciones en el panel de administración de CarLink.")
     return _send_email(ADMIN_EMAIL, subject, html, log_label="job application email")
 
 
@@ -216,12 +244,7 @@ def send_order_received_email(
     pedidos Wompi no la reciben: ya les llega send_order_confirmed_email
     apenas se aprueba el pago, que alcanza como confirmación."""
     subject = "CarLink — Recibimos tu pedido, coordinamos el pago por WhatsApp"
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Gracias, {customer_name}!</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
           Registramos tu pedido contraentrega. Nuestro equipo te escribe por WhatsApp para
@@ -234,12 +257,8 @@ def send_order_received_email(
           <strong>Cantidad:</strong> {quantity}<br>
           <strong>Total (contraentrega):</strong> {_format_cop(amount_in_cents)} {currency}
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        Te confirmamos por acá apenas quede pagado y en preparación.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text="Te confirmamos por acá apenas quede pagado y en preparación.")
     return _send_email(customer_email, subject, html, log_label=f"order-received email ({reference})")
 
 
@@ -255,12 +274,7 @@ def send_order_confirmed_email(
     """Al cliente, apenas Wompi confirma el pago (transición a 'approved') —
     ver app/routers/shop_orders.py."""
     subject = "CarLink — Pago confirmado, tu llavero NFC va en camino"
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Gracias, {customer_name}!</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
           Tu pago quedó confirmado y ya estamos preparando tu llavero NFC.
@@ -273,12 +287,8 @@ def send_order_confirmed_email(
           <strong>Total:</strong> {_format_cop(amount_in_cents)} {currency}<br>
           <strong>Entrega estimada:</strong> 5 días hábiles
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        Te avisamos por acá apenas salga hacia tu dirección.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text="Te avisamos por acá apenas salga hacia tu dirección.")
     return _send_email(customer_email, subject, html, log_label=f"order-confirmed email ({reference})")
 
 
@@ -293,12 +303,7 @@ def send_order_shipped_email(
     pedidos' (PATCH /shop/orders/{reference}/fulfillment)."""
     subject = "CarLink — Tu llavero NFC ya salió"
     tracking_line = f'<div style="margin-top:12px;"><strong>Seguimiento:</strong> {tracking_note}</div>' if tracking_note else ""
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡{customer_name}, tu llavero va en camino!</h2>
         <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
           Acabamos de despachar el pedido <strong>{reference}</strong> (placa {plate_text}).
@@ -307,9 +312,8 @@ def send_order_shipped_email(
         <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333;">
           Debería llegar en los próximos días.{tracking_line}
         </div>
-      </div>
-    </div>
     """
+    html = _email_shell(body)
     return _send_email(customer_email, subject, html, log_label=f"order-shipped email ({reference})")
 
 
@@ -332,12 +336,7 @@ def send_order_admin_notification_email(
         return False
 
     subject = f"CarLink — Nuevo pedido pagado: {reference}"
-    html = f"""
-    <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <span style="font-family: 'Anton', sans-serif; font-size: 24px; color: #111;">Car<span style="color: #F5C518;">Link</span></span>
-      </div>
-      <div style="background: #f9f9f9; border-radius: 16px; padding: 24px; border: 1px solid #eee;">
+    body = f"""
         <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Pedido pagado — hay que despachar</h2>
         <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.8;">
           <strong>Pedido:</strong> {reference}<br>
@@ -349,10 +348,6 @@ def send_order_admin_notification_email(
           <strong>Contacto:</strong> {customer_phone} · {customer_email}<br>
           <strong>Enviar a:</strong> {shipping_address}, {shipping_city}
         </div>
-      </div>
-      <p style="font-size: 12px; color: #999; text-align: center; margin-top: 20px;">
-        Marca el pedido como enviado desde "Mis pedidos" cuando lo despaches — eso le avisa al cliente.
-      </p>
-    </div>
     """
+    html = _email_shell(body, footer_text='Marca el pedido como enviado desde "Mis pedidos" cuando lo despaches — eso le avisa al cliente.')
     return _send_email(ADMIN_EMAIL, subject, html, log_label=f"order admin-notification email ({reference})")

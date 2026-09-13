@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleApi } from '@/lib/api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleApi, analyticsApi } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import CarLinkLogo from '@/components/CarLinkLogo'
@@ -957,7 +957,8 @@ export default function AppPage() {
                 <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>
                   Ya tenés un llavero activo para este vehículo. ¿Necesitás un repuesto o duplicado?{' '}
                   <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`¡Hola CarLink! Necesito un llavero de repuesto/duplicado para mi vehículo ${vehicle?.plate || ''}.`)}`}
-                    target="_blank" rel="noreferrer" style={{ color: '#F5C518', fontWeight: 600 }}>Contactanos</a>.
+                    target="_blank" rel="noreferrer" style={{ color: '#F5C518', fontWeight: 600 }}
+                    onClick={() => analyticsApi.trackWhatsappClick('keychain_replacement', 'app')}>Contactanos</a>.
                 </div>
               )}
 

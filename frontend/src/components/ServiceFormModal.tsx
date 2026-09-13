@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ServiceIcon, Icon } from '@/lib/icons_new'
+import { ServiceTypeIcon, Icon } from '@/lib/icons_new'
 import { useTheme } from '@/store/theme'
+import { getOilBrands, getOilProductsByBrand, type OilCatalogItem } from '@/lib/oilCatalog'
 
 /* Opciones de frenos: revisar y reemplazar en un mismo control. La última es la
    única que renueva la pieza en Control de partes. */
@@ -296,6 +297,14 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
   const modalRef = useRef<HTMLDivElement>(null)
   const [viscDropdownOpen, setViscDropdownOpen] = useState(false)
   const viscInputRef = useRef<HTMLDivElement>(null)
+  /* Wizard de 3 pasos, solo para Aceite (ver icons_new no — plan del cambio en
+     docs, resumen: Producto / Datos generales / Confirmar). El resto de tipos
+     de servicio sigue con el formulario plano de siempre, sin este estado. */
+  const [aceiteStep, setAceiteStep] = useState<1 | 2 | 3>(1)
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false)
+  const brandInputRef = useRef<HTMLDivElement>(null)
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false)
+  const productInputRef = useRef<HTMLDivElement>(null)
 
   /* Parse description into extra fields when editing */
   useEffect(() => {
@@ -316,6 +325,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     if (desc.includes('labrado')) e.tire_tread = 'OK'
     e.lubricant_brand = editRecord.lubricant_brand || ''
     e.lubricant_type = editRecord.lubricant_type || ''
+    e.lubricant_product = editRecord.lubricant_product || ''
     e.next_service_mileage = editRecord.next_service_mileage?.toString() || ''
     setExtra(e)
   }, [editRecord])
@@ -366,6 +376,21 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     const handler = (e: MouseEvent) => {
       if (viscInputRef.current && !viscInputRef.current.contains(e.target as Node)) {
         setViscDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  /* Close brand/product catalog dropdowns on outside click — mismo patrón que el
+     de viscosidad de arriba. */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (brandInputRef.current && !brandInputRef.current.contains(e.target as Node)) {
+        setBrandDropdownOpen(false)
+      }
+      if (productInputRef.current && !productInputRef.current.contains(e.target as Node)) {
+        setProductDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -439,6 +464,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
       cost: cost ? parseFloat(cost) : 0,
       lubricant_brand: extra.lubricant_brand || '',
       lubricant_type: extra.lubricant_type || '',
+      lubricant_product: extra.lubricant_product || '',
       next_service_mileage: extra.next_service_mileage ? parseInt(extra.next_service_mileage) : null,
     }
 
@@ -556,6 +582,26 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     }
   }
 
+  /* Avanzar en el wizard de Aceite. Al salir del paso 2 (Datos generales) exige
+     lo mismo que ya exigía handleSave al guardar — así el aviso llega un paso
+     antes en vez de recién al final. */
+  function handleAceiteNext() {
+    if (aceiteStep === 2) {
+      if (!mileage) { setError('Ingresa el kilometraje'); return }
+      const milVal = parseInt(mileage)
+      if (!editRecord && latestMileage != null && milVal < latestMileage) {
+        setError(`El kilometraje no puede ser menor al último registrado (${latestMileage.toLocaleString()} km). Verifica el valor.`)
+        return
+      }
+      if (!editRecord && latestMileage != null && milVal > latestMileage + 100000) {
+        setError(`El kilometraje ingresado es muy alto comparado con el último registrado (${latestMileage.toLocaleString()} km). Verifica que no haya error de digitación.`)
+        return
+      }
+    }
+    setError('')
+    setAceiteStep(prev => (prev < 3 ? (prev + 1) as 1 | 2 | 3 : prev))
+  }
+
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 72,
@@ -572,7 +618,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
-              <ServiceIcon type={serviceType || 'Otro'} size={19} />
+              <ServiceTypeIcon type={serviceType || 'Otro'} size={19} />
             </span>
             <div>
               <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15 }}>
@@ -606,7 +652,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                   background: btnGhostBg, border: `1px solid ${border}`,
                   color: textPrimary, fontSize: 14, fontWeight: 600, transition: 'all .15s',
                 }}>
-                  <span style={{ color: '#F5C518', display: 'flex' }}><ServiceIcon type={st.id} size={20} /></span>
+                  <span style={{ color: '#F5C518', display: 'flex' }}><ServiceTypeIcon type={st.id} size={20} /></span>
                   <span>{st.label}</span>
                 </button>
               ))}
@@ -617,8 +663,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         {/* Step 2: fill form */}
         {step === 'form' && (
           <div>
-            {/* Service type (editable) */}
-            {!hideServiceType && (
+            {/* Service type (editable) — en el wizard de Aceite solo se ve en el
+               paso 1: cambiarlo a mitad del wizard no tendría sentido. */}
+            {!hideServiceType && (serviceType !== 'Aceite' || aceiteStep === 1) && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo de servicio</label>
               <select value={serviceType} onChange={e => setServiceType(e.target.value)} style={{
@@ -633,8 +680,29 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             </div>
             )}
 
+            {/* Wizard de Aceite: registro corto en 3 pasos (Producto / Datos
+               generales / Confirmar) en vez del formulario plano de siempre —
+               el resto de tipos de servicio no entra acá. */}
+            {serviceType === 'Aceite' && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700 }}>
+                    Paso {aceiteStep} de 3
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>
+                    {aceiteStep === 1 ? 'Producto' : aceiteStep === 2 ? 'Datos generales' : 'Confirmar'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {[1, 2, 3].map(n => (
+                    <div key={n} style={{ flex: 1, height: 4, borderRadius: 3, background: n <= aceiteStep ? '#F5C518' : border }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Type-specific fields */}
-            {(() => {
+            {(serviceType !== 'Aceite' || aceiteStep === 1) && (() => {
               const stDef = SERVICE_TYPES.find(st => st.id === serviceType)
               if (!stDef) return null
               return (
@@ -644,6 +712,110 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {stDef.fields.map((f: any) => {
+                      /* Marca del aceite (solo Aceite): en vez del texto libre
+                         genérico, autocomplete contra el catálogo de aceites/
+                         (frontend/src/lib/oilCatalog.ts) con logo de marca, y un
+                         campo nuevo de Producto justo debajo, filtrado por esa
+                         marca — al elegir un producto se autocompletan solos
+                         Producto y Tipo/viscosidad. Si la marca no está en el
+                         catálogo o el usuario prefiere escribir libre, ambos
+                         campos siguen funcionando como texto normal (no bloquea
+                         nada, mismo criterio que ya tenía el campo de viscosidad). */
+                      if (f.key === 'lubricant_brand' && serviceType === 'Aceite') {
+                        const brandVal = extra.lubricant_brand || ''
+                        const brandSuggestions = getOilBrands().filter(b =>
+                          b.marca.toLowerCase().includes(brandVal.toLowerCase()) && b.marca !== brandVal
+                        ).slice(0, 8)
+                        const productVal = extra.lubricant_product || ''
+                        const productSuggestions: OilCatalogItem[] = brandVal
+                          ? getOilProductsByBrand(brandVal).filter(p =>
+                              p.producto.toLowerCase().includes(productVal.toLowerCase())
+                            ).slice(0, 8)
+                          : []
+                        return (
+                          <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div ref={brandInputRef} style={{ position: 'relative' }}>
+                              <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
+                              <input
+                                type="text" value={brandVal}
+                                onChange={e => { setField('lubricant_brand', e.target.value); setBrandDropdownOpen(true) }}
+                                onFocus={() => setBrandDropdownOpen(true)}
+                                placeholder={f.placeholder}
+                                style={{
+                                  width: '100%', padding: '11px 13px', borderRadius: 10,
+                                  border: `1px solid ${border}`, background: inputBg,
+                                  color: textPrimary, fontSize: 14, outline: 'none',
+                                }}
+                              />
+                              {brandDropdownOpen && brandSuggestions.length > 0 && brandVal.length > 0 && (
+                                <div style={{
+                                  position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
+                                  background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
+                                  maxHeight: 200, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
+                                }}>
+                                  {brandSuggestions.map(b => (
+                                    <button key={b.marca} onClick={() => { setField('lubricant_brand', b.marca); setBrandDropdownOpen(false) }}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                        padding: '9px 13px', background: 'transparent', border: 'none',
+                                        borderBottom: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left',
+                                      }}>
+                                      {b.logo ? (
+                                        <img src={`/oil-brands/${b.logo}`} alt="" width={18} height={18}
+                                          style={{ objectFit: 'contain', background: '#fff', borderRadius: 4, padding: 2, flex: '0 0 auto' }} />
+                                      ) : (
+                                        <span style={{ width: 18, height: 18, flex: '0 0 auto' }} />
+                                      )}
+                                      <span style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{b.marca}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div ref={productInputRef} style={{ position: 'relative' }}>
+                              <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Producto <span style={{ fontWeight: 400, color: textMuted }}>(opcional)</span></label>
+                              <input
+                                type="text" value={productVal}
+                                onChange={e => { setField('lubricant_product', e.target.value); setProductDropdownOpen(true) }}
+                                onFocus={() => setProductDropdownOpen(true)}
+                                placeholder={brandVal ? `Ej. ${brandVal} ...` : 'Elige o escribe una marca primero'}
+                                style={{
+                                  width: '100%', padding: '11px 13px', borderRadius: 10,
+                                  border: productVal ? '1px solid rgba(245,197,24,0.5)' : `1px solid ${border}`,
+                                  background: inputBg,
+                                  color: textPrimary, fontSize: 14, outline: 'none',
+                                }}
+                              />
+                              {productDropdownOpen && productSuggestions.length > 0 && (
+                                <div style={{
+                                  position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
+                                  background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
+                                  maxHeight: 220, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
+                                }}>
+                                  {productSuggestions.map(p => (
+                                    <button key={p.producto} onClick={() => {
+                                        setField('lubricant_product', p.producto)
+                                        setField('lubricant_type', p.viscosidad)
+                                        setProductDropdownOpen(false)
+                                      }}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                                        padding: '10px 13px', background: 'transparent', border: 'none',
+                                        borderBottom: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left',
+                                      }}>
+                                      <div>
+                                        <div style={{ fontSize: 13.5, fontWeight: 600, color: textPrimary }}>{p.producto}</div>
+                                        <div style={{ fontSize: 11, color: textMuted }}>{p.tipoBase} · {p.viscosidad}</div>
+                                      </div>
+                                      <span style={{ display: 'flex', color: '#F5C518', flex: '0 0 auto' }}><Icon type="Check" size={14} strokeWidth={2.4} /></span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
                       if (f.type === 'checkbox') {
                         return (
                           <label key={f.key} style={{
@@ -740,6 +912,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             })()}
 
             {/* Common fields */}
+            {(serviceType !== 'Aceite' || aceiteStep === 2) && <>
             <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
             <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
@@ -824,9 +997,10 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                   }} />
               </div>
             </div>
+            </>}
 
-            {/* Lubricant rule prediction — auto from type/viscosity */}
-            {serviceType === 'Aceite' && (() => {
+            {/* Lubricant rule prediction — auto from type/viscosity (paso 3 del wizard) */}
+            {serviceType === 'Aceite' && aceiteStep === 3 && (() => {
               const rule = getLubricantRule(extra.lubricant_type)
               if (!rule) return (
                 <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: btnGhostBg, border: `1px solid ${border}`, fontSize: 12, color: textMuted }}>
@@ -857,6 +1031,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
               )
             })()}
 
+            {/* Programación + Vista previa — en Aceite, paso 3 (Confirmar); en el
+               resto de tipos de servicio siempre visibles, sin wizard. */}
+            {(serviceType !== 'Aceite' || aceiteStep === 3) && <>
             {/* Common field: Próximo servicio (km) — auto-calculated, editable */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>
@@ -902,7 +1079,13 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                   </span>
                 ) : null
               })()}
+              {serviceType === 'Aceite' && extra.lubricant_product && (
+                <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: textMuted }}>
+                  Producto: {extra.lubricant_product}
+                </span>
+              )}
             </div>
+            </>}
 
             {error && (
               <div style={{ padding: '10px 14px', borderRadius: 10, marginBottom: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: 13 }}>
@@ -912,14 +1095,25 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { if (!editRecord) setStep('type') }} disabled={!editRecord && step === 'form' ? false : false}
-                style={{
-                  padding: '12px 18px', borderRadius: 11,
-                  border: `1px solid ${border}`, background: btnGhostBg,
-                  color: textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                }}>
-                {editRecord ? 'Cancelar' : 'Cambiar tipo'}
-              </button>
+              {serviceType === 'Aceite' && aceiteStep > 1 ? (
+                <button onClick={() => { setError(''); setAceiteStep(prev => (prev - 1) as 1 | 2) }}
+                  style={{
+                    padding: '12px 18px', borderRadius: 11,
+                    border: `1px solid ${border}`, background: btnGhostBg,
+                    color: textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}>
+                  Atrás
+                </button>
+              ) : (
+                <button onClick={() => { if (!editRecord) { setStep('type'); setAceiteStep(1) } }} disabled={!editRecord && step === 'form' ? false : false}
+                  style={{
+                    padding: '12px 18px', borderRadius: 11,
+                    border: `1px solid ${border}`, background: btnGhostBg,
+                    color: textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}>
+                  {editRecord ? 'Cancelar' : 'Cambiar tipo'}
+                </button>
+              )}
               {editRecord && (
                 <button onClick={handleDelete} disabled={saving} style={{
                   padding: '12px 18px', borderRadius: 11,
@@ -930,6 +1124,16 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                 </button>
               )}
               <div style={{ flex: 1 }} />
+              {serviceType === 'Aceite' && aceiteStep < 3 ? (
+                <button onClick={handleAceiteNext} style={{
+                  padding: '12px 24px', borderRadius: 11, border: 'none',
+                  background: '#F5C518', color: '#111',
+                  fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                  boxShadow: '0 0 20px rgba(245,197,24,0.35)',
+                }}>
+                  Siguiente
+                </button>
+              ) : (
               <button onClick={handleSave} disabled={saving} style={{
                 padding: '12px 24px', borderRadius: 11, border: 'none',
                 background: saving ? '#8a7a3c' : '#F5C518', color: '#111',
@@ -940,6 +1144,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                 {saving && <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#111', animation: 'spin .6s linear infinite', display: 'inline-block' }} />}
                 {editRecord ? 'Guardar cambios' : 'Registrar servicio'}
               </button>
+              )}
             </div>
           </div>
         )}

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routers import (
     admin,
+    analytics,
     appointments,
     auth,
     certificates,
@@ -98,6 +99,7 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 # Reseñas de plataforma/producto/taller enviadas por usuarios autenticados —
 # ver docs/PENDIENTES.md y el plan de este feature. Router propio, no vive bajo
 # /workshops/me porque no está scopeado a una cuenta taller (cualquier usuario).

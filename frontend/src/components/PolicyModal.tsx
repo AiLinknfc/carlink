@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import jsPDF from 'jspdf'
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY } from '@/lib/checkout'
 
 export type PolicyTab = 'warranty' | 'privacy' | 'support'
 
@@ -143,7 +144,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(180, 180, 180)
-      doc.text('CarLink S.A.S. · Bogotá D.C., Colombia · business@carlink.com.co · +57 316 497 6104', margin, fh - 10)
+      doc.text(`CarLink S.A.S. · Bogotá D.C., Colombia · business@carlink.com.co · ${SUPPORT_WHATSAPP_DISPLAY}`, margin, fh - 10)
       doc.text('Documento generado automáticamente. Válido sin firma.', margin, fh - 5)
       doc.setTextColor(...gold)
       doc.text('carlink.com.co', w - margin, fh - 10, { align: 'right' })
@@ -176,7 +177,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       bulletItem('CIUDAD DE REGISTRO:', city)
       bulletItem('ESTADO NFC:', 'Activo y certificado')
       bulletItem('CANAL DE SOPORTE:', 'business@carlink.com.co')
-      bulletItem('WHATSAPP:', '+57 316 497 6104')
+      bulletItem('WHATSAPP:', SUPPORT_WHATSAPP_DISPLAY)
       bodyText('Nuestro equipo tecnico responde en menos de 2 horas habiles. Para incidencias criticas con el chip NFC, contacta directamente por WhatsApp.')
     }
 
@@ -323,7 +324,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                           <span style={{ ...label, color: GOLD, letterSpacing: '.14em' }}>Línea de atención</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 700 }}>{Ic.phone(GOLD)}<span>Soporte por WhatsApp</span></div>
                           <p style={{ fontSize: 12, lineHeight: 1.55, color: textMuted, margin: 0 }}>¿Eres taller de la red y tienes problemas escribiendo los llaveros? Escríbenos por el canal directo.</p>
-                          <a href="https://wa.me/573164976104" target="_blank" rel="noreferrer" style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color: GREEN, background: isDark ? '#000' : 'rgba(0,0,0,0.04)', border: `1px solid ${subtle}`, borderRadius: 9, padding: '9px', textDecoration: 'none' }}>+57 316 497 6104</a>
+                          <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color: GREEN, background: isDark ? '#000' : 'rgba(0,0,0,0.04)', border: `1px solid ${subtle}`, borderRadius: 9, padding: '9px', textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
                           <a href="mailto:business@carlink.com.co" style={{ textAlign: 'center', fontSize: 12.5, color: GOLD, textDecoration: 'none' }}>business@carlink.com.co</a>
                         </div>
                         <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 8 }}>

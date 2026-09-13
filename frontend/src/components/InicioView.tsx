@@ -1,7 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ServiceIcon } from '@/lib/icons_new'
+import { ServiceTypeIcon } from '@/lib/icons_new'
+
+/* Tamaño único para los 10 íconos de esta grilla (antes 22, luego 33, ahora +50% =
+   50). Cada ícono detrás de ServiceTypeIcon ya viene recortado a su propio
+   contenido, así que a este mismo tamaño el contenedor y el margen visual quedan
+   parejos en los diez — ver el criterio en icons_new.tsx. */
+const ICON_SIZE = 50
 
 const SERVICE_TYPES = [
   { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
@@ -77,7 +83,7 @@ export default function InicioView({ onAddService, theme }: Props) {
               onMouseLeave={e => { e.currentTarget.style.opacity = isExplored ? '1' : '0.65'; e.currentTarget.style.transform = 'none' }}
             >
               <span style={{ color: isExplored ? '#F5C518' : textMuted, transition: 'color .2s' }}>
-                <ServiceIcon type={st.id} size={22} />
+                <ServiceTypeIcon type={st.id} size={ICON_SIZE} />
               </span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: textPrimary }}>{st.label}</div>

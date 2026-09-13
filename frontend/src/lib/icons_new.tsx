@@ -5,8 +5,8 @@ const svgIcon = (children: ReactNode, size: number, strokeWidth = 1.7): ReactNod
 )
 
 const SERVICE_PATHS: Record<string, ReactNode> = {
-  /* Aceite: lámpara de Aladino — forma clásica de vasija con pico y llama */
-  Aceite: <><path d="M10 3c-.6 1.2-1 2.6-1 4 0 3.3 2.7 6 6 6 .3 0 .7 0 1-.1" /><path d="M16 8l2.5-1.5c.8-.5.8-1.7 0-2.2L16 3" /><path d="M15 13c-1.3 1.4-2 3.3-2 5.3 0 1.7 1.3 3 3 3s3-1.3 3-3c0-2-.7-3.9-2-5.3" /><path d="M14 16.5c-2.4 0-4.5-1-5.5-2.5" /><path d="M8.5 14c-1.7-.5-3-2-3-3.8 0-.8.3-1.6.7-2.2" /><circle cx="13" cy="3.5" r="1.5" fill="currentColor" stroke="none" /></>,
+  /* Aceite: gota de aceite — presentación CarLink (mantenimiento 5.000 km) */
+  Aceite: <><path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z" /></>,
 
   /* Aire: hélice/turbina de aire — tres palas rotando */
   Aire: <><path d="M12 12c-3-3-7-4-7-4s1-4 4-7c3 3 7 4 7 4s-1 4-4 7z" /><path d="M12 12c3 3 4 7 4 7s4-1 7-4c-3-3-4-7-4-7s-4 1-7 4z" /><path d="M12 12c0 3.3-1.3 6-3 6s-3-2.7-3-6c0-3.3 1.3-6 3-6s3 2.7 3 6z" /><circle cx="12" cy="12" r="2" /></>,
@@ -107,15 +107,16 @@ export function ServiceLogo({ type, size = 48 }: { type: string; size?: number }
   const logos: Record<string, ReactNode> = {
     Aceite: (
       <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
-        {/* Lámpara de Aladino */}
-        <ellipse cx="24" cy="34" rx="10" ry="7" fill="#F5C518" opacity="0.15" />
-        <path d="M18 28c0-8 3-14 6-16 3 2 6 8 6 16" stroke="#F5C518" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        <path d="M16 28c-2 0-4-1-4-3s2-3 4-3h16c2 0 4 1 4 3s-2 3-4 3" stroke="#F5C518" strokeWidth="2" fill="none" strokeLinecap="round" />
-        <path d="M24 12l-4 8" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M24 12l4 8" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
-        <ellipse cx="24" cy="9" rx="3" ry="4" fill="#F5C518" opacity="0.7" />
-        <ellipse cx="24" cy="8" rx="1.5" ry="2.5" fill="#fff" opacity="0.6" />
-        <path d="M18 31c0 3 2.7 5 6 5s6-2 6-5" stroke="#F5C518" strokeWidth="1.8" fill="none" />
+        {/* Presión de aceite — testigo tablero, presentación CarLink */}
+        {/* Cuerpo del medidor */}
+        <path d="M6 16 L18 10 L17 18 L4 20 Z" stroke="#F5C518" strokeWidth="1.8" fill="#F5C518" fillOpacity="0.15" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Líneas del indicador */}
+        <path d="M21 9 L30 9" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M25.5 7 L25.5 19" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" />
+        {/* Cubo del aceite */}
+        <path d="M14 20 L34 20 L37 26 L44 18 L46 22 L40 28 L38 38 L14 38 Z" stroke="#F5C518" strokeWidth="1.8" fill="#F5C518" fillOpacity="0.08" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Gota de aceite */}
+        <path d="M42 32 C42 32 40 36 40 38 a4 4 0 0 0 8 0 c0-2-2-6-2-6 Z" fill="#F5C518" stroke="none" />
       </svg>
     ),
     Refrigerante: (
@@ -215,6 +216,189 @@ export function ServiceLogo({ type, size = 48 }: { type: string; size?: number }
     ),
   }
   return logos[type] || logos.Otro
+}
+
+/* Testigo "Presión de aceite" — tomado tal cual de la presentación CarLink
+   (Presentación de Carlink/Carpeta Transparente.dc.html, tarjeta "Presión de aceite").
+   Uso puntual: solo la card de Aceite en InicioView, no reemplaza SERVICE_PATHS.Aceite
+   que se usa en otros lugares (ServiceFormModal, HistoryStack, etc.). */
+export function PresionAceiteIcon({ size = 22, strokeWidth = 30 }: { size?: number; strokeWidth?: number }): ReactNode {
+  /* El testigo es un dibujo apaisado (viewBox original 520x230, ~2.26:1) dibujado con
+     mucho margen muerto alrededor. Recortamos el viewBox al bbox real del dibujo
+     (+ padding de medio trazo) para que, al forzarlo a un contenedor cuadrado
+     `size`x`size` — igual que el resto de los íconos de esta card —, el dibujo use
+     el máximo de esa caja en vez de quedar chico por el margen que traía de más. */
+  return (
+    <svg width={size} height={size} viewBox="3 -3 526 220" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M28 14 L130 46 L128 82 L18 48 Z" />
+      <path d="M152 12 L222 12" />
+      <path d="M187 20 L187 84" />
+      <path d="M105 84 L268 84 L296 116 L462 46 L488 74 L382 118 L332 202 L105 202 Z" />
+      <path d="M500 128 C500 128 486 152 486 164 a14 14 0 0 0 28 0 c0 -12 -14 -36 -14 -36 Z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+/* Filtro (aire/cabina/combustible) — reemplaza la hélice/turbina de SERVICE_PATHS.Aire,
+   que se leía como "aire" pero no como "filtro". No es un testigo de tablero (no hay uno
+   en la presentación para filtros), es un ícono nuevo: carcasa rectangular con el papel
+   plisado en zigzag — el diseño más reconocible como filtro (frente a la opción cilíndrica
+   con líneas verticales, que se lee más específicamente como filtro de aceite). Uso
+   puntual: solo la card Aire ("Filtros") en InicioView, no reemplaza SERVICE_PATHS.Aire. */
+export function FiltroIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return svgIcon(<>
+    <rect x="3" y="6" width="18" height="12" rx="1.5" />
+    <path d="M5.5 16 L8.5 8 L11.5 16 L14.5 8 L17.5 16 L19.5 8" />
+  </>, size, strokeWidth)
+}
+
+/* Testigo "Batería / carga" — tomado tal cual de la presentación CarLink
+   (Presentación de Carlink/Carpeta Transparente.dc.html, tarjeta "Batería / carga").
+   Uso puntual: solo la card de Bateria en InicioView. De paso corrige que esa card
+   no mostraba ningún ícono de batería: SERVICE_TYPES usa id 'Bateria' sin tilde y
+   SERVICE_PATHS tiene la clave 'Batería' con tilde, así que ServiceIcon caía al
+   fallback (la llave inglesa de "Otro"). */
+export function BateriaCargaIcon({ size = 22, strokeWidth = 6 }: { size?: number; strokeWidth?: number }): ReactNode {
+  /* Igual criterio que PresionAceiteIcon: viewBox recortado al bbox real (+ medio
+     trazo) para que, en un contenedor cuadrado, use el máximo de esa caja. */
+  return (
+    <svg width={size} height={size} viewBox="13 21 94 58" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="16" y="30" width="88" height="46" rx="5" fill="currentColor" fillOpacity={0.08} />
+      <path d="M34 30v-6h14v6M72 30v-6h14v6" />
+      <path d="M32 52h16M80 44v16M72 52h16" />
+    </svg>
+  )
+}
+
+/* Testigo "Estación de servicio" (Tanquea pronto) — tomado tal cual de la
+   presentación CarLink, misma tarjeta que Batería/Freno de disco/Temperatura
+   (viewBox original 120x100). Uso puntual: card Combustible en InicioView. */
+export function EstacionServicioIcon({ size = 22, strokeWidth = 7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  /* Igual criterio: viewBox recortado al bbox real (+ medio trazo). */
+  return (
+    <svg width={size} height={size} viewBox="14.5 10.5 102 85" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M26 92V22a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v70" fill="currentColor" fillOpacity={0.10} />
+      <path d="M18 92h58" />
+      <path d="M34 26h28v16H34z" />
+      <path d="M70 34h14a8 8 0 0 1 8 8v30a7 7 0 0 0 14 0V48" />
+      <path d="M106 48V32" />
+      <path d="M99 34h14" strokeWidth={5} />
+    </svg>
+  )
+}
+
+/* Testigo "Freno de disco" (Detente) — tomado tal cual de la presentación CarLink,
+   misma tarjeta que Batería/Estación de servicio/Temperatura (viewBox 120x100).
+   Uso puntual: card Frenos en InicioView. */
+export function FrenoDiscoIcon({ size = 22, strokeWidth = 7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  /* Igual criterio: viewBox recortado al bbox real (+ medio trazo). */
+  return (
+    <svg width={size} height={size} viewBox="22.5 12.5 95 75" fill="none" stroke="currentColor" strokeWidth={strokeWidth}>
+      <g strokeWidth={7}>
+        <circle cx="60" cy="50" r="34" />
+        <circle cx="60" cy="50" r="13" fill="currentColor" fillOpacity={0.08} />
+      </g>
+      <g strokeWidth={5}>
+        <circle cx="60" cy="30" r="3.4" />
+        <circle cx="77" cy="40" r="3.4" />
+        <circle cx="77" cy="60" r="3.4" />
+        <circle cx="60" cy="70" r="3.4" />
+        <circle cx="43" cy="60" r="3.4" />
+        <circle cx="43" cy="40" r="3.4" />
+      </g>
+      <path d="M96 30h14a4 4 0 0 1 4 4v32a4 4 0 0 1-4 4H96z" fill="currentColor" fillOpacity={0.14} strokeWidth={6} strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/* Testigo "Temperatura" (Detente) — tomado tal cual de la presentación CarLink,
+   misma tarjeta que Batería/Estación de servicio/Freno de disco (viewBox 120x100).
+   Uso puntual: card Refrigerante en InicioView. La presentación no tiene un testigo
+   separado de "refrigeración"; este es el de temperatura de motor/refrigerante,
+   que es al que corresponde esa card (Sistema de refrigeración). */
+export function TemperaturaIcon({ size = 22, strokeWidth = 7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  /* Igual criterio: viewBox recortado al bbox real (+ medio trazo). */
+  return (
+    <svg width={size} height={size} viewBox="13.5 13.5 89 84" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M60 18v36" strokeWidth={9} />
+      <circle cx="60" cy="58" r="9" fill="currentColor" stroke="none" />
+      <path d="M70 26h12M70 36h12M70 46h12" strokeWidth={5} />
+      <path d="M18 74q8-7 16 0t16 0 16 0 16 0 16 0" strokeWidth={6} />
+      <path d="M18 86q8-7 16 0t16 0 16 0 16 0 16 0" strokeWidth={6} />
+    </svg>
+  )
+}
+
+/* Llantas/Suspensión/Transmisión — mismo dibujo de SERVICE_PATHS pero con el
+   viewBox recortado a su bbox real (+ medio trazo), igual criterio que los
+   testigos de arriba. Al lado de los otros 6 íconos de esta card, Suspensión en
+   particular se veía notoriamente más chico con su viewBox nativo "0 0 24 24"
+   (el dibujo del resorte deja bastante más margen propio que, por ejemplo,
+   Llantas) — no es un problema de crop, es que el trazo original ya nace más
+   chico dentro de su lienzo; el recorte lo compensa. Uso puntual: solo InicioView,
+   no reemplazan SERVICE_PATHS (ServiceFormModal, HistoryStack, FichaTab siguen
+   usando el ícono nativo tal cual estaba). */
+export function LlantasIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="2.15 2.15 19.7 19.7" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="3" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+      <path d="M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4" />
+    </svg>
+  )
+}
+
+export function SuspensionIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="3.15 3.15 17.7 17.7" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20h16" /><path d="M12 4v3" /><path d="M9 7h6" />
+      <path d="M8 9c2 1 6 1 8 0" /><path d="M8 12c2 1 6 1 8 0" /><path d="M8 15c2 1 6 1 8 0" />
+      <path d="M9 17h6" />
+    </svg>
+  )
+}
+
+export function TransmisionIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="3.15 3.15 18.7 18.7" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="3" /><circle cx="16" cy="16" r="3" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" /><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none" />
+      <path d="M8 5v-1M8 12v1M5 8H4M12 8h1" /><path d="M16 13v-1M16 20v1M13 16h-1M20 16h1" />
+      <path d="M10.5 10.5l3 3" />
+    </svg>
+  )
+}
+
+/* Único punto de referencia para el ícono de un tipo de servicio en toda la app.
+   Los seis testigos de arriba (Aceite/Aire/Batería/Combustible/Frenos/Refrigerante)
+   y los tres recortes (Llantas/Suspensión/Transmisión) nacieron para InicioView,
+   pero son "el" ícono de cada tipo — cualquier otra pantalla que muestre un ícono
+   de servicio debe pedirlo por acá en vez de llamar a SERVICE_PATHS/ServiceIcon
+   directo, para no terminar con dos versiones distintas del mismo tipo. `size` se
+   adapta al contexto de cada pantalla (no hay un tamaño único fuera de InicioView);
+   acepta la clave con o sin tilde porque distintos llamadores ya traían una u otra
+   (SERVICE_TYPES de InicioView.tsx no lleva tilde, el de ServiceFormModal.tsx sí). */
+export function ServiceTypeIcon({ type, size = 18 }: { type?: string; size?: number }): ReactNode {
+  switch (type) {
+    case 'Aceite': return <PresionAceiteIcon size={size} />
+    case 'Aire': return <FiltroIcon size={size} />
+    case 'Bateria': case 'Batería': return <BateriaCargaIcon size={size} />
+    case 'Combustible': return <EstacionServicioIcon size={size} />
+    case 'Frenos': return <FrenoDiscoIcon size={size} />
+    case 'Refrigerante': return <TemperaturaIcon size={size} />
+    case 'Llantas': return <LlantasIcon size={size} />
+    case 'Suspension': case 'Suspensión': return <SuspensionIcon size={size} />
+    case 'Transmision': case 'Transmisión': return <TransmisionIcon size={size} />
+    default: return <ServiceIcon type={type} size={size} />
+  }
 }
 
 /* Logo del llavero NFC — cuerpo del llavero con su anilla y las ondas de lectura.

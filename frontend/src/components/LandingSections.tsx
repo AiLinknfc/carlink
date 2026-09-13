@@ -3,9 +3,10 @@
 import React, { useState, useEffect, type FormEvent } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
-import { reviewsApi, waitlistApi } from '@/lib/api'
+import { reviewsApi, waitlistApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, KIT_ORDER_ENABLED } from '@/lib/checkout'
+import { checkContact } from '@/lib/contactValidation'
 
 type Theme = 'light' | 'dark'
 
@@ -45,6 +46,7 @@ function tokens(theme: Theme) {
 }
 
 const SECTION_MAX: React.CSSProperties = { maxWidth: 1160, margin: '0 auto', width: '100%' }
+const SECTION_NARROW: React.CSSProperties = { maxWidth: 820, margin: '0 auto', width: '100%' }
 const EYEBROW: React.CSSProperties = {
   fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', fontWeight: 600, color: GOLD,
 }
@@ -53,10 +55,11 @@ const H2: React.CSSProperties = {
 }
 
 const FAQS = [
-  { q: '¿Qué incluye cada servicio del taller?', a: 'Cada visita queda registrada con fecha, kilometraje, tall mecánico, los repuestos cambiados y una foto del comprobante. El historial es inmutable y verificable.' },
-  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — cada visita nueva simplemente se agrega con el nombre de quien te atendió.' },
-  { q: '¿Cómo verifico que el historial no esté adulterado?', a: 'Cada registro tiene un hash de integridad y la ubicación GPS del taller. Si alguien intenta editar un servicio pasado, la app marca la inconsistencia.' },
-  { q: '¿Necesito descargar alguna aplicación?', a: 'No. CarLink funciona con la tecnología NFC nativa de todos los smartphones (iPhone y Android). Al acercar tu celular al llavero, se abre automáticamente tu navegador seguro con la bitácora digital de tu vehículo.' },
+  { q: '¿Necesita batería?', a: 'No. El llavero NFC funciona sin batería y sin mantenimiento — dura toda la vida del vehículo.' },
+  { q: '¿Necesita Internet?', a: 'Solo para consultar la información. El escaneo del llavero es instantáneo; la ficha se carga desde la nube.' },
+  { q: '¿Qué pasa si pierdo el llavero?', a: 'Puedes desactivarlo desde la app en segundos y asociar uno nuevo. Tu historial nunca se pierde: vive en tu cuenta, no en el llavero.' },
+  { q: '¿El llavero reemplaza el SOAT o la tecnomecánica?', a: 'No — los complementa. CarLink es tu ficha de mantenimiento; SOAT y RTM siguen siendo trámites oficiales, aunque también puedes guardarlos en tu sección de Documentos.' },
+  { q: '¿El llavero es resistente al agua, caídas y roces de llaves?', a: 'Depende del modelo. Algunos llaveros vienen encapsulados en resina polimérica industrial IP68 impermeable, resistente a caídas de más de 3 metros, salpicaduras de gasolina, aceite y el friccionamiento continuo con otras llaves metálicas. Consulta las especificaciones de cada modelo para verificar su nivel de resistencia.' },
   { q: '¿Mis datos son públicos?', a: 'No. Tu ficha solo es visible para quien tú compartas el enlace o acerque el llavero — no aparece en buscadores ni se comparte con terceros.' },
   { q: '¿Cuánto cuesta para un conductor?', a: 'Nada. Crear tu ficha, ver tu historial y descargar tu pase de Wallet es gratis para siempre.' },
 ]
@@ -69,12 +72,6 @@ const ARROW = (
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
 )
-// Mismo regex que el backend (waitlist.py: _EMAIL_RE) — el backend solo manda
-// el correo con el PDF si "contact" matchea esto; si no, no envía nada (no
-// hay integración de WhatsApp automático). Se usa acá para decidir qué le
-// mostramos/hacemos al usuario después de guardar el lead.
-const isEmailContact = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)
-
 type PolicyTab = 'warranty' | 'privacy' | 'support'
 
 export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenPolicy, onOpenPqrs, onOpenCart }: { theme: Theme; onStart: () => void; onOpenEmpresa: (accountType?: 'user' | 'business') => void; onOpenPolicy: (tab: PolicyTab) => void; onOpenPqrs: () => void; onOpenCart: () => void }) {
@@ -89,6 +86,13 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
   const [realTestimonials, setRealTestimonials] = useState<Review[] | null>(null)
   const [leadContact, setLeadContact] = useState('')
   const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  // 'invalid_contact' viene del backend rechazando el formato (422); 'network'
+  // es cualquier otra falla — mensajes distintos porque una la resuelve la
+  // persona (corregir lo que escribió), la otra no (reintentar).
+  const [leadErrorReason, setLeadErrorReason] = useState<'invalid_contact' | 'network' | null>(null)
+  // Tipo confirmado por el backend (no una suposición del cliente) — decide
+  // qué mensaje de éxito mostrar (correo enviado vs. abrir WhatsApp).
+  const [leadContactType, setLeadContactType] = useState<'email' | 'phone' | null>(null)
   useEffect(() => {
     reviewsApi.list({ targetType: 'platform', sort: 'mejores', limit: 6 }).then(list => {
       const withComment = (list || []).filter(r => r.rating >= 4 && r.comment.trim().length > 0)
@@ -96,18 +100,31 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
     })
   }, [])
 
+  const leadContactCheck = checkContact(leadContact)
+
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const contact = leadContact.trim()
-    if (!contact || leadStatus === 'loading') return
+    if (!leadContact.trim() || leadStatus === 'loading') return
+    if (leadContactCheck.status !== 'valid') {
+      setLeadStatus('error')
+      setLeadErrorReason('invalid_contact')
+      return
+    }
     setLeadStatus('loading')
-    const res = await waitlistApi.create(contact, 'landing_guia_mantenimiento')
-    if (!res) { setLeadStatus('error'); return }
-    // El backend solo envía el PDF por correo (ver isEmailContact) — no hay
-    // envío automático de WhatsApp. Para que dejar el celular "funcione" de
-    // verdad (no solo se guarde), abrimos WhatsApp con el pedido precargado
-    // en vez de mostrar un "enviado" falso.
-    if (!isEmailContact(contact)) {
+    setLeadErrorReason(null)
+    const res = await waitlistApi.create(leadContact.trim(), 'landing_guia_mantenimiento')
+    if (!res.ok) {
+      setLeadStatus('error')
+      setLeadErrorReason(res.reason)
+      return
+    }
+    setLeadContactType(res.lead.contact_type)
+    // El backend solo envía el PDF por correo — no hay envío automático de
+    // WhatsApp. Para que dejar el celular "funcione" de verdad (no solo se
+    // guarde), abrimos WhatsApp con el pedido precargado en vez de mostrar
+    // un "enviado" falso.
+    if (res.lead.contact_type === 'phone') {
+      analyticsApi.trackWhatsappClick('guide_phone_lead', 'landing')
       window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
     }
     setLeadStatus('done')
@@ -133,7 +150,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       `}</style>
 
       {/* ===== LA DIFERENCIA — ¿Realmente necesitas CarLink? ===== */}
-      <section id="h-diferencia" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-diferencia" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 40px' }}>
           <div style={EYEBROW}>La diferencia</div>
           <h2 style={H2}>¿Realmente necesitas CarLink?</h2>
@@ -179,7 +197,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PRODUCTOS — qué vas a recibir ===== */}
-      <section id="h-productos" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-productos" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>Qué vas a recibir</div>
           <h2 style={H2}>Elige tu llavero CarLink</h2>
@@ -195,7 +214,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
               <CarLinkLogo size={15} />Llavero NFC CarLink
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$29.900</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$39.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>pago único · envío incluido</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
               {['1 llavero NFC de alta resistencia', 'QR de respaldo', 'Acceso vitalicio a la plataforma'].map(f => (
@@ -223,27 +242,40 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD }}>
               <CarLinkLogo size={15} />Kit CarLink
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$49.900</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$59.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>accesorios para todo el carro, con 3 chips NFC</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
               {['2 chips NFC — llavero y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', 'Acceso vitalicio a la plataforma'].map(f => (
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
-            <a
-              href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($49.900)')}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
-            >
-              Pedir mi kit{ARROW}
-            </a>
+            {KIT_ORDER_ENABLED ? (
+              <a
+                href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero pedir el Kit CarLink ($59.900)')}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={() => analyticsApi.trackWhatsappClick('kit_order', 'landing')}
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: 15, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 0 24px rgba(245,197,24,0.3)' }}
+              >
+                Pedir mi kit{ARROW}
+              </a>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ width: '100%', padding: 15, borderRadius: 12, border: `1px solid ${k.cardBorder}`, background: 'transparent', color: k.muted, fontWeight: 700, fontSize: 14 }}>
+                  No disponible por el momento
+                </div>
+                <div style={{ fontSize: 11.5, color: k.muted, marginTop: 8 }}>
+                  Pausado mientras ajustamos la producción — el llavero individual sigue disponible arriba.
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
       </section>
 
       {/* ===== COMUNIDAD CARLINK ===== */}
-      <section id="h-comunidad" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-comunidad" style={{ ...SECTION_NARROW, position: 'relative', padding: '56px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 36px' }}>
           <div style={EYEBROW}>Comunidad</div>
           <h2 style={H2}>Conductores en Colombia que ya protegen su vehículo</h2>
@@ -307,7 +339,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== FAQ ===== */}
-      <section id="h-faq" style={{ maxWidth: 820, margin: '0 auto', width: '100%', padding: '48px clamp(20px,5vw,64px)', borderTop: `1px solid ${k.thinBorder}` }}>
+      <section id="h-faq" style={{ maxWidth: 820, margin: '0 auto', width: '100%', position: 'relative', padding: '48px clamp(20px,5vw,64px)' }}>
+        <div style={{ position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={EYEBROW}>Preguntas frecuentes</div>
           <h2 style={H2}>Resolvemos tus dudas</h2>
@@ -329,7 +362,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== PQRS · Agente conversacional ===== */}
-      <section id="h-pqrs" style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 48px' }}>
+      <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
@@ -348,25 +381,9 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         </div>
       </section>
 
-      {/* ===== WHATSAPP FLOTANTE ===== */}
-      <a
-        href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
-        target="_blank" rel="noopener noreferrer"
-        aria-label="Hablar por WhatsApp" title="Hablar por WhatsApp"
-        style={{
-          position: 'fixed', right: 'clamp(16px,4vw,28px)', bottom: 'clamp(16px,4vw,28px)', zIndex: 45,
-          width: 58, height: 58, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: '#25D366', color: '#062b12', textDecoration: 'none',
-          boxShadow: '0 10px 30px rgba(37,211,102,0.45)',
-        }}
-      >
-        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(37,211,102,0.55)', animation: 'waFabPulse 2.4s ease-out infinite' }} />
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
-      </a>
-
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ borderTop: `1px solid ${k.cardBorder}` }}>
+      <section style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
+        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
             <div style={EYEBROW}>¿Aún lo estás pensando?.</div>
@@ -377,31 +394,43 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             {leadStatus === 'done' ? (
               <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{isEmailContact(leadContact) ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{leadContactType === 'email' ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: k.muted }}>
-                  {isEmailContact(leadContact) ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
+                  {leadContactType === 'email' ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
                 </p>
               </div>
             ) : (
               <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <input
-                  type="text" required value={leadContact} onChange={e => setLeadContact(e.target.value)}
+                  type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
-                  style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }}
+                  style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14)}`, background: softTint(0.04), color: k.text, fontSize: 15, outline: 'none' }}
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = softTint(0.14) }}
+                  onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14) }}
                 />
                 <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía'}
                 </button>
-                {leadStatus === 'error' && <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>}
+                {leadContactCheck.status === 'valid' && (
+                  <p style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
+                    {CHECK('#5be89a', 13)} {leadContactCheck.type === 'email' ? 'Correo válido' : 'Celular válido'}
+                  </p>
+                )}
+                {leadContactCheck.status === 'invalid' && (
+                  <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff8a3d' }}>
+                    Revisa el correo o el celular — si es de otro país, incluí el indicativo (ej. +57 300 1234567).
+                  </p>
+                )}
+                {leadStatus === 'error' && leadErrorReason === 'network' && (
+                  <p style={{ width: '100%', margin: 0, fontSize: 12, color: '#ff4d6a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>
+                )}
               </form>
             )}
             <div style={{ fontSize: 12.5, color: isDark ? '#6f6a5f' : '#8f8a7a', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
           </div>
         </div>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
             <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
@@ -465,7 +494,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300, color: k.muted }}>
               <a href="https://maps.google.com/?q=Cra+70+%2380-24+Bogotá" target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>Cra 70 #80-24, Bogotá D.C., Colombia</a>
               <a href="mailto:business@carlink.com.co" style={{ color: k.muted, textDecoration: 'none' }}>business@carlink.com.co</a>
-              <a href="tel:+573164976104" style={{ color: k.muted, textDecoration: 'none' }}>+57 316 497 6104</a>
+              <a href={`tel:+${SUPPORT_WHATSAPP}`} style={{ color: k.muted, textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <a href="https://www.instagram.com/ailink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
@@ -474,7 +503,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <a href="https://www.facebook.com/people/AiLink/61578774262078/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
               </a>
-              <a href="https://wa.me/573164976104" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>
+              <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6.5 9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.9 5c2.1.8 2.5.6 3 .6s1.4-.6 1.6-1.1.2-1 .1-1.1-.3-.1-.5-.2z" /></svg>
               </a>
             </div>

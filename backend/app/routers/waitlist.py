@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,18 +14,11 @@ from app.dependencies import get_current_admin
 from app.models.models import WaitlistLead
 from app.schemas.schemas import WaitlistLeadCreate, WaitlistLeadOut
 from app.services import email
+from app.services.contact_validation import classify_contact
 
 logger = logging.getLogger("carlink")
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
-
-# El campo "contact" del formulario (tanto shop/page.tsx como la landing,
-# sección Guía de Mantenimiento) acepta correo O WhatsApp indistintamente,
-# sin distinguirlos — no se tocó ese formulario acá, solo se detecta cuál de
-# los dos es antes de intentar mandar un correo. Si es un teléfono, no se
-# envía nada por ahora (ver docs/PENDIENTES.md — no hay integración de envío
-# de WhatsApp en el proyecto).
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # Ambos orígenes disparan el mismo correo — antes solo se chequeaba
 # "shop_guia_mantenimiento", así que un lead dejado desde la landing
@@ -44,14 +36,28 @@ async def create_waitlist_lead(
     body: WaitlistLeadCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Público — cualquiera puede dejar su contacto para el aviso de próximo lote."""
-    contact = body.contact.strip()
-    lead = WaitlistLead(contact=contact, source=body.source)
+    """Público — cualquiera puede dejar su contacto para el aviso de próximo lote.
+
+    Estos leads se usan para seguimiento y campañas de marketing (no solo
+    para avisar del próximo lote) — por eso el contacto se valida y
+    normaliza acá en vez de guardarse tal cual lo escribió la persona
+    (ver app/services/contact_validation.py): un typo sin detectar hoy es un
+    lead inutilizable después. Rechaza con 422 si no matchea ni como correo
+    ni como celular real (con o sin indicativo)."""
+    classified = classify_contact(body.contact)
+    if classified is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="contact_invalid",
+        )
+    contact_type, contact = classified
+
+    lead = WaitlistLead(contact=contact, contact_type=contact_type, source=body.source)
     db.add(lead)
     await db.flush()
     await db.refresh(lead)
 
-    if body.source in _GUIDE_SOURCES and _EMAIL_RE.match(contact):
+    if body.source in _GUIDE_SOURCES and contact_type == "email":
         # Best-effort: un fallo de envío nunca debe tumbar el guardado del
         # lead. run_in_threadpool porque email.send_guide_email hace una
         # llamada HTTP bloqueante (API de Resend, ver app/services/email.py).
