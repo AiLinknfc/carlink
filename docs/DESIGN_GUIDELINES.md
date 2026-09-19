@@ -141,6 +141,20 @@ outline: none
 Always include fallback values after CSS variables (e.g., `var(--input-border, rgba(255,255,255,0.14))`).
 Use `var(--text-2)` for text color (not `--text-1`).
 
+**Regla dura (2026-09-15): un `<select>` nativo nunca alcanza para un "filtro" cuyo
+estado seleccionado/hover deba verse amarillo.** El estilo de arriba sólo controla la
+caja cerrada — el menú desplegable de `<option>` lo pinta el navegador/SO (en Chrome/
+Firefox suele resaltar en azul) y no se puede sobreescribir de forma confiable entre
+navegadores. Hallazgo real: `StepVehiculo.tsx` usaba un `<select>` para "Tipo de
+vehículo" junto a un input de ciudad con su propio dropdown temático — el usuario vio
+"colores azules" en el `<select>` y amarillo en el de ciudad, mismo formulario, dos
+sistemas de color. Para cualquier picker donde el resaltado importe (marca, tipo,
+ciudad, etc.), usar el mismo patrón que `ThemedSuggestInput` (input + lista propia
+renderizada en JSX, sin `<option>` nativo) o una grilla de tiles con su propio estado
+`selected` — nunca un `<select>` nativo. Reservar `<select>` nativo para casos donde el
+resaltado de opciones no importa visualmente (ej. Año, cuando la lista es solo numérica
+y no necesita marcarse en amarillo).
+
 ## Shadows
 
 - Card: `0 20px 50px rgba(0,0,0,0.5)` (dark) / `0 20px 50px rgba(0,0,0,0.12)` (light)

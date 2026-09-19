@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getWalletBackground } from '@/lib/wallet-bg'
-import { normalizePlate } from '@/lib/plate'
+import { normalizePlate, plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 import { useTheme } from '@/store/theme'
 import Plate3D from '@/components/Plate3D'
 import CarLinkLogo from '@/components/CarLinkLogo'
@@ -64,22 +64,9 @@ export default function NfcPage() {
   const [reportError, setReportError] = useState('')
   const [isAuthed, setIsAuthed] = useState(false)
   const [showFoundAccordion, setShowFoundAccordion] = useState(false)
-  const [plateFontScale, setPlateFontScale] = useState(1)
   const [selectedWorkshop, setSelectedWorkshop] = useState<string | null>(null)
   const { theme } = useTheme()
   const isDark = theme !== 'light'
-
-  useEffect(() => {
-    const PLATE_NATURAL_W = 448
-    const update = () => {
-      const vw = window.innerWidth
-      const plateW = Math.min(PLATE_NATURAL_W, vw * 0.92)
-      setPlateFontScale(Math.min(1, plateW / PLATE_NATURAL_W))
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [data])
 
   useEffect(() => {
     if (!token) return
@@ -307,7 +294,7 @@ export default function NfcPage() {
             <div style={{ margin: '4px 0 2px', fontSize: 13, letterSpacing: '.14em', textTransform: 'uppercase', color: isDark ? '#fff' : 'var(--text-2)', fontWeight: 800 }}>Ficha de Vehiculo</div>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div className="nfc-plate-wrap">
-                <Plate3D plate={plateText} city={data.city || ''} size="lg" showLabel={false} fontScale={plateFontScale} />
+                <Plate3D plate={plateText} city={data.city || ''} size="lg" showLabel={plateShowsCountryLabel(data.type)} showCity={plateShowsCity(data.type)} />
               </div>
             </div>
 

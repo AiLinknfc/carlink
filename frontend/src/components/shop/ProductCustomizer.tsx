@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { FOB_COLORS, PLATE_COLOR_SCHEMES, COP, type FobColor, type CartItem, type ShopProduct } from '@/lib/shop'
 import { useShopCart } from '@/lib/shop-cart-context'
-import { getPlateConfig, type PlateType } from '@/lib/plate'
+import { getPlateConfig, plateShowsCountryLabel, type PlateType } from '@/lib/plate'
 import Plate3D from '@/components/Plate3D'
 
 const GOLD = '#F5C518'
@@ -101,7 +101,7 @@ export default function ProductCustomizer({ product, theme, onAdded }: Props) {
             city=""
             bg={plateColors.bg}
             inkColor={plateColors.bgLabel}
-            showLabel={false}
+            showLabel={plateShowsCountryLabel(plateType)}
             size="md"
           />
         </div>

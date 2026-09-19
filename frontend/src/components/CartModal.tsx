@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
-import { getPlateDisplay, getPlateConfig, type PlateType } from '@/lib/plate'
+import { getPlateDisplay, getPlateConfig, plateShowsCountryLabel, plateShowsCity, type PlateType } from '@/lib/plate'
 import { apiGet, apiPost, analyticsApi } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
 import Plate3D from '@/components/Plate3D'
@@ -44,14 +44,16 @@ interface Props {
   skipPlateStep?: boolean
 }
 
+/* showLabel/showCity del mockup de placa ya no vive acá — se decide por
+   tipo con plateShowsCountryLabel/plateShowsCity (@/lib/plate), 2026-09-19. */
 const PLATE_TYPES = [
-  { id: 'particular', name: 'Particular', letterLen: 3, numLen: 3, showLabel: false },
-  { id: 'moto', name: 'Moto', letterLen: 3, numLen: 3, moto: true, showLabel: false },
-  { id: 'publico', name: 'Público', letterLen: 3, numLen: 3, showLabel: false },
-  { id: 'diplomatica', name: 'Diplomática', letterLen: 2, numLen: 4, showLabel: true },
-  { id: 'carga', name: 'Carga', letterLen: 1, numLen: 4, showLabel: true },
-  { id: 'remolque', name: 'Remolque', letterLen: 1, numLen: 5, showLabel: true },
-  { id: 'clasico', name: 'Clásico', letterLen: 3, numLen: 3, showLabel: false },
+  { id: 'particular', name: 'Particular', letterLen: 3, numLen: 3 },
+  { id: 'moto', name: 'Moto', letterLen: 3, numLen: 3, moto: true },
+  { id: 'publico', name: 'Público', letterLen: 3, numLen: 3 },
+  { id: 'diplomatica', name: 'Diplomática', letterLen: 2, numLen: 4 },
+  { id: 'carga', name: 'Carga', letterLen: 1, numLen: 4 },
+  { id: 'remolque', name: 'Remolque', letterLen: 1, numLen: 5 },
+  { id: 'clasico', name: 'Clásico', letterLen: 3, numLen: 3 },
 ]
 
 const PLATE_BG: Record<string, { bg: string; ink: string; label: string }> = {
@@ -161,8 +163,9 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   // Antes de dejar avanzar la compra, confirmamos contra la base real si la
   // placa ya está asociada a un vehículo existente (GET /vehicles/plate-check,
   // público, no requiere sesión). Si es de otra cuenta hay que verificar
-  // identidad; si es de la cuenta logueada, es un posible reemplazo/duplicado
-  // — en ambos casos se bloquea "Continuar" y se pide contactar soporte.
+  // identidad; si es de la cuenta logueada y ya tiene llavero activo, es un posible
+  // reemplazo/duplicado — en ambos casos se bloquea "Continuar" y se pide contactar
+  // soporte. Si es propia pero sin llavero activo, se deja seguir (primer llavero).
   useEffect(() => {
     if (!(isLettersOk && isNumbersOk && isCityOk)) {
       setPlateExists(false)
@@ -173,9 +176,13 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     let cancelled = false
     setPlateChecking(true)
     const timer = setTimeout(async () => {
-      const res = await apiGet<{ exists: boolean; owned_by_you: boolean }>(`/vehicles/plate-check?plate=${encodeURIComponent(fullPlate)}`)
+      const res = await apiGet<{ exists: boolean; owned_by_you: boolean; has_active_keychain?: boolean; reserved_by_other?: boolean }>(`/vehicles/plate-check?plate=${encodeURIComponent(fullPlate)}`)
       if (cancelled) return
-      setPlateExists(res?.exists ?? false)
+      // Vehículo propio sin llavero activo: es la compra del primer llavero, no un duplicado.
+      const firstKeychain = !!res?.owned_by_you && res.has_active_keychain === false
+      // Otra cuenta sólo bloquea si la tiene verificada / con llavero activo.
+      const blockedByOther = !res?.owned_by_you && !!res?.reserved_by_other
+      setPlateExists(((res?.exists ?? false) && !firstKeychain && !!res?.owned_by_you) || blockedByOther)
       setPlateOwnedByYou(res?.owned_by_you ?? false)
       setPlateChecking(false)
     }, 400)
@@ -303,7 +310,6 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     ? (step === 'shipping' ? 0 : step === 'payment' ? 1 : 2)
     : (step === 'customize' ? 0 : step === 'shipping' ? 1 : step === 'payment' ? 2 : 3)
 
-  const miniPlateConfig = PLATE_TYPES.find(t => t.id === selectedType)
 
   return (
     <AnimatePresence>
@@ -407,7 +413,8 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       bg={pBg.bg}
                       inkColor={pBg.ink}
                       labelColor={pBg.label}
-                      showLabel={miniPlateConfig?.showLabel ?? false}
+                      showLabel={plateShowsCountryLabel(selectedType)}
+                      showCity={plateShowsCity(selectedType)}
                       size="md"
                     />
 
@@ -513,7 +520,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       <span style={{ fontSize: 11, color: '#ef4444' }}>
                         {plateOwnedByYou
                           ? 'Ya tienes esta placa registrada en tu cuenta. Si necesitas un llavero de reemplazo o es un pedido duplicado, '
-                          : 'Esta placa ya está registrada por otra cuenta. Verifica tu cuenta para continuar — si crees que es un error, '}
+                          : 'Esta placa ya está verificada o activa en otra cuenta. Si es tuya, inicia sesión con la cuenta donde la registraste — si crees que es un error, '}
                         <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`¡Hola CarLink! Quiero comprar un llavero NFC para la placa ${fullPlate} y el sistema me dice que ya está registrada. ¿Me ayudan a verificarlo?`)}`}
                           target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: '#ef4444' }}
                           onClick={() => analyticsApi.trackWhatsappClick('cart_plate_duplicate', 'cart')}>
