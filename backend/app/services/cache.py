@@ -49,7 +49,9 @@ async def cache_delete(pattern: str) -> None:
     r = await get_redis()
     if r is None:
         return
-    keys = await r.keys(f"carlink:{pattern}")
+    # SCAN en vez de KEYS: KEYS recorre todo el keyspace de una vez y bloquea
+    # Redis mientras corre; cada escritura de vehículo lo llamaba dos veces.
+    keys = [k async for k in r.scan_iter(match=f"carlink:{pattern}", count=200)]
     if keys:
         await r.delete(*keys)
 

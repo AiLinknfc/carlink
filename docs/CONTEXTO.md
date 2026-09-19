@@ -263,13 +263,14 @@ refleja el origen del envío más reciente, no un historial acumulado.
 
 ## Plan gratuito vs. con llavero (decidido 2026-09-18)
 
-- **Gratis (persona):** puede registrar **un** vehículo y usar el **módulo de aceite**. No puede
-  **publicar información al exterior** (ficha pública NFC, publicar/vender).
-- **Con llavero activado:** al activar el código del llavero se liberan los demás módulos, que para
-  el usuario gratuito se ven **bloqueados y sin poder explorarse**. Cada vehículo adicional requiere
+- **Gratis (persona):** puede registrar **un** vehículo y el servicio de **aceite**; los demás
+  servicios quedan bloqueados (las pestañas del menú lateral no). No puede **publicar información
+  al exterior** (ficha pública NFC, publicar/vender).
+- **Con llavero activado:** al activar el código del llavero se liberan los demás servicios y la
+  publicación. Cada vehículo adicional requiere
   su propio llavero comprado (`vehicles.py::_spare_keychains`, `POST /vehicles` → 403 si falta).
 - **Placas:** una placa la reserva solo un vehículo verificado o con llavero activo; un registro
   gratuito sin verificar no bloquea a otra cuenta, que la reclama verificando su tarjeta de
   propiedad (`_reserved_by_other`, 409 en `POST /vehicles` y `POST /nfc/activate`).
-- **Talleres/empresas:** no necesitan llavero. Bloqueo de módulos implementado (`backend/app/services/plan.py`,
-  `FREE_LOCKED_TABS` en `app/app/page.tsx`); detalle y huecos en `docs/PENDIENTES.md` → "Plan gratuito y reserva de placas".
+- **Talleres/empresas:** no necesitan llavero. Bloqueo de servicios implementado (`backend/app/services/plan.py`,
+  `FREE_SERVICE_ID` en `app/app/page.tsx`); detalle y huecos en `docs/PENDIENTES.md` → "Plan gratuito y reserva de placas".

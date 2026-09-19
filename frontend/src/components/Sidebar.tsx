@@ -57,9 +57,6 @@ interface Props {
    * hover — usado por el tutorial guiado post-wizard para poder resaltar
    * los items de navegación con su texto visible. No toca `railExpanded`,
    * así que al soltarse el rail vuelve a su comportamiento normal. */
-  /** Tabs bloqueados por el plan gratuito: se ven con candado y al tocarlos
-   * no navegan — `onTabChange` recibe el id igual, el padre decide qué hacer. */
-  lockedTabs?: string[]
   forceExpanded?: boolean
   /** Ídem para el cajón móvil (`mobileOpen`) — lo mantiene abierto sin
    * pisar el estado real del toggle del usuario. */
@@ -92,7 +89,7 @@ const TALLER_NAV_ITEMS: NavItem[] = [
   ALL_NAV_ITEMS[6],
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, forceExpanded, forceOpen, inert, lockedTabs }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, forceExpanded, forceOpen, inert }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -182,7 +179,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
     const isActive = activeTab === item.id
     const isHovered = hoveredTab === item.id
     const showGlow = isActive || isHovered
-    const isLocked = !!lockedTabs?.includes(item.id)
     const itemStyle = {
       position: 'relative' as const, display: 'flex', alignItems: 'center', gap: 12,
       width: expanded ? '100%' : 42, height: expanded ? 'auto' : 42, justifyContent: expanded ? 'flex-start' : 'center',
@@ -190,7 +186,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       border: item.emphasize ? `1px solid ${isDark ? 'rgba(245,197,24,0.3)' : 'rgba(245,197,24,0.4)'}` : 'none',
       textDecoration: 'none',
       background: 'transparent', color: item.emphasize ? '#F5C518' : isActive ? textPrimary : isHovered ? textPrimary : textSecondary,
-      opacity: isLocked ? 0.55 : 1,
       cursor: 'pointer', textAlign: expanded ? 'left' as const : 'center' as const, fontSize: 14, fontWeight: item.emphasize ? 700 : 600,
       borderRadius: 11, transition: 'color .2s', letterSpacing: item.emphasize ? '.02em' : undefined,
     }
@@ -219,9 +214,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         >
           {item.label}
         </span>
-        {isLocked && (
-          <svg aria-label="Bloqueado" style={{ position: 'relative', zIndex: 1, flex: '0 0 auto', marginLeft: expanded ? 'auto' : 0, ...(expanded ? {} : { position: 'absolute', right: 4, top: 4 }) }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-        )}
       </>
     )
     if (item.href) {

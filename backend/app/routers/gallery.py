@@ -12,7 +12,6 @@ from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import GalleryImage
 from app.schemas.schemas import GalleryCreate, GalleryOut, GalleryUpdate
 from app.services.cache import cache_invalidate_vehicle
-from app.services.plan import require_full_access
 
 router = APIRouter(prefix="/gallery", tags=["gallery"])
 
@@ -37,7 +36,6 @@ async def create_gallery_image(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await verify_vehicle(body.vehicle_id, user_id, db)
-    await require_full_access(db, user_id, body.vehicle_id)
 
     max_order_result = await db.execute(
         select(GalleryImage.sort_order).where(GalleryImage.vehicle_id == body.vehicle_id).order_by(GalleryImage.sort_order.desc()).limit(1)

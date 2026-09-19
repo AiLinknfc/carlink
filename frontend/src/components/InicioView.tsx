@@ -40,13 +40,11 @@ interface Props {
   maintenanceRecords?: any[]
   nfcActive?: boolean
   isVerified?: boolean
-  /** Tabs bloqueados por el plan gratuito (candado en los accesos rápidos). */
-  lockedTabs?: string[]
   /** Plan gratuito: único servicio que se puede registrar; el resto se ve bloqueado. */
   freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, lockedTabs, freeServiceId }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
@@ -132,7 +130,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Facturas{lockedTabs?.includes('certificados') && <svg aria-label="Bloqueado" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" ><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Facturas</span>
           </button>
 
           <button onClick={() => onNavigate?.('documentos')} style={quickActionStyle}
@@ -141,7 +139,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Documentos{lockedTabs?.includes('documentos') && <svg aria-label="Bloqueado" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" ><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Documentos</span>
           </button>
         </div>
       </div>

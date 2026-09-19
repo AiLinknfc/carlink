@@ -12,7 +12,6 @@ from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import Part
 from app.schemas.schemas import PartCreate, PartOut, PartUpdate
 from app.services.cache import cache_invalidate_vehicle
-from app.services.plan import require_full_access
 
 router = APIRouter(prefix="/parts", tags=["parts"])
 
@@ -37,7 +36,6 @@ async def create_part(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await verify_vehicle(body.vehicle_id, user_id, db)
-    await require_full_access(db, user_id, body.vehicle_id)
     part = Part(**body.model_dump())
     db.add(part)
     await db.flush()

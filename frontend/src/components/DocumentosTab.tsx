@@ -2,14 +2,23 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { uploadFile, isPdf, downloadFile, fileExtension } from '@/lib/upload'
+import { uploadFile, isPdf, downloadFile, fileExtension, proxyUrl } from '@/lib/upload'
 import { apiGet, apiPost, apiPut, apiDelete, vehicleInvoicesApi } from '@/lib/api'
 import { downloadInvoicePdf } from '@/lib/invoicePdf'
 import CameraCapture from './CameraCapture'
 import FileCard, { getStatusColor, getStatusLabel } from './FileCard'
 import type { Document, VehicleInvoice } from '@/lib/types'
 
-function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+function FileLightbox({ urls, onClose }: { urls: string[]; onClose: () => void }) {
+  const [index, setIndex] = useState(0)
+  const url = urls[index]
+  const many = urls.length > 1
+  const arrow = (dir: -1 | 1): React.CSSProperties => ({
+    position: 'absolute', top: '50%', [dir < 0 ? 'left' : 'right']: 12, transform: 'translateY(-50%)',
+    width: 42, height: 42, borderRadius: '50%', border: '1px solid rgba(245,197,24,0.4)', background: 'rgba(0,0,0,0.55)',
+    color: '#F5C518', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  })
+  const go = (e: React.MouseEvent, dir: -1 | 1) => { e.stopPropagation(); setIndex(i => (i + dir + urls.length) % urls.length) }
   return createPortal(
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 999,
@@ -28,6 +37,21 @@ function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
           src={url} alt=""
           style={{ maxWidth: '94vw', maxHeight: '82vh', borderRadius: 20, boxShadow: '0 30px 90px rgba(0,0,0,.7)', border: '1px solid rgba(245,197,24,0.3)', objectFit: 'contain' }}
         />
+      )}
+      {/* Documentos de doble cara (tarjeta de propiedad): la vista previa es el
+          frente; al ampliar se pasa a la otra cara con las flechas. */}
+      {many && (
+        <>
+          <button aria-label="Cara anterior" onClick={e => go(e, -1)} style={arrow(-1)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button aria-label="Cara siguiente" onClick={e => go(e, 1)} style={arrow(1)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <div style={{ marginTop: 12, fontSize: 12, fontWeight: 700, color: '#F5C518', cursor: 'default' }} onClick={e => e.stopPropagation()}>
+            {index === 0 ? 'Frente' : 'Reverso'} · {index + 1} de {urls.length}
+          </div>
+        </>
       )}
     </div>,
     document.body
@@ -52,7 +76,7 @@ interface Props {
 
 export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
   const [toast, setToast] = useState<string | null>(null)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [lightboxUrls, setLightboxUrls] = useState<string[] | null>(null)
   const [uploading, setUploading] = useState(false)
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -306,7 +330,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
         </div>
       )}
 
-      {lightboxUrl && <FileLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+      {lightboxUrls && <FileLightbox urls={lightboxUrls} onClose={() => setLightboxUrls(null)} />}
 
       {scanTarget && <CameraCapture onCapture={handleScan} onClose={() => setScanTarget(null)} />}
 
@@ -594,13 +618,21 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
 
       <div className="doc-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, animation: 'textIn .5s .1s both' }}>
         {DOCUMENT_TYPES.map(dt => {
-          const doc = documents.find((d: any) => d.type === dt.type) || null
+          // Tarjeta de propiedad: la tarjeta es el FRENTE; el reverso (otro
+          // documento guardado con side=reverso) no es una tarjeta aparte, se ve
+          // en el visor al ampliar. Sin frente, cae al primer documento del tipo.
+          const ofType = documents.filter((d: any) => d.type === dt.type)
+          const backDoc = dt.type === 'propiedad' ? ofType.find((d: any) => (d.notes || '').includes('side=reverso')) : null
+          const doc = (dt.type === 'propiedad'
+            ? ofType.find((d: any) => !(d.notes || '').includes('side=reverso'))
+            : ofType[0]) || ofType[0] || null
+          const backUrl = backDoc && backDoc.id !== doc?.id && backDoc.file_url ? proxyUrl(backDoc.file_url) : null
           return (
             <FileCard key={dt.type} title={dt.name} item={doc} status={doc?.status || 'pendiente'}
               emptyLabel="Documento no creado" createLabel="+ Crear documento"
               onCreate={() => openCreateModal(dt.type)} onEdit={openEdit}
-              onPreview={setLightboxUrl} onDownload={handleDownload}
-              onScan={setScanTarget} onUpload={handleUpload}
+              onPreview={(url) => setLightboxUrls(backUrl ? [url, backUrl] : [url])} onDownload={handleDownload}
+              onScan={setScanTarget} onUpload={handleUpload} scanOnly={dt.type === 'propiedad'}
               onCreateWithFile={(f) => handleCreateWithFile(f, dt.name)} />
           )
         })}
@@ -610,7 +642,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
           <FileCard key={doc.id} title={doc.name} item={doc} status={doc.status || 'pendiente'}
             emptyLabel="Documento no creado" createLabel="+ Crear documento"
             onCreate={() => openCreateModal()} onEdit={openEdit}
-            onPreview={setLightboxUrl} onDownload={handleDownload}
+            onPreview={(url) => setLightboxUrls([url])} onDownload={handleDownload}
             onScan={setScanTarget} onUpload={handleUpload} />
         ))}
       </div>

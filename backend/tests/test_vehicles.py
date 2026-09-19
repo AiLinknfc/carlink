@@ -188,3 +188,27 @@ async def test_plate_only_free_unverified_elsewhere_is_allowed(client, mock_db, 
     mock_db.refresh = AsyncMock(side_effect=_refresh)
     resp = await client.post("/api/vehicles", json={"plate": "FFF-666", "brand": "Kia", "model": "Rio", "year": 2021})
     assert resp.status_code == 201
+
+
+@pytest.mark.anyio
+async def test_verification_requires_both_faces_and_goes_pending(client, mock_db, fake_user_id, fake_vehicle_id):
+    """POST /vehicles/{id}/verification: sin las dos caras 400; con ambas queda 'pending'
+    (es lo que el wizard llama solo cuando ya escaneó frente y reverso)."""
+    from app.models.models import Vehicle
+    v = Vehicle(id=uuid.UUID(fake_vehicle_id), owner_id=uuid.UUID(fake_user_id), plate="ABC-123",
+                city="Bogotá", brand="Kia", model="Rio", year=2021, type="particular", color="Rojo", image_url="")
+    await _refresh(v)
+    res = MagicMock()
+    res.scalar_one_or_none.return_value = v
+    mock_db.execute = AsyncMock(return_value=res)
+    mock_db.flush = AsyncMock()
+    mock_db.refresh = AsyncMock()
+
+    resp = await client.post(f"/api/vehicles/{fake_vehicle_id}/verification",
+                             json={"verification_doc_url": "https://x/f.jpg", "verification_doc_url_back": ""})
+    assert resp.status_code == 400
+    assert v.verification_status == "unverified"
+
+    resp = await client.post(f"/api/vehicles/{fake_vehicle_id}/verification",
+                             json={"verification_doc_url": "https://x/f.jpg", "verification_doc_url_back": "https://x/b.jpg"})
+    assert v.verification_status == "pending"

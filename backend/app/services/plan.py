@@ -10,10 +10,11 @@ from app.models.models import NfcToken, Profile
 
 """Plan gratuito vs. con llavero (decidido 2026-09-18, docs/CONTEXTO.md).
 
-Una cuenta persona sin llavero personal activo en el vehículo puede usar el
-módulo de aceite y ver lo demás bloqueado; no puede publicar información al
-exterior (ficha pública, vender). Al activar el código del llavero se libera
-todo. Talleres/empresas no están sujetos a este plan."""
+Una cuenta persona sin llavero personal activo en el vehículo solo puede
+registrar el servicio de aceite (los demás servicios se bloquean) y no puede
+publicar información al exterior (ficha pública, vender). Las pestañas del
+menú lateral NO se bloquean (decisión 2026-09-18). Al activar el código del
+llavero se libera todo. Talleres/empresas no están sujetos a este plan."""
 
 # Servicios de mantenimiento que el plan gratuito puede registrar.
 FREE_SERVICE_TYPES = {"Aceite"}

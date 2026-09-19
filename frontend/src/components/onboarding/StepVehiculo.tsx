@@ -217,6 +217,10 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
     setFrontFile(file)
     setScanning(true)
     setScanHint(null)
+    // Cada escaneo nuevo reemplaza al anterior: se descartan los datos leídos
+    // antes, así nunca quedan mezclados con los de otra tarjeta si esta
+    // lectura falla o trae menos campos.
+    setOcrData({ brand: '', model: '', year: 0, color: '', bodyType: '', ownerName: '' })
     try {
       const data = await scanVehicleCard(file)
       if (!data) { setScanHint('No pudimos leer la tarjeta — completa placa y ciudad a mano.'); return }
@@ -260,25 +264,32 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
   const handleBackCapture = async (file: File) => {
     setBackFile(file)
     setCamSide(null)
-    // El reverso no reemplaza el OCR del frente (marca/modelo/color/etc ya
-    // salieron de ahí) — sólo se usa como respaldo de ciudad cuando el
-    // frente no la trajo clara: el reverso suele traer el organismo de
-    // tránsito que expidió el documento (ej. "Secretaría de Tránsito de
-    // Duitama"), que el prompt de OCR ya sabe traducir a ciudad
-    // (2026-09-19, confirmado con el usuario). Si el frente sí completó la
-    // ciudad, o el usuario ya la escribió a mano, no se pisa — "Colombia"
-    // no cuenta como "ya completada": es sólo el default de moto sin dato
-    // real, así que el reverso igual intenta encontrar el municipio real.
-    if (city && city !== 'Colombia') { setScanHint('Reverso registrado.'); return }
+    // El reverso también se lee (2026-09-18): en varias tarjetas el nombre del
+    // propietario, la ciudad del organismo de tránsito u otros datos están de
+    // ese lado, y antes no se leía si el frente ya había traído la ciudad.
+    // Nunca pisa lo que el frente (o el usuario) ya completó: sólo llena lo
+    // que sigue vacío. "Colombia" no cuenta como ciudad ya completada: es el
+    // default de moto sin dato real.
     setBackScanning(true)
     try {
       const data = await scanVehicleCard(file)
-      if (data?.city && CITIES.includes(data.city) && (!city || city === 'Colombia')) {
+      if (!data) { setScanHint('Reverso registrado. No pudimos leerlo — completa los datos a mano.'); return }
+      const filled: string[] = []
+      if (data.city && CITIES.includes(data.city) && (!city || city === 'Colombia')) {
         setCity(data.city)
-        setScanHint(`Reverso registrado. Leimos la ciudad del organismo de tránsito: ${data.city}.`)
-      } else {
-        setScanHint('Reverso registrado.')
+        filled.push('ciudad')
       }
+      setOcrData(prev => {
+        const next = { ...prev }
+        if (!prev.ownerName && data.owner_name) { next.ownerName = data.owner_name; filled.push('nombre del propietario') }
+        if (!prev.brand && data.brand) { next.brand = data.brand; filled.push('marca') }
+        if (!prev.model && data.model) next.model = data.model
+        if (!prev.year && data.year && data.year > 1900) next.year = data.year
+        if (!prev.color && data.color) next.color = matchColorKeyword(data.color)
+        if (!prev.bodyType) next.bodyType = normalizeBodyType(data.vehicle_class) || prev.bodyType
+        return next
+      })
+      setScanHint(filled.length ? `Reverso registrado. Leimos: ${filled.join(', ')}.` : 'Reverso registrado.')
     } finally {
       setBackScanning(false)
     }
@@ -286,18 +297,19 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
 
   /* Best-effort: si falla acá el vehículo ya quedó creado, no bloquea el
      wizard — la tarjeta se puede volver a subir después desde Documentos. */
-  const archiveCardPhoto = async (vehicleId: string, file: File, side: 'frente' | 'reverso') => {
+  const archiveCardPhoto = async (vehicleId: string, file: File, side: 'frente' | 'reverso'): Promise<string | null> => {
     try {
       const url = await uploadFile(file, 'documents')
-      if (!url) return
+      if (!url) return null
       await apiPost('/documents', {
         vehicle_id: vehicleId,
-        name: 'Tarjeta de propiedad',
+        name: side === 'reverso' ? 'Tarjeta de propiedad (reverso)' : 'Tarjeta de propiedad',
         type: 'propiedad',
         file_url: url,
         notes: `status=vigente;type=propiedad;side=${side}`,
       })
-    } catch (e) { console.warn(`No se pudo archivar la tarjeta de propiedad (${side})`, e) }
+      return url
+    } catch (e) { console.warn(`No se pudo archivar la tarjeta de propiedad (${side})`, e); return null }
   }
 
   const handleSubmit = async () => {
@@ -318,8 +330,15 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
       setError('No se pudo agregar el vehiculo — revisa la placa e intenta de nuevo.')
       return
     }
-    if (frontFile) await archiveCardPhoto(created.id, frontFile, 'frente')
-    if (backFile) await archiveCardPhoto(created.id, backFile, 'reverso')
+    const frontUrl = frontFile ? await archiveCardPhoto(created.id, frontFile, 'frente') : null
+    const backUrl = backFile ? await archiveCardPhoto(created.id, backFile, 'reverso') : null
+    // Las dos caras ya están guardadas: se envían solas a revisión del admin
+    // (la misma verificación del perfil), así el usuario no las sube de nuevo.
+    // Con una sola cara queda sin enviar; el perfil pide la que falta.
+    if (frontUrl && backUrl) {
+      const sent = await apiPost(`/vehicles/${created.id}/verification`, { verification_doc_url: frontUrl, verification_doc_url_back: backUrl })
+      if (sent) created.verification_status = 'pending'
+    }
     saveDraft(userId, 'vehiculo_plateLetters', '')
     saveDraft(userId, 'vehiculo_plateNumbers', '')
     saveDraft(userId, 'vehiculo_city', '')
@@ -362,10 +381,13 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
             {scanning ? 'Leyendo...' : frontFile ? 'Frente registrado' : 'Escanear frente'}
           </button>
+          {/* Reverso: color neutro hasta que se escanea; recién ahí pasa a
+             amarillo, igual que "Frente registrado". */}
           {frontFile && (
             <button onClick={() => setCamSide('reverso')} disabled={backScanning} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 10, border: 'none',
-              background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 12.5,
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 14px', borderRadius: 10,
+              border: backFile ? '1px solid transparent' : '1px solid var(--input-border)',
+              background: backFile ? '#F5C518' : 'var(--input-bg)', color: backFile ? '#111' : 'var(--text-2)', fontWeight: 800, fontSize: 12.5,
               cursor: backScanning ? 'default' : 'pointer', opacity: backScanning ? 0.6 : 1,
             }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
@@ -384,7 +406,7 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
               <>
                 {' '}
                 <button type="button" onClick={() => setCamSide('frente')} style={{ padding: 0, border: 'none', background: 'transparent', color: 'inherit', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>
-                  Volver a escanear el frente
+                  Volver a escanear documento
                 </button>
               </>
             )}

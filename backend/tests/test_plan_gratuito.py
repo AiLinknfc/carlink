@@ -102,11 +102,3 @@ async def test_free_persona_cannot_turn_public_ficha_on(client, mock_db, fake_us
     resp = await client.patch(f"/api/vehicles/{fake_vehicle_id}/nfc-toggle")
     assert resp.status_code == 403
     assert v.nfc_active is False
-
-
-@pytest.mark.anyio
-async def test_free_persona_blocked_on_gallery_upload(client, mock_db, fake_user_id, fake_vehicle_id):
-    v = _vehicle(fake_vehicle_id, fake_user_id)
-    mock_db.execute = _sequence(v, "persona", 0)
-    resp = await client.post("/api/gallery", json={"vehicle_id": fake_vehicle_id, "image_url": "https://x/y.jpg"})
-    assert resp.status_code == 403

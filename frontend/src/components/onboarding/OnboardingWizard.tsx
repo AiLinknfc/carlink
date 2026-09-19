@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
+import { isTourDone } from './GuidedTour'
 import StepBienvenida from './StepBienvenida'
 import StepVehiculo from './StepVehiculo'
 import StepWhatsapp from './StepWhatsapp'
@@ -109,6 +110,12 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
 
   useEffect(() => { saveStep(userId, step) }, [step, userId])
 
+  // Pantalla final (2026-09-18): al terminar el wizard se queda un mensaje de
+  // "configuración finalizada" que avisa del recorrido que sigue, en vez de
+  // cerrar de golpe y arrancar el tutorial sin explicación. El wizard sólo se
+  // cierra (onComplete) cuando el usuario toca el botón.
+  const [finished, setFinished] = useState(false)
+
   const goNext = useCallback(() => {
     markStepDone(userId, STEPS[step].id)
     if (step < STEPS.length - 1) {
@@ -116,9 +123,9 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
       setStep(nextStep)
     } else {
       markAllDone(userId)
-      onComplete()
+      setFinished(true)
     }
-  }, [step, userId, onComplete])
+  }, [step, userId])
 
   const skipStep = useCallback(() => {
     if (!STEPS[step].required) {
@@ -133,9 +140,9 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
       setShowCloseConfirm(true)
     } else {
       markAllDone(userId)
-      onComplete()
+      setFinished(true)
     }
-  }, [userId, onComplete, step])
+  }, [userId, step])
 
   const confirmClose = useCallback(() => {
     setShowCloseConfirm(false)
@@ -151,6 +158,34 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
   const textPrimary = 'var(--text-1)'
   const textMuted = 'var(--text-3)'
   const borderColor = isDark ? 'rgba(245,197,24,0.2)' : 'rgba(17,17,17,0.1)'
+
+  if (finished) {
+    const willTour = !isTourDone(userId)
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 480, background: overlayBg, backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div role="dialog" aria-live="polite" style={{ width: 440, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: panelBg, border: `1px solid ${borderColor}`, borderRadius: 20, padding: '32px 26px 26px', textAlign: 'center', boxShadow: '0 40px 90px rgba(0,0,0,.6)' }}>
+          <div style={{ width: 56, height: 56, margin: '0 auto 16px', borderRadius: '50%', background: 'rgba(245,197,24,0.15)', border: '2px solid #F5C518', color: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: textPrimary, fontFamily: 'var(--font-ui)', marginBottom: 8 }}>Configuración finalizada</div>
+          <p style={{ fontSize: 13, color: textMuted, lineHeight: 1.6, margin: '0 0 22px' }}>
+            {willTour
+              ? 'Tu cuenta ya está lista. A continuación te haremos un recorrido rápido de unos segundos para mostrarte dónde está cada cosa: el menú, los accesos rápidos y tu perfil. Puedes saltarlo cuando quieras.'
+              : 'Tu cuenta ya está lista. Ya puedes empezar a usar CarLink.'}
+          </p>
+          {/* La tarjeta escaneada en el paso Vehículo se envía sola a revisión. */}
+          {vehicle?.verification_status === 'pending' && (
+            <p style={{ fontSize: 12, color: '#F5C518', lineHeight: 1.5, margin: '-10px 0 18px' }}>
+              Enviamos la tarjeta de propiedad a revisión; te avisaremos cuando quede verificada.
+            </p>
+          )}
+          <button onClick={onComplete} autoFocus style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+            {willTour ? 'Comenzar recorrido' : 'Ir al tablero'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   /* z-index 480, no 200 (2026-09-19): compartía z-index con CartModal — al
      empate gana quien está más abajo en el DOM, y CartModal se renderiza
@@ -189,12 +224,15 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
         {/* Progress dots - muestran pasos completados con checkmark. Amarillo
            en vez del verde de éxito del resto de la app (#2ecc71) — pedido
            explícito del usuario, sólo para este wizard. */}
+        {/* El último paso no lleva línea a su derecha: si también fuera flex:1, su círculo
+           quedaba pegado a la izquierda de una celda vacía y todo el indicador se veía
+           corrido. Así los círculos van de borde a borde y quedan simétricos. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 24, padding: '0 4px' }}>
           {STEPS.map((s, i) => {
             const done = isStepDone(userId, s.id)
             const isCurrent = i === step
             return (
-              <div key={s.id} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div key={s.id} style={{ flex: i < STEPS.length - 1 ? 1 : '0 0 auto', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flex: '0 0 auto',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -216,7 +254,9 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
         </div>
 
         {/* Step content */}
-        <div style={{ minHeight: 300 }}>
+        {/* Sin minHeight fijo: en pasos cortos (WhatsApp, Llavero) dejaba un hueco
+           vacío entre el contenido y "Omitir por ahora". Cada paso ocupa lo que necesita. */}
+        <div>
           {step === 0 && <StepBienvenida theme={theme} onContinue={goNext} />}
           {step === 1 && <StepVehiculo userId={userId} theme={theme} vehicle={vehicle} onCreated={(v) => { setVehicle(v); onVehicleCreated(v); goNext() }} onContinue={goNext} />}
           {step === 2 && <StepWhatsapp userId={userId} theme={theme} existingNumber={existingProfile?.whatsapp_number || ''} onContinue={goNext} />}
@@ -232,7 +272,7 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
            llavero del topbar — no hace falta volver acá para eso. Sólo
            queda "Omitir por ahora", y sólo si hay algo que omitir. */}
         {!STEPS[step].required && !(STEPS[step].id === 'llavero' && llaveroActivated) && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${borderColor}` }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, paddingTop: 10, borderTop: `1px solid ${borderColor}` }}>
           <button onClick={skipStep} style={{ padding: '11px 18px', borderRadius: 11, border: 'none', background: 'transparent', color: textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             onMouseEnter={e => { e.currentTarget.style.color = textPrimary }}
             onMouseLeave={e => { e.currentTarget.style.color = textMuted }}>

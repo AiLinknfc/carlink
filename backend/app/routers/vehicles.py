@@ -321,6 +321,10 @@ async def update_vehicle(
 
     await db.flush()
     await db.refresh(vehicle)
+    # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
+    # request, así que invalidar antes dejaba una ventana donde otra lectura
+    # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").
+    await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
 
@@ -359,6 +363,10 @@ async def request_vehicle_verification(
     vehicle.verification_requested_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(vehicle)
+    # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
+    # request, así que invalidar antes dejaba una ventana donde otra lectura
+    # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").
+    await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
 
@@ -397,6 +405,10 @@ async def toggle_nfc_visibility(
     vehicle.nfc_active = not vehicle.nfc_active
     await db.flush()
     await db.refresh(vehicle)
+    # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
+    # request, así que invalidar antes dejaba una ventana donde otra lectura
+    # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").
+    await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
 
@@ -417,6 +429,10 @@ async def toggle_lost_keychain(
     vehicle.lost_keychain_enabled = not vehicle.lost_keychain_enabled
     await db.flush()
     await db.refresh(vehicle)
+    # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
+    # request, así que invalidar antes dejaba una ventana donde otra lectura
+    # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").
+    await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
 
@@ -437,5 +453,9 @@ async def toggle_georeference(
     vehicle.georeference_enabled = not vehicle.georeference_enabled
     await db.flush()
     await db.refresh(vehicle)
+    # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
+    # request, así que invalidar antes dejaba una ventana donde otra lectura
+    # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").
+    await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle

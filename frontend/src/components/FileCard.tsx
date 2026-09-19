@@ -72,6 +72,8 @@ export interface FileCardProps {
   variant?: 'default' | 'gallery'
   showStatus?: boolean
   showHeaderActions?: boolean
+  /** Solo cámara (tarjeta de propiedad): sin opción de subir archivo. */
+  scanOnly?: boolean
 }
 
 export default function FileCard({
@@ -81,6 +83,7 @@ export default function FileCard({
   variant = 'default',
   showStatus = true,
   showHeaderActions = true,
+  scanOnly = false,
 }: FileCardProps) {
   const statusColor = getStatusColor(status)
   const statusLabel = getStatusLabel(status)
@@ -221,12 +224,14 @@ export default function FileCard({
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                   </div>
+                  {!scanOnly && (
                   <label title="Subir archivo o foto" style={{ ...previewActionBtn, cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.6)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.5)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
                     <input type="file" accept={accept} onChange={e => { const f = e.target.files?.[0]; if (f) { if (doc) onUpload(f, doc.id); else if (onCreateWithFile) onCreateWithFile(f) } }} style={{ display: 'none' }} />
                   </label>
+                  )}
                 </div>
                 <span style={{ color: '#fff', fontSize: 11, fontWeight: 600, textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Ampliar</span>
               </div>
@@ -234,7 +239,7 @@ export default function FileCard({
           ) : (
             /* Empty state — toca para abrir modal de subir/escanear */
             <button
-              onClick={() => setShowScanModal(true)}
+              onClick={() => (scanOnly ? setShowCam(true) : setShowScanModal(true))}
               style={{
                 height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -246,7 +251,7 @@ export default function FileCard({
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.6)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.04)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <span>{doc ? 'Toca para subir o escanear' : emptyLabel || 'Subir o escanear'}</span>
+              <span>{scanOnly ? (doc ? 'Toca para escanear de nuevo' : 'Escanear con la cámara') : doc ? 'Toca para subir o escanear' : emptyLabel || 'Subir o escanear'}</span>
             </button>
           )}
         </div>

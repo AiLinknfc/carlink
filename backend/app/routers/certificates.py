@@ -12,7 +12,6 @@ from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import Certificate
 from app.schemas.schemas import CertificateCreate, CertificateOut, CertificateUpdate
-from app.services.plan import require_full_access
 from app.services.storage import get_file, key_from_url
 
 router = APIRouter(prefix="/certificates", tags=["certificates"])
@@ -38,7 +37,6 @@ async def create_certificate(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await verify_vehicle(body.vehicle_id, user_id, db)
-    await require_full_access(db, user_id, body.vehicle_id)
     cert = Certificate(**body.model_dump())
     db.add(cert)
     await db.flush()

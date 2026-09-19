@@ -1671,23 +1671,22 @@ gratuitos de otras cuentas se marcan en `verification_note` (no se borran) y la 
 reservada, antes de reclamar el código (no lo quema).
 
 Pendiente:
-- **Reglas del plan gratuito — implementadas 2026-09-18, sin commitear** (ver `docs/CONTEXTO.md` →
-  "Plan gratuito vs. con llavero"). Cuenta persona sin llavero personal activo **en ese vehículo**:
-  - Libre: Inicio, Ficha técnica, Historial y el servicio **Aceite**.
-  - Bloqueado (candado, al tocar abre el panel del llavero para ingresar el código): Control de
-    partes, Galería, Facturas, Documentos, Calificar y los demás servicios de `InicioView`.
-    Lista en `FREE_LOCKED_TABS` (`app/app/page.tsx`); servicio libre en `FREE_SERVICE_ID` y
+- **Reglas del plan gratuito — implementadas 2026-09-18** (ver `docs/CONTEXTO.md` →
+  "Plan gratuito vs. con llavero"). Por ahora el bloqueo es **solo de servicios y de publicar**;
+  las pestañas del menú lateral NO se bloquean (decisión del dueño, 2026-09-18). Cuenta persona
+  sin llavero personal activo **en ese vehículo**:
+  - Servicios: solo **Aceite**; los demás tipos de `InicioView` se ven con candado y al tocarlos
+    abre el panel del llavero para ingresar el código. `FREE_SERVICE_ID` (`app/app/page.tsx`) y
     `FREE_SERVICE_TYPES` (`backend/app/services/plan.py`).
-  - Backend (`services/plan.py::require_full_access`, 403): crear mantenimiento que no sea Aceite,
-    partes, galería, documentos, facturas/certificados; **publicar** = `sell_enabled` en `PUT
-    /vehicles/{id}` y encender la ficha pública en `PATCH /vehicles/{id}/nfc-toggle`.
-    Talleres/empresas no aplican. Tests: `tests/test_plan_gratuito.py`.
+  - Publicar al exterior (403 en backend): `sell_enabled` en `PUT /vehicles/{id}` y encender la
+    ficha pública en `PATCH /vehicles/{id}/nfc-toggle`. También crear mantenimiento que no sea
+    Aceite (`POST /maintenance`). Talleres/empresas no aplican. Tests: `tests/test_plan_gratuito.py`.
   - Al activar el código se libera todo (la UI lo deriva de `nfcTokens.some(is_active)`).
-  - Supuestos a confirmar: Ficha e Historial quedan libres (Historial es donde se ve el aceite
-    registrado); "acite" = servicio Aceite.
-  - Sin cubrir todavía: leer/listar módulos bloqueados en el backend (solo se bloquea crear), reseñas
-    (`reviews.py`, no se gateó el POST), escaneo de documentos (OCR) desde el topbar, que hoy falla
-    con 403 sin mensaje propio en la UI para otros tipos de servicio, y probarlo en navegador.
+  - Pendiente futuro: si más adelante se decide bloquear pestañas/módulos (partes, galería,
+    facturas, documentos, reseñas), hay que volver a gatear sus `POST` con
+    `services/plan.py::require_full_access` y agregar el candado en `Sidebar.tsx`.
+  - Sin cubrir: escaneo de documentos (OCR) desde el topbar falla con 403 sin mensaje propio para
+    tipos de servicio no gratuitos; probarlo en navegador.
 - **Códigos que no vienen de la tienda** (partner/campaña/regalo) no habilitan un vehículo extra
   (el conteo usa `shop_orders`); resolver con el flujo "código y luego wizard de placa nueva".
 - Sin probar contra la base real: las consultas de reserva solo se compilaron para Postgres y se
@@ -1707,3 +1706,42 @@ Antes de desplegar: aplicar las migraciones 058/059 **a mano** en la base compar
 `docs/DEPLOY.md`), correr las suites que apliquen de `docs/PRUEBAS_FUNCIONALES.md`. Los commits
 intermedios no se probaron por separado; el estado final sí (`pytest` 64 pasan, `tsc` limpio).
 Cualquier `git push` requiere autorización fresca del dueño en la sesión.
+
+## Tarjeta de propiedad: una sola carga, dos caras (2026-09-18, sin commitear)
+
+- **Wizard** (`StepVehiculo.tsx`): las fotos escaneadas se guardan en Documentos (`type=propiedad`,
+  `side=frente`/`side=reverso`). Si están las dos, se envían solas a revisión
+  (`POST /vehicles/{id}/verification`, estado `pending`) y aparecen en la consola admin
+  (Verificaciones). Con una sola cara queda sin enviar.
+- **Perfil → Datos del vehículo → verificación** (`app/app/page.tsx`): lee esas fotos de Documentos;
+  la cara ya cargada aparece bloqueada ("Frente ya cargado") y la que falta sigue habilitada. Se
+  desbloquea si el admin rechazó la verificación (`verification_note`). Subir una cara desde el perfil
+  también la guarda en Documentos y reemplaza la anterior de esa cara (gana la última).
+- **Documentos** (`DocumentosTab.tsx`): la tarjeta de propiedad muestra el FRENTE como vista previa;
+  al ampliar, flechas para pasar al reverso (visor `FileLightbox` con varias imágenes).
+- Sin probar en navegador ni contra la consola admin real; el reverso sigue siendo un documento
+  aparte (`side=reverso`) oculto de la grilla, no una columna nueva.
+- **Solo cámara para la tarjeta de propiedad (2026-09-18):** tanto la verificación del perfil ("Escanear
+  frente/reverso", `CameraCapture`) como la tarjeta de propiedad de Documentos (`FileCard` con
+  `scanOnly`) ya no ofrecen subir archivo. Los demás documentos conservan subir o escanear. Desde
+  Documentos solo se re-escanea el frente; el reverso se re-escanea desde el perfil.
+- **Nombre del propietario en los escaneos (2026-09-18):** el reverso ahora también se lee en el wizard
+  (antes se saltaba si el frente ya traía la ciudad) y llena solo lo que siga vacío; el escaneo del
+  perfil (`handleVerifyCapture`) también lee la tarjeta y guarda propietario/marca/modelo/año/color
+  si el vehículo no los tenía. **No verificado con una tarjeta real**: el OCR local no funciona
+  (no hay `tesseract` instalado en esta máquina, así que `/ocr/vehicle-card` devuelve 503) — probar
+  contra el entorno desplegado y revisar en qué cara de la tarjeta viene el propietario.
+
+## Toggles lentos o "invertidos" (2026-09-18, sin commitear)
+
+Causas encontradas y corregidas (no reproducido en navegador, sin verificar contra Redis real):
+- `app/app/page.tsx`: los toggles eran pesimistas y fallaban en silencio (ej. 403 del plan gratuito);
+  un doble toque mandaba dos inversiones (el backend invierte, no fija). Ahora `runToggle`: cambio
+  inmediato, un solo cambio en vuelo, revierte y avisa si falla.
+- "Vender" solo se copiaba del vehículo al abrir el perfil, y "perdí/georreferenciación" solo al cargar
+  la lista: al cambiar de vehículo mostraban el valor de otro. Ahora se derivan siempre del vehículo
+  activo, y `patchVehicle` también actualiza la copia en la lista `vehicles`.
+- El efecto que llena el formulario de perfil dependía del objeto `vehicle` completo y pisaba lo que se
+  estaba escribiendo; ahora solo depende de abrir el panel / cambiar de vehículo.
+- Backend (`vehicles.py`, `cache.py`): commit antes de invalidar el caché (antes otra lectura podía
+  re-cachear el valor viejo 120 s) y `SCAN` en lugar de `KEYS` para borrar claves de Redis.
