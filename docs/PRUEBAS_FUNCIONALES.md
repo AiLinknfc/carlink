@@ -126,6 +126,37 @@ Cubre: `frontend/src/components/CartModal.tsx`, `backend/app/routers/vehicles.py
 
 ---
 
+## Suite 5 — Plan gratuito, tarjeta de propiedad y toggles (post-deploy 2026-09-18)
+
+Cubre: `backend/app/services/plan.py`, `vehicles.py`, `StepVehiculo.tsx`, `OnboardingWizard.tsx`,
+`DocumentosTab.tsx`, `FileCard.tsx`, panel de perfil y toggles de `app/app/page.tsx`. Ninguno de estos
+casos se había probado en navegador ni contra el servidor desplegado cuando se escribió esta suite.
+
+**Antes de empezar:** esperar a que Railway y Vercel terminen el deploy y confirmar que el commit
+desplegado es el del merge (un "Redeploy" sobre una fila vieja reconstruye código viejo; ver
+`docs/DEPLOY.md`). Resetear la cuenta de pruebas (`python scripts/qa_test_account.py reset`), usar
+ventana de incógnito, y repetir lo visual (5.2, 5.3, 5.13) a 360 px de ancho.
+
+| # | Caso | Cómo probarlo | Resultado esperado |
+|---|------|----------------|---------------------|
+| 5.1 | Pantalla final del wizard | Completar el wizard (cuenta reseteada, incógnito) | Se queda "Configuración finalizada" hasta tocar "Comenzar recorrido"; recién ahí arranca el tutorial |
+| 5.2 | Pasos centrados y compactos | Mirar el indicador de pasos y el paso 3 (WhatsApp) | Círculos simétricos de borde a borde; "Omitir por ahora" pegado al contenido, sin hueco |
+| 5.3 | Tutorial en pantalla chica | Repetir a 360px de ancho | Tarjeta centrada y por encima de todo, marco amarillo visible en cada paso |
+| 5.4 | Reverso neutro hasta escanear | Paso Vehículo, escanear solo el frente | "Escanear reverso" neutro; amarillo solo tras escanearlo |
+| 5.5 | Envío automático desde el wizard | Escanear frente y reverso, terminar el wizard | El aviso final dice que la tarjeta se envió a revisión; en `/admin` aparece en Verificaciones |
+| 5.6 | Una sola cara no se envía | Escanear solo una cara | Vehículo queda "Sin verificar"; nada en la cola del admin |
+| 5.7 | Perfil: caras ya cargadas bloqueadas | Perfil → Datos del vehículo, tras 5.5/5.6 | "Frente cargado" / "Reverso cargado" sin poder volver a escanear; la cara que falta sigue habilitada |
+| 5.8 | Perfil: envío manual | Escanear las caras desde el perfil | No se envía solo: hay que tocar "Enviar a revisión" |
+| 5.9 | Documentos: frente y reverso | Documentos → Tarjeta de propiedad | Solo el frente en la vista previa; al ampliar, flechas para ver el reverso; sin botón de subir archivo |
+| 5.10 | Propietario leído | Escanear una tarjeta real | El nombre del propietario se llena (frente o reverso); si no, el aviso dice qué sí leyó |
+| 5.11 | Plan gratuito: servicios | Cuenta sin llavero activo → Inicio | Solo Aceite se puede registrar; los demás con candado y abren el panel del llavero |
+| 5.12 | Plan gratuito: publicar | Sin llavero, intentar encender ficha pública o "Vender" | Aviso "Activa tu llavero NFC…"; el toggle no se queda encendido |
+| 5.13 | Agregar vehículo | Perfil → Agregar vehículo sin llavero comprado | Botón atenuado con el mismo nombre; al pasar el mouse y al tocar dice "Comprar llavero para agregar" |
+| 5.14 | Activar llavero redirige | Activar el código `BHXEMCAKW7` desde el panel del llavero | Aviso y, en ~1 s, abre la ficha pública; "Copiar enlace" y "Revocar" siguen en la lista |
+| 5.15 | Toggles fiables | Georreferenciación, Perdí mi llavero, Vender: encender/apagar rápido y recargar | Cambian al instante, un solo cambio por toque, el valor se mantiene tras recargar y al cambiar de vehículo |
+| 5.16 | Placa: un solo texto | Landing, carrito, menú lateral, ficha NFC con moto y con carro | Moto: "COLOMBIA" debajo del número; carro: ciudad (o "CIUDAD" hasta elegirla); nunca los dos |
+| 5.17 | Reserva de placas | Con otra cuenta, registrar una placa ya verificada | El wizard la bloquea; si solo estaba registrada gratis sin verificar, deja seguir con aviso |
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

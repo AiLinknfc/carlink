@@ -1745,3 +1745,23 @@ Causas encontradas y corregidas (no reproducido en navegador, sin verificar cont
   estaba escribiendo; ahora solo depende de abrir el panel / cambiar de vehículo.
 - Backend (`vehicles.py`, `cache.py`): commit antes de invalidar el caché (antes otra lectura podía
   re-cachear el valor viejo 120 s) y `SCAN` en lugar de `KEYS` para borrar claves de Redis.
+
+## Falta por verificar / hacer tras el deploy del 2026-09-18
+
+Se mezcló a `develop` (PR #6) y luego a `master` (deploy automático a Railway/Vercel). Estado: **desplegado, pruebas post-deploy pendientes** — casos en `docs/PRUEBAS_FUNCIONALES.md` → Suite 5. Este commit de documentación quedó solo en el `master` local (sin subir).
+
+- **Sin probar en navegador ni en el servidor desplegado:** escaneo con cámara (wizard, perfil y
+  Documentos), envío automático a revisión, lectura del propietario, toggles, redirección al activar el
+  llavero, bloqueos de servicios y candados, indicador de pasos y tutorial responsive.
+- **`DEEPSEEK_API_KEY` sigue sin estar en Railway** (ver ítem 1 de esta lista): sin ella el OCR de la
+  tarjeta no llena datos, incluido el propietario. Verificar además que `tesseract` esté en la imagen
+  desplegada (el Dockerfile lo instala; en local no hay).
+- **Sin cubrir:** `POST /reviews` no está bloqueado por el plan gratuito; leer módulos bloqueados no se
+  valida en el backend; el escaneo de documentos del topbar falla con 403 sin mensaje propio para
+  servicios no gratuitos; códigos de llavero que no vienen de la tienda no habilitan un vehículo extra.
+- **CI:** no se corrió lint ni type-check del backend, y `eslint` del frontend ya mostraba errores
+  viejos de `any` en `app/app/page.tsx`; confirmar `lint-typecheck` en verde en el PR a `master`.
+- **Reversión:** si algo falla en producción, revertir el merge en `master` (las migraciones 058/059
+  son aditivas y ya están aplicadas; no hace falta deshacerlas).
+- **Decisiones que dejó pendientes el dueño:** lista de qué otros módulos/servicios bloquear más
+  adelante; si Ficha e Historial quedan libres (hoy sí).
