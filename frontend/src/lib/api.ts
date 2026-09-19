@@ -489,6 +489,11 @@ export const adminApi = {
   // "activated_before_distributed" (docs/PENDIENTES.md item 4).
   markBatchDistributed: (partnerId: string, batchId: string) =>
     request<{ count: number }>('POST', `/admin/nfc/partners/${partnerId}/batches/${batchId}/mark-distributed`),
+  // Verificación de vehículos (2026-09-19, antes era por perfil) — lista
+  // pendientes y aprueba/rechaza. `id` acá es el id del VEHÍCULO, no de la cuenta.
+  listPendingVerifications: () => request<{ id: string; plate: string; brand: string; model: string; owner_name: string; verification_status: string; verification_doc_url: string; verification_doc_url_back: string; verification_requested_at: string | null; owner_email: string; owner_full_name: string; document_number: string }[]>('GET', '/admin/nfc/verifications/pending'),
+  reviewVerification: (vehicleId: string, action: 'approve' | 'reject', note?: string) =>
+    request<{ id: string; plate: string; verification_status: string; verified_at: string | null }>('PATCH', `/admin/nfc/verifications/${vehicleId}`, { action, note: note || '' }),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta

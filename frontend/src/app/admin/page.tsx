@@ -69,7 +69,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -128,6 +128,8 @@ export default function AdminPage() {
   // si algún día existen, pero hoy no hay ninguno creado.
   const [partners, setPartners] = useState<PartnerAdminView[]>([])
   const [createPartnerModal, setCreatePartnerModal] = useState(false)
+  // Verificaciones de perfil — lista de usuarios con verification_status='pending'.
+  const [pendingVerifications, setPendingVerifications] = useState<{ id: string; plate: string; brand: string; model: string; owner_name: string; verification_status: string; verification_doc_url: string; verification_doc_url_back: string; verification_requested_at: string | null; owner_email: string; owner_full_name: string; document_number: string }[]>([])
   const [partnerName, setPartnerName] = useState('')
   const [partnerEmail, setPartnerEmail] = useState('')
   const [partnerPhone, setPartnerPhone] = useState('')
@@ -171,6 +173,7 @@ export default function AdminPage() {
     else if (tab === 'orders') loadShopOrders()
     else if (tab === 'partners') loadPartners()
     else if (tab === 'reviews') loadReviews()
+    else if (tab === 'verifications') loadVerifications()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, reviewsTargetFilter, reviewsMinRatingFilter, reviewsSort])
 
@@ -270,6 +273,20 @@ export default function AdminPage() {
     if (list) setReviews(list)
     if (sum) setReviewsSummary(sum)
     setLoading2(false)
+  }
+
+  async function loadVerifications() {
+    setLoading2(true)
+    const v = await adminApi.listPendingVerifications()
+    if (v) setPendingVerifications(v)
+    setLoading2(false)
+  }
+
+  async function handleReviewVerification(vehicleId: string, action: 'approve' | 'reject') {
+    const result = await adminApi.reviewVerification(vehicleId, action)
+    if (result) {
+      setPendingVerifications(prev => prev.filter(v => v.id !== vehicleId))
+    }
   }
 
   function handleCreatePartner() {
@@ -476,6 +493,7 @@ export default function AdminPage() {
     { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
     { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
     { key: 'reviews', label: `Reseñas${reviewsSummary && reviewsSummary.total > 0 ? ` (${reviewsSummary.total})` : ''}` },
+    { key: 'verifications', label: `Verificaciones${pendingVerifications.length ? ` (${pendingVerifications.length})` : ''}` },
   ] as const
 
   return (
@@ -1066,6 +1084,61 @@ export default function AdminPage() {
               ))}
               {reviews.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Sin reseñas todavía</div>}
             </div>
+          </div>
+        )}
+
+        {/* Verificaciones de perfil */}
+        {tab === 'verifications' && (
+          <div>
+            {pendingVerifications.length === 0 && !loading2 && (
+              <div style={{ color: c.muted, padding: 20, textAlign: 'center', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12 }}>
+                No hay verificaciones pendientes
+              </div>
+            )}
+            {pendingVerifications.map(v => (
+              <div key={v.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div>
+                    {/* Placa primero — es lo que se está aprobando, no la cuenta
+                       (2026-09-19: antes esta lista sólo mostraba la persona, sin
+                       decir qué vehículo, y aprobar afectaba TODOS los suyos). */}
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{v.plate} {(v.brand || v.model) && `· ${[v.brand, v.model].filter(Boolean).join(' ')}`}</div>
+                    <div style={{ fontSize: 12, color: c.muted }}>Propietario en la tarjeta: {v.owner_name || 'sin dato'}</div>
+                    <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>Cuenta: {v.owner_full_name || 'Sin nombre'} · {v.owner_email} · CC {v.document_number || '—'}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: 'rgba(245,197,24,0.14)', color: '#F5C518' }}>
+                    Pendiente
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 14, marginBottom: 10 }}>
+                  {v.verification_doc_url && (
+                    <a href={v.verification_doc_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.accent, textDecoration: 'none' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      Ver frente
+                    </a>
+                  )}
+                  {v.verification_doc_url_back && (
+                    <a href={v.verification_doc_url_back} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.accent, textDecoration: 'none' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      Ver reverso
+                    </a>
+                  )}
+                </div>
+                {v.verification_requested_at && (
+                  <div style={{ fontSize: 11, color: c.muted, marginBottom: 10 }}>
+                    Solicitado: {new Date(v.verification_requested_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => handleReviewVerification(v.id, 'approve')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#2ecc71', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Aprobar
+                  </button>
+                  <button onClick={() => handleReviewVerification(v.id, 'reject')} style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'transparent', color: '#ff4d6a', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Rechazar
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -14,11 +14,22 @@ interface Props {
     color?: string
     city?: string
   }
+  /** Antes faltaba (único modal de la app sin theme/isDark, 2026-09-18) —
+   * el panel en sí ya usaba var(--panel-bg)/var(--panel-border) y sí
+   * flipeaba, pero casi todo el texto de `styles` estaba hardcodeado con
+   * los valores del tema oscuro copiados literalmente — en tema claro
+   * quedaba texto claro sobre fondo claro, ilegible. */
+  theme?: 'light' | 'dark'
   onClose: () => void
   onSuccess: () => void
 }
 
-export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Props) {
+export default function TransferVehicleModal({ vehicle, theme = 'dark', onClose, onSuccess }: Props) {
+  const isDark = theme !== 'light'
+  // Sombra un poco más liviana en tema claro, mismo criterio que el resto
+  // de los paneles de la app (ej. AdminModal.tsx) — no hace falta que el
+  // panel entero sea theme-aware acá, sólo este detalle.
+  const containerStyle: React.CSSProperties = { ...styles.container, boxShadow: isDark ? '0 40px 90px rgba(0,0,0,.6)' : '0 30px 70px rgba(17,17,17,0.18)' }
   const [step, setStep] = useState<'form' | 'loading' | 'confirm' | 'done'>('form')
   const [buyerEmail, setBuyerEmail] = useState('')
   const [buyerName, setBuyerName] = useState('')
@@ -103,7 +114,7 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
 
   if (step === 'done') {
     return (
-      <div style={styles.container}>
+      <div style={containerStyle}>
         <div style={styles.header}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="1.5" style={styles.successIcon}>
             <path d="M20 6L9 17l-5-5" />
@@ -127,7 +138,7 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
 
   if (step === 'confirm') {
     return (
-      <div style={styles.container}>
+      <div style={containerStyle}>
         <div style={styles.header}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.5" style={styles.confirmIcon}>
             <path d="M20 6L9 17l-5-5" />
@@ -162,7 +173,7 @@ export default function TransferVehicleModal({ vehicle, onClose, onSuccess }: Pr
   }
 
   return (
-    <div style={styles.container}>
+    <div style={containerStyle}>
       <div style={styles.header}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" style={styles.headerIcon}>
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -312,7 +323,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 14,
     padding: 24,
     boxShadow: '0 40px 90px rgba(0,0,0,.6)',
-    color: '#f5f3ec',
+    color: 'var(--text-1)',
     fontFamily: 'var(--font-ui)',
     overflow: 'hidden',
   },
@@ -330,18 +341,18 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
     flex: '0 0 auto',
   },
-  description: { color: '#b6b2a6', fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' },
+  description: { color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6, margin: '0 0 20px' },
   errorBanner: { 
     padding: '10px 12px', borderRadius: 10, background: 'rgba(255,77,106,0.1)', 
     border: '1px solid rgba(255,77,106,0.3)', color: '#ff6b8a', fontSize: 13, marginBottom: 16 
   },
   field: { marginBottom: 16 },
-  label: { fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#9a968a', fontWeight: 600, display: 'block', marginBottom: 6 },
+  label: { fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 6 },
   input: { 
     width: '100%', padding: '11px 13px', borderRadius: 10, 
     border: '1px solid var(--input-border, rgba(255,255,255,0.14))', 
     background: 'var(--input-bg, rgba(255,255,255,0.04))', 
-    color: '#f5f3ec', fontSize: 14, outline: 'none', boxSizing: 'border-box' 
+    color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' 
   },
   inputError: { borderColor: '#ff4d6a' },
   errorText: { fontSize: 12, color: '#ff6b8a', marginTop: 4, display: 'block' },
@@ -358,19 +369,19 @@ const styles: Record<string, React.CSSProperties> = {
   checkbox: { 
     width: 18, height: 18, accentColor: '#F5C518', cursor: 'pointer', flex: '0 0 auto', marginTop: 2 
   },
-  checkboxLabel: { display: 'block', fontSize: 13, fontWeight: 600, color: '#f5f3ec', marginBottom: 2 },
-  checkboxDesc: { display: 'block', fontSize: 11, color: '#8f8a7a' },
+  checkboxLabel: { display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 },
+  checkboxDesc: { display: 'block', fontSize: 11, color: 'var(--text-4)' },
   toggleBtnOn: {
     padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
     border: '1px solid #F5C518', background: 'rgba(245,197,24,0.15)', color: '#F5C518',
   },
   toggleBtnOff: {
     padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-    border: '1px solid var(--input-border, rgba(255,255,255,0.14))', background: 'transparent', color: '#8f8a7a',
+    border: '1px solid var(--input-border, rgba(255,255,255,0.14))', background: 'transparent', color: 'var(--text-4)',
   },
   details: { 
     background: 'rgba(245,197,24,0.05)', border: '1px solid rgba(245,197,24,0.1)', 
-    borderRadius: 12, padding: 16, marginBottom: 20, fontSize: 13, color: '#d8d4c8', lineHeight: 1.8 
+    borderRadius: 12, padding: 16, marginBottom: 20, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.8 
   },
   list: { margin: '8px 0 0 18px', padding: 0 },
   actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 },
@@ -378,7 +389,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 20px', borderRadius: 11, 
     border: '1px solid var(--input-border, rgba(255,255,255,0.14))', 
     background: 'var(--input-bg, rgba(255,255,255,0.04))', 
-    color: '#b6b2a6', fontSize: 13, fontWeight: 600, cursor: 'pointer' 
+    color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' 
   },
   btnPrimary: { 
     padding: '12px 24px', borderRadius: 11, border: 'none', 
@@ -387,12 +398,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   successIcon: { color: '#2ecc71', marginBottom: 16 },
   confirmIcon: { color: '#F5C518', marginBottom: 16 },
-  message: { color: '#b6b2a6', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 },
+  message: { color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 20 },
   infoBox: { 
     background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.2)', 
     borderRadius: 12, padding: '16px 20px', textAlign: 'center', marginBottom: 16 
   },
-  infoLabel: { fontSize: 12, color: '#8f8a7a', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.1em' },
+  infoLabel: { fontSize: 12, color: 'var(--text-4)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.1em' },
   infoValue: { fontFamily: 'var(--font-display)', fontSize: 20, color: '#F5C518', margin: 0 },
-  note: { color: '#8f8a7a', fontSize: 12, textAlign: 'center', lineHeight: 1.5, marginTop: 16 },
+  note: { color: 'var(--text-4)', fontSize: 12, textAlign: 'center', lineHeight: 1.5, marginTop: 16 },
 }

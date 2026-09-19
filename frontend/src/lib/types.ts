@@ -7,7 +7,19 @@ export interface Vehicle {
   model: string;
   year: number;
   type: string;
+  body_type?: string;
   color: string;
+  /** Nombre del propietario según la tarjeta escaneada — separado de
+   * profile.full_name (2026-09-19), puede ser otra persona. */
+  owner_name?: string;
+  /** Verificación de identidad, por vehículo — no por cuenta (2026-09-19,
+   * antes vivía en Profile). Gatea transferir/vender ESTE vehículo. */
+  verification_status?: string;
+  verification_doc_url?: string;
+  verification_doc_url_back?: string;
+  verification_note?: string;
+  verification_requested_at?: string | null;
+  verified_at?: string | null;
   image_url: string;
   nfc_active: boolean;
   sell_enabled: boolean;

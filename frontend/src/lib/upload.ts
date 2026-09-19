@@ -174,6 +174,7 @@ export interface VehicleCardScan {
   model: string | null
   year: number | null
   color: string | null
+  vehicle_class: string | null
   owner_name: string | null
   document_number: string | null
   raw_text: string
