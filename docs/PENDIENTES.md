@@ -635,6 +635,51 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     variables `NEXT_PUBLIC_*`, pensadas para ir al bundle del navegador, no secretos que
     requieran rotación. Una vez agregadas, re-correr el job de CI del PR.
 
+12e. **Decks de fundraising/M&A afirman una patente que no existe todavía.**
+    `docs/PRESENTATION_FUNDRAISING.md` y `docs/PRESENTATION_M_AND_A.md` dicen "Patent-pending:
+    token provisioning + activation code + QR short + trial logic" y traen un ítem de checklist
+    "Patente NFC protocol: PCT filed, priority date secured" — no se presentó ninguna solicitud
+    todavía, y la investigación de prior art de 2026-09-14 encontró antecedentes densos sobre
+    casi toda esa arquitectura (gift cards con hash-split, batch activation por revendedor). Esto
+    no se sostiene en due diligence real. Corregir esas frases antes de mostrar los decks a
+    cualquier inversor/comprador real. Detalle completo, giro de estrategia (mover la patente de
+    la activación NFC a un mecanismo de scoring de fraude por proveniencia verificada) y pasos a
+    seguir: `docs/PLAN_PATENTE_NFC.md`.
+
+12f0. **Verificación por vehículo (migración `059`) — dato sin migrar todavía (2026-09-18).** Las
+    migraciones `058`/`059` están aplicadas en la base real (columnas confirmadas), pero el `UPDATE`
+    de datos de la `059` usaba un id de vehículo equivocado y **no afectó ninguna fila**: hoy
+    ningún vehículo está `verified`, ni siquiera ZYM-35C, que era el que se había aprobado. Archivo
+    corregido (filtra por placa+dueño). **Falta correr a mano** (el entorno bloqueó escribir en
+    producción): `UPDATE vehicles v SET verification_status='verified', verified_at=p.verified_at,
+    verification_doc_url=p.verification_doc_url, verification_doc_url_back=p.verification_doc_url_back
+    FROM profiles p WHERE v.owner_id=p.id AND p.email='andresypm@gmail.com' AND v.plate='ZYM-35C';`
+    Sin eso, ZYM-35C no puede transferirse/venderse aunque el dueño ya estaba verificado.
+
+12f. **✅ Corregido en local (2026-09-18), sin desplegar.** Comprar el primer llavero desde adentro de la app, para un vehículo ya registrado
+    gratis, quedaba bloqueado — hallazgo real (2026-09-15). `plate-check` ahora devuelve
+    `has_active_keychain` (solo al dueño) y `CartModal` solo bloquea si ya tiene llavero activo.
+    Verificada la consulta contra la base real (ZYM-35C: 1, SDF-45G: 0); el detalle original sigue:
+    `CartModal.tsx` se abre desde el topbar y desde el CTA "sin cupo" de `FichaTab` con
+    `plateText={vehicle?.plate}` ya precargado — es decir, siempre con la placa del vehículo
+    actual. El checkout valida esa placa contra `GET /vehicles/plate-check`
+    (`backend/app/routers/vehicles.py`), que devuelve `exists: true` en cuanto la placa
+    pertenece a CUALQUIER vehículo existente, sin mirar si ya tiene un llavero activo.
+    `CartModal.tsx::canContinue` bloquea "Continuar" siempre que `plateExists` sea true — así
+    que cualquier cliente con un vehículo registrado gratis que intenta comprar su primer
+    llavero (o uno de repuesto) desde adentro de la app se topa con "Ya tienes esta placa
+    registrada en tu cuenta... contáctanos" y tiene que escribirle a soporte por WhatsApp en
+    vez de pagar directo. Reproducido contra el backend real: `POST /vehicles` con placa+ciudad
+    (igual que hace el wizard) + `GET /vehicles/plate-check?plate=<esa placa>` logueado como el
+    dueño → `{"exists": true, "owned_by_you": true}`, que es exactamente la combinación que
+    bloquea. **Arreglo propuesto, no aplicado**: `plate-check` debe distinguir "tuya sin
+    llavero activo" (dejar seguir) de "tuya con llavero ya activo" (preguntar si es
+    repuesto/duplicado, como hoy) de "de otra cuenta" (bloquear, como hoy) — hoy trata las tres
+    igual. El backend ya sabe si el vehículo tiene un token activo (`NfcToken` por
+    `vehicle_id`, `token_type='personal'`), así que `plate-check` puede devolver un campo extra
+    (ej. `has_active_keychain`) y el frontend sólo bloquear cuando `owned_by_you &&
+    has_active_keychain`.
+
 ## 🟢 Prioridad baja / opcional
 
 13. **Fase D de la paridad visual** (`PLAN_PARIDAD_UI_TALLERPRO.md`) — alinear
@@ -837,6 +882,574 @@ existente en `docs/DEPLOY.md` sobre redeploys lentos/confusos de Railway. Vale l
 de "truco puntual" a **procedimiento documentado** en `docs/DEPLOY.md` ("después de cada deploy,
 bumpear `version` en `/api/health` y confirmar contra el dominio real antes de dar el deploy por
 terminado"), ya que demostró servir para diagnosticar un problema real de producción.
+
+---
+
+## Evaluación de negocio y seguridad — llavero NFC, distribución y privacidad (2026-09-12)
+
+Pedida explícitamente por el usuario: "evaluación profunda del funcionamiento del negocio... para
+evaluar su seguridad y que el negocio funcione", cubriendo el flujo de compra/activación, el modelo
+partner, distribución vía terceros/e-commerce, clonado de chips, y qué pasa con un llavero perdido.
+Ninguno de estos puntos se implementó en esta pasada — es análisis + diseño para decidir, a
+implementarse en una solicitud aparte.
+
+### 1. Filtración de PII sin autenticación en `found_requests.py` — ✅ corregido (2026-09-13)
+
+`owner_name`/`owner_email`/`owner_whatsapp` sacados de `_build_out` (`found_requests.py`) y de
+`FoundRequestOut` (`schemas.py`) — los 3 endpoints (`POST`, `POST /public`, `GET`) ya no los
+devuelven a nadie. Confirmado que el frontend no los usaba (`app/page.tsx` tipaba `foundRequests`
+sin esos campos) y limpiado el tipo espejo sin uso `FoundRequest` en `frontend/src/lib/types.ts`
+(no estaba importado en ningún lado). Verificado: `pytest` 57/57 sin regresiones, `npx tsc --noEmit`
+limpio, y una llamada directa a `_build_out()` en memoria confirmando que el objeto de respuesta ya
+no tiene esos 3 campos en absoluto (no se probó contra el endpoint HTTP real en vivo a propósito —
+`POST /found-requests/public` dispara un correo real al dueño del vehículo que se use de prueba, y
+no correspondía generarle ese correo a un usuario real solo para verificar esto).
+
+`POST /found-requests` y, más grave, `POST /found-requests/public` (sin login, solo rate-limit de
+10/min por IP) devuelven `owner_name`/`owner_email`/`owner_whatsapp` en el JSON de respuesta al
+propio finder (`_build_out`, `found_requests.py:21-40`) — el correo y nombre real del dueño del
+vehículo, expuestos a cualquiera que sepa un `vehicle_id` (que ya se filtra en la ficha pública, ver
+ítem 2). El diseño debería ser unidireccional: el finder deja sus datos, el backend le manda un
+correo al dueño (`send_found_request_email`, esto ya funciona bien) — el finder nunca necesita ver
+los datos del dueño de vuelta. Esos 3 campos son además **redundantes hasta en `GET /found-requests`**
+(`found_requests.py:152`, el propio dueño viendo su lista no necesita que la API le devuelva su
+propio nombre/correo). Fix propuesto: sacar `owner_name`/`owner_email`/`owner_whatsapp` de
+`FoundRequestOut` en los 3 endpoints, o como mínimo de las dos respuestas `POST` (finder-facing).
+
+**Decisión de producto confirmada (2026-09-12)**: el contacto es **unidireccional, solo protege al
+dueño** — el finder deja su mensaje + su propio contacto, CarLink le avisa al dueño por correo con
+esos datos, y el dueño decide si responde directo al finder (usando el contacto que el finder ya
+eligió compartir). El finder nunca necesita ver ningún dato del dueño. **No hace falta construir un
+sistema de mensajería/relay anónimo en ambos sentidos** — con sacar los 3 campos de arriba de las
+respuestas al finder alcanza, no hay trabajo adicional de mensajería pendiente por este punto.
+
+### 2. `owner_name` público sin autenticar en la ficha NFC — ✅ corregido (2026-09-13)
+
+`GET /nfc/{token}` (ficha pública, sin login) armaba `NfcTokenInfoPublic` con `owner_name` sin
+ningún gate, a diferencia de `owner_whatsapp` que sí depende de `owner.whatsapp_enabled`. Contradecía
+literalmente el propio docstring de la clase (`"Public data exposed via NFC chip scan — no owner
+info"`) y `docs/CONTEXTO.md` ("nunca expone datos del dueño"). El frontend no lo renderizaba, en
+ninguna de las dos pantallas que consumen este mismo schema (`nfc/[token]/page.tsx` ni la sección de
+venta `sell_enabled`, que usa `sell_phone`/`sell_description` propios, nunca `owner_name`) — pura
+filtración sin ningún consumidor legítimo.
+
+**Corregido**: sacado `owner_name` de `NfcTokenInfoPublic` (`schemas.py`) y de los dos lugares que lo
+armaban en `nfc.py` (`access_via_nfc` y `my_ficha_preview`, comparten el mismo schema). Se optó por
+sacarlo del todo, no gatearlo como el WhatsApp — a diferencia del número (que tiene una razón real
+para compartirse: que te puedan contactar por venta/consulta), el nombre completo no agrega nada útil
+a un desconocido que escaneó un llavero. Limpiados también los tipos espejo en frontend
+(`NfcTokenPublicInfo` en `types.ts`, tipo local de `nfc/[token]/page.tsx`) — ninguno lo renderizaba.
+De paso, `GET /nfc/my-preview` (el mismo schema, para que el dueño previsualice su propia ficha) no
+tiene ningún consumidor en el frontend hoy — no se tocó más allá de heredar el mismo fix del schema,
+no es parte de este pendiente.
+
+Verificado: `pytest` 57/57, `npx tsc --noEmit` limpio, y confirmado en memoria que
+`NfcTokenInfoPublic.model_fields` ya no incluye `owner_name`. No se probó contra el endpoint HTTP en
+vivo (a diferencia del ítem 1, acá no hay efecto secundario como un correo, pero no había ningún
+token activo de prueba a mano en esta sesión para armar una llamada real) — la garantía de que es
+estructuralmente imposible que el campo salga en la respuesta (no está en el schema) se consideró
+suficiente para este cambio puntual.
+
+### 3. Suspensión de partner no revoca su cupo ya emitido — ✅ corregido y verificado (2026-09-13)
+
+`PATCH /admin/partners/{id}` (`admin.py:531`) solo cambia `partners.status`, lo que bloquea *futuro*
+aprovisionamiento (`get_current_partner` exige `status=='active'`) pero **no toca las filas de
+`nfc_token_whitelist` ya generadas** con `status='available'` de ese partner — siguen siendo
+activables para siempre vía `/nfc/activate`, que nunca consulta el estado del partner. La única
+herramienta existente es `DELETE /admin/whitelist/{entry_id}` (`admin.py:385`), de a una fila por
+vez, y es un borrado definitivo (pierde trazabilidad del lote).
+
+**Requisito explícito del usuario para el fix**: reactivar un partner debe recuperar los *mismos*
+códigos/tokens ya asignados (no regenerar), y el borrado definitivo (`DELETE`) debe seguir existiendo
+aparte, uno por uno, para cuando de verdad se quiera eliminar el registro.
+
+Diseño propuesto:
+- Agregar un estado intermedio a `nfc_token_whitelist.status` (o una columna separada
+  `suspended_at timestamptz null`, más simple que tocar el CHECK de `status` que ya distingue
+  `available`/`claimed`) — al suspender un partner, un `UPDATE` en bloque marca
+  `suspended_at = now()` en todas las filas `provisioned_by_partner_id = :id AND status = 'available'`.
+  `/nfc/activate` agrega `AND suspended_at IS NULL` a su claim atómico — mismo mecanismo de "falla
+  cerrado" que ya usa el resto del sistema.
+- Reactivar el partner (`status='active'` de nuevo) hace el `UPDATE` inverso:
+  `suspended_at = NULL` en las mismas filas — mismos hashes, mismo `token_url_encrypted`, nada se
+  regenera, tal como pidió el usuario.
+- Nuevo endpoint `POST /admin/partners/{id}/whitelist/suspend` (bloque, todas las `available` del
+  partner) y `POST /admin/partners/{id}/whitelist/reactivate` (inverso). El `DELETE` por
+  `entry_id` existente queda intacto para borrado definitivo puntual.
+- UI (Admin NFC → pestaña Partners o Whitelist filtrada por partner): botón "Suspender cupo emitido"
+  (bloque) + checkboxes por fila para seleccionar un subconjunto y aplicar suspender/reactivar/borrar
+  uno por uno — las tres acciones conviven, no se reemplazan entre sí.
+- Verificación antes de dar por hecho: partner con N códigos `available` → suspender → confirmar que
+  `/nfc/activate` con uno de esos códigos da 404 igual que "código inválido" (mensaje genérico, no
+  debe filtrar que el partner está suspendido) → reactivar → confirmar que el mismo código activa
+  normal, contra la DB real.
+
+**Implementado (2026-09-13), diseño exactamente como el de arriba**:
+- Migración `053_partner_whitelist_suspension.sql` — agrega `nfc_token_whitelist.suspended_at`
+  (nullable). **No aplicada todavía contra la base real** — el harness de Claude Code bloqueó el
+  `psql` de esta sesión con motivo "Production Deploy" (correcto, es justo el tipo de acción que no
+  debe correr sola). Falta que el usuario la corra a mano — comando en el mensaje de esta sesión, ya
+  agregada a la lista ordenada de `docs/DEPLOY.md`.
+- `nfc.py::activate_nfc_token` — el `UPDATE` atómico de reclamo suma `AND suspended_at IS NULL`.
+- `admin.py::_set_partner_whitelist_suspension(partner_id, db, suspend)` — helper compartido, hace
+  el `UPDATE` en bloque en cualquiera de los dos sentidos, solo sobre filas `status='available'`
+  (una fila `claimed` ya es un `nfc_tokens` real de un usuario real, no se toca).
+- `PATCH /admin/nfc/partners/{id}` (`update_partner`) — **enganchado automáticamente**: cambiar
+  `status` a `'suspended'` dispara el bloqueo en bloque; volver a `'active'` desde `'suspended'`
+  restaura las mismas filas. El botón "Suspender/Reactivar" que ya existía en Admin → Partners queda
+  arreglado sin agregar ningún botón nuevo — es lo que pidió el usuario ("que al reactivar tome los
+  mismos códigos"), ahora es automático. Se agregó un modal de confirmación explicando esto al
+  suspender (no al reactivar).
+- `POST /admin/nfc/partners/{id}/whitelist/suspend` y `.../reactivate` — el "botón para apagarlos en
+  bloque" pedido explícitamente, expuesto aparte por si se quiere pausar el cupo sin tocar el
+  `status` del partner (ej. investigar algo puntual sin cortarle ya la api key). `DELETE
+  /admin/nfc/whitelist/{entry_id}` (uno por uno, definitivo) queda intacto, sin cambios.
+- `GET /admin/nfc/whitelist` ahora también devuelve `suspended_at` por fila (`NfcWhitelistOut`).
+**Verificado (2026-09-13) con un E2E desechable contra la base real** (usuario corrió la migración
+`053` manualmente — el harness bloqueó el intento de esta sesión de correrla sola, motivo "Production
+Deploy", correcto): confirmado que la columna `suspended_at` existe; partner de prueba con 2 códigos
+`available` → `_set_partner_whitelist_suspension(suspend=True)` afectó las 2 filas → el `WHERE` exacto
+que usa `POST /nfc/activate` (`activation_code_hash = :h AND status='available' AND suspended_at IS
+NULL`) dejó de matchear un código suspendido → reactivado, las 2 filas volvieron a `status='available'`
+con `suspended_at NULL` y **el mismo `activation_code_hash`** (confirmado que no se regeneró nada) →
+el mismo `WHERE` volvió a matchear. 10/10 checks OK, cero residuo tras borrar el partner y sus filas
+de prueba. `pytest` 57/57 y `npx tsc --noEmit` limpios desde antes de aplicar la migración.
+
+### 4. Alerta `claimed_at` vs. distribución del lote — ✅ implementado y verificado (2026-09-13)
+
+Idea del usuario, evaluada: agregar `distributed_at` (nullable) a nivel de lote
+(`partner_batch_id`) que el partner/admin marca a mano cuando el lote físicamente sale a repartirse,
+y disparar una alerta (mismo mecanismo que `check_and_create_alerts`, `services/alerts.py`) si
+`claimed_at < distributed_at`, o si hay una concentración anómala de activaciones muy pegadas al
+`provisioned_at` del lote (antes de que exista chance real de que haya sido distribuido físicamente).
+
+**Veredicto**: es una señal de auditoría barata de construir y útil para revisar después, pero **no
+es una barrera** — no le impide a un partner deshonesto auto-activarse antes de repartir, solo te
+avisa una vez que ya pasó. Si se quiere una barrera real (que bloquee, no que avise), la alternativa
+es un **gate de liberación**: los códigos que provisiona un partner nacen en un status
+`pending_release` (rechazados por `/nfc/activate`) hasta que alguien marca el lote como
+"distribuido" — recién ahí el `UPDATE` los pasa a `available`. Las dos cosas pueden convivir (gate
+como barrera dura + alerta como auditoría de que el gate se usó razonablemente, ej. "se liberó el
+lote y a los 3 minutos ya había 40 activaciones" sigue siendo sospechoso aunque el gate se haya
+respetado). Decisión pendiente del usuario: ¿alcanza con la alerta, o vale la fricción extra del gate?
+
+**Implementado (2026-09-13) — corrección sobre el diseño original**: la comparación `claimed_at <
+distributed_at` que había anotado arriba tenía un problema real, encontrado al implementar: como
+`distributed_at` normalmente se marca *después* de que el lote salió (a veces con retraso
+administrativo, aunque la entrega física ya pasó), comparar los dos timestamps directamente iba a
+dar falsos positivos constantes en el caso normal (partner marca "distribuido" tarde, después de que
+ya hubo activaciones legítimas). La señal correcta y sin ese problema es más simple: **alertar si un
+código se activa mientras su lote todavía no fue marcado como distribuido en absoluto**
+(`distributed_at IS NULL` en el momento del reclamo) — no hace falta comparar dos fechas, solo mirar
+si ya se confirmó la salida del lote o no.
+
+- Migración `054_partner_batch_distributed_at.sql` — agrega `nfc_token_whitelist.distributed_at`.
+- `POST /admin/nfc/partners/{id}/batches/{batch_id}/mark-distributed` y
+  `POST /partners/me/batches/{batch_id}/mark-distributed` — marca en bloque (`UPDATE ... WHERE
+  partner_batch_id = :bid AND distributed_at IS NULL`), idempotente, disponible para admin y para el
+  propio partner sobre sus lotes.
+- `activate_nfc_token` (`nfc.py`) — el `RETURNING` de la UPDATE atómica de reclamo ahora también trae
+  `provisioned_by_partner_id, distributed_at`; si el código venía de un partner y su lote no estaba
+  marcado distribuido, se crea un `NfcAlert(alert_type='activated_before_distributed')` sobre el
+  `NfcToken` recién creado — reusa la tabla de alertas ya existente (`nfc_alerts`), visible en la
+  misma pestaña de Admin donde ya se ven las otras alertas (escaneos frecuentes, IPs múltiples,
+  horario nocturno).
+- `GET /admin/nfc/whitelist`, `GET .../partners/{id}/batches`, `GET /partners/me/batches` y
+  `GET /partners/me/tokens` ahora exponen `distributed_at` para visibilidad. UI: botón "Marcar
+  distribuido" por lote en Admin → Partners y en `/partner` (se oculta una vez marcado, muestra la
+  fecha en su lugar).
+- **No implementada** la segunda idea (concentración anómala de activaciones pegadas al
+  `provisioned_at`) — queda anotada como posible refinamiento futuro si la señal simple de arriba no
+  alcanza en la práctica, no se justificaba construirla sin evidencia de que hiciera falta.
+**Verificado (2026-09-13) con un E2E desechable contra la base real** (usuario corrió la migración
+`054` manualmente): confirmada la columna `distributed_at`; partner de prueba con 2 códigos → el
+mismo `SELECT` que alimenta la condición de `activate_nfc_token` confirma que dispararía la alerta
+antes de marcar el lote distribuido → `mark-distributed` (mismo SQL de los endpoints reales) afectó
+las 2 filas y una segunda llamada fue no-op (0 filas, idempotente) → después de marcarlo, la misma
+condición confirma que ya NO dispararía alerta → un código de un lote nunca marcado (partner
+distinto) confirma que el default es alertar, no silenciar. 8/8 checks OK, cero residuo tras borrar
+el partner y sus filas de prueba. No se ejercitó `POST /nfc/activate` de punta a punta con un usuario
+y vehículo reales (hubiera requerido crear una cuenta desechable de Supabase Auth solo para esto) —
+se verificó en cambio, contra la base real, cada pieza nueva por separado: la columna, el `UPDATE` de
+`mark-distributed` tal cual lo usan los endpoints, y la condición exacta que decide la alerta.
+
+### 5. Entrega digital del código de activación — ✅ implementado y verificado (2026-09-13)
+
+**Decisión confirmada por el usuario (2026-09-13): reemplaza lo impreso** (no queda como opción junto
+al impreso) — para el llavero individual, el único producto con checkout real hoy (el Kit sigue sin
+SKU, ver ítem 9).
+
+**Hallazgo de arquitectura antes de implementar**: el código de activación nunca se guarda en texto
+plano (`activation_code_hash`, SHA-256, de un solo sentido) — así que no hay forma de "revelarlo de
+nuevo" más tarde a menos que se guarde también en una forma reversible. Se optó por el mismo patrón
+que ya usa `token_url_encrypted` para "Copiar enlace": guardar además `activation_code_encrypted`
+(AES-256-GCM, `crypto.py`) en el momento de provisionar — el hash sigue siendo la única fuente de
+verdad para `POST /nfc/activate`, el campo cifrado es solo para poder re-mostrarlo. Esto significa
+que **la entrega digital solo aplica al stock que se provisione de acá en adelante** — los llaveros
+ya provisionados antes de esta migración no tienen forma de recuperar su código para mostrarlo digital,
+siguen su camino de siempre (impreso). No hace falta ningún cambio en el proceso físico de
+fabricación/encoding — se sigue provisionando en lotes por adelantado exactamente igual, esto solo
+cambia CUÁNDO se le muestra el código al comprador.
+
+**Implementado**:
+- Migración `057_shop_order_activation_delivery.sql` — agrega `nfc_token_whitelist.
+  activation_code_encrypted` y `shop_order_id` (liga un llavero pre-provisionado al pedido que lo
+  reclamó).
+- `admin.py::provision_whitelist_entry` y `partners.py::provision_batch` — ahora también guardan
+  `activation_code_encrypted` al provisionar (antes solo el hash).
+- `shop_orders.py::_assign_activation_codes` — al aprobarse un pedido (Wompi webhook/confirm o
+  `mark-paid` de contraentrega), reserva atómicamente hasta `quantity` llaveros elegibles
+  (`available`, sin asignar, con código re-mostrable, **nunca del inventario reservado a un
+  partner/campaña**) y descifra sus códigos. Si no hay stock suficiente, asigna lo que haya —
+  nunca bloquea la aprobación del pago.
+- `_notify_order_approved` — el correo de "pago confirmado" ahora distingue dos casos: si el pedido
+  tiene cuenta CarLink asociada (`order.user_id`), el correo solo avisa "tu código ya está listo,
+  entrá a Mis Pedidos" (nunca en texto plano); si fue compra de invitado sin cuenta, el correo sí
+  incluye el código — es el único canal al que ese comprador tiene acceso.
+- `GET /shop/orders` (Mis Pedidos, autenticado) — devuelve `activation_codes` descifrados, solo para
+  el dueño del pedido. La cola de despacho de admin (`GET /shop/admin/orders`) **no** los expone —
+  mismo modelo que la respuesta.
+- Frontend: **encontré que `OrdersClient.tsx` es código muerto** — no está importado en ningún lado,
+  sigue leyendo de `localStorage` (la maqueta pre-backend). El componente real y en uso es
+  `OrderTrackingModal.tsx` (`shopOrderApi.list()` → `GET /shop/orders`) — ahí agregué el bloque que
+  muestra el/los código(s) cuando el backend logró asignarlos.
+
+**Verificado (2026-09-13) con un E2E desechable contra la base real** (usuario corrió la migración
+`057`): pedido de prueba con `quantity=2` + 3 llaveros elegibles + 1 "legacy" (sin
+`activation_code_encrypted`, simula stock de antes de esta feature) + 1 reservado a un partner de
+prueba → `_assign_activation_codes` asignó exactamente 2 (no 3, respeta `quantity`), devolvió los
+códigos correctos ya descifrados, dejó sin tocar tanto el legacy como el del partner, y una segunda
+llamada con la cuota ya cubierta no asignó nada más (sin duplicar). 9/9 checks OK, cero residuo tras
+borrar el pedido/partner/llaveros de prueba. `pytest` 57/57, `npx tsc --noEmit` limpio, roundtrip de
+cifrado confirmado.
+
+Riesgo que esto introduce y no elimina, ya evaluado antes de implementar: compromiso del correo del
+comprador (fuera del control de CarLink) — mitigado mostrando el código dentro de la sesión
+autenticada en vez de en el correo, salvo el caso de invitado sin cuenta donde no hay otro canal.
+Para **marketplaces** (ítem 6) esto no es garantizable — sigue sin resolverse, es un problema aparte
+de canal, no de esta implementación.
+
+### 6. Distribución vía plataformas de e-commerce (Mercado Libre, Amazon, etc.) — no es "todo igual"
+
+Cambia lo siguiente: normalmente no hay email/cuenta verificada del comprador disponible *antes* del
+despacho (el marketplace intermedia o anonimiza el contacto hasta después de la compra) — la entrega
+100% digital pre-envío del ítem 5 no es garantizable en ese canal, así que un canal marketplace
+necesita mantener el código físico sellado (ver ítem 7 tamper-evidence) como plan B. Riesgo adicional
+específico del canal: reseñas con fotos del comprador podrían mostrar el código de activación sin
+querer si el empaque queda destapado en la foto — vale una advertencia explícita en el inserto físico
+("no compartas fotos del código de activación"). El resto (falsificación de marca, reventa) es el
+mismo riesgo genérico de cualquier canal, no es nuevo de e-commerce.
+
+### 7. Empaque a prueba de manipulación (tamper-evidence) — no implementado, es físico no de código
+
+Para el código impreso (canal directo sin cuenta previa, y marketplaces): el patrón estándar de la
+industria (tarjetas regalo, códigos de juego) es un panel "rasca y gana" o un sobre sellado que
+muestra evidencia visible si se abrió antes de tiempo — así un cliente puede detectar y reclamar si
+recibió un código ya visto por alguien más en el camino. No es algo que se resuelva en el backend,
+es una decisión de empaque/proveedor a coordinar aparte.
+
+### 8. Clonado de chip NFC (Flipper Zero, Proxmark, lectores NFC genéricos) — riesgo evaluado: bajo hoy
+
+El chip físico no tiene autenticación propia por tap — es una etiqueta NDEF estática con una URL
+(`nfc_provisioning.py:41`), no algo como NTAG 424 DNA con firma dinámica (SUN/SDM). Cualquiera con
+acceso físico momentáneo a un llavero **ya activado** puede volcar su URL y grabarla en una tag en
+blanco. Impacto acotado: el clon apunta a la **misma** ficha pública ya existente de ese vehículo —
+no crea inventario activable nuevo, no permite suplantar otro vehículo, no expone más de lo que la
+ficha pública ya expone por diseño (que es, por definición, pública). Severidad real: **baja hoy**,
+porque el contenido detrás del tap es intencionalmente público. Subiría de severidad si en el futuro
+se cuelga algo privado/sensible detrás del mismo mecanismo de URL estática (ej. un enlace de pago o
+una acción solo-dueño) — para ese caso, la mitigación estándar es migrar esos usos a tags con
+autenticación dinámica por tap (NTAG 424 DNA), que sí requiere trabajo de backend (verificar el MAC)
+y más costo por chip. No urgente con el uso actual.
+
+**Sobre construir una "app de grabado" propia**: si el flujo es (a) la app llama al backend en el
+momento, recibe el `raw_token`/`activation_code` de una sola tanda a la vez, (b) los graba/imprime
+de inmediato sin dejarlos en pantalla ni exportarlos a ningún archivo, y (c) el llavero se sella en
+el momento — sí mejora la protección respecto a hoy (una imprenta con una planilla de 500 códigos
+puede filtrar cualquier subconjunto sin que se note; un operador viendo 1 código a la vez, sellado al
+toque, solo puede filtrar lo que alcance a copiar a mano de a una unidad). Esto es disciplina
+operativa y trazabilidad (loguear qué dispositivo/operador grabó qué token), no una garantía
+criptográfica nueva — si un partner tiene que grabar "desde ahí", igual sigue viendo el secreto en el
+momento del grabado; lo que cambia es el radio de exposición (una unidad vs. un lote completo) y que
+queda auditable quién grabó qué y cuándo.
+
+### 9. Kit de 3 llaveros para un mismo vehículo / segundo llavero para un tercero (ej. la pareja) — ✅ límite corregido y verificado (2026-09-13)
+
+**Corrección del usuario (2026-09-12): el Kit CarLink es de 3 chips, no 2, y los 3 van al mismo
+vehículo** (no a 3 vehículos distintos). La compra individual es un producto aparte — con esa, el
+usuario puede comprar tantos llaveros individuales como quiera, pero cada uno para un vehículo
+*distinto*; el límite de abajo solo se activa cuando dos o más llaveros (individuales o del kit)
+quieren quedar activos **sobre el mismo vehículo** al mismo tiempo.
+
+Hoy es un bloqueo duro y deliberado: `nfc_token_limits.max_tokens_per_vehicle = 1` para cuentas
+`persona` (subido a 2 en `017_increase_persona_token_limit.sql`, revertido a 1 en
+`018_revert_persona_token_limit_to_1.sql` — "decisión de producto 2026-07-25", sin la razón
+documentada en el propio commit). El "Kit CarLink" (3 chips + tarjeta grabada, $49.900, ver ítem 6 de
+Prioridad media más abajo) **nunca tuvo SKU real de backend** — es 100% manual por WhatsApp, así que
+comprarlo hoy no pasa por `shop_orders` ni por el límite de tokens en absoluto. Si el kit se
+formaliza con checkout real, choca de frente contra este límite al activar el segundo (y tercer) chip
+sobre el mismo vehículo (`activate_nfc_token`, `nfc.py:223`, 409 explícito) — hace falta subir el
+límite a 3 para que el kit funcione consigo mismo, como mínimo.
+
+**Llavero para un tercero (ej. la esposa) — confirmado por el usuario: es una solicitud bajo pedido,
+no una operación de autoservicio del día a día.** No hace falta un flujo self-service completo en
+esta primera versión — alcanza con que soporte pueda provisionarlo a mano. Sí hace falta decidir el
+modelo de permisos para cuando eso pase, porque ahí sí toca código:
+
+- **(a)** Subir el límite de nuevo a 3 (tamaño del kit) para `persona`, sin diferenciar roles — el
+  segundo/tercer llavero tiene los mismos permisos que el primero (cualquiera de los tenedores puede
+  revocar cualquier llavero del vehículo, tocar "Publicar mi perfil", etc.). Simple, pero no resuelve
+  lo que el usuario pidió explícitamente ("el admin del carro debe poder darle menores privilegios al
+  de la esposa").
+- **(b)** Mantener el límite en 1 llavero con permisos completos y agregar un `token_type` nuevo
+  (ej. `'shared'`) para los adicionales, exento del límite pero con permisos reducidos: puede tapear y
+  ver la ficha pública igual que cualquiera, pero **no** puede llamar
+  `DELETE /nfc/tokens/{id}` ni `POST /nfc/tokens/{id}/reactivate` sobre el llavero titular, ni tocar
+  `nfc_active`/`lost_keychain_enabled`/venta/transferencia del vehículo — solo el titular
+  (`Vehicle.owner_id`) puede. Esto sí resuelve el pedido de privilegios menores, más trabajo de
+  modelado.
+- **Pregunta técnica abierta en cualquiera de los dos caminos**: hoy `GET /vehicles` (listado "mis
+  vehículos" de `app/page.tsx`) filtra por `owner_id == cuenta actual` — si el llavero de la esposa
+  vive en una cuenta CarLink separada de ella (necesita su propia cuenta para tener su propia sesión
+  de "Mis llaveros"), ese vehículo no le va a aparecer listado a menos que se agregue también una
+  vista "vehículos donde tengo un llavero activo, aunque no sea el dueño" — a definir junto con (b).
+
+**Decidido e implementado (2026-09-13) — se eligió (a).** Confirmado con el usuario que el revert de
+julio no respondía a ningún incidente real (fue prudencia sin caso concreto detrás) — seguro volver a
+subirlo. Migración `055_persona_token_limit_3.sql` — `UPDATE nfc_token_limits SET
+max_tokens_per_vehicle = 3 WHERE account_type = 'persona'` (mismo patrón que `017`/`018`, agregada a
+`docs/DEPLOY.md`). **Corrida por el usuario y confirmada contra la base real (2026-09-13)**:
+`SELECT account_type, max_tokens_per_vehicle FROM nfc_token_limits` devuelve `('persona', 3)`,
+`('taller', 5)`.
+
+**Lo que sigue explícitamente sin construir, a propósito**: el modelo de permisos reducidos (b) y la
+pregunta de "Mis vehículos" de arriba — el usuario confirmó que el llavero para un tercero es bajo
+pedido, no autoservicio, así que hoy alcanza con que soporte provisione el código a mano y el
+tenedor lo active con los mismos permisos que cualquier otro llavero del vehículo (sin distinción de
+rol). Si en algún momento se vuelve autoservicio, ahí sí hace falta retomar (b).
+
+Cualquiera de los caminos requiere además decidir cómo se vende: ¿el kit tiene su propio SKU en
+`shop_orders` (`quantity=3`) ligado explícitamente al mismo `vehicle_id` desde el checkout, en vez de
+la ambigüedad actual de `keychain-availability` (cuenta disponibilidad por cuenta, no por vehículo —
+ver `vehicles.py:82`, ver también ítem 11 sobre qué pasa con ese cupo en un traspaso de vehículo)?
+
+### 11. Traspaso de vehículo con más de un llavero activo — ✅ corregido y verificado (2026-09-13, falta la tarjeta de propiedad aparte)
+
+Escenario planteado por el usuario: alguien compra el Kit (3 chips en un vehículo), pierde 1, le
+quedan 2, vende el auto, se queda con 1 llavero físico como recuerdo y le entrega el otro (ya
+activado) al comprador junto con el auto. El comprador pasa a ser "el dueño de la información" de
+ese vehículo. Revisé el sistema de transferencia ya construido
+(`vehicle_transfers`, `TransferVehicleModal.tsx`, `frontend/src/app/api/vehicles/transfers/[id]/accept/route.ts`)
+y **hoy no está preparado para esto** — fue diseñado pensando en un solo llavero por vehículo:
+
+- El modal de transferencia (`TransferVehicleModal.tsx:28,235`) tiene **un solo checkbox global**
+  "Revocar llavero NFC" (`revokeNfc: boolean`), sin listar los llaveros uno por uno.
+- Al aceptar la transferencia (`accept/route.ts:106-113`), si ese checkbox estaba marcado, se
+  revocan **todos** los tokens activos del vehículo de una sola vez (`UPDATE nfc_tokens SET
+  is_active=false WHERE vehicle_id=... AND is_active=true` — sin filtrar por cuál llavero). Si no
+  estaba marcado, **ningún token se toca**.
+- **El bug de fondo, para cualquiera de los dos casos**: `accept/route.ts` actualiza
+  `vehicles.owner_id` al comprador, pero **nunca actualiza `nfc_tokens.user_id`** — ese campo se
+  sigue usando en el backend de FastAPI para autorizar `DELETE /nfc/tokens/{id}` y
+  `POST /nfc/tokens/{id}/reactivate` (`nfc.py:417`, `435`; filtran por
+  `NfcToken.user_id == cuenta actual`, no por `Vehicle.owner_id`). Resultado concreto del escenario
+  planteado: el llavero que el vendedor le entrega físicamente al comprador **sigue bajo el control
+  del vendedor** — el comprador no lo ve en su propio "Mis llaveros" (que filtra por su propio
+  `user_id`) y no puede revocarlo ni gestionarlo, mientras que el vendedor, meses después de vender el
+  auto, todavía podría revocarle el llavero al nuevo dueño desde su cuenta sin que este pueda
+  impedirlo. Es un conflicto real, no solo teórico — y esta función ya dejó de estar oculta detrás de
+  "Próximamente": hoy es alcanzable para cualquier cuenta con perfil verificado
+  (`FichaTab.tsx:1038`, `transferLocked` = solo pide verificación, ya no bloquea del todo).
+
+**Diseño propuesto** (no implementado, para la segunda solicitud):
+- `TransferVehicleModal.tsx` debe listar cada `NfcToken` activo del vehículo individualmente (label,
+  prefix, fecha de activación) con una elección por fila: **"Va con el vehículo" (se transfiere) /
+  "Me lo quedo" (se revoca)** — sin una tercera opción de "queda activo pero sigue siendo mío": un
+  llavero activo sobre un vehículo que ya no es tuyo no debería poder existir después de una
+  transferencia completada, es la regla de negocio a fijar en el código, no solo en la UI.
+  Default seguro si el vendedor no elige explícitamente: **revocar** (nunca dejar un llavero
+  "colgado" bajo el dueño anterior).
+- En `accept/route.ts`, por cada token marcado "va con el vehículo": `UPDATE nfc_tokens SET
+  user_id = :buyer_id WHERE id = :token_id` (reasignación real, no revocar+reactivar — el chip físico
+  sigue funcionando sin interrupción, sin necesitar un código de activación nuevo). Por cada uno
+  marcado "me lo quedo": revocar como ya hace hoy.
+- Scope: solo `token_type='personal'` — los `trial` no aplican a este flujo (son de cuentas taller,
+  no de compraventa entre personas).
+- **Esto vive en el mismo archivo que ya tiene la advertencia de `docs/SECURITY.md`** ("acá, a
+  diferencia del resto del proyecto, RLS es el límite de seguridad real, no algo secundario") — usa
+  `@supabase/supabase-js` directo, no pasa por el backend de FastAPI. Cualquier cambio acá debe
+  re-verificarse con simulación de rol real contra la base (como ya se hizo en la auditoría de
+  2026-08-09), no solo con revisión de código — en particular, confirmar que la política RLS de
+  `nfc_tokens` deja que el *comprador* actualice `user_id` de un token que hasta ese momento no era
+  suyo, sin abrir una puerta para que cualquiera reasigne tokens ajenos fuera de este flujo puntual.
+
+**Otros escenarios evaluados** (para no dejarlos sueltos si se implementa lo de arriba):
+- El vendedor no revocó el llavero que perdió antes de vender — al momento de la transferencia ese
+  token sigue activo y aparece en la lista para elegir; si el vendedor lo pasa por alto (no lo marca
+  ni "va con el vehículo" ni "me lo quedo"), el default seguro (revocar) lo apaga solo — correcto,
+  porque un llavero perdido sin dueño claro no debería sobrevivir a la venta.
+- `vehicle.nfc_active` (el toggle "Publicar mi perfil") es una columna del vehículo, no del token —
+  no necesita ningún cambio, viaja tal cual con la fila `vehicles` en la transferencia (si estaba
+  apagado, sigue apagado hasta que el nuevo dueño lo prenda).
+- **Confirmado por el usuario (2026-09-13), variante del kit de 3**: si el vendedor entrega 2 de los
+  3 llaveros del kit y el tercero está perdido (sin revocar), el comprador debe terminar controlando
+  solo los 2 que existen — el perdido tiene que quedar bloqueado por la transferencia misma, no
+  heredado como "vivo" a nadie. Es exactamente el default seguro descripto arriba (cualquier token no
+  marcado explícitamente "va con el vehículo" se revoca) — no hace falta lógica extra para este caso,
+  el mismo default lo cubre sea cual sea la razón por la que el vendedor no lo marcó (se le olvidó,
+  no sabía que seguía activo, o genuinamente está perdido).
+- **Bug de UI encontrado revisando el modal para este diseño, sin relación directa pero en el mismo
+  archivo**: `TransferVehicleModal.tsx:23-29` tiene 4 checkboxes — `keepMaintenance`,
+  `keepDocuments`, `keepParts`, `keepNfc` (todos default `true`) — que el vendedor ve y puede
+  destildar pensando que controla qué se lleva el comprador. **Ninguno de los 4 hace nada**: se
+  guardan en `transfer_data` (JSONB) al crear la transferencia, pero `accept/route.ts` solo lee
+  `transferData.revokeNfc` (un campo *distinto*, en otra sección del mismo formulario) — el
+  historial de mantenimiento y los documentos **siempre** viajan con el vehículo sin importar qué
+  elija el vendedor ahí (lo cual, para mantenimiento, es consistente con la decisión de producto ya
+  tomada de que ese historial siempre se vea — pero el checkbox miente al dar a entender que hay una
+  opción real). Al implementar el rediseño de arriba, sacar estos 4 checkboxes decorativos junto con
+  el viejo `revokeNfc` global, y dejar solo la lista real por llavero.
+
+**Implementado y verificado (2026-09-13) — el diseño de arriba, tal cual estaba anotado**:
+- `TransferVehicleModal.tsx` — sacados los 4 checkboxes decorativos y el `revokeNfc` global. Ahora
+  carga los `NfcToken` activos del vehículo (`GET /nfc/tokens?vehicle_id=...`, mismo endpoint que ya
+  usa "Mis llaveros") y muestra uno por fila con dos botones — **"Me lo quedo" (default) / "Va con el
+  vehículo"** — en vez de un checkbox único para todos.
+- `accept/route.ts` — reordenado: ahora actualiza `vehicles.owner_id` primero, maneja los
+  `nfc_tokens` (reasignar o revocar, uno por uno según la elección) **mientras la transferencia
+  sigue `status='pending'`**, y recién al final la marca `'completed'`. Antes revocaba todos o
+  ninguno; ahora, por cada token activo `token_type='personal'`: si el vendedor lo marcó "va con el
+  vehículo" → `UPDATE nfc_tokens SET user_id = comprador` (reasignación real, el chip físico sigue
+  funcionando, no hace falta código de activación nuevo); si no lo marcó (default, incluye el caso
+  de un llavero perdido que el vendedor pasó por alto) → se revoca, igual que antes.
+- **Sorpresa buena verificando esto**: no hizo falta ninguna migración de RLS nueva. Confirmado con
+  simulación de rol real (`SET LOCAL role authenticated` + `request.jwt.claims`, técnica de la
+  auditoría de 2026-08-09) contra la base real, con usuarios de prueba reales creados vía la Admin
+  API de Supabase Auth: la política ya existente de `nfc_tokens` ("Users can update own vehicle
+  tokens", migración `041`) autoriza por `vehicles.owner_id = auth.uid()` — como el paso de arriba ya
+  puso al comprador como dueño del vehículo antes de tocar los llaveros, esa misma política alcanza
+  para que el comprador pueda reasignarse o revocar cualquier token del vehículo. Se probó también
+  que el **orden importa de verdad**: haciendo la reasignación de llaveros *antes* de mover
+  `vehicles.owner_id`, la misma política bloquea la operación — y que un tercero ajeno a la
+  transferencia no puede tocar ni el vehículo ni ningún token. 8/8 checks OK, cero residuo tras
+  borrar los 3 usuarios de prueba y sus filas asociadas.
+- Verificado también: `pytest` 57/57 (backend no se tocó en este ítem) y `npx tsc --noEmit` limpio.
+
+**Tarjeta de propiedad — ✅ definida e implementada (2026-09-13)**, resuelve lo que había quedado
+afuera arriba. Decisión confirmada por el usuario: **el vendedor la tiene cargada de antemano, y
+bloquea crear la transferencia si no** (no es solo un aviso). Razón: en la vida real es el vendedor
+quien tiene la tarjeta físicamente en el momento de la venta — el comprador recién la recibe
+después, así que no tenía sentido pedírsela a él al aceptar.
+
+- `[id]/transfer/route.ts` — agregado, justo después de validar que el vehículo está `active`: un
+  `SELECT` a `documents` donde `vehicle_id` = el vehículo y `type = 'propiedad'` (mismo tipo que ya
+  usa `DocumentosTab.tsx` para "Tarjeta de propiedad"). Si no existe, `400` con un mensaje explícito
+  ("Necesitás cargar la tarjeta de propiedad... antes de poder transferirlo") — se muestra tal cual
+  en el banner de error del modal, que ya renderiza `err.message` sin cambios.
+- No hizo falta OCR ni verificar que la placa del documento coincida con la del vehículo — se
+  requiere que *exista* el documento, no se valida su contenido. Es la misma fricción mínima con la
+  que arrancó la validación de NIT de talleres (ítem 0 de "Hallazgos de arquitectura"), no el KYC
+  completo.
+- **Esta es la primera vez que el frontend lee la tabla `documents` directo con `supabase-js`** (antes
+  solo se leía vía el backend de FastAPI, que conecta como `postgres` y bypassa RLS) — mismo archivo
+  ya señalado por `docs/SECURITY.md` como el único lugar donde RLS es el límite real. Verificado con
+  simulación de rol real (usuarios de prueba reales vía Admin API, `SET LOCAL role authenticated`)
+  contra la base real: el dueño del vehículo sí ve su propia tarjeta con la política ya existente
+  ("Users can manage their own documents", migración `004`), un tercero ajeno no la ve aunque exista
+  (RLS la oculta, no solo el código), y un vehículo sin tarjeta cargada da la consulta vacía que
+  dispara el bloqueo. 5/5 checks OK, cero residuo. `npx tsc --noEmit` limpio. Ninguna migración
+  nueva — reusa la política de `documents` que ya existía.
+
+- **Contexto original del pedido** (ya resuelto arriba): hasta esta pasada, nada exigía ningún
+  documento para crear o aceptar una transferencia. El plan a mediano plazo sigue siendo certificar
+  el vehículo cruzando la placa contra el RUNT (no implementado, requiere integrar una API externa,
+  ver ítems 5/6 sobre APIs externas de validación) — lo de arriba es el paso intermedio mientras eso
+  no exista, no un reemplazo definitivo.
+
+### 12. Estrategia de negocio: ¿el llavero se queda con el vendedor o viaja con el auto?
+
+Pregunta del usuario, evaluada — **recomendación: que viaje con el auto por defecto**, no al revés.
+Razonamiento: la venta de un llavero individual de reemplazo es un ingreso chico y de una sola vez;
+perderlo no es la pérdida real. Lo que sí es valioso es que la transferencia formal
+(`vehicle_transfers`) se use — eso es lo que de verdad importa para el negocio, porque:
+- Es el único camino por el que el comprador hereda el `vehicle_id` real con su historial (servicios,
+  kilometraje, partes) — si en cambio el vendedor le dice "quedate con el auto, comprate tu propio
+  llavero" sin pasar por una transferencia formal, el comprador termina registrando el vehículo como
+  uno **nuevo, sin ningún historial** (no hay forma de heredar el historial sin mover `owner_id` vía
+  `vehicle_transfers`) — se pierde exactamente el valor que hace única a la ficha ("hoja de vida
+  digital"), sin importar si el llavero físico es nuevo o heredado.
+- Un auto que se vende "con hoja de vida digital verificada incluida" es un argumento de venta real
+  para el vendedor (ayuda a vender más rápido/mejor el auto) — vale la pena convertirlo en mensaje de
+  marketing explícito, no dejarlo como un efecto secundario técnico.
+- El comprador que hereda un llavero funcionando y una cuenta con historial es un cliente nuevo mejor
+  retenido (entra ya "enganchado" con datos reales) que uno que tiene que comprar un llavero de cero
+  para poder empezar a usar CarLink — la fricción de "comprate el tuyo" puede directamente perder el
+  cliente en vez de generar una venta.
+- La venta perdida de un llavero de reemplazo se recupera fácil como upsell — el comprador nuevo
+  igual puede querer un segundo llavero (para otra persona, de respaldo) más adelante; no hace falta
+  forzarlo en el momento de la venta del auto.
+
+No es una decisión de código, es la dirección a comunicar en el flujo de transferencia (copy,
+default de los checkboxes del ítem 11) cuando se implemente.
+
+### 13. Cómo debe acumularse el historial entre dueños — ✅ aviso agregado (2026-09-13)
+
+El proyecto ya resolvió esto para dos de las tres categorías de datos de un vehículo, con criterios
+distintos y ya confirmados por el usuario (ver "Modelo de cuentas taller/persona" más abajo):
+- **Historial técnico** (`maintenance_records`, `parts`, kilometraje): siempre visible para el nuevo
+  dueño, sin gating de ningún tipo — es la "hoja de vida", el valor central del producto.
+- **Documentos/facturas legales** (SOAT, RTM, tarjeta de propiedad, pólizas, facturas —
+  `documents.py`, `vehicle_invoices.py`): no se ocultan (a veces hacen falta para el trámite legal de
+  traspaso), pero quedan bloqueados detrás de un clic explícito con aviso ("Documento de antes del
+  traslado — puede tener datos del dueño anterior") vía `is_pre_transfer`.
+- **Galería de fotos (`gallery_images`, `gallery.py`) — sin ningún tratamiento hoy.** No tiene
+  `is_pre_transfer` ni ningún concepto equivalente: las fotos que subió el dueño anterior se ven
+  igual que las nuevas para el comprador, sin aviso de ningún tipo. A diferencia de un documento
+  escaneado (que puede mostrar cédula/nombre/dirección impresos), una foto del auto en sí normalmente
+  no es sensible — pero puede llegar a serlo si aparece una persona identificable o un papel personal
+  de fondo, y hoy no hay ninguna forma (ni automática ni manual) de detectarlo o marcarlo.
+
+**Recomendación, para no reconstruir el problema de los documentos**: no vale la pena filtrar fotos
+después de subidas con algo tipo reconocimiento facial/OCR (caro, poco confiable, fuera de alcance) —
+la fricción correcta va **en el momento de subir**, no en el de traspasar: un aviso explícito en el
+uploader de galería ("evitá incluir personas o documentos personales visibles — estas fotos pueden
+llegar a mostrarse a un futuro comprador si vendés el vehículo"). **No recomiendo sacar las fotos del
+traspaso y dejar solo texto** — la condición visual real del auto (rayones, modificaciones, estado)
+es justo lo que un comprador necesita ver y lo que distingue a CarLink de un historial puramente en
+texto; censurarlo de por sí perdería el valor real de la función, a cambio de un riesgo que ya se
+puede prevenir más barato en el punto de origen (el aviso al subir).
+- El historial de mantenimiento/documentos de antes del traspaso ya tiene su propio mecanismo
+  (`is_pre_transfer`, ver "Modelo de cuentas taller/persona" más abajo) — no hace falta replicarlo
+  para los llaveros, el de arriba alcanza.
+
+**Implementado (2026-09-13)**: aviso agregado en `GaleriaTab.tsx`, debajo del texto de ayuda del
+encabezado — "Evitá incluir personas o documentos personales visibles — estas fotos quedan con el
+vehículo, incluido un futuro comprador si lo vendés." Corregido antes de dejarlo: confirmé primero
+que la galería (`gallery.py`) es autenticada (`get_current_user` + `verify_vehicle`), no forma parte
+de la ficha pública NFC (`NfcTokenInfoPublic` no la incluye) — así que el aviso no dice "quien
+escanee tu llavero la ve", que hubiera sido falso, dice que queda con el vehículo para quien tenga
+acceso a él en la app (hoy: el dueño; después de una transferencia, el nuevo dueño, sin ningún
+bloqueo). No se tocó el backend — es puro texto en el uploader, sin ningún gating nuevo, tal como se
+había recomendado. Verificado con `npx tsc --noEmit` limpio.
+
+### 10. Reposición de llavero perdido + UX de "Perdí mi llavero" — completa el ítem 4 de 🔴 arriba
+
+El ítem 4 de Prioridad alta ya documenta que falta un flujo formal de repuesto/duplicado (revocar +
+reactivar es autoservicio sin label ni aviso a soporte). Esta sesión agrega la pieza de UX que
+faltaba, pedida explícitamente por el usuario:
+
+- **Sugerir revocar al activar "Perdí mi llavero"**: hoy el toggle `lost_keychain_enabled` (`PATCH
+  /vehicles/{id}/lost-keychain-toggle`) solo prende el banner de contacto en la ficha pública — no
+  sugiere ni fuerza revocar el token. Debería mostrar un CTA explícito ("¿Querés revocar el acceso de
+  este llavero ahora?") al activarlo, sin auto-revocar (el dueño puede querer buscarlo en casa
+  primero antes de cortar el acceso).
+- **Si el mismo dueño lo encuentra después**: si nunca revocó, alcanza con apagar el toggle (ya
+  funciona). Si sí había revocado, la vuelta atrás ya existe —
+  `POST /nfc/tokens/{id}/reactivate` (`nfc.py:427`) reactiva el mismo token, no genera uno nuevo — pero
+  no está expuesto en la UI para este caso puntual; falta un botón tipo "Encontré mi llavero" que
+  llame a ese mismo endpoint en vez de mandar al usuario a comprar uno nuevo por error.
+- **Si lo encuentra un extraño**: ver ítem 1 (privacidad del finder) — el flujo de contacto ya existe
+  (`found_requests.py`), el problema es que hoy filtra de vuelta datos del dueño que no debería.
 
 ---
 
@@ -1045,3 +1658,90 @@ el backend, no en el frontend. Opciones:
   depender de la URL encrypted en la DB.
 Ambas requieren más testing y cambio en el contrato del endpoint. El fix actual es una solución
 temporal segura que no rompe tokens existentes.
+
+## Plan gratuito y reserva de placas (2026-09-18)
+
+Decidido: el primer vehículo de una cuenta persona es gratis y limitado; del segundo en adelante
+hace falta un llavero comprado (`vehicles.py::_spare_keychains`, `POST /vehicles` responde 403).
+Una placa queda reservada solo por un vehículo verificado o con llavero activo
+(`_reserved_by_other`, 409 en `POST /vehicles`); un registro gratuito sin verificar no bloquea a
+otra cuenta. Al aprobar una verificación (`admin.py::review_verification`) los duplicados
+gratuitos de otras cuentas se marcan en `verification_note` (no se borran) y la respuesta trae
+`duplicates_flagged`. `POST /nfc/activate` también responde 409 si otra cuenta tiene la placa
+reservada, antes de reclamar el código (no lo quema).
+
+Pendiente:
+- **Reglas del plan gratuito — implementadas 2026-09-18** (ver `docs/CONTEXTO.md` →
+  "Plan gratuito vs. con llavero"). Por ahora el bloqueo es **solo de servicios y de publicar**;
+  las pestañas del menú lateral NO se bloquean (decisión del dueño, 2026-09-18). Cuenta persona
+  sin llavero personal activo **en ese vehículo**:
+  - Servicios: solo **Aceite**; los demás tipos de `InicioView` se ven con candado y al tocarlos
+    abre el panel del llavero para ingresar el código. `FREE_SERVICE_ID` (`app/app/page.tsx`) y
+    `FREE_SERVICE_TYPES` (`backend/app/services/plan.py`).
+  - Publicar al exterior (403 en backend): `sell_enabled` en `PUT /vehicles/{id}` y encender la
+    ficha pública en `PATCH /vehicles/{id}/nfc-toggle`. También crear mantenimiento que no sea
+    Aceite (`POST /maintenance`). Talleres/empresas no aplican. Tests: `tests/test_plan_gratuito.py`.
+  - Al activar el código se libera todo (la UI lo deriva de `nfcTokens.some(is_active)`).
+  - Pendiente futuro: si más adelante se decide bloquear pestañas/módulos (partes, galería,
+    facturas, documentos, reseñas), hay que volver a gatear sus `POST` con
+    `services/plan.py::require_full_access` y agregar el candado en `Sidebar.tsx`.
+  - Sin cubrir: escaneo de documentos (OCR) desde el topbar falla con 403 sin mensaje propio para
+    tipos de servicio no gratuitos; probarlo en navegador.
+- **Códigos que no vienen de la tienda** (partner/campaña/regalo) no habilitan un vehículo extra
+  (el conteo usa `shop_orders`); resolver con el flujo "código y luego wizard de placa nueva".
+- Sin probar contra la base real: las consultas de reserva solo se compilaron para Postgres y se
+  probaron con mocks.
+
+## Commits locales hechos (2026-09-18) — pendientes de push
+
+Se agruparon en 4 commits (la lista original de 7 se colapsó porque `vehicles.py`, `admin.py`,
+`app/app/page.tsx` y `app/page.tsx` mezclan varios temas y no se separan sin `git add -p`):
+
+1. `feat(backend)` — verificación por vehículo, plan gratuito, reserva de placas, migraciones 058/059.
+2. `feat(frontend)` — placa con un solo texto inferior, selector de marca y de color.
+3. `feat(frontend)` — wizard, tutorial guiado, verificación por vehículo, menú de perfil en acordeones.
+4. `docs` — plan gratuito, pruebas funcionales, plan de patente NFC, scripts de QA (el script `scripts/delete_test_user.sql` quedó sin commitear, solo local).
+
+Antes de desplegar: aplicar las migraciones 058/059 **a mano** en la base compartida (ver
+`docs/DEPLOY.md`), correr las suites que apliquen de `docs/PRUEBAS_FUNCIONALES.md`. Los commits
+intermedios no se probaron por separado; el estado final sí (`pytest` 64 pasan, `tsc` limpio).
+Cualquier `git push` requiere autorización fresca del dueño en la sesión.
+
+## Tarjeta de propiedad: una sola carga, dos caras (2026-09-18, sin commitear)
+
+- **Wizard** (`StepVehiculo.tsx`): las fotos escaneadas se guardan en Documentos (`type=propiedad`,
+  `side=frente`/`side=reverso`). Si están las dos, se envían solas a revisión
+  (`POST /vehicles/{id}/verification`, estado `pending`) y aparecen en la consola admin
+  (Verificaciones). Con una sola cara queda sin enviar.
+- **Perfil → Datos del vehículo → verificación** (`app/app/page.tsx`): lee esas fotos de Documentos;
+  la cara ya cargada aparece bloqueada ("Frente ya cargado") y la que falta sigue habilitada. Se
+  desbloquea si el admin rechazó la verificación (`verification_note`). Subir una cara desde el perfil
+  también la guarda en Documentos y reemplaza la anterior de esa cara (gana la última).
+- **Documentos** (`DocumentosTab.tsx`): la tarjeta de propiedad muestra el FRENTE como vista previa;
+  al ampliar, flechas para pasar al reverso (visor `FileLightbox` con varias imágenes).
+- Sin probar en navegador ni contra la consola admin real; el reverso sigue siendo un documento
+  aparte (`side=reverso`) oculto de la grilla, no una columna nueva.
+- **Solo cámara para la tarjeta de propiedad (2026-09-18):** tanto la verificación del perfil ("Escanear
+  frente/reverso", `CameraCapture`) como la tarjeta de propiedad de Documentos (`FileCard` con
+  `scanOnly`) ya no ofrecen subir archivo. Los demás documentos conservan subir o escanear. Desde
+  Documentos solo se re-escanea el frente; el reverso se re-escanea desde el perfil.
+- **Nombre del propietario en los escaneos (2026-09-18):** el reverso ahora también se lee en el wizard
+  (antes se saltaba si el frente ya traía la ciudad) y llena solo lo que siga vacío; el escaneo del
+  perfil (`handleVerifyCapture`) también lee la tarjeta y guarda propietario/marca/modelo/año/color
+  si el vehículo no los tenía. **No verificado con una tarjeta real**: el OCR local no funciona
+  (no hay `tesseract` instalado en esta máquina, así que `/ocr/vehicle-card` devuelve 503) — probar
+  contra el entorno desplegado y revisar en qué cara de la tarjeta viene el propietario.
+
+## Toggles lentos o "invertidos" (2026-09-18, sin commitear)
+
+Causas encontradas y corregidas (no reproducido en navegador, sin verificar contra Redis real):
+- `app/app/page.tsx`: los toggles eran pesimistas y fallaban en silencio (ej. 403 del plan gratuito);
+  un doble toque mandaba dos inversiones (el backend invierte, no fija). Ahora `runToggle`: cambio
+  inmediato, un solo cambio en vuelo, revierte y avisa si falla.
+- "Vender" solo se copiaba del vehículo al abrir el perfil, y "perdí/georreferenciación" solo al cargar
+  la lista: al cambiar de vehículo mostraban el valor de otro. Ahora se derivan siempre del vehículo
+  activo, y `patchVehicle` también actualiza la copia en la lista `vehicles`.
+- El efecto que llena el formulario de perfil dependía del objeto `vehicle` completo y pisaba lo que se
+  estaba escribiendo; ahora solo depende de abrir el panel / cambiar de vehículo.
+- Backend (`vehicles.py`, `cache.py`): commit antes de invalidar el caché (antes otra lectura podía
+  re-cachear el valor viejo 120 s) y `SCAN` en lugar de `KEYS` para borrar claves de Redis.

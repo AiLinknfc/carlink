@@ -17,8 +17,18 @@ class VehicleCreate(BaseModel):
     model: str = ""
     year: int = 0
     type: str = ""
+    # Carrocería (Sedán/SUV/Moto/...) — separado de `type`, que es la
+    # categoría de placa (particular/moto/publico/...) usada para validar el
+    # formato. Antes el panel de perfil pisaba `type` con la carrocería
+    # elegida por el usuario, corrompiendo la categoría real de la placa
+    # (2026-09-18, hallado al revisar por qué una moto escaneada mostraba
+    # "Sedán" en el perfil).
+    body_type: str = ""
     color: str = ""
     image_url: str = ""
+    # Nombre del propietario según la tarjeta escaneada — separado de
+    # profiles.full_name, ver comentario en models.py Vehicle.owner_name.
+    owner_name: str = ""
 
     @field_validator('plate')
     @classmethod
@@ -53,7 +63,9 @@ class VehicleUpdate(BaseModel):
     brand: str | None = None
     model: str | None = None
     year: int | None = None
+    body_type: str | None = None
     color: str | None = None
+    owner_name: str | None = None
     image_url: str | None = None
     nfc_active: bool | None = None
     sell_enabled: bool | None = None
@@ -78,7 +90,15 @@ class VehicleOut(BaseModel):
     model: str
     year: int
     type: str
+    body_type: str = ""
     color: str
+    owner_name: str = ""
+    verification_status: str = "unverified"
+    verification_doc_url: str = ""
+    verification_doc_url_back: str = ""
+    verification_note: str = ""
+    verification_requested_at: datetime | None = None
+    verified_at: datetime | None = None
     image_url: str
     nfc_active: bool
     sell_enabled: bool = False
@@ -265,6 +285,7 @@ class VehicleCardResult(BaseModel):
     model: str | None = None
     year: int | None = None
     color: str | None = None
+    vehicle_class: str | None = None
     owner_name: str | None = None
     document_number: str | None = None
     raw_text: str
@@ -426,6 +447,7 @@ class ProfileOut(BaseModel):
     document_number: str = ""
     verification_status: str = "unverified"
     verification_doc_url: str = ""
+    verification_doc_url_back: str = ""
     verification_note: str = ""
     verified_at: datetime | None = None
     whatsapp_enabled: bool = False
@@ -445,8 +467,14 @@ class ProfileUpdate(BaseModel):
     # auto-verificarse. Sólo /auth/me/verification lo mueve a "pending".
 
 
-class VerificationRequest(BaseModel):
+class VehicleVerificationRequest(BaseModel):
+    """Reemplaza a VerificationRequest (2026-09-19) — la verificación pasó de
+    ser por cuenta (POST /auth/me/verification) a ser por vehículo
+    (POST /vehicles/{id}/verification), ver vehicles.py."""
     verification_doc_url: str
+    # Reverso obligatorio también (2026-09-18) — la tarjeta de propiedad
+    # tiene 2 caras, front-only no alcanza para verificar.
+    verification_doc_url_back: str
 
 
 # =========== Workshops ===========
@@ -1228,7 +1256,6 @@ class NfcTokenInfoPublic(BaseModel):
     vehicle_condition: str = "usado"
     published_at: str | None = None
     owner_whatsapp: str = ""
-    owner_name: str = ""
     lost_keychain_enabled: bool = False
     # Sellos / garantía (from workshop config)
     stamps_required: int = 6
@@ -1271,13 +1298,14 @@ class FoundRequestOut(BaseModel):
     finder_name: str
     status: str
     created_at: datetime
-    # Joined data
+    # Joined data. Deliberately no owner_name/owner_email/owner_whatsapp —
+    # this response reaches the finder (unauthenticated on /public), who
+    # must never learn the vehicle owner's identity. See
+    # docs/PENDIENTES.md, "Filtración de PII sin autenticación en
+    # found_requests.py".
     vehicle_plate: str = ""
     vehicle_brand: str = ""
     vehicle_model: str = ""
-    owner_name: str = ""
-    owner_email: str = ""
-    owner_whatsapp: str = ""
 
     model_config = {"from_attributes": True}
 
@@ -1382,8 +1410,18 @@ class NfcWhitelistOut(BaseModel):
     provisioned_by_partner_id: UUID | None = None
     partner_batch_id: UUID | None = None
     partner_name: str = ""
+    # Paused (not deleted) — see docs/PENDIENTES.md item 3. Only ever set on
+    # rows with provisioned_by_partner_id != null.
+    suspended_at: datetime | None = None
+    # Marked by hand when the batch physically went out — see item 4.
+    distributed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class WhitelistBulkActionOut(BaseModel):
+    """How many nfc_token_whitelist rows a bulk suspend/reactivate touched."""
+    count: int
 
 
 class NfcWhitelistCreate(BaseModel):
@@ -1492,6 +1530,9 @@ class PartnerBatchOut(BaseModel):
     total: int
     claimed: int
     note: str = ""
+    # Marcado a mano cuando el lote salió de verdad a repartirse — null si
+    # todavía nadie lo confirmó. Ver docs/PENDIENTES.md item 4.
+    distributed_at: datetime | None = None
 
 
 class PartnerTokenOut(BaseModel):
@@ -1508,6 +1549,7 @@ class PartnerTokenOut(BaseModel):
     qr_url: str | None = None
     partner_batch_id: UUID | None = None
     created_at: datetime
+    distributed_at: datetime | None = None
 
 
 class NfcStatsOut(BaseModel):
@@ -1723,6 +1765,11 @@ class ShopOrderDetailOut(ShopOrderOut):
     shipped_at: datetime | None = None
     delivered_at: datetime | None = None
     tracking_note: str
+    # Códigos de activación asignados a este pedido, descifrados al vuelo —
+    # solo lo llena GET /shop/orders (el propio comprador viendo "Mis
+    # pedidos"), nunca la cola de despacho de admin. Ver
+    # docs/PENDIENTES.md item 5.
+    activation_codes: list[str] = []
 
 
 class ShopOrderFulfillmentUpdate(BaseModel):

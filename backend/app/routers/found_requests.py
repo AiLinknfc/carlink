@@ -18,7 +18,15 @@ from app.services.email import send_found_request_email
 router = APIRouter(prefix="/found-requests", tags=["found-requests"])
 
 
-def _build_out(r: FoundRequest, vehicle: Vehicle | None, owner: Profile | None) -> FoundRequestOut:
+def _build_out(r: FoundRequest, vehicle: Vehicle | None) -> FoundRequestOut:
+    """Builds the response for both the finder (POST/POST public) and the
+    owner (GET, listing their own requests). Never includes owner_name/
+    owner_email/owner_whatsapp: the contact flow is one-way (finder -> owner,
+    via send_found_request_email) — the finder must never learn the owner's
+    real identity from the API response, and the owner viewing their own
+    list already knows their own name/email, so echoing it back added
+    nothing. See docs/PENDIENTES.md, "Filtración de PII sin autenticación en
+    found_requests.py"."""
     return FoundRequestOut(
         id=r.id,
         owner_id=r.owner_id,
@@ -35,9 +43,6 @@ def _build_out(r: FoundRequest, vehicle: Vehicle | None, owner: Profile | None) 
         vehicle_plate=vehicle.plate if vehicle else "",
         vehicle_brand=vehicle.brand if vehicle else "",
         vehicle_model=vehicle.model if vehicle else "",
-        owner_name=owner.full_name if owner else "",
-        owner_email=owner.email if owner else "",
-        owner_whatsapp=owner.whatsapp_number if owner and owner.whatsapp_enabled else "",
     )
 
 
@@ -88,7 +93,7 @@ async def create_found_request(
             vehicle_plate=vehicle.plate,
         )
 
-    return _build_out(request, vehicle, owner)
+    return _build_out(request, vehicle)
 
 
 @router.post("/public", response_model=FoundRequestOut, status_code=status.HTTP_201_CREATED)
@@ -146,7 +151,7 @@ async def create_found_request_public(
             vehicle_plate=vehicle.plate,
         )
 
-    return _build_out(request, vehicle, owner)
+    return _build_out(request, vehicle)
 
 
 @router.get("", response_model=list[FoundRequestOut])
@@ -165,9 +170,7 @@ async def list_my_found_requests(
     for r in requests:
         v_result = await db.execute(select(Vehicle).where(Vehicle.id == r.vehicle_id))
         v = v_result.scalar_one_or_none()
-        owner_result = await db.execute(select(Profile).where(Profile.id == r.owner_id))
-        owner = owner_result.scalar_one_or_none()
-        out.append(_build_out(r, v, owner))
+        out.append(_build_out(r, v))
     return out
 
 

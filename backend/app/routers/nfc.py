@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -14,9 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
+from app.routers.vehicles import _reserved_by_other
 from app.models.models import (
     MaintenanceRecord,
     NfcAccessLog,
+    NfcAlert,
     NfcToken,
     NfcTokenLimit,
     Profile,
@@ -200,6 +203,15 @@ async def activate_nfc_token(
     # mandado sea del usuario autenticado.
     vehicle = await verify_vehicle(body.vehicle_id, user_id, db)
 
+    # Reserva de placa (2026-09-18): si otra cuenta ya tiene esta placa
+    # verificada o con llavero activo, no se activa nada acá. Va ANTES del
+    # reclamo atómico de abajo para no quemar el código del llavero.
+    if await _reserved_by_other(re.sub(r"[^A-Z0-9]", "", vehicle.plate.upper()), user_id, db):
+        raise HTTPException(
+            status_code=409,
+            detail="Esta placa ya está verificada o activa en otra cuenta. Contacta a soporte si es tu vehículo.",
+        )
+
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
     account_type = profile.account_type if profile else "persona"
@@ -226,12 +238,17 @@ async def activate_nfc_token(
     # Atomic claim: the UPDATE only matches rows still 'available', so a
     # concurrent replay of the same code (e.g. leaked/shared) loses the row
     # lock race and gets 0 rows back instead of double-activating.
+    # `suspended_at IS NULL` closes the partner-suspension gap (see
+    # docs/PENDIENTES.md item 3): a partner's already-issued codes stop being
+    # claimable the moment they're paused, without deleting/regenerating
+    # anything — reactivating just clears suspended_at on the same rows.
     claim_result = await db.execute(
         text(
             "UPDATE nfc_token_whitelist "
             "SET status = 'claimed', claimed_by = :uid, claimed_vehicle_id = :vid, claimed_at = now() "
-            "WHERE activation_code_hash = :code_hash AND status = 'available' "
-            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug"
+            "WHERE activation_code_hash = :code_hash AND status = 'available' AND suspended_at IS NULL "
+            "RETURNING tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug, "
+            "provisioned_by_partner_id, distributed_at"
         ),
         {"uid": str(uid), "vid": str(vehicle.id), "code_hash": code_hash},
     )
@@ -239,7 +256,8 @@ async def activate_nfc_token(
     if not row:
         raise HTTPException(status_code=404, detail="Código inválido o ya utilizado.")
 
-    tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug = row
+    (tag_uid, token_hash, token_prefix, token_url_encrypted, qr_slug,
+     provisioned_by_partner_id, distributed_at) = row
     if not token_hash or not token_prefix:
         raise HTTPException(status_code=500, detail="Este llavero no fue provisionado correctamente. Contacta a soporte.")
 
@@ -255,11 +273,33 @@ async def activate_nfc_token(
     db.add(nfc_token)
     await db.flush()
 
+    # Detección, no barrera (docs/PENDIENTES.md item 4): un llavero de
+    # partner que se activa antes de que alguien confirme que el lote salió
+    # a repartirse es una señal para revisar, no algo que bloqueamos acá —
+    # el partner deshonesto igual podría auto-activarse antes de repartir,
+    # esto solo deja rastro para auditar después.
+    if provisioned_by_partner_id and not distributed_at:
+        db.add(NfcAlert(
+            token_id=nfc_token.id,
+            alert_type="activated_before_distributed",
+            severity="warning",
+            message="Llavero de partner activado antes de que se marcara el lote como distribuido.",
+        ))
+        await db.flush()
+
     if token_url_encrypted:
         await db.execute(
             text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
             {"url": token_url_encrypted, "id": str(nfc_token.id)},
         )
+        await db.flush()
+
+    # Auto-enable ficha publica al activar primer llavero: cuando el usuario
+    # ingresa un codigo de activacion valido, la ficha se activa por defecto.
+    # Los demas toggles (contacto, georreferenciacion, etc.) quedan
+    # desactivados — el usuario los controla manualmente desde FichaTab.
+    if not vehicle.nfc_active:
+        vehicle.nfc_active = True
         await db.flush()
 
     await db.refresh(nfc_token)
@@ -548,12 +588,13 @@ async def my_ficha_preview(
 
     service_history, workshops_profiles = await _build_service_history(all_records, db)
 
+    # No owner_name here on purpose — this payload reaches an unauthenticated
+    # scanner (see docs/PENDIENTES.md, "owner_name público sin autenticar en
+    # la ficha NFC"). owner_whatsapp is the only owner-identifying field, and
+    # only because the owner explicitly opted in (whatsapp_enabled).
     owner_whatsapp = ""
-    owner_name = ""
-    if owner:
-        owner_name = owner.full_name or ""
-        if owner.whatsapp_enabled:
-            owner_whatsapp = owner.whatsapp_number or ""
+    if owner and owner.whatsapp_enabled:
+        owner_whatsapp = owner.whatsapp_number or ""
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
@@ -581,7 +622,6 @@ async def my_ficha_preview(
         vehicle_condition=vehicle.vehicle_condition or "usado",
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
-        owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
         # Sellos / garantía
         stamps_required=stamps_required,
@@ -742,12 +782,13 @@ async def access_via_nfc(
     service_history, workshops_profiles = await _build_service_history(all_records, db)
 
     # Owner WhatsApp info (owner already fetched above for the access check)
+    # No owner_name here on purpose — this payload reaches an unauthenticated
+    # scanner (see docs/PENDIENTES.md, "owner_name público sin autenticar en
+    # la ficha NFC"). owner_whatsapp is the only owner-identifying field, and
+    # only because the owner explicitly opted in (whatsapp_enabled).
     owner_whatsapp = ""
-    owner_name = ""
-    if owner:
-        owner_name = owner.full_name or ""
-        if owner.whatsapp_enabled:
-            owner_whatsapp = owner.whatsapp_number or ""
+    if owner and owner.whatsapp_enabled:
+        owner_whatsapp = owner.whatsapp_number or ""
 
     return NfcTokenInfoPublic(
         plate=vehicle.plate,
@@ -778,7 +819,6 @@ async def access_via_nfc(
         vehicle_condition=vehicle.vehicle_condition or "usado",
         published_at=str(vehicle.created_at) if vehicle.created_at else None,
         owner_whatsapp=owner_whatsapp,
-        owner_name=owner_name,
         lost_keychain_enabled=vehicle.lost_keychain_enabled,
         # Sellos / garantía
         stamps_required=stamps_required,

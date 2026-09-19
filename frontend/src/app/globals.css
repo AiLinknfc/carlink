@@ -129,6 +129,12 @@ html, body {
 }
 a { color: inherit; text-decoration: none; }
 input, select, button, textarea { font-family: inherit; }
+/* Inputs de placa del wizard (StepVehiculo.tsx): el texto tecleado se pinta
+   en amarillo (#F5C518) a propósito, pero sin esta regla el placeholder
+   hereda ese mismo color en algunos navegadores — antes de escribir se veía
+   amarillo oscuro, fácil de confundir con la placa ya tecleada. Gris suave
+   themed en su lugar (2026-09-18). */
+.wizard-plate-input::placeholder { color: var(--text-4); opacity: 1; }
 select option { background: #141414; color: #f5f3ec; }
 :root[data-theme="light"] select option { background: #ffffff; color: #17171a; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }

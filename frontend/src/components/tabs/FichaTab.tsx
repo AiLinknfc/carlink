@@ -9,7 +9,6 @@ import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
 import { ServiceTypeIcon, NfcKeyIcon } from '@/lib/icons_new'
-import CarLinkLogo from '@/components/CarLinkLogo'
 import { isPdf, proxyUrl } from '@/lib/upload'
 import ExpenseScanModal from '@/components/ExpenseScanModal'
 import type { Vehicle, MaintenanceRecord, FuelSummary, VehicleExpense } from '@/lib/types'
@@ -56,6 +55,10 @@ interface FichaTabProps {
   onOpenPublicar: () => void
   onOpenTransfer: () => void
   transferLocked?: boolean
+  /** Función en pruebas (2026-09-18, pedido del usuario) — el botón entero
+   * se oculta para cualquiera que no sea la cuenta admin, en vez de mostrar
+   * "Requiere perfil verificado" a todo el mundo mientras se prueba. */
+  showTransfer?: boolean
   onNavigate: (tab: string) => void
   toggleNfcActive: () => void
   refreshKey?: number
@@ -75,7 +78,7 @@ interface FichaTabProps {
   isNfcPublished?: boolean
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain, isNfcPublished = false }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, showTransfer = false, onNavigate, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain, isNfcPublished = false }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -629,7 +632,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 color: t.color, opacity: !t.tracked ? 0.9 : t.critical ? 1 : 0.75,
                 animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
               {t.iconKey === 'brakes' && <ServiceTypeIcon type="Frenos" size={20} />}
-              {t.iconKey === 'tire' && <CarLinkLogo size={26} />}
+              {t.iconKey === 'tire' && <ServiceTypeIcon type="Llantas" size={20} />}
               {t.iconKey === 'battery' && <ServiceTypeIcon type="Batería" size={20} />}
               {t.iconKey === 'temp' && <ServiceTypeIcon type="Refrigerante" size={20} />}
               {t.iconKey === 'filter' && <ServiceTypeIcon type="Aire" size={20} />}
@@ -681,7 +684,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               ? `${quien} pasó la mitad de su vida útil — le quedan ${Math.round(t.pct * 100)}% de su intervalo. Ve agendando la revisión.`
               : `${quien} está dentro de su vida útil normal.`
         const iconSvg = t.iconKey === 'brakes' ? <ServiceTypeIcon type="Frenos" size={22} />
-          : t.iconKey === 'tire' ? <CarLinkLogo size={29} />
+          : t.iconKey === 'tire' ? <ServiceTypeIcon type="Llantas" size={22} />
           : t.iconKey === 'filter' ? <ServiceTypeIcon type="Aire" size={22} />
           : t.iconKey === 'suspension' ? <ServiceTypeIcon type="Suspensión" size={22} />
           : t.iconKey === 'transmission' ? <ServiceTypeIcon type="Transmisión" size={22} />
@@ -1035,6 +1038,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 </button>
               )
             })()}
+            {showTransfer && (
             <button onClick={onOpenTransfer} title={transferLocked ? 'Requiere perfil verificado' : undefined} style={{
               position: 'relative', overflow: 'hidden',
               opacity: transferLocked ? 0.55 : 1,
@@ -1056,6 +1060,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 borderRadius: 999, padding: '2px 8px', flex: '0 0 auto',
               }}>Próximamente</span>
             </button>
+            )}
 
           </div>
         </div>

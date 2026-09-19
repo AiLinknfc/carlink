@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleApi, analyticsApi } from '@/lib/api'
-import { uploadFile } from '@/lib/upload'
+import { uploadFile, scanVehicleCard } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import { useMaintenance } from '@/lib/hooks'
@@ -21,6 +21,7 @@ import TransferVehicleModal from '@/components/TransferVehicleModal'
 import AddVehicleModal from '@/components/AddVehicleModal'
 import CertificadosTab from '@/components/CertificadosTab'
 import DocumentosTab from '@/components/DocumentosTab'
+import CameraCapture from '@/components/CameraCapture'
 import GaleriaTab from '@/components/GaleriaTab'
 import DiagnosticoTab from '@/components/DiagnosticoTab'
 import FichaTab from '@/components/tabs/FichaTab'
@@ -33,14 +34,59 @@ import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
 import OrderTrackingModal from '@/components/OrderTrackingModal'
 import CartModal from '@/components/CartModal'
+import OnboardingWizard, { isOnboardingDone } from '@/components/onboarding/OnboardingWizard'
+import GuidedTour, { isTourDone, markTourDone, type TourStep } from '@/components/onboarding/GuidedTour'
+import ThemedSuggestInput from '@/components/ThemedSuggestInput'
+import ColorPickerButton from '@/components/ColorPickerButton'
+import BrandPickerModal from '@/components/BrandPickerModal'
+import { brandsForType, modelSuggestions, matchColorKeyword, VEHICLE_TYPES } from '@/lib/vehicleBrands'
+
+const FREE_SERVICE_ID = 'Aceite'
+
+function ProfileAccordion({ title, badge, open, onToggle, children }: { title: string; badge?: React.ReactNode; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--surface-2)', overflow: 'hidden' }}>
+      <button type="button" onClick={onToggle} aria-expanded={open}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '13px 14px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700 }}>{title}</span>
+          {badge}
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      {open && <div style={{ padding: '4px 14px 14px' }}>{children}</div>}
+    </div>
+  )
+}
 
 export default function AppPage() {
   const router = useRouter()
   const { user, loading, profile, signOut, refreshProfile } = useAuth()
-  const verifyStatus = profile?.verification_status || 'unverified'
-  const isVerified = verifyStatus === 'verified'
   const [verifying, setVerifying] = useState(false)
+  // Verificación con frente y reverso de la tarjeta (2026-09-18) — cada cara
+  // se sube apenas se elige (uploadFile), pero el POST /vehicles/{id}/verification
+  // (por vehículo desde 2026-09-19, ver más abajo) que manda todo a revisión
+  // sólo se dispara cuando las dos URLs están listas. `verifyingSide` es
+  // cuál de las dos está subiendo en este momento.
+  const [verifyFrontUrl, setVerifyFrontUrl] = useState<string | null>(null)
+  const [verifyBackUrl, setVerifyBackUrl] = useState<string | null>(null)
+  const [verifyingSide, setVerifyingSide] = useState<'frente' | 'reverso' | null>(null)
+  // Fotos de la tarjeta de propiedad que ya están guardadas en Documentos (las
+  // que se tomaron en el wizard o se subieron antes) — no se piden de nuevo.
+  // `sessionSides`: lados subidos en esta apertura del panel, que siguen
+  // pudiéndose reemplazar antes de enviar a revisión.
+  const [storedCard, setStoredCard] = useState<{ frente: string | null; reverso: string | null }>({ frente: null, reverso: null })
+  const [sessionSides, setSessionSides] = useState<{ frente?: boolean; reverso?: boolean }>({})
+  // Verificación solo con cámara (2026-09-18): qué cara se está capturando.
+  const [verifyCamSide, setVerifyCamSide] = useState<'frente' | 'reverso' | null>(null)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  // Tutorial guiado (spotlight) que se muestra una vez, al terminar el wizard
+  // por primera vez — ver GuidedTour.tsx. forceSidebarOpen fuerza el rail/
+  // cajón móvil abiertos durante el paso que lo señala, sin tocar el toggle
+  // real del usuario (ver props forceExpanded/forceOpen de Sidebar).
+  const [showTour, setShowTour] = useState(false)
+  const [forceSidebarOpen, setForceSidebarOpen] = useState(false)
   /* La bandeja PQRS es herramienta de gestión: sólo para taller/empresa. El
      conductor radica sus PQRS desde el asistente de la landing. */
   const isBusiness = isBusinessAccount(profile?.account_type)
@@ -54,6 +100,14 @@ export default function AppPage() {
   }, [loading, profile, isBusiness, router])
   const [activeTab, setActiveTab] = useState('inicio')
   const [vehicle, setVehicle] = useState<any>(null)
+  // Por vehículo activo, no por cuenta (2026-09-19, antes leía
+  // profile?.verification_status) — bug real: verificar UNA tarjeta
+  // habilitaba transferir/vender TODOS los vehículos de la cuenta, no sólo
+  // el revisado. Ver models.py Vehicle.verification_status. Al cambiar de
+  // placa en el selector del menú lateral, `vehicle` cambia y esto se
+  // recalcula solo — no hace falta ningún efecto extra.
+  const verifyStatus: string = vehicle?.verification_status || 'unverified'
+  const isVerified = verifyStatus === 'verified'
   const [vehicleLoading, setVehicleLoading] = useState(true)
   // Todos los vehículos de la cuenta (2026-08-07, feature "agregar vehículo")
   // — antes solo se guardaba data[0] y el resto de los vehículos de una
@@ -67,10 +121,23 @@ export default function AppPage() {
   const [keychainAvailable, setKeychainAvailable] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [editName, setEditName] = useState('')
-  const [editModelo, setEditModelo] = useState('')
-  const [editTipo, setEditTipo] = useState('Sedán')
+  // Marca/modelo separados (2026-09-15) — antes era un solo campo de texto
+  // libre ("Modelo / línea") que partía a mano en el submit; separado para
+  // poder usar el mismo picker de marcas (tiles) que ya existía en el
+  // registro viejo, y porque el backend guarda brand/model en columnas
+  // distintas.
+  const [editBrand, setEditBrand] = useState('')
+  const [brandPickerOpen, setBrandPickerOpen] = useState(false)
+  // Sección abierta del panel de perfil (acordeón): datos personales, del vehículo o gestión.
+  const [profileSection, setProfileSection] = useState<'personal' | 'vehiculo' | 'gestion' | null>('personal')
+  const [editModel, setEditModel] = useState('')
+  const [editTipo, setEditTipo] = useState('Auto')
   const [editAnio, setEditAnio] = useState(2026)
   const [editColor, setEditColor] = useState('')
+  // Nombre de propietario según la tarjeta escaneada — del vehículo, no de
+  // la cuenta (2026-09-19, ver comentario junto al campo en "Mi perfil").
+  const [editOwnerName, setEditOwnerName] = useState('')
+  const [showColorPicker, setShowColorPicker] = useState(false)
   const [sellEnabled, setSellEnabled] = useState(false)
   const [sellPrice, setSellPrice] = useState('')
   const [sellCity, setSellCity] = useState('')
@@ -129,6 +196,13 @@ export default function AppPage() {
   // toggle from showing ON for vehicles that have nfc_active=True in the DB
   // but no actual keychain (leftover from before migration 048).
   const isNfcPublished = vehicle?.nfc_active !== false && !tokensLoading && nfcTokens.some(t => t.is_active)
+  // Plan gratuito (2026-09-18, docs/CONTEXTO.md): sin llavero activo en el
+  // vehículo, la cuenta persona solo registra el servicio de aceite (los
+  // demás servicios se ven bloqueados hasta activar el código). Las
+  // pestañas del menú lateral no se bloquean.
+  // Mientras cargan los llaveros se asume desbloqueado para no parpadear
+  // candados — el backend igual valida (app/services/plan.py).
+  const fullAccess = isBusiness || tokensLoading || nfcTokens.some(t => t.is_active)
 
   // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
   const [notifsStampsRequired, setNotifsStampsRequired] = useState(6)
@@ -152,35 +226,96 @@ export default function AppPage() {
 
   /* La tarjeta de propiedad que se sube para verificar es el mismo documento que
      pide la sección de Documentos: se registra allí para no pedirla dos veces. */
-  const syncPropiedadDoc = useCallback(async (fileUrl: string) => {
+  const syncPropiedadDoc = useCallback(async (fileUrl: string, side: 'frente' | 'reverso' = 'frente') => {
     if (!vehicle?.id) return
     try {
       const docs = await apiGet(`/documents/vehicle/${vehicle.id}`)
-      const existing = (docs || []).find((d: any) => d.type === 'propiedad')
+      // Matchea por cara (2026-09-18, antes solo había frente) — sin esto,
+      // subir el reverso pisaría el archivo del frente ya registrado (el
+      // primer doc de type=propiedad que encontrara).
+      const existing = (docs || []).find((d: any) => d.type === 'propiedad' && (d.notes || '').includes(`side=${side}`))
       if (existing) {
-        if (!existing.file_url) await apiPut(`/documents/${existing.id}`, { file_url: fileUrl })
+        // El último archivo subido de esa cara es el que vale.
+        if (existing.file_url !== fileUrl) await apiPut(`/documents/${existing.id}`, { file_url: fileUrl })
       } else {
         await apiPost('/documents', {
           vehicle_id: vehicle.id,
-          name: 'Tarjeta de propiedad',
+          name: side === 'reverso' ? 'Tarjeta de propiedad (reverso)' : 'Tarjeta de propiedad',
           type: 'propiedad',
           file_url: fileUrl,
-          notes: 'status=vigente;type=propiedad',
+          notes: `status=vigente;type=propiedad;side=${side}`,
         })
       }
       setRefreshKey(k => k + 1)
     } catch (e) { console.warn('No se pudo registrar la tarjeta en Documentos', e) }
   }, [vehicle?.id])
 
-  /* Bienvenida sólo la primera vez que el usuario entra a su tablero. Se marca
-     por id de usuario para que no reaparezca al recargar ni tras cerrar sesión. */
+  // Captura con cámara de una cara de la tarjeta (verificación): sube la foto,
+  // la deja lista para enviar a revisión y la guarda también en Documentos.
+  const handleVerifyCapture = async (file: File) => {
+    const side = verifyCamSide
+    setVerifyCamSide(null)
+    if (!side) return
+    setVerifyingSide(side)
+    try {
+      const url = await uploadFile(file, 'verification')
+      if (!url) { flashApp('No se pudo subir el documento'); return }
+      if (side === 'frente') setVerifyFrontUrl(url); else setVerifyBackUrl(url)
+      setSessionSides(prev => ({ ...prev, [side]: true }))
+      await syncPropiedadDoc(url, side)
+      // Lectura de la tarjeta (2026-09-18): completa lo que el vehículo aún
+      // no tiene — nombre del propietario, marca, modelo, año y color — y lo
+      // guarda. Nunca pisa datos que ya estén cargados.
+      if (vehicle?.id) {
+        const data = await scanVehicleCard(file)
+        if (data) {
+          const patch: Record<string, any> = {}
+          const filled: string[] = []
+          if (!vehicle.owner_name && data.owner_name) { patch.owner_name = data.owner_name; filled.push('propietario') }
+          if (!vehicle.brand && data.brand) { patch.brand = data.brand; filled.push('marca') }
+          if (!vehicle.model && data.model) { patch.model = data.model; filled.push('modelo') }
+          if (!vehicle.year && data.year && data.year > 1900) { patch.year = data.year; filled.push('año') }
+          if (!vehicle.color && data.color) { patch.color = matchColorKeyword(data.color); filled.push('color') }
+          if (Object.keys(patch).length) {
+            const saved = await apiPut(`/vehicles/${vehicle.id}`, patch)
+            if (saved) {
+              setVehicle((prev: any) => prev ? { ...prev, ...patch } : prev)
+              if (patch.owner_name) setEditOwnerName(patch.owner_name)
+              if (patch.brand) setEditBrand(patch.brand)
+              if (patch.model) setEditModel(patch.model)
+              if (patch.year) setEditAnio(patch.year)
+              if (patch.color) setEditColor(patch.color)
+              flashApp(`Leímos y guardamos: ${filled.join(', ')}`)
+            }
+          }
+        }
+      }
+    } finally { setVerifyingSide(null) }
+  }
+
+  /* Bienvenida y onboarding: wizard obligatorio la primera vez, luego el modal
+     de bienvenida tradicional. Se marca por id de usuario.
+     Solo aplica a conductores (persona) — las cuentas taller/empresa se
+     redirigen a /app/negocio en el efecto de arriba, pero ese redirect es
+     asíncrono (router.replace no desmonta en el mismo tick), así que sin
+     este chequeo explícito una cuenta taller nueva podría alcanzar a ver el
+     wizard y su paso obligatorio "Vehículo" — que llama al mismo POST
+     /vehicles que le otorga el trial gratis de 7 días al primer vehículo de
+     una cuenta de negocio (2026-09-15, hallazgo del usuario). El registro de
+     vehículos de un taller es un flujo aparte, todavía sin construir. */
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id || isBusiness) return
+    // Si no ha completado el onboarding, mostrar wizard
+    if (!isOnboardingDone(user.id)) {
+      setShowOnboarding(true)
+      return
+    }
+    // Si ya completó onboarding pero no ha sido bienvenido, mostrar modal
     const key = `carlink_welcomed_${user.id}`
     if (localStorage.getItem(key)) return
     localStorage.setItem(key, '1')
     setShowWelcome(true)
-  }, [user?.id])
+  }, [user?.id, isBusiness])
 
   /* Botones del topbar: una sola definición para que midan y se comporten igual.
      El acento se pasa aparte porque "Llaveros encontrados" es rojo por semántica. */
@@ -204,51 +339,87 @@ export default function AppPage() {
     setTimeout(() => setAppToast(null), 2600)
   }, [])
 
+  // Toggles (2026-09-18): antes esperaban la respuesta del servidor para
+  // moverse (se sentían lentos), fallaban en silencio si el servidor rechazaba
+  // el cambio (ej. 403 del plan gratuito) y dos toques seguidos mandaban dos
+  // cambios (el backend invierte el valor, no lo fija) — de ahí el "a veces no
+  // se activan". Ahora: cambio inmediato en pantalla, un solo cambio en vuelo
+  // por toggle, y si el servidor no lo acepta se revierte con un aviso.
+  // Actualiza el vehículo activo Y su copia en la lista `vehicles`: al cambiar de
+  // vehículo se vuelve a leer de la lista, y con la copia vieja los toggles
+  // volvían a su valor anterior.
+  const patchVehicle = useCallback((id: string, patch: Record<string, any>) => {
+    setVehicle((prev: any) => prev && prev.id === id ? { ...prev, ...patch } : prev)
+    setVehicles(vs => vs.map(v => v.id === id ? { ...v, ...patch } : v))
+  }, [])
+  const pendingToggles = useRef<Set<string>>(new Set())
+  const runToggle = useCallback(async (
+    key: string,
+    apply: (on: boolean) => void,
+    current: boolean,
+    request: () => Promise<{ value: boolean } | null>,
+    messages: { on: string; off: string },
+  ) => {
+    if (pendingToggles.current.has(key)) return
+    pendingToggles.current.add(key)
+    apply(!current)
+    try {
+      const result = await request()
+      if (!result) { apply(current); flashApp('No se pudo guardar el cambio. Intenta de nuevo.'); return }
+      apply(result.value)
+      flashApp(result.value ? messages.on : messages.off)
+    } finally { pendingToggles.current.delete(key) }
+  }, [flashApp])
+
   const toggleNfcActive = useCallback(async () => {
     if (!vehicle?.id) return
-    const result = await apiPatch(`/vehicles/${vehicle.id}/nfc-toggle`, {})
-    if (result) {
-      setVehicle((prev: any) => ({ ...prev, nfc_active: result.nfc_active }))
-      flashApp(result.nfc_active ? 'Ficha pública activada' : 'Ficha pública oculta')
-    }
-  }, [vehicle?.id, flashApp])
+    const current = vehicle.nfc_active !== false
+    if (!current && !fullAccess) { flashApp('Activa tu llavero NFC para publicar tu ficha.'); return }
+    await runToggle('nfc', on => patchVehicle(vehicle.id, { nfc_active: on }), current,
+      async () => { const r = await apiPatch(`/vehicles/${vehicle.id}/nfc-toggle`, {}); return r ? { value: r.nfc_active } : null },
+      { on: 'Ficha pública activada', off: 'Ficha pública oculta' })
+  }, [vehicle?.id, vehicle?.nfc_active, fullAccess, flashApp, runToggle, patchVehicle])
 
   const toggleLostKeychain = useCallback(async () => {
     if (!vehicle?.id) return
-    const result = await apiPatch(`/vehicles/${vehicle.id}/lost-keychain-toggle`, {})
-    if (result) {
-      setVehicle((prev: any) => ({ ...prev, lost_keychain_enabled: result.lost_keychain_enabled }))
-      setLostKeychainEnabled(result.lost_keychain_enabled)
-      flashApp(result.lost_keychain_enabled ? 'Sección "Perdí mi llavero" activada' : 'Sección "Perdí mi llavero" desactivada')
-    }
-  }, [vehicle?.id, flashApp])
+    await runToggle('lost', on => { setLostKeychainEnabled(on); patchVehicle(vehicle.id, { lost_keychain_enabled: on }) }, lostKeychainEnabled,
+      async () => { const r = await apiPatch(`/vehicles/${vehicle.id}/lost-keychain-toggle`, {}); return r ? { value: r.lost_keychain_enabled } : null },
+      { on: 'Sección "Perdí mi llavero" activada', off: 'Sección "Perdí mi llavero" desactivada' })
+  }, [vehicle?.id, lostKeychainEnabled, runToggle, patchVehicle])
 
   const toggleGeoreference = useCallback(async () => {
     if (!vehicle?.id) return
-    const result = await apiPatch(`/vehicles/${vehicle.id}/georeference-toggle`, {})
-    if (result) {
-      setVehicle((prev: any) => ({ ...prev, georeference_enabled: result.georeference_enabled }))
-      setGeoreferenceEnabled(result.georeference_enabled)
-      flashApp(result.georeference_enabled ? 'Georreferenciación de talleres activada' : 'Georreferenciación de talleres desactivada')
-    }
-  }, [vehicle?.id, flashApp])
+    await runToggle('geo', on => { setGeoreferenceEnabled(on); patchVehicle(vehicle.id, { georeference_enabled: on }) }, georeferenceEnabled,
+      async () => { const r = await apiPatch(`/vehicles/${vehicle.id}/georeference-toggle`, {}); return r ? { value: r.georeference_enabled } : null },
+      { on: 'Georreferenciación de talleres activada', off: 'Georreferenciación de talleres desactivada' })
+  }, [vehicle?.id, georeferenceEnabled, runToggle, patchVehicle])
 
   const toggleWhatsApp = useCallback(async () => {
     const next = !whatsappEnabled
-    setWhatsappEnabled(next)
-    await apiPut('/auth/me', { whatsapp_enabled: next, whatsapp_number: whatsappNumber })
-    flashApp(next ? 'Contacto WhatsApp activado' : 'Contacto WhatsApp desactivado')
-  }, [whatsappEnabled, whatsappNumber, flashApp])
+    // El número ya se carga desde el wizard o desde "Mi perfil" — este
+    // toggle sólo decide si se muestra en la ficha, no lo pide de nuevo
+    // (2026-09-15). Sin número guardado no tiene sentido activarlo.
+    if (next && !whatsappNumber.trim()) {
+      flashApp('Agrega tu número de WhatsApp desde tu perfil primero')
+      return
+    }
+    // whatsapp_number no viaja acá — este toggle sólo cambia whatsapp_enabled,
+    // nunca reescribe el número (esa fuente de verdad es el perfil).
+    await runToggle('whatsapp', setWhatsappEnabled, whatsappEnabled,
+      async () => { const r = await apiPut('/auth/me', { whatsapp_enabled: next }); return r ? { value: next } : null },
+      { on: 'Contacto WhatsApp activado', off: 'Contacto WhatsApp desactivado' })
+    await refreshProfile()
+  }, [whatsappEnabled, whatsappNumber, flashApp, refreshProfile, runToggle])
 
   const toggleSell = useCallback(async () => {
     if (!vehicle?.id) return
     if (!isVerified) { flashApp('Verifica tu perfil para publicar el vehículo en venta'); return }
+    if (!sellEnabled && !fullAccess) { flashApp('Activa tu llavero NFC para publicar el vehículo.'); return }
     const next = !sellEnabled
-    setSellEnabled(next)
-    await apiPut(`/vehicles/${vehicle.id}`, { sell_enabled: next })
-    setVehicle((prev: any) => prev ? { ...prev, sell_enabled: next } : prev)
-    flashApp(next ? 'Perfil de venta activado' : 'Perfil de venta desactivado')
-  }, [vehicle?.id, sellEnabled, isVerified, flashApp])
+    await runToggle('sell', on => { setSellEnabled(on); patchVehicle(vehicle.id, { sell_enabled: on }) }, sellEnabled,
+      async () => { const r = await apiPut(`/vehicles/${vehicle.id}`, { sell_enabled: next }); return r ? { value: next } : null },
+      { on: 'Perfil de venta activado', off: 'Perfil de venta desactivado' })
+  }, [vehicle?.id, sellEnabled, isVerified, fullAccess, flashApp, runToggle, patchVehicle])
 
   const openTransferModal = useCallback(() => {
     if (!vehicle?.id) return
@@ -265,6 +436,12 @@ export default function AppPage() {
   // en vez de usar el seleccionado acá. Bug real de producción, ver
   // docs/PENDIENTES.md. Se re-ejecuta también al cambiar de vehículo en la
   // barra lateral, no solo al abrir/cerrar el panel.
+  // `refreshKey` en las deps (2026-09-15) — sin esto, activar un llavero
+  // desde el wizard (StepLlavero) nunca se reflejaba acá: este efecto sólo
+  // corría al cambiar de `vehicle?.id`, no cuando el mismo vehículo ganaba
+  // un token nuevo. El botón "Llavero NFC" del topbar y el estado
+  // "Activo"/"Sin activar" de Inicio quedaban con el dato viejo hasta
+  // recargar la página (bug real reportado por el usuario).
   useEffect(() => {
     if (!user || !vehicle?.id) return
     setTokensLoading(true)
@@ -277,7 +454,7 @@ export default function AppPage() {
       if (limits) setTokenLimit(limits)
       setTokensLoading(false)
     })
-  }, [user, vehicle?.id])
+  }, [user, vehicle?.id, refreshKey])
 
   useEffect(() => {
     if (!user) return
@@ -361,13 +538,20 @@ export default function AppPage() {
       if (tokenLimit) setTokenLimit(prev => prev ? { ...prev, used: prev.used + 1 } : prev)
       const prev = parseInt(localStorage.getItem('carlink_keychain_count') || '225', 10)
       localStorage.setItem('carlink_keychain_count', String(prev + 1))
-      // Show the link right away so the user can confirm the keychain works —
-      // it's still recoverable later from "Copiar enlace", this is just a nicety.
+      flashApp('Llavero activado correctamente')
+      // En vez de mostrar el enlace para copiar, se lleva al usuario a su ficha
+      // pública para que vea al instante que el llavero funciona (2026-09-18).
+      // Mismo cambio de dominio que openPublicar (local vs. producción). Misma
+      // pestaña: tras un await el navegador bloquearía una ventana nueva. Si no
+      // se puede recuperar el enlace, se queda en el panel (sigue "Copiar enlace").
       try {
         const urlData = await apiGet<{ url: string }>(`/nfc/tokens/${data.id}/url`)
-        if (urlData?.url) setGeneratedUrl(urlData.url)
+        if (urlData?.url) {
+          const publicUrl = urlData.url.replace(/^https?:\/\/[^/]+/, window.location.origin)
+          flashApp('Llavero activado — abriendo tu ficha pública')
+          setTimeout(() => { window.location.assign(publicUrl) }, 1200)
+        }
       } catch {}
-      flashApp('Llavero activado correctamente')
       if (!activePrompt && shouldPromptRating('product')) {
         setActivePrompt({
           targetType: 'product',
@@ -434,11 +618,22 @@ export default function AppPage() {
 
   const [pendingServiceType, setPendingServiceType] = useState<string | undefined>(undefined)
 
+  // Al tocar algo bloqueado: aviso y panel del llavero, donde se ingresa el código.
+  const promptUnlock = useCallback(() => {
+    flashApp('Se desbloquea al activar tu llavero NFC.')
+    setShowNfc(true)
+  }, [flashApp])
+
   const onAddService = useCallback((serviceType?: string) => {
+    // Plan gratuito: solo aceite (y sin selector de tipo, así no hay cómo cambiarlo).
+    if (!fullAccess) {
+      if (serviceType && serviceType !== FREE_SERVICE_ID) { promptUnlock(); return }
+      serviceType = FREE_SERVICE_ID
+    }
     setEditRecord(null)
     setPendingServiceType(serviceType)
     setShowForm(true)
-  }, [])
+  }, [fullAccess, promptUnlock])
 
   const onEditService = useCallback((r: any) => {
     setEditRecord(r)
@@ -509,45 +704,163 @@ export default function AppPage() {
   }, [switchVehicle])
 
   useEffect(() => {
+    if (!showProfile || !vehicle?.id) return
+    let cancelled = false
+    apiGet(`/documents/vehicle/${vehicle.id}`).then((docs: any) => {
+      if (cancelled) return
+      const card = (docs || []).filter((d: any) => d.type === 'propiedad' && d.file_url)
+      const side = (name: 'frente' | 'reverso') =>
+        card.find((d: any) => (d.notes || '').includes(`side=${name}`))?.file_url
+          // Documento viejo sin cara registrada = frente.
+          || (name === 'frente' ? card.find((d: any) => !(d.notes || '').includes('side='))?.file_url : undefined)
+          || null
+      const frente = side('frente'), reverso = side('reverso')
+      setStoredCard({ frente, reverso })
+      setVerifyFrontUrl(prev => prev ?? frente)
+      setVerifyBackUrl(prev => prev ?? reverso)
+    })
+    return () => { cancelled = true }
+  }, [showProfile, vehicle?.id, refreshKey])
+
+  useEffect(() => {
     if (!showProfile) return
+    // Las URLs de verificación en curso son de UN vehículo — si no se
+    // limpian al cambiar de placa (selector del menú lateral) con el panel
+    // abierto, un frente subido para el vehículo A podía terminar
+    // enviándose junto a un reverso subido después para el vehículo B
+    // (2026-09-19, mismo espíritu que el bug de verificación por cuenta).
+    setVerifyFrontUrl(null)
+    setVerifyBackUrl(null)
+    setSessionSides({})
     setEditName(vehicle?.owner || profile?.full_name || '')
-    setEditModelo(`${vehicle?.brand || ''} ${vehicle?.model || ''}`.trim())
-    setEditTipo(vehicle?.type || 'Sedán')
+    setEditBrand(vehicle?.brand || '')
+    setEditModel(vehicle?.model || '')
+    // body_type (carrocería), no `type` (categoría de placa — 2026-09-18,
+    // ver comentario en handleSaveProfile más abajo).
+    setEditTipo(vehicle?.body_type || 'Auto')
     setEditAnio(vehicle?.year || 2026)
     setEditColor(vehicle?.color || '')
-    setSellEnabled(vehicle?.sell_enabled || false)
+    setEditOwnerName(vehicle?.owner_name || '')
     setSellPrice(vehicle?.sell_price || '')
     setSellCity(vehicle?.sell_city || '')
     setSellZip(vehicle?.sell_zip || '')
     setSellPhone(vehicle?.sell_phone || '')
     setSellDescription(vehicle?.sell_description || '')
+    // Solo al abrir el panel o cambiar de vehículo — antes dependía del objeto
+    // `vehicle` completo, así que cualquier actualización (un toggle, un
+    // refresco del perfil) recargaba el formulario y pisaba lo que el usuario
+    // estaba escribiendo. Los toggles ya no se sincronizan acá (ver más abajo).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showProfile, vehicle?.id, profile?.id])
+
+  // Los tres toggles (perdí mi llavero, georreferenciación, vender) se derivan
+  // SIEMPRE del vehículo activo. Antes "vender" solo se copiaba al abrir el
+  // panel de perfil, y "perdí/georreferenciación" solo al cargar la lista: al
+  // cambiar de vehículo, o si el panel del llavero se abría primero, mostraban
+  // el valor de otro vehículo (o el inicial) y parecían invertidos.
+  useEffect(() => {
+    setLostKeychainEnabled(!!vehicle?.lost_keychain_enabled)
+    setGeoreferenceEnabled(!!vehicle?.georeference_enabled)
+    setSellEnabled(!!vehicle?.sell_enabled)
+  }, [vehicle?.id, vehicle?.lost_keychain_enabled, vehicle?.georeference_enabled, vehicle?.sell_enabled])
+
+  // Separado del efecto de arriba (2026-09-15) — antes solo se sincronizaba
+  // al abrir "Mi perfil", así que el toggle "Contacto WhatsApp" del panel de
+  // llavero (showNfc) podía mostrar el número vacío si esa era la primera
+  // ventana que el usuario abría en la sesión, aunque el perfil ya tuviera
+  // uno guardado (ej. desde el wizard). Ahora se sincroniza apenas el
+  // perfil está disponible, sin depender de qué modal se abrió primero.
+  useEffect(() => {
     setWhatsappEnabled(profile?.whatsapp_enabled || false)
     setWhatsappNumber(profile?.whatsapp_number || '')
-  }, [showProfile, vehicle, profile])
+  }, [profile])
+
+  // Completar datos del vehículo desde el perfil (2026-09-15) — mismo picker
+  // de marcas (tiles) y sugerencias de modelo que usaba el registro viejo,
+  // para quien haya entrado por el wizard nuevo (solo placa+ciudad) y quiera
+  // llenar el resto cuando quiera. Van antes del `return null` de abajo —
+  // los Hooks no pueden llamarse condicionalmente.
+  const profileBrandOptions = useMemo(() => brandsForType(editTipo), [editTipo])
+  const profileModelOptions = useMemo(() => modelSuggestions(editBrand, editTipo, editAnio), [editBrand, editTipo, editAnio])
+  // Si cambian el tipo (ej. Auto -> Moto) y la marca elegida no existe en la
+  // lista nueva, se limpia marca + modelo — mismo criterio que el registro
+  // viejo, en vez de dejar una combinación imposible (Chevrolet + Moto).
+  useEffect(() => {
+    if (editBrand && !profileBrandOptions.includes(editBrand)) { setEditBrand(''); setEditModel('') }
+  }, [profileBrandOptions]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // endTour/tourSteps tienen que estar acá arriba, antes del `if (loading ||
+  // !user) return null` de abajo — vivían después de ese return temprano
+  // (bug real, 2026-09-19: "Rendered fewer hooks than expected" en cuanto
+  // `loading`/`user` cambiaban entre renders, porque estos dos hooks a
+  // veces se llamaban y a veces no).
+  const endTour = useCallback(() => {
+    if (user?.id) markTourDone(user.id)
+    setShowTour(false)
+  }, [user?.id])
+
+  const tourSteps: TourStep[] = useMemo(() => [
+    {
+      id: 'sidebar-nav', selector: 'sidebar-nav', placement: 'right',
+      title: 'Tu menú de navegación',
+      body: 'Desde acá te movés entre Inicio, Ficha técnica, Historial, Documentos y el resto de las secciones de tu vehículo.',
+      onEnter: () => setForceSidebarOpen(true),
+      onExit: () => setForceSidebarOpen(false),
+    },
+    {
+      id: 'inicio-quick-actions', selector: 'inicio-quick-actions', placement: 'bottom',
+      title: 'Accesos rápidos',
+      body: 'Registrá un servicio nuevo, escaneá un documento, activá tu llavero NFC o revisá facturas y documentos sin salir de Inicio.',
+      onEnter: () => setActiveTab('inicio'),
+    },
+    {
+      id: 'topbar-actions', selector: 'topbar-actions', placement: 'bottom',
+      title: 'Barra superior',
+      body: 'Cambiá el tema, escaneá documentos, gestioná tu llavero NFC, revisá notificaciones y tus compras — todo a un clic.',
+    },
+    {
+      id: 'profile-panel', selector: 'profile-panel', placement: 'left',
+      title: 'Tu perfil',
+      body: 'Acá editás tus datos, revisás el estado de verificación y cerrás sesión.',
+      onEnter: () => setShowProfile(true),
+      onExit: () => setShowProfile(false),
+    },
+  ], [])
 
   if (loading || !user) return null
 
   const ownerName = vehicle?.owner || profile?.full_name || 'Usuario'
   const initial = profile?.full_name?.charAt(0) || ownerName.charAt(0) || '?'
 
-  const VEHICLE_TYPES = ['Sedán', 'SUV', 'Camioneta', 'Moto', 'Deportivo', 'Hatchback', 'Pickup', 'Furgoneta']
   const YEARS: number[] = []
   for (let y = 2026; y >= 2005; y--) YEARS.push(y)
 
   const handleSaveProfile = async () => {
     if (!vehicle?.id) return
-    const nameParts = editModelo.split(' ')
-    const brand = nameParts[0] || ''
-    const model = nameParts.slice(1).join(' ') || editModelo
     await Promise.all([
-      apiPut('/auth/me', { full_name: editName, whatsapp_enabled: whatsappEnabled, whatsapp_number: whatsappNumber }),
+      // whatsapp_enabled NO se manda acá (2026-09-15) — guardar el número
+      // desde el perfil no debe activar su exposición pública en la ficha,
+      // esa es una decisión aparte que se toma con el toggle "Contacto
+      // WhatsApp" de Publicar mi perfil. El backend deja el campo intacto
+      // si no viene en el body (auth.py: `if body.whatsapp_enabled is not
+      // None`).
+      apiPut('/auth/me', { full_name: editName, whatsapp_number: whatsappNumber }),
+      // body_type, no `type` (2026-09-18) — `type` es la categoría de placa
+      // (particular/moto/etc, la fija el wizard al crear el vehículo) y
+      // guardar el perfil la estaba pisando con la carrocería elegida acá,
+      // corrompiéndola en cada edición.
       apiPut(`/vehicles/${vehicle.id}`, {
-        brand, model, year: editAnio, type: editTipo, color: editColor,
+        brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, color: editColor,
+        owner_name: editOwnerName,
         sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity,
         sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription,
       }),
     ])
-    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand, model, year: editAnio, type: editTipo, color: editColor, sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity, sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription } : prev)
+    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, color: editColor, owner_name: editOwnerName, sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity, sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription } : prev)
+    // Sin esto, `profile` (useAuth, compartido por toda la app) queda con el
+    // nombre/whatsapp viejo hasta recargar la página — mismo bug que el del
+    // wizard (2026-09-15).
+    await refreshProfile()
     setShowProfile(false)
   }
 
@@ -573,6 +886,9 @@ export default function AppPage() {
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        forceExpanded={forceSidebarOpen}
+        forceOpen={forceSidebarOpen}
+        inert={showOnboarding}
         vehicle={vehicle ? {
           modelo: `${vehicle.brand} ${vehicle.model}`.trim() || 'Mi vehículo',
           anio: vehicle.year,
@@ -613,7 +929,11 @@ export default function AppPage() {
         background: 'radial-gradient(ellipse at 0 -40%, rgba(245,197,24,0.04) 0%, transparent 55%)',
       }}>
         {/* Top-right action buttons */}
-        <div className="topbar-actions" style={{ position: 'absolute', top: 14, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
+        {/* inert mientras el wizard obligatorio está abierto — ver comentario
+           en el prop `inert` de Sidebar.tsx. Estos botones (ej. "Comprar
+           llavero NFC") comparten z-index con CartModal, así que sin esto
+           quedaban alcanzables por teclado detrás del overlay del wizard. */}
+        <div className="topbar-actions" data-tour="topbar-actions" inert={showOnboarding || undefined} style={{ position: 'absolute', top: 14, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
           <button onClick={toggleTheme} title="Cambiar apariencia" className="topbar-theme"
             style={topBtn()}
             onMouseEnter={topBtnHover}
@@ -697,9 +1017,9 @@ export default function AppPage() {
           </button>
         </div>
 
-        <div style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} theme={theme} /> :
-           activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
+        <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
+          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
+           activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -709,7 +1029,7 @@ export default function AppPage() {
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'resenas' ? <ResenasTab /> :
-           <InicioView onAddService={onAddService} theme={theme} />}
+           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
         {/* Bienvenida */}
@@ -745,6 +1065,36 @@ export default function AppPage() {
             }}>Empezar</button>
           </div>
         </div>
+      )}
+
+      {/* Onboarding wizard obligatorio — solo conductores, ver comentario del efecto de arriba */}
+      {showOnboarding && user?.id && !isBusiness && (
+        <OnboardingWizard
+          userId={user.id}
+          existingVehicle={vehicle}
+          existingProfile={profile}
+          onComplete={() => {
+            setShowOnboarding(false)
+            flashApp('Configuracion completada')
+            if (user?.id && !isTourDone(user.id)) setShowTour(true)
+          }}
+          onVehicleCreated={(v) => { setVehicles(prev => [...prev, v]); setVehicle(v) }}
+          onLlaveroActivated={() => {
+            // El backend ya puso nfc_active=true al activar — se refleja acá
+            // sin esperar un refetch para que el topbar/Inicio no se vean
+            // desactualizados ni un instante; refreshKey trae los tokens y
+            // el límite reales igual, por si algo más cambió.
+            setVehicle((prev: any) => prev ? { ...prev, nfc_active: true } : prev)
+            setRefreshKey(k => k + 1)
+          }}
+          theme={theme}
+        />
+      )}
+
+      {/* Tutorial guiado (spotlight) — una sola vez, justo después del wizard.
+         Reentrable desde "Ver recorrido de nuevo" en Mi perfil. */}
+      {showTour && user?.id && (
+        <GuidedTour steps={tourSteps} onFinish={endTour} onSkip={endTour} theme={theme} />
       )}
 
       {/* Prompt de calificación contextual — uno a la vez, no bloquea nada */}
@@ -784,43 +1134,35 @@ export default function AppPage() {
         />
       )}
 
-      {/* Transfer vehicle modal */}
+      {/* Transfer vehicle modal — antes renderizaba sin overlay (ni él ni
+         este caller le daban un wrapper `position:fixed,inset:0` con
+         backdrop, a diferencia de cada otro modal de la app), así que en la
+         práctica aparecía como contenido normal en el flujo de la página en
+         vez de un diálogo centrado — eso es lo que se veía "roto" en
+         pantallas chicas (2026-09-18). */}
       {showTransferModal && vehicle && (
-        <TransferVehicleModal
-          vehicle={vehicle}
-          onClose={() => setShowTransferModal(false)}
-          onSuccess={onTransferSuccess}
-        />
+        <div onClick={() => setShowTransferModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 210, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}>
+            <TransferVehicleModal
+              vehicle={vehicle}
+              theme={theme}
+              onClose={() => setShowTransferModal(false)}
+              onSuccess={onTransferSuccess}
+            />
+          </div>
+        </div>
       )}
 
       {/* Profile right panel */}
       {showProfile && (
         <div onClick={() => setShowProfile(false)} style={{ position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 72, background: 'transparent', display: 'flex', justifyContent: 'flex-end' }}>
-          <div onClick={e => e.stopPropagation()} className="profile-panel" style={{ width: 420, maxWidth: '100vw', height: '100vh', margin: 0, overflowY: 'auto', background: 'var(--panel-bg)', borderLeft: '1px solid var(--panel-border)', boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={e => e.stopPropagation()} className="profile-panel" data-tour="profile-panel" style={{ width: 420, maxWidth: '100vw', height: '100vh', margin: 0, overflowY: 'auto', background: 'var(--panel-bg)', borderLeft: '1px solid var(--panel-border)', boxShadow: tDark ? '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)' : '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, padding: '20px 24px 0', borderBottom: '1px solid var(--panel-border)', paddingBottom: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>{initial}</span>
                 <div>
                   <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15, color: 'var(--text-1)' }}>Mi perfil</div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{profile?.email}</div>
-                  {(() => {
-                    const v = {
-                      verified:   { bg: 'rgba(46,204,113,0.12)', bd: 'rgba(46,204,113,0.5)', fg: '#2ecc71', label: 'Verificado' },
-                      pending:    { bg: 'rgba(255,176,32,0.12)', bd: 'rgba(255,176,32,0.5)', fg: '#ffb020', label: 'En revisión' },
-                      rejected:   { bg: 'rgba(255,77,106,0.12)', bd: 'rgba(255,77,106,0.5)', fg: '#ff4d6a', label: 'Rechazado' },
-                      unverified: { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' },
-                    }[verifyStatus] || { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' }
-                    return (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5, padding: '3px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '.04em', background: v.bg, border: `1px solid ${v.bd}`, color: v.fg }}>
-                        {verifyStatus === 'verified'
-                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                          : verifyStatus === 'pending'
-                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                          : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>}
-                        {v.label}
-                      </span>
-                    )
-                  })()}
                 </div>
               </div>
               <button onClick={() => setShowProfile(false)} style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--btn-ghost-border)', background: 'var(--btn-ghost-bg)', color: 'var(--btn-ghost-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -828,59 +1170,100 @@ export default function AppPage() {
               </button>
             </div>
             <div style={{ flex: 1, padding: '0 24px 24px', overflowY: 'auto' }}>
-              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 10 }}>Datos del usuario</div>
-              <div style={{ marginBottom: 18 }}>
+              <ProfileAccordion title="Datos personales" open={profileSection === 'personal'} onToggle={() => setProfileSection(profileSection === 'personal' ? null : 'personal')}>
+              <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre completo</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
               </div>
-              {/* Verificación de identidad — habilita vender y transferir */}
-              <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
-                  {isVerified ? 'Perfil verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Perfil sin verificar'}
+              {/* WhatsApp — siempre visible y editable acá, sin importar si la
+                  ficha está publicada (2026-09-15). Guardar el número desde
+                  acá NO lo expone en la ficha pública — eso es una decisión
+                  aparte, con el toggle "Contacto WhatsApp" de Publicar mi
+                  perfil (dentro del panel de llavero). */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>WhatsApp</label>
+                <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="Ej. +57 300 123 4567"
+                  style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
+                <div style={{ fontSize: 10.5, color: 'var(--text-3)', marginTop: 5, lineHeight: 1.4 }}>
+                  Solo tu contacto — para mostrarlo en tu ficha pública, activa &quot;Contacto WhatsApp&quot; desde el panel de llavero.
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 }}>
-                  {isVerified
-                    ? 'Puedes publicar tu vehículo en venta y transferirlo.'
-                    : verifyStatus === 'pending'
-                    ? 'Recibimos tu tarjeta de propiedad. Te avisaremos cuando CarLink la revise.'
-                    : verifyStatus === 'rejected'
-                    ? `No pudimos validar el documento${profile?.verification_note ? `: ${profile.verification_note}` : ''}. Puedes subir otro.`
-                    : 'Sube tu tarjeta de propiedad para poder vender o transferir el vehículo. El resto de la app funciona sin esto.'}
-                </div>
-                {!isVerified && (
-                  <label style={{
-                    marginTop: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    padding: '10px 16px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111',
-                    fontWeight: 800, fontSize: 12.5, cursor: verifying ? 'default' : 'pointer', opacity: verifying ? 0.6 : 1,
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M7 9l5-5 5 5"/><path d="M12 4v12"/></svg>
-                    {verifying ? 'Subiendo…' : verifyStatus === 'pending' ? 'Reemplazar documento' : 'Subir tarjeta de propiedad'}
-                    <input type="file" accept="image/*,application/pdf" disabled={verifying} style={{ display: 'none' }}
-                      onChange={async e => {
-                        const f = e.target.files?.[0]
-                        e.target.value = ''
-                        if (!f) return
-                        setVerifying(true)
-                        try {
-                          const url = await uploadFile(f, 'verification')
-                          if (!url) { flashApp('No se pudo subir el documento'); return }
-                          const ok = await apiPost('/auth/me/verification', { verification_doc_url: url })
-                          if (ok) {
-                            await syncPropiedadDoc(url)
-                            await refreshProfile()
-                            flashApp('Documento enviado — queda en revisión')
-                          } else flashApp('No se pudo enviar a revisión')
-                        } finally { setVerifying(false) }
-                      }} />
-                  </label>
-                )}
+              </div>
+              <button type="button" onClick={() => { setShowProfile(false); openPublicar() }}
+                style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.08)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+                Publicar perfil
+              </button>
+              </ProfileAccordion>
+              {/* Cabecera del panel = sólo cuenta (nombre/WhatsApp, arriba);
+                 de acá para abajo, todo lo que sigue es del VEHÍCULO activo
+                 (el que está elegido en el selector de placa del menú
+                 lateral) — incluida la verificación, que antes vivía
+                 arriba junto a los datos de cuenta aunque es 100% sobre el
+                 vehículo (2026-09-19, reorden pedido por el usuario). */}
+              <ProfileAccordion title="Datos del vehículo" open={profileSection === 'vehiculo'} onToggle={() => setProfileSection(profileSection === 'vehiculo' ? null : 'vehiculo')}
+                badge={
+(() => {
+                  const v = {
+                    verified:   { bg: 'rgba(46,204,113,0.12)', bd: 'rgba(46,204,113,0.5)', fg: '#2ecc71', label: 'Verificado' },
+                    pending:    { bg: 'rgba(255,176,32,0.12)', bd: 'rgba(255,176,32,0.5)', fg: '#ffb020', label: 'En revisión' },
+                    rejected:   { bg: 'rgba(255,77,106,0.12)', bd: 'rgba(255,77,106,0.5)', fg: '#ff4d6a', label: 'Rechazado' },
+                    unverified: { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' },
+                  }[verifyStatus] || { bg: 'var(--surface-2)', bd: 'var(--border-2)', fg: 'var(--text-3)', label: 'Sin verificar' }
+                  return (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: '.04em', background: v.bg, border: `1px solid ${v.bd}`, color: v.fg }}>
+                      {verifyStatus === 'verified'
+                        ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        : verifyStatus === 'pending'
+                        ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                        : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>}
+                      {v.label}
+                    </span>
+                  )
+                })()
+                }>
+              {/* Agregar vehículo — misma regla que FichaTab: exige un llavero
+                 comprado sin vehículo; si no hay, lleva a comprarlo. */}
+              {(() => {
+                const canAdd = (keychainAvailable ?? 0) > 0
+                return (
+                  <button type="button"
+                    onClick={() => { if (canAdd) { setShowProfile(false); setShowAddVehicle(true) } else flashApp('Comprar llavero para agregar') }}
+                    title={canAdd ? undefined : 'Comprar llavero para agregar'}
+                    aria-disabled={!canAdd}
+                    style={{ width: '100%', marginBottom: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, border: '1px solid rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.08)', color: '#F5C518', fontWeight: 700, fontSize: 13, cursor: canAdd ? 'pointer' : 'not-allowed', opacity: canAdd ? 1 : 0.55 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Agregar vehículo
+                  </button>
+                )
+              })()}
+
+              {/* Nombre de propietario — separado de "Nombre completo" de la
+                 cuenta (2026-09-19): la tarjeta escaneada puede traer otra
+                 persona (auto de un familiar, todavía no traspasado, etc.),
+                 así que ya no se pisa el nombre de la cuenta con esto. */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Nombre de propietario</label>
+                <input value={editOwnerName} onChange={e => setEditOwnerName(e.target.value)} placeholder="Nombre en la tarjeta de propiedad"
+                  style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
               </div>
 
-              <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Datos del vehículo</div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Marca</label>
+                <button type="button" onClick={() => setBrandPickerOpen(true)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: editBrand ? (tDark ? '#f5f3ec' : '#17171a') : 'var(--text-3)', fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>
+                  <span>{editBrand || 'Elegir marca'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <BrandPickerModal open={brandPickerOpen} brands={profileBrandOptions} value={editBrand}
+                  onSelect={b => { setEditBrand(b); setEditModel('') }} onClose={() => setBrandPickerOpen(false)} />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Modelo / línea</label>
-                  <input value={editModelo} onChange={e => setEditModelo(e.target.value)} placeholder="Ej. Mazda 3 Grand Touring" style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
+                  <ThemedSuggestInput value={editModel} onChange={setEditModel} suggestions={profileModelOptions}
+                    placeholder={profileModelOptions.length ? `Ej. ${profileModelOptions[0]}` : (editBrand ? 'Escribe el modelo' : 'Elige marca primero')}
+                    style={{ padding: '11px 13px', fontSize: 14 }}
+                    theme={{ inputBg: 'var(--input-bg)', inputBorder: 'var(--input-border)', inputText: tDark ? '#f5f3ec' : '#17171a', accent: '#F5C518', muted: 'var(--text-3)', panelBg: 'var(--panel-bg)' }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo</label>
@@ -896,11 +1279,111 @@ export default function AppPage() {
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Color</label>
-                  <input value={editColor} onChange={e => setEditColor(e.target.value)} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none' }} />
+                  <ColorPickerButton value={editColor} onChange={setEditColor} theme={tDark ? 'dark' : 'light'} />
                 </div>
               </div>
 
-              <button onClick={handleSaveProfile} style={{ marginTop: 18, width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Guardar cambios</button>
+              {/* Verificación de identidad de ESTE vehículo — habilita
+                 venderlo y transferirlo. Antes vivía arriba, en "Datos del
+                 usuario", y por cuenta: verificar una tarjeta habilitaba
+                 transferir/vender TODOS los vehículos de la cuenta, no sólo
+                 el que se revisó (2026-09-19, bug real encontrado por el
+                 usuario). */}
+              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
+                  {isVerified ? 'Vehículo verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Vehículo sin verificar'}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 }}>
+                  {isVerified
+                    ? 'Puedes publicar este vehículo en venta y transferirlo.'
+                    : verifyStatus === 'pending'
+                    ? 'Recibimos la tarjeta de propiedad de este vehículo. Te avisaremos cuando CarLink la revise.'
+                    : verifyStatus === 'rejected'
+                    ? `No pudimos validar el documento${vehicle?.verification_note ? `: ${vehicle.verification_note}` : ''}. Puedes subir otro.`
+                    : storedCard.frente && storedCard.reverso
+                    ? 'Fotos cargadas. Envíalas a revisión para vender o transferir.'
+                    : 'Escanea con la cámara la tarjeta de propiedad de este vehículo (frente y reverso) para poder venderlo o transferirlo. El resto de la app funciona sin esto.'}
+                </div>
+                {!isVerified && (
+                  <>
+                    {/* Frente y reverso por separado (2026-09-18) — cada uno
+                       se sube apenas se elige, y "Enviar a revisión" no se
+                       habilita hasta que las dos URLs están listas. */}
+                    <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {(['frente', 'reverso'] as const).map(side => {
+                        // Bloqueado si esa cara ya está guardada (wizard u otra
+                        // subida anterior) — salvo que la hayan rechazado.
+                        const locked = !!storedCard[side] && !sessionSides[side] && verifyStatus !== 'rejected' && !vehicle?.verification_note
+                        return (
+                        <button key={side} type="button" title={locked ? 'Ya cargaste esta cara de la tarjeta' : 'Escanear con la cámara'}
+                          disabled={!!verifyingSide || locked} onClick={() => setVerifyCamSide(side)} style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                          padding: '9px 14px', borderRadius: 11, cursor: (verifyingSide || locked) ? 'default' : 'pointer',
+                          border: `1px solid ${(side === 'frente' ? verifyFrontUrl : verifyBackUrl) ? 'rgba(46,204,113,0.4)' : 'var(--input-border)'}`,
+                          background: (side === 'frente' ? verifyFrontUrl : verifyBackUrl) ? 'rgba(46,204,113,0.1)' : 'var(--input-bg)',
+                          color: (side === 'frente' ? verifyFrontUrl : verifyBackUrl) ? '#2ecc71' : 'var(--text-2)',
+                          fontWeight: 700, fontSize: 12.5, opacity: verifyingSide && verifyingSide !== side ? 0.5 : 1,
+                        }}>
+                          {(side === 'frente' ? verifyFrontUrl : verifyBackUrl)
+                            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>}
+                          {verifyingSide === side ? 'Subiendo…' : (locked || (side === 'frente' ? verifyFrontUrl : verifyBackUrl)) ? `${side === 'frente' ? 'Frente' : 'Reverso'} cargado` : `Escanear ${side}`}
+                        </button>
+                        )
+                      })}
+                    </div>
+                    <button onClick={async () => {
+                      if (!verifyFrontUrl || !verifyBackUrl || !vehicle?.id) return
+                      setVerifying(true)
+                      try {
+                        const ok = await apiPost(`/vehicles/${vehicle.id}/verification`, { verification_doc_url: verifyFrontUrl, verification_doc_url_back: verifyBackUrl })
+                        if (ok) {
+                          setVehicle((prev: any) => prev ? { ...prev, verification_status: 'pending' } : prev)
+                          flashApp('Documento enviado — queda en revisión')
+                        }
+                        else flashApp('No se pudo enviar a revisión')
+                      } finally { setVerifying(false) }
+                    }} disabled={!verifyFrontUrl || !verifyBackUrl || verifying} style={{
+                      marginTop: 10, width: '100%', padding: '10px 16px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111',
+                      fontWeight: 800, fontSize: 12.5, cursor: (!verifyFrontUrl || !verifyBackUrl || verifying) ? 'not-allowed' : 'pointer',
+                      opacity: (!verifyFrontUrl || !verifyBackUrl || verifying) ? 0.5 : 1,
+                    }}>
+                      {verifying ? 'Enviando…' : verifyStatus === 'rejected' ? 'Reemplazar y enviar a revisión' : 'Enviar a revisión'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              </ProfileAccordion>
+
+
+              {/* Gestión: ajustes, ayuda y reentrada al tutorial guiado
+                 (2026-09-18) — para que saltarlo no sea un callejón sin salida. */}
+              <ProfileAccordion title="Gestión" open={profileSection === 'gestion'} onToggle={() => setProfileSection(profileSection === 'gestion' ? null : 'gestion')}>
+                {(() => {
+                  const rowStyle: React.CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--input-border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', textAlign: 'left' }
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <button type="button" onClick={toggleTheme} style={rowStyle}>
+                        <span>Ajustes · Apariencia</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{tDark ? 'Oscuro' : 'Claro'}</span>
+                      </button>
+                      <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('¡Hola CarLink! Necesito ayuda con la app.')}`} target="_blank" rel="noopener noreferrer" style={rowStyle}
+                        onClick={() => analyticsApi.trackWhatsappClick('general_question', 'app')}>
+                        <span>Ayuda</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>WhatsApp</span>
+                      </a>
+                      <button type="button" onClick={() => { setShowProfile(false); setShowTour(true) }} style={rowStyle}>
+                        <span>Ver recorrido</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>
+                      </button>
+                    </div>
+                  )
+                })()}
+              </ProfileAccordion>
+
+              <button onClick={handleSaveProfile} style={{ marginTop: 4, width: '100%', padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Guardar cambios</button>
+
               <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
                 <button onClick={() => setShowProfile(false)} style={{ flex: 1, padding: 13, borderRadius: 12, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
                 <button onClick={() => { setShowProfile(false); signOut() }} style={{ padding: '13px 18px', borderRadius: 12, border: '1px solid rgba(255,55,55,0.3)', background: 'rgba(255,55,55,0.08)', color: '#ff4d6a', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -912,6 +1395,8 @@ export default function AppPage() {
           </div>
         </div>
       )}
+
+      {verifyCamSide && <CameraCapture onCapture={handleVerifyCapture} onClose={() => setVerifyCamSide(null)} />}
 
       {/* NFC llavero panel */}
       {showNfc && (
@@ -1019,22 +1504,6 @@ export default function AppPage() {
                 </div>
               )}
 
-              {generatedUrl && (
-                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'rgba(245,197,24,0.1)', border: '2px solid #F5C518' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 6 }}>¡Llavero activado!</div>
-                  <div style={{ fontSize: 12, color: '#b6b2a6', marginBottom: 8, lineHeight: 1.4 }}>
-                    Este es el enlace de tu llavero — también puedes recuperarlo luego con "Copiar enlace":
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                    <input readOnly value={generatedUrl} onClick={e => (e.target as HTMLInputElement).select()}
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(245,197,24,0.4)', background: 'var(--inset-dark)', color: '#F5C518', fontSize: 12, fontFamily: 'var(--font-ui)', fontWeight: 600, letterSpacing: '.03em', outline: 'none', cursor: 'text' }} />
-                    <button onClick={() => { navigator.clipboard.writeText(generatedUrl).then(() => { setGenCopied(true); setTimeout(() => setGenCopied(false), 2000) }).catch(() => {}) }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, border: 'none', background: genCopied ? '#2ecc71' : '#F5C518', color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .2s' }}>
-                      {genCopied && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}{genCopied ? 'Copiado' : 'Copiar enlace'}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* ── Publicar mi perfil (master toggle = nfc_active) ── */}
@@ -1063,21 +1532,20 @@ export default function AppPage() {
                           <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 1 }}>Permite que quien encuentre tu llavero te contacte</div>
                         </div>
                       </div>
-                      <button onClick={toggleWhatsApp} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: whatsappEnabled ? '#4ade80' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
+                      {/* Amarillo, no el verde de WhatsApp (2026-09-15) — el
+                          único botón que lleva ese verde es "Guardar numero"
+                          del wizard; el resto de los controles de la app usa
+                          el acento amarillo, éste incluido. */}
+                      <button onClick={toggleWhatsApp} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', background: whatsappEnabled ? '#F5C518' : 'var(--surface-3)', cursor: 'pointer', position: 'relative', transition: 'background .2s', flex: '0 0 auto' }}>
                         <span style={{ position: 'absolute', top: 2, left: whatsappEnabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
                       </button>
                     </div>
-                    {whatsappEnabled && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                        <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="Ej. +57 300 123 4567"
-                          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                        <button onClick={async () => {
-                          await apiPut('/auth/me', { whatsapp_enabled: true, whatsapp_number: whatsappNumber })
-                          flashApp('Número de WhatsApp guardado')
-                        }}
-                          style={{ marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.12)', color: '#4ade80', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
-                          Guardar número
-                        </button>
+                    {/* El número en sí se carga desde el wizard o "Mi perfil"
+                        (2026-09-15) — acá no se agrega ni se edita, sólo se
+                        avisa si todavía no hay uno registrado. */}
+                    {!whatsappNumber && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 11.5, color: '#ffb020', lineHeight: 1.4 }}>
+                        No tenés WhatsApp registrado — agrégalo desde tu perfil para poder activar esto.
                       </div>
                     )}
                   </div>
@@ -1301,8 +1769,11 @@ export default function AppPage() {
                           {req.finder_phone}
                         </a>
                       )}
+                      {/* Amarillo, no el verde de WhatsApp (2026-09-15) —
+                          ver comentario del toggle "Contacto WhatsApp" más
+                          arriba. */}
                       {req.finder_phone && (
-                        <a href={`https://wa.me/${req.finder_phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                        <a href={`https://wa.me/${req.finder_phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.25)', color: '#F5C518', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                           WhatsApp
                         </a>

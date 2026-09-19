@@ -479,6 +479,21 @@ export const adminApi = {
   updatePartner: (id: string, data: { quota_total?: number; status?: string; notes?: string }) =>
     request<PartnerAdminView>('PATCH', `/admin/nfc/partners/${id}`, data),
   partnerBatches: (id: string) => request<PartnerBatch[]>('GET', `/admin/nfc/partners/${id}/batches`),
+  // Pausar/restaurar en bloque los códigos `available` ya emitidos a un
+  // partner, sin tocar su status — updatePartner({status:'suspended'}) ya
+  // hace esto automáticamente; estos son para pausar el cupo sin suspender
+  // al partner en sí (ej. mientras se investiga algo puntual).
+  suspendPartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/suspend`),
+  reactivatePartnerWhitelist: (id: string) => request<{ count: number }>('POST', `/admin/nfc/partners/${id}/whitelist/reactivate`),
+  // Confirma que un lote salió a repartirse — alimenta la alerta
+  // "activated_before_distributed" (docs/PENDIENTES.md item 4).
+  markBatchDistributed: (partnerId: string, batchId: string) =>
+    request<{ count: number }>('POST', `/admin/nfc/partners/${partnerId}/batches/${batchId}/mark-distributed`),
+  // Verificación de vehículos (2026-09-19, antes era por perfil) — lista
+  // pendientes y aprueba/rechaza. `id` acá es el id del VEHÍCULO, no de la cuenta.
+  listPendingVerifications: () => request<{ id: string; plate: string; brand: string; model: string; owner_name: string; verification_status: string; verification_doc_url: string; verification_doc_url_back: string; verification_requested_at: string | null; owner_email: string; owner_full_name: string; document_number: string }[]>('GET', '/admin/nfc/verifications/pending'),
+  reviewVerification: (vehicleId: string, action: 'approve' | 'reject', note?: string) =>
+    request<{ id: string; plate: string; verification_status: string; verified_at: string | null }>('PATCH', `/admin/nfc/verifications/${vehicleId}`, { action, note: note || '' }),
 }
 
 // "Mis pedidos" — modo cliente, siempre las órdenes propias de quien pregunta
@@ -519,4 +534,8 @@ export const partnerApi = {
   // de un solo uso, así que se puede volver a pedir cuando haga falta.
   tokens: (apiKey: string, batchId?: string) =>
     partnerRequest<PartnerToken[]>('GET', `/partners/me/tokens${batchId ? `?batch_id=${batchId}` : ''}`, apiKey),
+  // Confirma que un lote propio salió a repartirse — alimenta la alerta
+  // "activated_before_distributed" (docs/PENDIENTES.md item 4).
+  markBatchDistributed: (apiKey: string, batchId: string) =>
+    partnerRequest<{ count: number }>('POST', `/partners/me/batches/${batchId}/mark-distributed`, apiKey),
 }

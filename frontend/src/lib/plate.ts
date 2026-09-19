@@ -24,6 +24,31 @@ export const PLATE_TYPE_LABELS: Record<PlateType, string> = {
   clasico: 'Clásico',
 };
 
+/* Qué categorías de placa llevan "COLOMBIA" impreso en vez del departamento/
+   ciudad (2026-09-19, confirmado por el usuario con la tarjeta real de una
+   moto): diplomática/carga/remolque ya se trataban así (duplicado con
+   lógica levemente distinta en app/page.tsx y CartModal.tsx); se suma moto,
+   que en Colombia también lleva "COLOMBIA" en la placa física, no el
+   municipio de matrícula — a diferencia de particular/público/clásico. El
+   departamento/ciudad se sigue guardando siempre (tarjeta o texto del
+   usuario) para las motos, sólo no se dibuja en el mockup de la placa.
+   Centralizado acá para que las 3 copias de PLATE_TYPES (landing, carrito,
+   personalizador de la tienda) y cualquier lugar que dibuje la placa real
+   de un vehículo (Sidebar, ficha pública NFC) usen la misma regla en vez de
+   repetirla. `type` case-insensitive porque hay filas viejas en la base con
+   la categoría de placa mal capitalizada (bug de datos distinto, ya
+   corregido hacia adelante — ver vehicles.body_type). */
+export function plateShowsCountryLabel(type: PlateType | string | null | undefined): boolean {
+  const t = (type || '').toLowerCase();
+  return t === 'moto' || t === 'diplomatica' || t === 'carga' || t === 'remolque';
+}
+
+/** Inverso exacto de plateShowsCountryLabel: la placa lleva un solo texto
+ * inferior — "COLOMBIA" o la ciudad, nunca los dos. */
+export function plateShowsCity(type: PlateType | string | null | undefined): boolean {
+  return !plateShowsCountryLabel(type);
+}
+
 const PATTERNS: Record<PlateType, RegExp> = {
   particular:  /^[A-Z]{3}-\d{3}$/i,
   moto:        /^[A-Z]{3}-\d{2}[A-Z]$/i,

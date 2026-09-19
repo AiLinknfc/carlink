@@ -240,17 +240,19 @@ export function PresionAceiteIcon({ size = 22, strokeWidth = 30 }: { size?: numb
   )
 }
 
-/* Filtro (aire/cabina/combustible) — reemplaza la hélice/turbina de SERVICE_PATHS.Aire,
-   que se leía como "aire" pero no como "filtro". No es un testigo de tablero (no hay uno
-   en la presentación para filtros), es un ícono nuevo: carcasa rectangular con el papel
-   plisado en zigzag — el diseño más reconocible como filtro (frente a la opción cilíndrica
-   con líneas verticales, que se lee más específicamente como filtro de aceite). Uso
-   puntual: solo la card Aire ("Filtros") en InicioView, no reemplaza SERVICE_PATHS.Aire. */
-export function FiltroIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
-  return svgIcon(<>
-    <rect x="3" y="6" width="18" height="12" rx="1.5" />
-    <path d="M5.5 16 L8.5 8 L11.5 16 L14.5 8 L17.5 16 L19.5 8" />
-  </>, size, strokeWidth)
+/* Filtro (aire/cabina/combustible) — reemplaza la carcasa rectangular con papel
+   plisado en zigzag (que a su vez había reemplazado la hélice/turbina original de
+   SERVICE_PATHS.Aire). Silueta vectorizada real (2026-09-15, `index.html` en la raíz,
+   pieza "Radiador" — el archivo la nombra así por la foto de origen, pero la forma es
+   la rejilla de un filtro: barra superior + 6 rejillas + barra inferior). Filled, no
+   stroke — es una silueta sólida, no un ícono de línea, por eso rompe con el resto de
+   `svgIcon()` de este archivo. Uso puntual: solo la card Aire ("Filtros") en InicioView. */
+export function FiltroIcon({ size = 22 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="19.5 5.5 368 500" fill="currentColor" fillRule="evenodd">
+      <path d="M 365.0,109.5 L 42.0,109.5 L 37.5,107.0 L 34.5,102.0 L 34.5,76.0 L 35.5,72.0 L 42.0,66.5 L 139.0,66.5 L 140.5,65.0 L 140.5,34.0 L 142.5,29.0 L 152.0,21.5 L 250.0,20.5 L 260.0,24.5 L 266.5,34.0 L 266.5,65.0 L 268.0,66.5 L 365.0,66.5 L 369.0,68.5 L 372.5,75.0 L 372.5,101.0 L 370.5,106.0 L 365.0,109.5 Z M 97.0,386.5 L 61.0,386.5 L 59.5,385.0 L 59.5,126.0 L 61.0,124.5 L 97.0,124.5 L 98.5,126.0 L 98.5,385.0 L 97.0,386.5 Z M 146.0,386.5 L 114.0,386.5 L 112.5,385.0 L 112.5,126.0 L 114.0,124.5 L 146.0,124.5 L 147.5,126.0 L 147.5,385.0 L 146.0,386.5 Z M 195.0,386.5 L 164.0,386.5 L 161.5,384.0 L 161.5,126.0 L 163.0,124.5 L 195.0,124.5 L 196.5,126.0 L 196.5,385.0 L 195.0,386.5 Z M 244.0,386.5 L 212.0,386.5 L 210.5,385.0 L 210.5,126.0 L 212.0,124.5 L 244.0,124.5 L 245.5,126.0 L 245.5,385.0 L 244.0,386.5 Z M 293.0,386.5 L 262.0,386.5 L 259.5,384.0 L 259.5,127.0 L 262.0,124.5 L 293.0,124.5 L 294.5,126.0 L 294.5,385.0 L 293.0,386.5 Z M 346.0,386.5 L 311.0,386.5 L 308.5,384.0 L 308.5,126.0 L 310.0,124.5 L 346.0,124.5 L 347.5,126.0 L 347.5,385.0 L 346.0,386.5 Z M 251.0,490.5 L 156.0,490.5 L 150.0,488.5 L 143.5,483.0 L 140.5,477.0 L 140.5,446.0 L 139.0,444.5 L 42.0,444.5 L 36.5,441.0 L 34.5,436.0 L 35.5,407.0 L 39.0,402.5 L 42.0,401.5 L 366.0,401.5 L 370.5,405.0 L 372.5,410.0 L 372.5,435.0 L 371.5,439.0 L 367.0,443.5 L 269.0,444.5 L 266.5,447.0 L 266.5,477.0 L 260.0,486.5 L 251.0,490.5 Z" />
+    </svg>
+  )
 }
 
 /* Testigo "Batería / carga" — tomado tal cual de la presentación CarLink
@@ -365,14 +367,29 @@ export function SuspensionIcon({ size = 22, strokeWidth = 1.7 }: { size?: number
   )
 }
 
-export function TransmisionIcon({ size = 22, strokeWidth = 1.7 }: { size?: number; strokeWidth?: number }): ReactNode {
+/* Transmisión — reemplaza el par de piñones simplificado (dos círculos con
+   dientes esquemáticos) por la silueta vectorizada real (2026-09-15, `index.html`
+   en la raíz, pieza "Engranajes" — tres piezas dentadas acopladas). Filled, no
+   stroke, mismo criterio que FiltroIcon de arriba. */
+export function TransmisionIcon({ size = 22 }: { size?: number; strokeWidth?: number }): ReactNode {
   return (
-    <svg width={size} height={size} viewBox="3.15 3.15 18.7 18.7" fill="none" stroke="currentColor"
-      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="3" /><circle cx="16" cy="16" r="3" />
-      <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" /><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none" />
-      <path d="M8 5v-1M8 12v1M5 8H4M12 8h1" /><path d="M16 13v-1M16 20v1M13 16h-1M20 16h1" />
-      <path d="M10.5 10.5l3 3" />
+    <svg width={size} height={size} viewBox="110.5 186.5 678 536" fill="currentColor" fillRule="evenodd">
+      <path d="M 306.0,597.5 L 282.0,594.5 L 261.0,588.5 L 259.5,587.0 L 258.5,553.0 L 240.0,542.5 L 209.0,562.5 L 186.0,543.5 L 174.5,531.0 L 190.5,498.0 L 179.0,481.5 L 145.0,484.5 L 142.5,482.0 L 133.5,459.0 L 128.5,439.0 L 158.5,419.0 L 157.5,399.0 L 128.0,384.5 L 125.5,379.0 L 134.5,338.0 L 137.0,335.5 L 170.0,334.5 L 172.5,332.0 L 180.5,315.0 L 160.5,286.0 L 173.5,269.0 L 192.0,250.5 L 225.0,266.5 L 241.5,255.0 L 239.5,230.0 L 241.0,218.5 L 261.0,210.5 L 284.0,204.5 L 304.0,234.5 L 324.0,233.5 L 339.5,203.0 L 344.0,201.5 L 386.0,210.5 L 388.5,224.0 L 388.5,246.0 L 391.0,248.5 L 408.0,256.5 L 437.0,236.5 L 452.0,247.5 L 472.5,268.0 L 456.5,301.0 L 468.0,317.5 L 493.0,315.5 L 504.5,317.0 L 515.5,346.0 L 518.5,360.0 L 488.5,380.0 L 489.5,400.0 L 520.0,415.5 L 521.5,423.0 L 514.5,457.0 L 511.0,463.5 L 477.0,464.5 L 475.5,466.0 L 466.5,484.0 L 486.5,514.0 L 457.0,547.5 L 453.0,548.5 L 424.0,532.5 L 421.0,533.5 L 405.5,545.0 L 408.5,579.0 L 393.0,586.5 L 365.0,594.5 L 360.5,592.0 L 343.0,564.5 L 323.0,565.5 L 306.0,597.5 Z M 330.5,481.0 L 346.0,478.5 L 365.0,470.5 L 387.5,451.0 L 394.5,441.0 L 402.5,422.0 L 405.5,394.0 L 402.5,377.0 L 395.5,360.0 L 386.5,347.0 L 377.0,337.5 L 366.0,329.5 L 345.0,320.5 L 335.0,318.5 L 312.0,318.5 L 296.0,322.5 L 283.0,328.5 L 268.0,339.5 L 255.5,354.0 L 247.5,369.0 L 243.5,382.0 L 242.5,412.0 L 247.5,430.0 L 253.5,442.0 L 271.0,462.5 L 284.0,471.5 L 301.0,478.5 L 317.0,481.5 L 330.5,481.0 Z M 637.0,707.5 L 610.0,707.5 L 606.5,702.0 L 602.5,683.0 L 583.0,676.5 L 564.0,695.5 L 538.0,681.5 L 535.5,678.0 L 542.5,655.0 L 528.0,640.5 L 503.0,647.5 L 487.5,623.0 L 486.5,619.0 L 504.5,601.0 L 499.5,583.0 L 497.0,580.5 L 477.0,576.5 L 473.5,574.0 L 473.5,544.0 L 476.0,541.5 L 499.5,535.0 L 503.5,516.0 L 485.5,499.0 L 486.5,494.0 L 498.5,473.0 L 502.0,469.5 L 526.0,476.5 L 540.5,462.0 L 533.5,437.0 L 561.0,420.5 L 579.0,438.5 L 598.0,433.5 L 604.5,410.0 L 608.0,407.5 L 637.0,407.5 L 644.5,432.0 L 664.0,438.5 L 682.0,419.5 L 707.0,432.5 L 710.5,438.0 L 703.5,460.0 L 718.0,474.5 L 741.0,467.5 L 746.5,471.0 L 759.5,494.0 L 759.5,496.0 L 741.5,514.0 L 746.5,532.0 L 771.0,538.5 L 773.5,547.0 L 772.5,571.0 L 770.0,573.5 L 751.0,577.5 L 746.5,582.0 L 742.5,598.0 L 761.5,617.0 L 747.5,642.0 L 742.0,644.5 L 720.0,638.5 L 706.5,652.0 L 713.5,677.0 L 704.0,684.5 L 685.0,694.5 L 666.0,675.5 L 649.0,680.5 L 646.5,683.0 L 642.5,703.0 L 637.0,707.5 Z M 628.5,612.0 L 649.0,606.5 L 657.0,601.5 L 668.5,590.0 L 677.5,573.0 L 679.5,564.0 L 679.5,547.0 L 671.5,526.0 L 656.0,509.5 L 640.0,501.5 L 616.0,499.5 L 604.0,502.5 L 592.0,508.5 L 576.5,524.0 L 568.5,542.0 L 567.5,566.0 L 574.5,585.0 L 587.0,599.5 L 608.0,610.5 L 628.5,612.0 Z" />
+    </svg>
+  )
+}
+
+/* Otro (servicio genérico / no listado) — reemplaza la llave inglesa dibujada a
+   mano de SERVICE_PATHS.Otro por la silueta vectorizada real (2026-09-15,
+   `index.html` en la raíz, pieza "Llave ajustable"). Filled, no stroke, mismo
+   criterio que FiltroIcon/TransmisionIcon de arriba. Uso puntual: card "Otro" en
+   InicioView vía el case dedicado de ServiceTypeIcon — no reemplaza
+   SERVICE_PATHS.Otro (ServiceIcon/SERVICE_PATHS quedan como estaban, sin
+   llamadores propios hoy). */
+export function LlaveIcon({ size = 22 }: { size?: number; strokeWidth?: number }): ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="222.5 25.5 166 560" fill="currentColor" fillRule="evenodd">
+      <path d="M 310.0,570.5 L 296.0,570.5 L 283.0,564.5 L 274.5,555.0 L 270.5,543.0 L 270.5,431.0 L 276.5,214.0 L 271.5,196.0 L 264.5,181.0 L 255.5,167.0 L 238.5,148.0 L 237.5,143.0 L 249.5,136.0 L 248.5,115.0 L 250.5,99.0 L 255.5,82.0 L 261.5,70.0 L 267.0,64.5 L 270.0,64.5 L 272.5,67.0 L 286.5,102.0 L 291.0,108.5 L 311.0,111.5 L 320.5,107.0 L 334.5,86.0 L 317.5,45.0 L 319.0,40.5 L 324.0,40.5 L 334.0,44.5 L 347.0,53.5 L 365.5,74.0 L 370.5,82.0 L 373.5,91.0 L 373.5,109.0 L 369.5,120.0 L 354.5,143.0 L 344.5,162.0 L 335.5,186.0 L 330.5,208.0 L 330.5,263.0 L 335.5,480.0 L 334.5,545.0 L 329.5,557.0 L 321.0,565.5 L 310.0,570.5 Z M 287.5,182.0 L 316.0,170.5 L 317.5,168.0 L 316.0,166.5 L 314.0,167.5 L 310.0,163.5 L 306.5,166.0 L 307.5,169.0 L 306.0,170.5 L 302.0,166.5 L 299.0,167.5 L 297.5,169.0 L 299.5,172.0 L 298.0,174.5 L 293.0,170.5 L 289.5,173.0 L 291.5,176.0 L 290.0,177.5 L 288.0,177.5 L 285.0,174.5 L 282.5,176.0 L 283.5,180.0 L 286.0,182.5 L 287.5,182.0 Z M 303.5,545.0 L 309.0,543.5 L 314.5,538.0 L 315.5,529.0 L 310.0,521.5 L 306.0,519.5 L 299.0,519.5 L 292.5,524.0 L 289.5,533.0 L 291.5,539.0 L 296.0,543.5 L 303.5,545.0 Z" />
     </svg>
   )
 }
@@ -397,6 +414,7 @@ export function ServiceTypeIcon({ type, size = 18 }: { type?: string; size?: num
     case 'Llantas': return <LlantasIcon size={size} />
     case 'Suspension': case 'Suspensión': return <SuspensionIcon size={size} />
     case 'Transmision': case 'Transmisión': return <TransmisionIcon size={size} />
+    case 'Otro': return <LlaveIcon size={size} />
     default: return <ServiceIcon type={type} size={size} />
   }
 }

@@ -32,6 +32,14 @@ def _fake_vehicle(id: str, owner_id: str, nfc_active: bool = True) -> MagicMock:
     v.vehicle_condition = "usado"
     v.lost_keychain_enabled = False
     v.georeference_enabled = False
+    v.body_type = ""
+    v.owner_name = ""
+    v.verification_status = "unverified"
+    v.verification_doc_url = ""
+    v.verification_doc_url_back = ""
+    v.verification_note = ""
+    v.verification_requested_at = None
+    v.verified_at = None
     v.created_at = datetime.now(timezone.utc)
     v.updated_at = datetime.now(timezone.utc)
     return v
@@ -198,3 +206,19 @@ async def test_public_nfc_endpoint_visible_when_active(
     data = resp.json()
     assert data["plate"] == "TEST-123"
     assert "owner_id" not in data
+
+
+@pytest.mark.anyio
+async def test_activate_blocked_when_plate_reserved_by_other_account(client, mock_db, fake_user_id, fake_vehicle_id):
+    """La placa ya está verificada / con llavero activo en otra cuenta: 409 y el
+    código NO se reclama (ninguna consulta después del chequeo de reserva)."""
+    vehicle = _fake_vehicle(fake_vehicle_id, fake_user_id, nfc_active=False)
+    vehicle_result = MagicMock()
+    vehicle_result.scalar_one_or_none.return_value = vehicle
+    reserved_result = MagicMock()
+    reserved_result.scalar.return_value = 1
+    mock_db.execute = AsyncMock(side_effect=[vehicle_result, reserved_result])
+
+    resp = await client.post("/api/nfc/activate", json={"activation_code": "ABCDEFGHJK", "vehicle_id": fake_vehicle_id})
+    assert resp.status_code == 409
+    assert mock_db.execute.await_count == 2

@@ -26,6 +26,7 @@ class Profile(Base):
     # unverified | pending | verified | rejected
     verification_status: Mapped[str] = mapped_column(Text, default="unverified")
     verification_doc_url: Mapped[str] = mapped_column(Text, default="")
+    verification_doc_url_back: Mapped[str] = mapped_column(Text, default="")
     verification_note: Mapped[str] = mapped_column(Text, default="")
     verification_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -54,7 +55,26 @@ class Vehicle(Base):
     model: Mapped[str] = mapped_column(Text, default="")
     year: Mapped[int] = mapped_column(Integer, default=0)
     type: Mapped[str] = mapped_column(Text, default="")
+    # Carrocería (Sedán/SUV/Moto/...), separada de `type` (categoría de
+    # placa) — ver comentario en schemas.py VehicleCreate.body_type.
+    body_type: Mapped[str] = mapped_column(Text, default="")
     color: Mapped[str] = mapped_column(Text, default="")
+    # Nombre del propietario que trae la tarjeta escaneada — separado de
+    # profiles.full_name (2026-09-19): la cuenta no necesariamente es la
+    # misma persona que figura en la tarjeta (auto de otra persona, o
+    # todavía no traspasado).
+    owner_name: Mapped[str] = mapped_column(Text, default="")
+    # Verificación de identidad, por vehículo (2026-09-19, antes vivía en
+    # Profile — bug real: verificar una tarjeta habilitaba transferir/vender
+    # TODOS los vehículos de la cuenta, no sólo el revisado). Mismos nombres/
+    # semántica que tenían los campos homónimos de Profile, que quedan
+    # inertes sin borrarse.
+    verification_status: Mapped[str] = mapped_column(Text, default="unverified")
+    verification_doc_url: Mapped[str] = mapped_column(Text, default="")
+    verification_doc_url_back: Mapped[str] = mapped_column(Text, default="")
+    verification_note: Mapped[str] = mapped_column(Text, default="")
+    verification_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     image_url: Mapped[str] = mapped_column(Text, default="")
     nfc_active: Mapped[bool] = mapped_column(Boolean, default=False)
     sell_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -413,6 +433,19 @@ class NfcTokenWhitelist(Base):
     # admin, igual que siempre.
     provisioned_by_partner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("partners.id", ondelete="SET NULL"), nullable=True)
     partner_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Entrega digital del código (docs/PENDIENTES.md item 5, migración 057).
+    # Igual patrón que token_url_encrypted: cifrado en reposo, nunca texto
+    # plano — solo se guarda en llaveros provisionados de acá en adelante.
+    activation_code_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shop_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id", ondelete="SET NULL"), nullable=True)
+    # Paused without deleting — a suspended partner's still-`available` codes
+    # land here (migration 053) instead of getting deleted, so reactivating
+    # the partner restores the exact same codes (same hashes), no regen.
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set once, in bulk, when a partner/admin confirms a batch physically
+    # went out (migration 054). Feeds the "activated before distributed"
+    # alert in activate_nfc_token — detection, not a barrier.
+    distributed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Partner(Base):

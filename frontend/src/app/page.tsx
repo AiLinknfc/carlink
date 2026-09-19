@@ -12,6 +12,7 @@ import CartModal from '@/components/CartModal'
 import LandingSections from '@/components/LandingSections'
 import ComoFuncionaSection from '@/components/ComoFuncionaSection'
 import Plate3D from '@/components/Plate3D'
+import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 import BgParticles from '@/components/BgParticles'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import KeychainScrub from '@/components/KeychainScrub'
@@ -34,14 +35,17 @@ function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSi
   )
 }
 
+/* showLabel/showCity del mockup de placa ya no vive acá — se decide por
+   tipo con plateShowsCountryLabel/plateShowsCity (@/lib/plate), la misma
+   regla que usan CartModal.tsx y ProductCustomizer.tsx (2026-09-19). */
 const PLATE_TYPES = [
-  { id: 'particular', name: 'Particular', showLabel: false },
-  { id: 'moto', name: 'Moto', showLabel: false },
-  { id: 'publico', name: 'Público', showLabel: false },
-  { id: 'diplomatica', name: 'Diplomática', showLabel: true },
-  { id: 'carga', name: 'Carga', showLabel: true },
-  { id: 'remolque', name: 'Remolque', showLabel: true },
-  { id: 'clasico', name: 'Clásico', showLabel: false },
+  { id: 'particular', name: 'Particular' },
+  { id: 'moto', name: 'Moto' },
+  { id: 'publico', name: 'Público' },
+  { id: 'diplomatica', name: 'Diplomática' },
+  { id: 'carga', name: 'Carga' },
+  { id: 'remolque', name: 'Remolque' },
+  { id: 'clasico', name: 'Clásico' },
 ]
 
 const PLATE_STYLE: Record<string, { bg: string; ink: string; label: string }> = {
@@ -78,7 +82,12 @@ export default function LandingPage() {
   const router = useRouter()
   const { signIn } = useAuth()
   const [plates, setPlates] = useState<Record<string, { letters: string; numbers: string }>>(() => ({ ...PLATE_DEFAULTS }))
-  const [city, setCity] = useState('Bogotá')
+  // Sin default (2026-09-18) — antes arrancaba en 'Bogotá' y ese valor se
+  // guardaba en sessionStorage aunque el usuario nunca hubiera tocado el
+  // selector, así que el wizard terminaba precargando una ciudad que nadie
+  // eligió. Mismo criterio que el carrito (CartModal.tsx), que ya arranca
+  // vacío y obliga a elegir.
+  const [city, setCity] = useState('')
   const [type, setType] = useState('particular')
   const [cityOpen, setCityOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
@@ -373,7 +382,7 @@ export default function LandingPage() {
           }}>
             <Plate3D plate={plateText} city={city}
               bg={ps.bg} inkColor={ps.ink} labelColor={ps.label}
-              showLabel={PLATE_TYPES.find(t => t.id === type)?.showLabel ?? false} />
+              showLabel={plateShowsCountryLabel(type)} showCity={plateShowsCity(type)} />
           </div>
 
           <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', animation: 'fadeUp .7s .12s both' }}>
@@ -420,15 +429,21 @@ export default function LandingPage() {
                 <label style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: tk.label, fontWeight: 700 }}>
                   Ciudad de expedición
                 </label>
+                {/* Mismo criterio que el mockup: si la placa lleva "COLOMBIA",
+                   ese es el único texto y no hay ciudad que elegir. */}
+                {plateShowsCountryLabel(type) ? (
+                  <div style={{ width: '100%', color: tk.citySelect, fontSize: 17, fontWeight: 600, padding: '4px 0', textAlign: 'center', opacity: 0.85 }}>Colombia</div>
+                ) : (
                 <button onClick={() => setCityOpen(!cityOpen)} type="button"
                   style={{ width: '100%', border: 'none', background: 'transparent', color: tk.citySelect, fontSize: 17, fontWeight: 600, outline: 'none', padding: '4px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city || 'Selecciona ciudad'}</span>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', opacity: 0.5, transform: cityOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
+                )}
 
-                {cityOpen && (
+                {cityOpen && !plateShowsCountryLabel(type) && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
                     marginTop: 4, maxHeight: 210, overflowY: 'auto',

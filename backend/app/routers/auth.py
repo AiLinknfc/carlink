@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import Profile
-from app.schemas.schemas import ProfileOut, ProfileUpdate, VerificationRequest
+from app.schemas.schemas import ProfileOut, ProfileUpdate
 from app.services.auth import ensure_profile
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -55,31 +54,8 @@ async def update_profile(
     await db.refresh(profile)
     return profile
 
-
-@router.post("/me/verification", response_model=ProfileOut)
-async def request_verification(
-    body: VerificationRequest,
-    user_id: Annotated[str, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    """El usuario sube su tarjeta de propiedad y queda a la espera de revisión.
-
-    Deliberadamente no puede pasar a "verified" por sí mismo: subir un archivo no
-    acredita nada, así que este endpoint sólo llega hasta "pending".
-    """
-    result = await db.execute(select(Profile).where(Profile.id == uuid.UUID(user_id)))
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-    if profile.verification_status == "verified":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El perfil ya está verificado")
-    if not body.verification_doc_url:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falta el documento")
-
-    profile.verification_doc_url = body.verification_doc_url
-    profile.verification_status = "pending"
-    profile.verification_note = ""
-    profile.verification_requested_at = datetime.now(timezone.utc)
-    await db.flush()
-    await db.refresh(profile)
-    return profile
+# POST /me/verification se movió a POST /vehicles/{vehicle_id}/verification
+# (backend/app/routers/vehicles.py) — 2026-09-19. La verificación de
+# identidad es por vehículo, no por cuenta (ver comentario en
+# models.py Vehicle.verification_status): verificar una tarjeta habilitaba
+# transferir/vender TODOS los vehículos de la cuenta, no sólo el revisado.

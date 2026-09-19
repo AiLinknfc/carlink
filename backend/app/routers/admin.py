@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 import uuid
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from pydantic import BaseModel
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_admin
+from app.services.cache import cache_invalidate_vehicle
 from app.models.models import (
     NfcAccessLog,
     NfcAlert,
@@ -47,7 +50,9 @@ from app.schemas.schemas import (
     PartnerCreateOut,
     PartnerOut,
     PartnerUpdate,
+    WhitelistBulkActionOut,
 )
+from app.services.crypto import encrypt_url
 from app.services.nfc_provisioning import generate_human_code, generate_nfc_token
 
 router = APIRouter(prefix="/admin/nfc", tags=["admin-nfc"])
@@ -265,6 +270,8 @@ async def list_whitelist(
             provisioned_by_partner_id=e.provisioned_by_partner_id,
             partner_batch_id=e.partner_batch_id,
             partner_name=partner_names.get(e.provisioned_by_partner_id, "") if e.provisioned_by_partner_id else "",
+            suspended_at=e.suspended_at,
+            distributed_at=e.distributed_at,
         ))
     return out
 
@@ -337,6 +344,11 @@ async def provision_whitelist_entry(
         label=body.label,
         added_by=uuid.UUID(admin),
         activation_code_hash=activation_code_hash,
+        # Igual patrón que token_url_encrypted: permite volver a mostrarle
+        # el código al comprador (docs/PENDIENTES.md item 5) sin guardarlo
+        # en texto plano — el hash de arriba sigue siendo lo único que
+        # valida POST /nfc/activate.
+        activation_code_encrypted=encrypt_url(activation_code),
         token_hash=generated.token_hash,
         token_prefix=generated.token_prefix,
         token_url_encrypted=generated.token_url_encrypted,
@@ -491,6 +503,66 @@ async def delete_tag_inventory(
 
 # ── Partners (rol de aprovisionamiento escopeado, ver docs/PLAN_PARTNER_MODEL.md) ──
 
+async def _set_partner_whitelist_suspension(partner_id: UUID, db: AsyncSession, suspend: bool) -> int:
+    """Bulk-pauses or restores a partner's already-issued, still-unclaimed
+    codes — never deletes/regenerates anything, just flips `suspended_at` on
+    the same rows (migration 053). Only touches status='available' rows:
+    a code already `claimed` became a real nfc_tokens row for a real user,
+    untouched by a partner's suspension. See docs/PENDIENTES.md item 3."""
+    if suspend:
+        result = await db.execute(
+            text(
+                "UPDATE nfc_token_whitelist SET suspended_at = now() "
+                "WHERE provisioned_by_partner_id = :pid AND status = 'available' AND suspended_at IS NULL"
+            ),
+            {"pid": str(partner_id)},
+        )
+    else:
+        result = await db.execute(
+            text(
+                "UPDATE nfc_token_whitelist SET suspended_at = NULL "
+                "WHERE provisioned_by_partner_id = :pid AND status = 'available' AND suspended_at IS NOT NULL"
+            ),
+            {"pid": str(partner_id)},
+        )
+    return result.rowcount or 0
+
+
+@router.post("/partners/{partner_id}/whitelist/suspend", response_model=WhitelistBulkActionOut)
+async def suspend_partner_whitelist(
+    partner_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Pausa en bloque los códigos `available` ya emitidos a este partner,
+    sin tocar su `status` (independiente de suspender el partner en sí —
+    útil para pausar cupo mientras se investiga algo, sin cortarle ya mismo
+    la api key). Ver también: suspender el partner (PATCH .../partners/{id})
+    hace esto mismo automáticamente."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Partner not found")
+    count = await _set_partner_whitelist_suspension(partner_id, db, suspend=True)
+    await db.flush()
+    return WhitelistBulkActionOut(count=count)
+
+
+@router.post("/partners/{partner_id}/whitelist/reactivate", response_model=WhitelistBulkActionOut)
+async def reactivate_partner_whitelist(
+    partner_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Inverso de suspend_partner_whitelist — restaura los mismos códigos
+    (mismos hashes, sin regenerar nada) a `available`."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Partner not found")
+    count = await _set_partner_whitelist_suspension(partner_id, db, suspend=False)
+    await db.flush()
+    return WhitelistBulkActionOut(count=count)
+
+
 @router.post("/partners", response_model=PartnerCreateOut, status_code=status.HTTP_201_CREATED)
 async def create_partner(
     body: PartnerCreate,
@@ -544,7 +616,17 @@ async def update_partner(
     if body.status is not None:
         if body.status not in ("active", "suspended"):
             raise HTTPException(status_code=400, detail="status debe ser 'active' o 'suspended'")
+        previous_status = partner.status
         partner.status = body.status
+        # Cierra el gap de por sí: suspender/reactivar el partner arrastra
+        # sus códigos `available` ya emitidos, sin que haga falta un paso
+        # aparte. Mismo efecto que llamar a los endpoints
+        # /whitelist/suspend|reactivate de abajo — se exponen igual por si
+        # se quiere pausar el cupo sin tocar el status del partner.
+        if body.status == "suspended" and previous_status != "suspended":
+            await _set_partner_whitelist_suspension(partner.id, db, suspend=True)
+        elif body.status == "active" and previous_status == "suspended":
+            await _set_partner_whitelist_suspension(partner.id, db, suspend=False)
     if body.notes is not None:
         partner.notes = body.notes
     await db.flush()
@@ -568,12 +650,148 @@ async def list_partner_batches_admin(
             func.min(NfcTokenWhitelist.label).label("note"),
             func.count().label("total"),
             func.count().filter(NfcTokenWhitelist.status != "available").label("claimed"),
+            func.max(NfcTokenWhitelist.distributed_at).label("distributed_at"),
         )
         .where(NfcTokenWhitelist.provisioned_by_partner_id == partner_id)
         .group_by(NfcTokenWhitelist.partner_batch_id)
         .order_by(func.min(NfcTokenWhitelist.created_at).desc())
     )
     return [
-        PartnerBatchOut(batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total, claimed=row.claimed, note=row.note or "")
+        PartnerBatchOut(
+            batch_id=row.partner_batch_id, created_at=row.created_at, total=row.total,
+            claimed=row.claimed, note=row.note or "", distributed_at=row.distributed_at,
+        )
         for row in result.all()
     ]
+
+
+@router.post("/partners/{partner_id}/batches/{batch_id}/mark-distributed", response_model=WhitelistBulkActionOut)
+async def mark_batch_distributed_admin(
+    partner_id: UUID,
+    batch_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Confirma que un lote salió físicamente a repartirse — alimenta la
+    alerta 'activated_before_distributed' en activate_nfc_token (ver
+    docs/PENDIENTES.md item 4). Idempotente: solo toca filas que todavía no
+    tenían distributed_at."""
+    result = await db.execute(
+        text(
+            "UPDATE nfc_token_whitelist SET distributed_at = now() "
+            "WHERE partner_batch_id = :bid AND provisioned_by_partner_id = :pid AND distributed_at IS NULL"
+        ),
+        {"bid": str(batch_id), "pid": str(partner_id)},
+    )
+    await db.flush()
+    return WhitelistBulkActionOut(count=result.rowcount or 0)
+
+
+# ── Vehicle Verification ──
+# Por vehículo, no por cuenta (2026-09-19, antes vivía en Profile) — bug real
+# encontrado por el usuario: verificar UNA tarjeta habilitaba transferir/
+# vender TODOS los vehículos de la cuenta, no sólo el revisado. Ver
+# models.py Vehicle.verification_status.
+
+@router.get("/verifications/pending")
+async def list_pending_verifications(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return all vehicles with verification_status='pending', newest requests first."""
+    result = await db.execute(
+        select(Vehicle, Profile)
+        .join(Profile, Profile.id == Vehicle.owner_id)
+        .where(Vehicle.verification_status == "pending")
+        .order_by(Vehicle.verification_requested_at.desc().nulls_last())
+    )
+    rows = result.all()
+    return [
+        {
+            # id de VEHÍCULO — es lo que se aprueba/rechaza, no la cuenta.
+            "id": str(v.id),
+            "plate": v.plate,
+            "brand": v.brand,
+            "model": v.model,
+            "owner_name": v.owner_name or "",
+            "verification_status": v.verification_status,
+            "verification_doc_url": v.verification_doc_url or "",
+            "verification_doc_url_back": v.verification_doc_url_back or "",
+            "verification_requested_at": v.verification_requested_at.isoformat() if v.verification_requested_at else None,
+            # Datos de la cuenta dueña, sólo de referencia — la aprobación es del vehículo.
+            "owner_email": p.email,
+            "owner_full_name": p.full_name,
+            "document_number": p.document_number,
+        }
+        for v, p in rows
+    ]
+
+
+class VerificationAction(BaseModel):
+    action: str  # "approve" or "reject"
+    note: str = ""
+
+
+@router.patch("/verifications/{vehicle_id}")
+async def review_verification(
+    vehicle_id: UUID,
+    body: VerificationAction,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Approve or reject a pending vehicle verification."""
+    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id))
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if vehicle.verification_status != "pending":
+        raise HTTPException(status_code=409, detail="Vehicle is not pending verification")
+
+    if body.action == "approve":
+        vehicle.verification_status = "verified"
+        vehicle.verified_at = datetime.now(timezone.utc)
+        vehicle.verification_note = body.note
+    elif body.action == "reject":
+        vehicle.verification_status = "unverified"
+        vehicle.verification_note = body.note
+        vehicle.verification_doc_url = ""
+        vehicle.verification_doc_url_back = ""
+    else:
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    # Al aprobar, la placa pasa a estar reservada por este vehículo: los
+    # registros gratuitos de OTRAS cuentas con la misma placa (sin verificar y
+    # sin llavero activo) se marcan para revisión — no se borran, tienen
+    # historial real. El aviso queda en verification_note de cada uno.
+    flagged = 0
+    if body.action == "approve":
+        norm = re.sub(r"[^A-Z0-9]", "", vehicle.plate.upper())
+        has_keychain = select(NfcToken.id).where(
+            NfcToken.vehicle_id == Vehicle.id, NfcToken.token_type == "personal", NfcToken.is_active.is_(True)
+        ).exists()
+        dupes = (await db.execute(
+            select(Vehicle).where(
+                func.regexp_replace(func.upper(Vehicle.plate), r"[^A-Z0-9]", "", "g") == norm,
+                Vehicle.id != vehicle.id,
+                Vehicle.owner_id != vehicle.owner_id,
+                Vehicle.verification_status != "verified",
+                ~has_keychain,
+            )
+        )).scalars().all()
+        for d in dupes:
+            d.verification_status = "unverified"
+            d.verification_note = "Esta placa fue verificada por otra cuenta. Contacta a soporte si es tu vehículo."
+            await cache_invalidate_vehicle(str(d.id))
+        flagged = len(dupes)
+
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return {
+        "duplicates_flagged": flagged,
+        "id": str(vehicle.id),
+        "plate": vehicle.plate,
+        "verification_status": vehicle.verification_status,
+        "verified_at": vehicle.verified_at.isoformat() if vehicle.verified_at else None,
+        "verification_note": vehicle.verification_note,
+    }
