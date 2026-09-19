@@ -40,6 +40,22 @@ import ColorPickerButton from '@/components/ColorPickerButton'
 import BrandPickerModal from '@/components/BrandPickerModal'
 import { brandsForType, modelSuggestions, VEHICLE_TYPES } from '@/lib/vehicleBrands'
 
+const FREE_LOCKED_TABS = ['partes', 'galeria', 'certificados', 'documentos', 'resenas']
+const FREE_SERVICE_ID = 'Aceite'
+
+function LockedModuleCard({ onActivate }: { onActivate: () => void }) {
+  return (
+    <div style={{ padding: '48px 24px', textAlign: 'center', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--surface-2)' }}>
+      <div style={{ width: 48, height: 48, margin: '0 auto 14px', borderRadius: 14, background: 'rgba(245,197,24,0.12)', color: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-1)', marginBottom: 6 }}>Módulo bloqueado</div>
+      <div style={{ fontSize: 13, color: 'var(--text-3)', lineHeight: 1.5, maxWidth: 360, margin: '0 auto 18px' }}>Se desbloquea al activar el código de tu llavero NFC. Mientras tanto puedes registrar los cambios de aceite.</div>
+      <button onClick={onActivate} style={{ padding: '11px 22px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Activar llavero</button>
+    </div>
+  )
+}
+
 function ProfileAccordion({ title, badge, open, onToggle, children }: { title: string; badge?: React.ReactNode; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 14, background: 'var(--surface-2)', overflow: 'hidden' }}>
@@ -185,6 +201,13 @@ export default function AppPage() {
   // toggle from showing ON for vehicles that have nfc_active=True in the DB
   // but no actual keychain (leftover from before migration 048).
   const isNfcPublished = vehicle?.nfc_active !== false && !tokensLoading && nfcTokens.some(t => t.is_active)
+  // Plan gratuito (2026-09-18, docs/CONTEXTO.md): sin llavero activo en el
+  // vehículo, la cuenta persona solo usa Inicio, Ficha, Historial y el
+  // servicio de aceite; el resto se ve bloqueado hasta activar el código.
+  // Mientras cargan los llaveros se asume desbloqueado para no parpadear
+  // candados — el backend igual valida (app/services/plan.py).
+  const fullAccess = isBusiness || tokensLoading || nfcTokens.some(t => t.is_active)
+  const lockedTabs = useMemo(() => (fullAccess ? [] : FREE_LOCKED_TABS), [fullAccess])
 
   // Notifications: count urgent items (overdue oil change, expiring soon, etc.)
   const [notifsStampsRequired, setNotifsStampsRequired] = useState(6)
@@ -523,11 +546,27 @@ export default function AppPage() {
 
   const [pendingServiceType, setPendingServiceType] = useState<string | undefined>(undefined)
 
+  // Al tocar algo bloqueado: aviso y panel del llavero, donde se ingresa el código.
+  const promptUnlock = useCallback(() => {
+    flashApp('Se desbloquea al activar tu llavero NFC.')
+    setShowNfc(true)
+  }, [flashApp])
+
+  const navigateTab = useCallback((tab: string) => {
+    if (lockedTabs.includes(tab)) { promptUnlock(); return }
+    setActiveTab(tab)
+  }, [lockedTabs, promptUnlock])
+
   const onAddService = useCallback((serviceType?: string) => {
+    // Plan gratuito: solo aceite (y sin selector de tipo, así no hay cómo cambiarlo).
+    if (!fullAccess) {
+      if (serviceType && serviceType !== FREE_SERVICE_ID) { promptUnlock(); return }
+      serviceType = FREE_SERVICE_ID
+    }
     setEditRecord(null)
     setPendingServiceType(serviceType)
     setShowForm(true)
-  }, [])
+  }, [fullAccess, promptUnlock])
 
   const onEditService = useCallback((r: any) => {
     setEditRecord(r)
@@ -744,7 +783,8 @@ export default function AppPage() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: vignetteBg }} />
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={navigateTab}
+        lockedTabs={lockedTabs}
         forceExpanded={forceSidebarOpen}
         forceOpen={forceSidebarOpen}
         inert={showOnboarding}
@@ -877,8 +917,9 @@ export default function AppPage() {
         </div>
 
         <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
-           activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
+          {lockedTabs.includes(activeTab) ? <LockedModuleCard onActivate={promptUnlock} /> :
+           activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={navigateTab} lockedTabs={lockedTabs} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
+           activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={navigateTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -888,7 +929,7 @@ export default function AppPage() {
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'resenas' ? <ResenasTab /> :
-           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
+           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={navigateTab} lockedTabs={lockedTabs} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
         {/* Bienvenida */}

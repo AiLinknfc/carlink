@@ -23,6 +23,7 @@ from app.services.cache import (
     cache_set,
 )
 from app.services.nfc_provisioning import TRIAL_ACCOUNT_TYPES, generate_nfc_token
+from app.services.plan import PUBLISH_DETAIL, require_full_access
 
 logger = logging.getLogger("carlink")
 
@@ -312,6 +313,9 @@ async def update_vehicle(
     # plate/city/type ya no existen en VehicleUpdate: Pydantic los descarta aunque
     # el cliente los mande, así que el congelado es efectivo aquí.
     update_data = body.model_dump(exclude_unset=True)
+    # Publicar el vehículo en venta es publicar al exterior: plan gratuito no puede.
+    if update_data.get("sell_enabled") and not vehicle.sell_enabled:
+        await require_full_access(db, user_id, vehicle.id, PUBLISH_DETAIL)
     for key, val in update_data.items():
         setattr(vehicle, key, val)
 
@@ -388,6 +392,8 @@ async def toggle_nfc_visibility(
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
+    if not vehicle.nfc_active:
+        await require_full_access(db, user_id, vehicle.id, PUBLISH_DETAIL)
     vehicle.nfc_active = not vehicle.nfc_active
     await db.flush()
     await db.refresh(vehicle)

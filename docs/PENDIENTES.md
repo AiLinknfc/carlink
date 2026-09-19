@@ -1671,19 +1671,23 @@ gratuitos de otras cuentas se marcan en `verification_note` (no se borran) y la 
 reservada, antes de reclamar el código (no lo quema).
 
 Pendiente:
-- **Reglas del plan gratuito — decididas 2026-09-18, sin implementar** (ver `docs/CONTEXTO.md` →
-  "Plan gratuito vs. con llavero"):
-  1. El usuario gratuito **no puede publicar información al exterior** (ficha pública NFC, publicar/
-     vender el vehículo). Hoy el backend ya exige llavero activo para la ficha pública de persona;
-     falta revisar que "publicar/vender" también quede cubierto y que la UI lo explique.
-  2. El **módulo de aceite** (servicio `Aceite`, `InicioView.tsx` / `ServiceFormModal.tsx`) es
-     **gratis** para él.
-  3. **Los demás módulos se ven bloqueados** (candado, sin poder explorarlos) hasta activar un
-     llavero; **al activar el código se liberan**. Implementación pendiente: definir cuáles son
-     "los demás" (todas las pestañas del `Sidebar` salvo Inicio + Aceite, y los otros servicios de
-     `SERVICE_TYPES`), derivar el estado "gratis/activo" de si el vehículo tiene llavero personal
-     activo (`nfc_active`/`nfc_tokens`), y validarlo también en el backend, no solo en la UI.
-  - Supuesto a confirmar: "acite" se interpretó como el servicio **Aceite** (cambio de aceite y filtro).
+- **Reglas del plan gratuito — implementadas 2026-09-18, sin commitear** (ver `docs/CONTEXTO.md` →
+  "Plan gratuito vs. con llavero"). Cuenta persona sin llavero personal activo **en ese vehículo**:
+  - Libre: Inicio, Ficha técnica, Historial y el servicio **Aceite**.
+  - Bloqueado (candado, al tocar abre el panel del llavero para ingresar el código): Control de
+    partes, Galería, Facturas, Documentos, Calificar y los demás servicios de `InicioView`.
+    Lista en `FREE_LOCKED_TABS` (`app/app/page.tsx`); servicio libre en `FREE_SERVICE_ID` y
+    `FREE_SERVICE_TYPES` (`backend/app/services/plan.py`).
+  - Backend (`services/plan.py::require_full_access`, 403): crear mantenimiento que no sea Aceite,
+    partes, galería, documentos, facturas/certificados; **publicar** = `sell_enabled` en `PUT
+    /vehicles/{id}` y encender la ficha pública en `PATCH /vehicles/{id}/nfc-toggle`.
+    Talleres/empresas no aplican. Tests: `tests/test_plan_gratuito.py`.
+  - Al activar el código se libera todo (la UI lo deriva de `nfcTokens.some(is_active)`).
+  - Supuestos a confirmar: Ficha e Historial quedan libres (Historial es donde se ve el aceite
+    registrado); "acite" = servicio Aceite.
+  - Sin cubrir todavía: leer/listar módulos bloqueados en el backend (solo se bloquea crear), reseñas
+    (`reviews.py`, no se gateó el POST), escaneo de documentos (OCR) desde el topbar, que hoy falla
+    con 403 sin mensaje propio en la UI para otros tipos de servicio, y probarlo en navegador.
 - **Códigos que no vienen de la tienda** (partner/campaña/regalo) no habilitan un vehículo extra
   (el conteo usa `shop_orders`); resolver con el flujo "código y luego wizard de placa nueva".
 - Sin probar contra la base real: las consultas de reserva solo se compilaron para Postgres y se
@@ -1697,7 +1701,7 @@ Se agruparon en 4 commits (la lista original de 7 se colapsó porque `vehicles.p
 1. `feat(backend)` — verificación por vehículo, plan gratuito, reserva de placas, migraciones 058/059.
 2. `feat(frontend)` — placa con un solo texto inferior, selector de marca y de color.
 3. `feat(frontend)` — wizard, tutorial guiado, verificación por vehículo, menú de perfil en acordeones.
-4. `docs` — plan gratuito, pruebas funcionales, plan de patente NFC, scripts de QA.
+4. `docs` — plan gratuito, pruebas funcionales, plan de patente NFC, scripts de QA (el script `scripts/delete_test_user.sql` quedó sin commitear, solo local).
 
 Antes de desplegar: aplicar las migraciones 058/059 **a mano** en la base compartida (ver
 `docs/DEPLOY.md`), correr las suites que apliquen de `docs/PRUEBAS_FUNCIONALES.md`. Los commits

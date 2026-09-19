@@ -40,19 +40,24 @@ interface Props {
   maintenanceRecords?: any[]
   nfcActive?: boolean
   isVerified?: boolean
+  /** Tabs bloqueados por el plan gratuito (candado en los accesos rápidos). */
+  lockedTabs?: string[]
+  /** Plan gratuito: único servicio que se puede registrar; el resto se ve bloqueado. */
+  freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, lockedTabs, freeServiceId }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
   useEffect(() => { setExplored(getExplored()) }, [])
 
   const handleCardClick = useCallback((id: string) => {
+    if (freeServiceId && id !== freeServiceId) { onAddService(id); return }
     markExplored(id)
     setExplored(prev => ({ ...prev, [id]: true }))
     onAddService(id)
-  }, [onAddService])
+  }, [onAddService, freeServiceId])
 
   const cardBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
   const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)'
@@ -127,7 +132,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Facturas</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Facturas{lockedTabs?.includes('certificados') && <svg aria-label="Bloqueado" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" ><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>}</span>
           </button>
 
           <button onClick={() => onNavigate?.('documentos')} style={quickActionStyle}
@@ -136,7 +141,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Documentos</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Documentos{lockedTabs?.includes('documentos') && <svg aria-label="Bloqueado" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" ><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>}</span>
           </button>
         </div>
       </div>
@@ -193,18 +198,21 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
           {SERVICE_TYPES.map(st => {
             const isExplored = explored[st.id]
+            const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
             return (
               <button key={st.id} onClick={() => handleCardClick(st.id)} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
                 padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
                 background: isExplored ? cardExploredBg : cardBg,
                 border: `1px solid ${isExplored ? cardExploredBorder : cardBorder}`,
-                opacity: isExplored ? 1 : 0.65,
+                opacity: isLockedSvc ? 0.45 : isExplored ? 1 : 0.65,
+                position: 'relative',
                 transition: 'all .2s',
               }}
                 onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = isExplored ? '1' : '0.65'; e.currentTarget.style.transform = 'none' }}
               >
+                {isLockedSvc && <span style={{ position: 'absolute', top: 10, right: 10, display: 'flex' }}><svg aria-label="Bloqueado" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>}
                 <span style={{ color: isExplored ? '#F5C518' : textMuted, transition: 'color .2s' }}>
                   <ServiceTypeIcon type={st.id} size={32} />
                 </span>

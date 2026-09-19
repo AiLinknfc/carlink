@@ -13,6 +13,7 @@ from app.dependencies import get_current_user, verify_vehicle
 from app.models.models import MaintenanceRecord
 from app.schemas.schemas import MaintenanceCreate, MaintenanceOut
 from app.services.cache import cache_invalidate_vehicle
+from app.services.plan import FREE_SERVICE_TYPES, require_full_access
 
 router = APIRouter(prefix="/maintenance", tags=["maintenance"])
 
@@ -50,6 +51,9 @@ async def create_maintenance(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await verify_vehicle(body.vehicle_id, user_id, db)
+    # Plan gratuito: solo el servicio de aceite; el resto se desbloquea con el llavero.
+    if body.service_type not in FREE_SERVICE_TYPES:
+        await require_full_access(db, user_id, body.vehicle_id)
     data = body.model_dump()
     if isinstance(data.get("date"), str):
         data["date"] = date.fromisoformat(data["date"])

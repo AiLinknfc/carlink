@@ -271,5 +271,5 @@ refleja el origen del envío más reciente, no un historial acumulado.
 - **Placas:** una placa la reserva solo un vehículo verificado o con llavero activo; un registro
   gratuito sin verificar no bloquea a otra cuenta, que la reclama verificando su tarjeta de
   propiedad (`_reserved_by_other`, 409 en `POST /vehicles` y `POST /nfc/activate`).
-- **Talleres/empresas:** no necesitan llavero. Estado de implementación del bloqueo de módulos y
-  la lista final de módulos: ver `docs/PENDIENTES.md` → "Plan gratuito y reserva de placas".
+- **Talleres/empresas:** no necesitan llavero. Bloqueo de módulos implementado (`backend/app/services/plan.py`,
+  `FREE_LOCKED_TABS` en `app/app/page.tsx`); detalle y huecos en `docs/PENDIENTES.md` → "Plan gratuito y reserva de placas".
