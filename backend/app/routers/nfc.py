@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
+from app.routers.vehicles import _reserved_by_other
 from app.models.models import (
     MaintenanceRecord,
     NfcAccessLog,
@@ -201,6 +203,15 @@ async def activate_nfc_token(
     # mandado sea del usuario autenticado.
     vehicle = await verify_vehicle(body.vehicle_id, user_id, db)
 
+    # Reserva de placa (2026-09-18): si otra cuenta ya tiene esta placa
+    # verificada o con llavero activo, no se activa nada acá. Va ANTES del
+    # reclamo atómico de abajo para no quemar el código del llavero.
+    if await _reserved_by_other(re.sub(r"[^A-Z0-9]", "", vehicle.plate.upper()), user_id, db):
+        raise HTTPException(
+            status_code=409,
+            detail="Esta placa ya está verificada o activa en otra cuenta. Contacta a soporte si es tu vehículo.",
+        )
+
     p_result = await db.execute(select(Profile).where(Profile.id == uid))
     profile = p_result.scalar_one_or_none()
     account_type = profile.account_type if profile else "persona"
@@ -281,6 +292,14 @@ async def activate_nfc_token(
             text("UPDATE nfc_tokens SET token_url_encrypted = :url WHERE id = :id"),
             {"url": token_url_encrypted, "id": str(nfc_token.id)},
         )
+        await db.flush()
+
+    # Auto-enable ficha publica al activar primer llavero: cuando el usuario
+    # ingresa un codigo de activacion valido, la ficha se activa por defecto.
+    # Los demas toggles (contacto, georreferenciacion, etc.) quedan
+    # desactivados — el usuario los controla manualmente desde FichaTab.
+    if not vehicle.nfc_active:
+        vehicle.nfc_active = True
         await db.flush()
 
     await db.refresh(nfc_token)

@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 import uuid
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_admin
+from app.services.cache import cache_invalidate_vehicle
 from app.models.models import (
     NfcAccessLog,
     NfcAlert,
@@ -682,3 +685,113 @@ async def mark_batch_distributed_admin(
     )
     await db.flush()
     return WhitelistBulkActionOut(count=result.rowcount or 0)
+
+
+# ── Vehicle Verification ──
+# Por vehículo, no por cuenta (2026-09-19, antes vivía en Profile) — bug real
+# encontrado por el usuario: verificar UNA tarjeta habilitaba transferir/
+# vender TODOS los vehículos de la cuenta, no sólo el revisado. Ver
+# models.py Vehicle.verification_status.
+
+@router.get("/verifications/pending")
+async def list_pending_verifications(
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return all vehicles with verification_status='pending', newest requests first."""
+    result = await db.execute(
+        select(Vehicle, Profile)
+        .join(Profile, Profile.id == Vehicle.owner_id)
+        .where(Vehicle.verification_status == "pending")
+        .order_by(Vehicle.verification_requested_at.desc().nulls_last())
+    )
+    rows = result.all()
+    return [
+        {
+            # id de VEHÍCULO — es lo que se aprueba/rechaza, no la cuenta.
+            "id": str(v.id),
+            "plate": v.plate,
+            "brand": v.brand,
+            "model": v.model,
+            "owner_name": v.owner_name or "",
+            "verification_status": v.verification_status,
+            "verification_doc_url": v.verification_doc_url or "",
+            "verification_doc_url_back": v.verification_doc_url_back or "",
+            "verification_requested_at": v.verification_requested_at.isoformat() if v.verification_requested_at else None,
+            # Datos de la cuenta dueña, sólo de referencia — la aprobación es del vehículo.
+            "owner_email": p.email,
+            "owner_full_name": p.full_name,
+            "document_number": p.document_number,
+        }
+        for v, p in rows
+    ]
+
+
+class VerificationAction(BaseModel):
+    action: str  # "approve" or "reject"
+    note: str = ""
+
+
+@router.patch("/verifications/{vehicle_id}")
+async def review_verification(
+    vehicle_id: UUID,
+    body: VerificationAction,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Approve or reject a pending vehicle verification."""
+    result = await db.execute(select(Vehicle).where(Vehicle.id == vehicle_id))
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if vehicle.verification_status != "pending":
+        raise HTTPException(status_code=409, detail="Vehicle is not pending verification")
+
+    if body.action == "approve":
+        vehicle.verification_status = "verified"
+        vehicle.verified_at = datetime.now(timezone.utc)
+        vehicle.verification_note = body.note
+    elif body.action == "reject":
+        vehicle.verification_status = "unverified"
+        vehicle.verification_note = body.note
+        vehicle.verification_doc_url = ""
+        vehicle.verification_doc_url_back = ""
+    else:
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    # Al aprobar, la placa pasa a estar reservada por este vehículo: los
+    # registros gratuitos de OTRAS cuentas con la misma placa (sin verificar y
+    # sin llavero activo) se marcan para revisión — no se borran, tienen
+    # historial real. El aviso queda en verification_note de cada uno.
+    flagged = 0
+    if body.action == "approve":
+        norm = re.sub(r"[^A-Z0-9]", "", vehicle.plate.upper())
+        has_keychain = select(NfcToken.id).where(
+            NfcToken.vehicle_id == Vehicle.id, NfcToken.token_type == "personal", NfcToken.is_active.is_(True)
+        ).exists()
+        dupes = (await db.execute(
+            select(Vehicle).where(
+                func.regexp_replace(func.upper(Vehicle.plate), r"[^A-Z0-9]", "", "g") == norm,
+                Vehicle.id != vehicle.id,
+                Vehicle.owner_id != vehicle.owner_id,
+                Vehicle.verification_status != "verified",
+                ~has_keychain,
+            )
+        )).scalars().all()
+        for d in dupes:
+            d.verification_status = "unverified"
+            d.verification_note = "Esta placa fue verificada por otra cuenta. Contacta a soporte si es tu vehículo."
+            await cache_invalidate_vehicle(str(d.id))
+        flagged = len(dupes)
+
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return {
+        "duplicates_flagged": flagged,
+        "id": str(vehicle.id),
+        "plate": vehicle.plate,
+        "verification_status": vehicle.verification_status,
+        "verified_at": vehicle.verified_at.isoformat() if vehicle.verified_at else None,
+        "verification_note": vehicle.verification_note,
+    }

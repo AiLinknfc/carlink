@@ -17,8 +17,18 @@ class VehicleCreate(BaseModel):
     model: str = ""
     year: int = 0
     type: str = ""
+    # Carrocería (Sedán/SUV/Moto/...) — separado de `type`, que es la
+    # categoría de placa (particular/moto/publico/...) usada para validar el
+    # formato. Antes el panel de perfil pisaba `type` con la carrocería
+    # elegida por el usuario, corrompiendo la categoría real de la placa
+    # (2026-09-18, hallado al revisar por qué una moto escaneada mostraba
+    # "Sedán" en el perfil).
+    body_type: str = ""
     color: str = ""
     image_url: str = ""
+    # Nombre del propietario según la tarjeta escaneada — separado de
+    # profiles.full_name, ver comentario en models.py Vehicle.owner_name.
+    owner_name: str = ""
 
     @field_validator('plate')
     @classmethod
@@ -53,7 +63,9 @@ class VehicleUpdate(BaseModel):
     brand: str | None = None
     model: str | None = None
     year: int | None = None
+    body_type: str | None = None
     color: str | None = None
+    owner_name: str | None = None
     image_url: str | None = None
     nfc_active: bool | None = None
     sell_enabled: bool | None = None
@@ -78,7 +90,15 @@ class VehicleOut(BaseModel):
     model: str
     year: int
     type: str
+    body_type: str = ""
     color: str
+    owner_name: str = ""
+    verification_status: str = "unverified"
+    verification_doc_url: str = ""
+    verification_doc_url_back: str = ""
+    verification_note: str = ""
+    verification_requested_at: datetime | None = None
+    verified_at: datetime | None = None
     image_url: str
     nfc_active: bool
     sell_enabled: bool = False
@@ -265,6 +285,7 @@ class VehicleCardResult(BaseModel):
     model: str | None = None
     year: int | None = None
     color: str | None = None
+    vehicle_class: str | None = None
     owner_name: str | None = None
     document_number: str | None = None
     raw_text: str
@@ -426,6 +447,7 @@ class ProfileOut(BaseModel):
     document_number: str = ""
     verification_status: str = "unverified"
     verification_doc_url: str = ""
+    verification_doc_url_back: str = ""
     verification_note: str = ""
     verified_at: datetime | None = None
     whatsapp_enabled: bool = False
@@ -445,8 +467,14 @@ class ProfileUpdate(BaseModel):
     # auto-verificarse. Sólo /auth/me/verification lo mueve a "pending".
 
 
-class VerificationRequest(BaseModel):
+class VehicleVerificationRequest(BaseModel):
+    """Reemplaza a VerificationRequest (2026-09-19) — la verificación pasó de
+    ser por cuenta (POST /auth/me/verification) a ser por vehículo
+    (POST /vehicles/{id}/verification), ver vehicles.py."""
     verification_doc_url: str
+    # Reverso obligatorio también (2026-09-18) — la tarjeta de propiedad
+    # tiene 2 caras, front-only no alcanza para verificar.
+    verification_doc_url_back: str
 
 
 # =========== Workshops ===========

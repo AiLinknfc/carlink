@@ -26,6 +26,7 @@ class Profile(Base):
     # unverified | pending | verified | rejected
     verification_status: Mapped[str] = mapped_column(Text, default="unverified")
     verification_doc_url: Mapped[str] = mapped_column(Text, default="")
+    verification_doc_url_back: Mapped[str] = mapped_column(Text, default="")
     verification_note: Mapped[str] = mapped_column(Text, default="")
     verification_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -54,7 +55,26 @@ class Vehicle(Base):
     model: Mapped[str] = mapped_column(Text, default="")
     year: Mapped[int] = mapped_column(Integer, default=0)
     type: Mapped[str] = mapped_column(Text, default="")
+    # Carrocería (Sedán/SUV/Moto/...), separada de `type` (categoría de
+    # placa) — ver comentario en schemas.py VehicleCreate.body_type.
+    body_type: Mapped[str] = mapped_column(Text, default="")
     color: Mapped[str] = mapped_column(Text, default="")
+    # Nombre del propietario que trae la tarjeta escaneada — separado de
+    # profiles.full_name (2026-09-19): la cuenta no necesariamente es la
+    # misma persona que figura en la tarjeta (auto de otra persona, o
+    # todavía no traspasado).
+    owner_name: Mapped[str] = mapped_column(Text, default="")
+    # Verificación de identidad, por vehículo (2026-09-19, antes vivía en
+    # Profile — bug real: verificar una tarjeta habilitaba transferir/vender
+    # TODOS los vehículos de la cuenta, no sólo el revisado). Mismos nombres/
+    # semántica que tenían los campos homónimos de Profile, que quedan
+    # inertes sin borrarse.
+    verification_status: Mapped[str] = mapped_column(Text, default="unverified")
+    verification_doc_url: Mapped[str] = mapped_column(Text, default="")
+    verification_doc_url_back: Mapped[str] = mapped_column(Text, default="")
+    verification_note: Mapped[str] = mapped_column(Text, default="")
+    verification_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     image_url: Mapped[str] = mapped_column(Text, default="")
     nfc_active: Mapped[bool] = mapped_column(Boolean, default=False)
     sell_enabled: Mapped[bool] = mapped_column(Boolean, default=False)

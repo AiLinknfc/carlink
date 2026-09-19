@@ -3,17 +3,18 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
 from app.models.models import NfcToken, ShopOrder, Vehicle
-from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate
+from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate, VehicleVerificationRequest
 from app.services.auth import ensure_profile
 from app.services.cache import (
     cache_delete,
@@ -66,17 +67,91 @@ async def check_plate(
     if not normalized:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="plate query param required")
 
-    result = await db.execute(
-        select(Vehicle.owner_id).where(
-            func.regexp_replace(func.upper(Vehicle.plate), r"[^A-Z0-9]", "", "g") == normalized
-        )
-    )
-    row = result.first()
-    if not row:
-        return {"exists": False, "owned_by_you": False}
+    rows = (await db.execute(
+        select(Vehicle.id, Vehicle.owner_id, Vehicle.verification_status).where(_plate_matches(normalized))
+    )).all()
+    if not rows:
+        return {"exists": False, "owned_by_you": False, "has_active_keychain": False, "reserved_by_other": False}
 
-    owned_by_you = bool(user_id) and str(row[0]) == user_id
-    return {"exists": True, "owned_by_you": owned_by_you}
+    mine = [r for r in rows if user_id and str(r[1]) == user_id]
+    owned_by_you = bool(mine)
+    has_active_keychain = False
+    if owned_by_you:
+        # Solo se le revela al dueño. Un vehículo suyo sin llavero activo (registrado gratis)
+        # debe poder comprar su primer llavero sin toparse con el bloqueo de "placa duplicada".
+        has_active_keychain = bool((await db.execute(
+            select(func.count(NfcToken.id)).where(
+                NfcToken.vehicle_id.in_([r[0] for r in mine]),
+                NfcToken.token_type == "personal",
+                NfcToken.is_active.is_(True),
+            )
+        )).scalar())
+    # Una placa la reserva sólo un vehículo verificado o con llavero activo
+    # (regla 2026-09-18): un registro gratuito sin verificar no bloquea a otra
+    # cuenta, que puede reclamarla verificando su tarjeta de propiedad.
+    reserved_by_other = await _reserved_by_other(normalized, user_id, db)
+    return {
+        "exists": True,
+        "owned_by_you": owned_by_you,
+        "has_active_keychain": has_active_keychain,
+        "reserved_by_other": reserved_by_other,
+    }
+
+
+def _plate_matches(normalized: str):
+    return func.regexp_replace(func.upper(Vehicle.plate), r"[^A-Z0-9]", "", "g") == normalized
+
+
+async def _reserved_by_other(normalized: str, user_id: str | None, db: AsyncSession) -> bool:
+    """¿Otra cuenta tiene esta placa "reservada"? Reservada = su vehículo está
+    verificado o tiene un llavero personal activo. Sin `user_id` (consulta
+    pública) cualquier vehículo cuenta como "otro"."""
+    active_keychain = select(NfcToken.id).where(
+        NfcToken.vehicle_id == Vehicle.id,
+        NfcToken.token_type == "personal",
+        NfcToken.is_active.is_(True),
+    ).exists()
+    q = select(func.count(Vehicle.id)).where(
+        _plate_matches(normalized),
+        or_(Vehicle.verification_status == "verified", active_keychain),
+    )
+    if user_id:
+        q = q.where(Vehicle.owner_id != uuid.UUID(user_id))
+    return bool((await db.execute(q)).scalar())
+
+
+async def _spare_keychains(uid: uuid.UUID, db: AsyncSession) -> int:
+    """Llaveros comprados que todavía no respaldan ningún vehículo.
+
+    Regla (2026-09-18): el primer vehículo de una cuenta persona es gratis;
+    cada vehículo adicional necesita su propio llavero comprado, aunque el
+    código todavía esté pendiente de activar. Por eso no basta con restar los
+    llaveros ya activados: todo vehículo sin llavero activado, salvo uno (el
+    gratis), ya tiene "reservado" un llavero comprado.
+
+        spare = comprados - activados - max(vehículos_sin_llavero - 1, 0)
+
+    Los tokens de prueba (token_type='trial') no cuentan como activados — el
+    trial no consume un llavero comprado."""
+    purchased = (await db.execute(
+        select(func.coalesce(func.sum(ShopOrder.quantity), 0)).where(
+            ShopOrder.user_id == uid, ShopOrder.status == "approved"
+        )
+    )).scalar() or 0
+    claimed = (await db.execute(
+        select(func.count(NfcToken.id)).where(
+            NfcToken.user_id == uid, NfcToken.token_type == "personal"
+        )
+    )).scalar() or 0
+    without_keychain = (await db.execute(
+        select(func.count(Vehicle.id)).where(
+            Vehicle.owner_id == uid,
+            ~select(NfcToken.id).where(
+                NfcToken.vehicle_id == Vehicle.id, NfcToken.token_type == "personal"
+            ).exists(),
+        )
+    )).scalar() or 0
+    return max(purchased - claimed - max(without_keychain - 1, 0), 0)
 
 
 @router.get("/keychain-availability")
@@ -84,23 +159,11 @@ async def get_keychain_availability(
     user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Cuántos llaveros comprados (shop_orders aprobados) todavía no se usaron
-    para activar un vehículo — señal que gatea el botón "Agregar vehículo" en
-    el frontend. Declarado antes de /{vehicle_id} por el mismo motivo que
-    /plate-check (ver comentario ahí). No cuenta tokens de prueba
-    (token_type='trial') como "usados" — el trial no consume un llavero
-    comprado, son cosas separadas."""
-    purchased = (await db.execute(
-        select(func.coalesce(func.sum(ShopOrder.quantity), 0)).where(
-            ShopOrder.user_id == uuid.UUID(user_id), ShopOrder.status == "approved"
-        )
-    )).scalar() or 0
-    claimed = (await db.execute(
-        select(func.count(NfcToken.id)).where(
-            NfcToken.user_id == uuid.UUID(user_id), NfcToken.token_type == "personal"
-        )
-    )).scalar() or 0
-    return {"available": max(purchased - claimed, 0)}
+    """Cuántos vehículos adicionales puede registrar la cuenta (llaveros
+    comprados sin vehículo asignado) — gatea el botón "Agregar vehículo" en
+    el frontend y es la misma cuenta que POST /vehicles aplica en el backend.
+    Declarado antes de /{vehicle_id} por el mismo motivo que /plate-check."""
+    return {"available": await _spare_keychains(uuid.UUID(user_id), db)}
 
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)
@@ -147,6 +210,15 @@ async def create_vehicle(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This plate is already registered")
 
+    # Placa reservada por otra cuenta (verificada o con llavero activo): no se
+    # puede registrar acá. Un registro gratuito sin verificar de otra cuenta
+    # NO bloquea — ver plate-check. Sin esto el bloqueo vivía sólo en el frontend.
+    if await _reserved_by_other(re.sub(r"[^A-Z0-9]", "", body.plate.upper()), user_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esta placa ya está verificada o activa en otra cuenta. Si es tuya, contacta a soporte.",
+        )
+
     # Only this account's very first vehicle is eligible for the free trial
     # below — checked before insert so the new row doesn't count itself.
     # Decision (2026-08-07): a taller/empresa that wants a 2nd+ vehicle with
@@ -158,6 +230,18 @@ async def create_vehicle(
         await db.execute(select(func.count(Vehicle.id)).where(Vehicle.owner_id == uid))
     ).scalar() or 0
     is_first_vehicle = other_vehicles_count == 0
+
+    # Cuentas persona: el primer vehículo es gratis, del segundo en adelante
+    # hace falta un llavero comprado sin vehículo (ver _spare_keychains). El
+    # botón del frontend ya lo bloquea, pero sin esta validación cualquiera
+    # podía crear vehículos sin límite llamando al endpoint directo. Los
+    # talleres/empresas no necesitan llavero.
+    if profile.account_type == "persona" and other_vehicles_count >= 1:
+        if await _spare_keychains(uid, db) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Para agregar otro vehículo necesitas comprar un llavero NFC.",
+            )
 
     vehicle = Vehicle(
         owner_id=uid,
@@ -231,6 +315,44 @@ async def update_vehicle(
     for key, val in update_data.items():
         setattr(vehicle, key, val)
 
+    await db.flush()
+    await db.refresh(vehicle)
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return vehicle
+
+
+@router.post("/{vehicle_id}/verification", response_model=VehicleOut)
+async def request_vehicle_verification(
+    vehicle_id: UUID,
+    body: VehicleVerificationRequest,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """El dueño sube la tarjeta de propiedad de ESTE vehículo y queda a la espera
+    de revisión. Por vehículo, no por cuenta (2026-09-19, antes vivía en
+    POST /auth/me/verification) — verificar una tarjeta no puede habilitar
+    transferir/vender otros vehículos de la misma cuenta que nunca se revisaron.
+
+    Deliberadamente no puede pasar a "verified" por sí mismo: subir un archivo no
+    acredita nada, así que este endpoint sólo llega hasta "pending".
+    """
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    if vehicle.verification_status == "verified":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El vehículo ya está verificado")
+    # Ambas caras obligatorias (2026-09-18) — front-only ya no alcanza.
+    if not body.verification_doc_url or not body.verification_doc_url_back:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falta el frente o el reverso del documento")
+
+    vehicle.verification_doc_url = body.verification_doc_url
+    vehicle.verification_doc_url_back = body.verification_doc_url_back
+    vehicle.verification_status = "pending"
+    vehicle.verification_note = ""
+    vehicle.verification_requested_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(vehicle)
     await cache_invalidate_vehicle(str(vehicle_id))

@@ -248,13 +248,21 @@ async def structure_expense_data(raw_text: str) -> dict:
 
 
 _VEHICLE_CARD_SYSTEM_PROMPT = """Eres un extractor de datos de tarjetas de propiedad vehicular de Colombia.
-Recibes el texto OCR crudo de una tarjeta (licencia de tránsito) y devuelves JSON con estas claves exactas:
+Recibes el texto OCR crudo de una tarjeta (licencia de tránsito) — puede ser el frente o el
+reverso, no sabés cuál — y devuelves JSON con estas claves exactas:
   plate            placa en formato ABC-123 (agrega el guión si falta), o null
-  city             ciudad de matrícula, o null
+  city             ciudad/municipio de matrícula, o null. Si no aparece un campo explícito
+                   de ciudad pero sí el organismo de tránsito que expidió el documento (ej.
+                   "SECRETARÍA DE TRÁNSITO Y TRANSPORTE DE DUITAMA", "STT DE ENVIGADO"),
+                   devolvé el municipio que nombra ese organismo — es la misma ciudad de
+                   matrícula, sólo que mencionada de otra forma (esto suele aparecer en el
+                   reverso de la tarjeta, no en el frente).
   brand            marca, ej. "Mazda", o null
   model            línea o modelo, ej. "3 Grand Touring", o null
   year             año modelo como entero, o null
   color            color del vehículo, o null
+  vehicle_class    el campo "CLASE" de la tarjeta tal cual aparece (ej. "AUTOMOVIL",
+                   "CAMPERO", "CAMIONETA", "MOTOCICLETA", "MICROBUS", "CAMION"), o null
   owner_name       nombre completo del propietario, o null
   document_number  cédula o NIT del propietario, sólo dígitos y guiones, o null
 
@@ -272,7 +280,8 @@ async def structure_vehicle_card_data(raw_text: str) -> dict:
     """
     fallback = {
         "plate": None, "city": None, "brand": None, "model": None,
-        "year": None, "color": None, "owner_name": None, "document_number": None,
+        "year": None, "color": None, "vehicle_class": None,
+        "owner_name": None, "document_number": None,
     }
 
     if not raw_text.strip():

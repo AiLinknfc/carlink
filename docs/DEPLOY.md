@@ -185,6 +185,8 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/054_partner_batch_distributed_at.sql
 \i supabase/migrations/055_persona_token_limit_3.sql
 \i supabase/migrations/057_shop_order_activation_delivery.sql
+\i supabase/migrations/058_verification_back_and_body_type.sql
+\i supabase/migrations/059_vehicle_verification_and_owner_name.sql
 ```
 
 **Nota sobre 052 (2026-09-12, confirmada aplicada contra la base real)**: agrega
