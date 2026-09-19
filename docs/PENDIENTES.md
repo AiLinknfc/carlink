@@ -635,6 +635,51 @@ ya no repiten listas de pendientes, solo enlazan aquí.
     variables `NEXT_PUBLIC_*`, pensadas para ir al bundle del navegador, no secretos que
     requieran rotación. Una vez agregadas, re-correr el job de CI del PR.
 
+12e. **Decks de fundraising/M&A afirman una patente que no existe todavía.**
+    `docs/PRESENTATION_FUNDRAISING.md` y `docs/PRESENTATION_M_AND_A.md` dicen "Patent-pending:
+    token provisioning + activation code + QR short + trial logic" y traen un ítem de checklist
+    "Patente NFC protocol: PCT filed, priority date secured" — no se presentó ninguna solicitud
+    todavía, y la investigación de prior art de 2026-09-14 encontró antecedentes densos sobre
+    casi toda esa arquitectura (gift cards con hash-split, batch activation por revendedor). Esto
+    no se sostiene en due diligence real. Corregir esas frases antes de mostrar los decks a
+    cualquier inversor/comprador real. Detalle completo, giro de estrategia (mover la patente de
+    la activación NFC a un mecanismo de scoring de fraude por proveniencia verificada) y pasos a
+    seguir: `docs/PLAN_PATENTE_NFC.md`.
+
+12f0. **Verificación por vehículo (migración `059`) — dato sin migrar todavía (2026-09-18).** Las
+    migraciones `058`/`059` están aplicadas en la base real (columnas confirmadas), pero el `UPDATE`
+    de datos de la `059` usaba un id de vehículo equivocado y **no afectó ninguna fila**: hoy
+    ningún vehículo está `verified`, ni siquiera ZYM-35C, que era el que se había aprobado. Archivo
+    corregido (filtra por placa+dueño). **Falta correr a mano** (el entorno bloqueó escribir en
+    producción): `UPDATE vehicles v SET verification_status='verified', verified_at=p.verified_at,
+    verification_doc_url=p.verification_doc_url, verification_doc_url_back=p.verification_doc_url_back
+    FROM profiles p WHERE v.owner_id=p.id AND p.email='andresypm@gmail.com' AND v.plate='ZYM-35C';`
+    Sin eso, ZYM-35C no puede transferirse/venderse aunque el dueño ya estaba verificado.
+
+12f. **✅ Corregido en local (2026-09-18), sin desplegar.** Comprar el primer llavero desde adentro de la app, para un vehículo ya registrado
+    gratis, quedaba bloqueado — hallazgo real (2026-09-15). `plate-check` ahora devuelve
+    `has_active_keychain` (solo al dueño) y `CartModal` solo bloquea si ya tiene llavero activo.
+    Verificada la consulta contra la base real (ZYM-35C: 1, SDF-45G: 0); el detalle original sigue:
+    `CartModal.tsx` se abre desde el topbar y desde el CTA "sin cupo" de `FichaTab` con
+    `plateText={vehicle?.plate}` ya precargado — es decir, siempre con la placa del vehículo
+    actual. El checkout valida esa placa contra `GET /vehicles/plate-check`
+    (`backend/app/routers/vehicles.py`), que devuelve `exists: true` en cuanto la placa
+    pertenece a CUALQUIER vehículo existente, sin mirar si ya tiene un llavero activo.
+    `CartModal.tsx::canContinue` bloquea "Continuar" siempre que `plateExists` sea true — así
+    que cualquier cliente con un vehículo registrado gratis que intenta comprar su primer
+    llavero (o uno de repuesto) desde adentro de la app se topa con "Ya tienes esta placa
+    registrada en tu cuenta... contáctanos" y tiene que escribirle a soporte por WhatsApp en
+    vez de pagar directo. Reproducido contra el backend real: `POST /vehicles` con placa+ciudad
+    (igual que hace el wizard) + `GET /vehicles/plate-check?plate=<esa placa>` logueado como el
+    dueño → `{"exists": true, "owned_by_you": true}`, que es exactamente la combinación que
+    bloquea. **Arreglo propuesto, no aplicado**: `plate-check` debe distinguir "tuya sin
+    llavero activo" (dejar seguir) de "tuya con llavero ya activo" (preguntar si es
+    repuesto/duplicado, como hoy) de "de otra cuenta" (bloquear, como hoy) — hoy trata las tres
+    igual. El backend ya sabe si el vehículo tiene un token activo (`NfcToken` por
+    `vehicle_id`, `token_type='personal'`), así que `plate-check` puede devolver un campo extra
+    (ej. `has_active_keychain`) y el frontend sólo bloquear cuando `owned_by_you &&
+    has_active_keychain`.
+
 ## 🟢 Prioridad baja / opcional
 
 13. **Fase D de la paridad visual** (`PLAN_PARIDAD_UI_TALLERPRO.md`) — alinear
@@ -1613,3 +1658,48 @@ el backend, no en el frontend. Opciones:
   depender de la URL encrypted en la DB.
 Ambas requieren más testing y cambio en el contrato del endpoint. El fix actual es una solución
 temporal segura que no rompe tokens existentes.
+
+## Plan gratuito y reserva de placas (2026-09-18)
+
+Decidido: el primer vehículo de una cuenta persona es gratis y limitado; del segundo en adelante
+hace falta un llavero comprado (`vehicles.py::_spare_keychains`, `POST /vehicles` responde 403).
+Una placa queda reservada solo por un vehículo verificado o con llavero activo
+(`_reserved_by_other`, 409 en `POST /vehicles`); un registro gratuito sin verificar no bloquea a
+otra cuenta. Al aprobar una verificación (`admin.py::review_verification`) los duplicados
+gratuitos de otras cuentas se marcan en `verification_note` (no se borran) y la respuesta trae
+`duplicates_flagged`. `POST /nfc/activate` también responde 409 si otra cuenta tiene la placa
+reservada, antes de reclamar el código (no lo quema).
+
+Pendiente:
+- **Reglas del plan gratuito — decididas 2026-09-18, sin implementar** (ver `docs/CONTEXTO.md` →
+  "Plan gratuito vs. con llavero"):
+  1. El usuario gratuito **no puede publicar información al exterior** (ficha pública NFC, publicar/
+     vender el vehículo). Hoy el backend ya exige llavero activo para la ficha pública de persona;
+     falta revisar que "publicar/vender" también quede cubierto y que la UI lo explique.
+  2. El **módulo de aceite** (servicio `Aceite`, `InicioView.tsx` / `ServiceFormModal.tsx`) es
+     **gratis** para él.
+  3. **Los demás módulos se ven bloqueados** (candado, sin poder explorarlos) hasta activar un
+     llavero; **al activar el código se liberan**. Implementación pendiente: definir cuáles son
+     "los demás" (todas las pestañas del `Sidebar` salvo Inicio + Aceite, y los otros servicios de
+     `SERVICE_TYPES`), derivar el estado "gratis/activo" de si el vehículo tiene llavero personal
+     activo (`nfc_active`/`nfc_tokens`), y validarlo también en el backend, no solo en la UI.
+  - Supuesto a confirmar: "acite" se interpretó como el servicio **Aceite** (cambio de aceite y filtro).
+- **Códigos que no vienen de la tienda** (partner/campaña/regalo) no habilitan un vehículo extra
+  (el conteo usa `shop_orders`); resolver con el flujo "código y luego wizard de placa nueva".
+- Sin probar contra la base real: las consultas de reserva solo se compilaron para Postgres y se
+  probaron con mocks.
+
+## Commits locales hechos (2026-09-18) — pendientes de push
+
+Se agruparon en 4 commits (la lista original de 7 se colapsó porque `vehicles.py`, `admin.py`,
+`app/app/page.tsx` y `app/page.tsx` mezclan varios temas y no se separan sin `git add -p`):
+
+1. `feat(backend)` — verificación por vehículo, plan gratuito, reserva de placas, migraciones 058/059.
+2. `feat(frontend)` — placa con un solo texto inferior, selector de marca y de color.
+3. `feat(frontend)` — wizard, tutorial guiado, verificación por vehículo, menú de perfil en acordeones.
+4. `docs` — plan gratuito, pruebas funcionales, plan de patente NFC, scripts de QA.
+
+Antes de desplegar: aplicar las migraciones 058/059 **a mano** en la base compartida (ver
+`docs/DEPLOY.md`), correr las suites que apliquen de `docs/PRUEBAS_FUNCIONALES.md`. Los commits
+intermedios no se probaron por separado; el estado final sí (`pytest` 64 pasan, `tsc` limpio).
+Cualquier `git push` requiere autorización fresca del dueño en la sesión.

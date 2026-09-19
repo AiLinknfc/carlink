@@ -259,3 +259,17 @@ refleja el origen del envío más reciente, no un historial acumulado.
 
 - **Nunca hardcodear secretos** (contraseñas de DB, API keys, `ENCRYPTION_KEY`) en archivos versionados — ni en `.env.example`, ni en scripts de `tests/`, ni en archivos `.md`. Ver `docs/DEPLOY.md` para el incidente de credenciales filtradas (2026-07-27) y cómo se resolvió.
 - Las variables reales viven en `backend/.env` (gitignored) para desarrollo local, y en los dashboards de Railway/Vercel para producción — nunca en el repo.
+
+
+## Plan gratuito vs. con llavero (decidido 2026-09-18)
+
+- **Gratis (persona):** puede registrar **un** vehículo y usar el **módulo de aceite**. No puede
+  **publicar información al exterior** (ficha pública NFC, publicar/vender).
+- **Con llavero activado:** al activar el código del llavero se liberan los demás módulos, que para
+  el usuario gratuito se ven **bloqueados y sin poder explorarse**. Cada vehículo adicional requiere
+  su propio llavero comprado (`vehicles.py::_spare_keychains`, `POST /vehicles` → 403 si falta).
+- **Placas:** una placa la reserva solo un vehículo verificado o con llavero activo; un registro
+  gratuito sin verificar no bloquea a otra cuenta, que la reclama verificando su tarjeta de
+  propiedad (`_reserved_by_other`, 409 en `POST /vehicles` y `POST /nfc/activate`).
+- **Talleres/empresas:** no necesitan llavero. Estado de implementación del bloqueo de módulos y
+  la lista final de módulos: ver `docs/PENDIENTES.md` → "Plan gratuito y reserva de placas".
