@@ -30,7 +30,10 @@ export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '
   const displayPlate = getPlateDisplay(plate)
   const cfg = SIZE_CONFIG[size]
   const showCol = showLabel && cfg.fontLabel > 0
-  const showCityVal = showCity && city && cfg.fontCity > 0
+  // Un solo texto inferior: si va COLOMBIA, no se dibuja la ciudad.
+  const showCityVal = !showCol && showCity && cfg.fontCity > 0
+  // Sin ciudad elegida todavía, la placa dice "CIUDAD" hasta que se seleccione.
+  const cityText = city || 'CIUDAD'
   const s = fontScale
 
   return (
@@ -43,19 +46,22 @@ export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '
         maxWidth: maxWidth || '92vw',
         borderRadius: cfg.radius,
         boxShadow: cfg.shadow,
+        // Tipografía proporcional al ancho real de la placa (cqw): si maxWidth
+        // la encoge en pantallas chicas, los textos escalan igual, en todos los usos.
+        containerType: 'inline-size',
       }}
     >
+      <div className={styles['plate-number']} style={{ color: inkColor, fontSize: `${(cfg.fontNumber * s / cfg.width) * 100}cqw` }}>
+        {displayPlate}
+      </div>
       {showCol && (
-        <div className={styles['plate-label']} style={{ color: subColor, fontSize: cfg.fontLabel * s }}>
+        <div className={styles['plate-label']} style={{ color: subColor, fontSize: `${(cfg.fontLabel * s / cfg.width) * 100}cqw` }}>
           COLOMBIA
         </div>
       )}
-      <div className={styles['plate-number']} style={{ color: inkColor, fontSize: cfg.fontNumber * s }}>
-        {displayPlate}
-      </div>
       {showCityVal && (
-        <div className={styles['plate-city']} style={{ color: subColor, fontSize: cfg.fontCity * s }}>
-          {city}
+        <div className={styles['plate-city']} style={{ color: subColor, fontSize: `${(cfg.fontCity * s / cfg.width) * 100}cqw` }}>
+          {cityText}
         </div>
       )}
       <div className={styles['plate-shine']} />

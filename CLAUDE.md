@@ -13,6 +13,11 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
 - `docs/INCIDENT_RESPONSE.md` — protocolo para bugs críticos de producción (datos reales de por
   medio, objetos físicos irreversibles como llaveros NFC/QR). Leer **antes** de tocar cualquier
   dato de producción, no después.
+- `docs/PRUEBAS_FUNCIONALES.md` — **único** checklist de pruebas funcionales manuales del
+  proyecto (mismo criterio que PENDIENTES.md: no crear otro en ningún doc nuevo ni viejo). Correr
+  las suites que aplican antes de desplegar algo que las toque; agregar una suite nueva cuando se
+  construya una sección grande de la app. Usa `backend/scripts/qa_test_account.py` para la cuenta
+  de pruebas — nunca una cuenta real.
 - Los `docs/PLAN_*.md` — historial detallado de features grandes ya construidas (fase por fase, con
   qué se verificó) — leer solo si necesitás el detalle de cómo se construyó algo específico.
 
@@ -33,6 +38,13 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    improvisar el protocolo cada vez. En particular: verificar el fix contra el proceso local ya
    reiniciado (o el dominio real con `curl`) antes de pedir/dar el push — que compile y pase
    tsc/vitest no es lo mismo que haber probado el fix en sí.
+6. **Nunca publicar un Artifact (preview visual, landing, mockup, etc.) sin que el usuario lo haya
+   pedido explícitamente.** Si armar uno ayudaría (ej. mostrar un cambio visual antes de
+   desplegarlo), preguntar primero qué se va a mostrar y esperar el OK — no publicar y avisar
+   después (2026-09-11: se publicó una preview sin pedirla; el usuario aclaró que decide él si
+   quiere ese tipo de página, no algo que se ofrece solo). Nota aparte: el Artifact tool no tiene
+   acción para borrar/despublicar algo ya publicado — si hay que revertir uno, hay que decírselo al
+   usuario en vez de asumir que se puede deshacer.
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
 solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.

@@ -7,7 +7,19 @@ export interface Vehicle {
   model: string;
   year: number;
   type: string;
+  body_type?: string;
   color: string;
+  /** Nombre del propietario según la tarjeta escaneada — separado de
+   * profile.full_name (2026-09-19), puede ser otra persona. */
+  owner_name?: string;
+  /** Verificación de identidad, por vehículo — no por cuenta (2026-09-19,
+   * antes vivía en Profile). Gatea transferir/vender ESTE vehículo. */
+  verification_status?: string;
+  verification_doc_url?: string;
+  verification_doc_url_back?: string;
+  verification_note?: string;
+  verification_requested_at?: string | null;
+  verified_at?: string | null;
   image_url: string;
   nfc_active: boolean;
   sell_enabled: boolean;
@@ -37,6 +49,12 @@ export interface MaintenanceRecord {
   cost: number;
   lubricant_brand: string;
   lubricant_type: string;
+  /** Producto exacto del catálogo elegido en el wizard de Aceite (ej. "Mobil 1 ESP
+   * 5W-30"), o "" si se escribió libre / no es un registro de Aceite. Migración
+   * 052 aplicada 2026-09-12. Solo lo muestra el propio formulario; el resto de
+   * pantallas (historial, ficha, escaneo NFC) siguen usando
+   * lubricant_brand/lubricant_type como siempre. */
+  lubricant_product: string;
   next_service_mileage: number | null;
   /** Presente si un taller lo creó solo al entregar/cobrar una orden — el
    * frontend lo muestra sin edición. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
@@ -541,9 +559,6 @@ export interface FoundRequest {
   vehicle_plate: string;
   vehicle_brand: string;
   vehicle_model: string;
-  owner_name: string;
-  owner_email: string;
-  owner_whatsapp: string;
 }
 
 export interface NfcTokenPublicInfo {
@@ -571,7 +586,6 @@ export interface NfcTokenPublicInfo {
   vehicle_condition: string;
   published_at: string | null;
   owner_whatsapp: string;
-  owner_name: string;
   lost_keychain_enabled: boolean;
 }
 
@@ -589,6 +603,7 @@ export type MaintenanceCreate = {
   cost?: number;
   lubricant_brand?: string;
   lubricant_type?: string;
+  lubricant_product?: string;
   next_service_mileage?: number;
 };
 export type MaintenanceUpdate = Partial<MaintenanceCreate>;
@@ -903,6 +918,8 @@ export interface NfcWhitelistEntry {
   provisioned_by_partner_id: string | null;
   partner_batch_id: string | null;
   partner_name: string;
+  suspended_at: string | null;
+  distributed_at: string | null;
 }
 
 export interface NfcWhitelistProvisionResult {
@@ -985,6 +1002,7 @@ export interface PartnerBatch {
   total: number;
   claimed: number;
   note: string;
+  distributed_at: string | null;
 }
 
 export interface PartnerToken {
@@ -995,6 +1013,7 @@ export interface PartnerToken {
   qr_url: string | null;
   partner_batch_id: string | null;
   created_at: string;
+  distributed_at: string | null;
 }
 
 export interface PartnerAdminView {
@@ -1046,6 +1065,7 @@ export interface ShopOrderDetail {
   shipped_at: string | null;
   delivered_at: string | null;
   tracking_note: string;
+  activation_codes: string[];
 }
 
 export interface ShopOrderStats {

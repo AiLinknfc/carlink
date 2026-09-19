@@ -5,6 +5,7 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import { STAR_PATH } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
+import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 
 interface NavItem {
   id: string; label: string; icon: ReactNode
@@ -52,6 +53,20 @@ interface Props {
   vehicles?: { id: string; plate: string; brand?: string; model?: string }[]
   activeVehicleId?: string
   onSwitchVehicle?: (id: string) => void
+  /** Fuerza el rail expandido en desktop (con etiquetas) sin depender del
+   * hover — usado por el tutorial guiado post-wizard para poder resaltar
+   * los items de navegación con su texto visible. No toca `railExpanded`,
+   * así que al soltarse el rail vuelve a su comportamiento normal. */
+  forceExpanded?: boolean
+  /** Ídem para el cajón móvil (`mobileOpen`) — lo mantiene abierto sin
+   * pisar el estado real del toggle del usuario. */
+  forceOpen?: boolean
+  /** Desactiva foco y click en todo el rail (atributo HTML `inert`, no CSS)
+   * mientras el wizard obligatorio está abierto — antes el rail seguía
+   * siendo alcanzable por teclado (Tab) aunque quedara tapado visualmente
+   * por el overlay del wizard, dejando una vía para "saltarse" el registro
+   * del vehículo sin completarlo (2026-09-19, hallazgo del usuario). */
+  inert?: boolean
 }
 
 const ALL_NAV_ITEMS: NavItem[] = [
@@ -74,7 +89,7 @@ const TALLER_NAV_ITEMS: NavItem[] = [
   ALL_NAV_ITEMS[6],
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, forceExpanded, forceOpen, inert }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -111,9 +126,15 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
 
   /* En móvil el cajón siempre va expandido: mide 266px de ancho, así que
      mostrarlo en modo compacto dejaba los iconos centrados y sin texto. */
-  const expanded = isMobile ? true : railExpanded
+  const expanded = isMobile ? true : (forceExpanded || railExpanded)
 
   const railWidth = expanded ? 266 : 76
+
+  /* Visibilidad real del cajón móvil: `mobileOpen` es el toggle del usuario
+     (hamburguesa/backdrop) y no se toca acá — `forceOpen` solo se suma para
+     decidir qué se pinta, así el tutorial puede mantenerlo abierto durante
+     su paso sin dejar el estado del usuario corrompido al soltarlo. */
+  const mobileVisible = mobileOpen || !!forceOpen
 
   /* El contenido tenía marginLeft fijo en 266px: al encogerse el rail a 76px
      quedaba un hueco muerto de 190px y el tablero no reflowaba. */
@@ -216,9 +237,9 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
   }
 
   return (
-    <>
+    <div inert={inert || undefined}>
       {/* Mobile hamburger button */}
-      {isMobile && !mobileOpen && (
+      {isMobile && !mobileVisible && (
         <button
           onClick={() => setMobileOpen(true)}
           style={{
@@ -237,7 +258,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       )}
 
       {/* Mobile overlay backdrop */}
-      {isMobile && mobileOpen && (
+      {isMobile && mobileVisible && (
         <div
           onClick={() => setMobileOpen(false)}
           style={{
@@ -248,10 +269,11 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
       )}
 
     <aside
+      data-tour="sidebar-nav"
       onMouseEnter={() => { if (!isMobile) setRailExpanded(true) }}
       onMouseLeave={() => { if (!isMobile) setRailExpanded(false) }}
       style={{
-        position: 'fixed', left: isMobile ? (mobileOpen ? 0 : -266) : 0, top: 0, bottom: 0, width: railWidth,
+        position: 'fixed', left: isMobile ? (mobileVisible ? 0 : -266) : 0, top: 0, bottom: 0, width: railWidth,
         background: sidebarBg, backdropFilter: 'blur(24px)',
         borderRight: `1px solid ${sidebarBorder}`,
         display: 'flex', flexDirection: 'column', zIndex: isMobile ? 30 : 30,
@@ -352,7 +374,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
           {plateText && (
             <div style={{ width: 134, height: 66, margin: '4px 0 0', position: 'relative', overflow: 'visible', pointerEvents: 'none' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, transform: 'scale(0.3)', transformOrigin: 'top left' }}>
-                <Plate3D plate={plateText} city={city || ''} />
+                <Plate3D plate={plateText} city={city || ''} showLabel={plateShowsCountryLabel(vehicle.tipo)} showCity={plateShowsCity(vehicle.tipo)} />
               </div>
             </div>
           )}
@@ -446,6 +468,6 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         </div>
       )}
     </aside>
-    </>
+    </div>
   )
 }

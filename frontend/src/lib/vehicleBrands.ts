@@ -249,3 +249,42 @@ export const COLORS = [
   { name: 'Verde', hex: '#16a34a' }, { name: 'Dorado', hex: '#ca8a04' },
   { name: 'Naranja', hex: '#ea580c' }, { name: 'Marrón', hex: '#78350f' },
 ]
+
+/* El color que trae la tarjeta escaneada suele venir compuesto ("Verde
+   Esmeralda", "Gris Plata") y no matchea ningún nombre de COLORS por
+   igualdad exacta. En vez de perder el dato, se busca si el nombre de
+   alguno de los 10 colores de la paleta aparece como palabra dentro del
+   texto crudo — con eso "Verde Esmeralda" cae en "Verde". Si no matchea
+   nada, se devuelve el texto crudo tal cual (ColorPickerButton lo sigue
+   mostrando, solo que sin swatch resaltado) — ajustar la paleta a tonos
+   reales queda para más adelante (2026-09-18). */
+export function matchColorKeyword(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const upper = raw.toUpperCase()
+  const hit = COLORS.find(c => upper.includes(c.name.toUpperCase()))
+  return hit ? hit.name : raw
+}
+
+/* Mapea el campo "CLASE" de una tarjeta de propiedad colombiana (texto
+   crudo del OCR, con ruido) a la carrocería de VEHICLE_TYPES de arriba. El
+   orden importa: CAMIONETA debe probarse antes que CAMION (si no,
+   "CAMIONETA" cae en Pickup por contener "CAMION" como substring). Si nada
+   matchea, devuelve '' — no se fuerza ningún default a lo ciego, eso lo
+   decide quien llama (2026-09-18, StepVehiculo.tsx). */
+const BODY_TYPE_KEYWORDS: [RegExp, string][] = [
+  [/MOTO/, 'Moto'],
+  [/CAMIONETA|PICK.?UP/, 'Camioneta'],
+  [/CAMPERO|CROSSOVER/, 'SUV'],
+  [/MICROBUS|BUSETA|\bBUS\b|FURG[OÓ]N|\bVAN\b/, 'Furgoneta'],
+  [/CAMI[OÓ]N/, 'Pickup'],
+  [/COUPE|DEPORTIVO/, 'Deportivo'],
+  [/HATCHBACK/, 'Hatchback'],
+  [/AUTOM[OÓ]VIL|SED[AÁ]N/, 'Auto'],
+]
+
+export function normalizeBodyType(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const upper = raw.toUpperCase()
+  for (const [re, label] of BODY_TYPE_KEYWORDS) if (re.test(upper)) return label
+  return ''
+}

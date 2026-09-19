@@ -641,6 +641,14 @@ export default function GaleriaTab({ vehicleId }: Props) {
         <p style={{ color: 'var(--text-2)', margin: 0 }}>
           Toca cada espacio para subir fotos. Toca el título de la foto para editarlo.
         </p>
+        {/* Aviso al momento de subir, no gating al traspasar el vehículo —
+            ver docs/PENDIENTES.md ítem 13. Estas fotos viajan con el
+            vehículo si algún día lo vendés, incluidas las de antes de una
+            venta (a diferencia de documentos/facturas, no tienen ningún
+            bloqueo posterior). */}
+        <p style={{ color: 'var(--text-3)', fontSize: 12.5, margin: '6px 0 0', lineHeight: 1.5 }}>
+          Evitá incluir personas o documentos personales visibles — estas fotos quedan con el vehículo, incluido un futuro comprador si lo vendés.
+        </p>
         <button onClick={() => { setSlotName(''); setShowSlotModal(true) }} style={{
           marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 8,
           padding: '12px 20px', borderRadius: 12,

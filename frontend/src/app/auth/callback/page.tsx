@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase, apiUrl } from '@/lib/supabase'
 import { isBusinessAccount } from '@/lib/constants'
 
 function CallbackPageContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -39,36 +38,20 @@ function CallbackPageContent() {
         console.warn('[callback] profile fetch failed:', e)
       }
 
-      try {
-        const res = await fetch(apiUrl('/vehicles'), {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const vehicles = await res.json()
-          if (vehicles?.length > 0) {
-            router.push('/app')
-            return
-          }
-          // Sin vehículos → /register para que registre uno
-        } else {
-          // Backend devolvió error (500, timeout, etc.) — mejor dejarlo dentro de /app
-          console.warn('[callback] /vehicles returned', res.status)
-          router.push('/app')
-          return
-        }
-      } catch (e) {
-        // Error de red / proxy — mejor dejarlo dentro de /app
-        console.warn('[callback] fetch failed:', e)
-        router.push('/app')
+      // Alguien que arrancó el signup eligiendo "empresa" (LoginModal guardó
+      // el modo en sessionStorage antes del redirect de auth) todavía tiene
+      // account_type='persona' acá — el paso a 'taller' sólo ocurre cuando
+      // POST /workshops crea el Workshop, en /register. Sigue yendo ahí.
+      if (registerMode === 'empresa') {
+        router.push('/register?mode=empresa')
         return
       }
 
-      // Solo llega aquí si la llamada fue ok pero no tiene vehículos
-      if (registerMode === 'empresa') {
-        router.push('/register?mode=empresa')
-      } else {
-        router.push('/register')
-      }
+      // Persona (incluido un usuario nuevo sin vehículos todavía) entra
+      // directo a /app — el wizard de onboarding (`OnboardingWizard`) es
+      // quien ahora registra el primer vehículo, ya no /register (2026-09-15,
+      // consolidación pedida por el usuario).
+      router.push('/app')
     })
   }, [router])
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/store/auth'
 import { uploadFile } from '@/lib/upload'
 import { jobApplicationApi } from '@/lib/api'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import Link from 'next/link'
 
 const ACTIVE_OFFERS = [
@@ -113,7 +114,7 @@ export default function TrabajaPage() {
     const offerLine = selectedOffer ? `\n• Oferta de interés: ${selectedOffer}` : ''
     const cvLine = cvUrl ? `\n• Hoja de vida: ${cvUrl}` : cvName ? `\n• Hoja de vida adjunta: ${cvName}` : ''
     const whatsappMsg = `¡Hola CarLink! Quiero hacer parte del equipo\n• Nombre: ${name}\n• Email: ${email}\n• WhatsApp: ${phone}\n• Área: ${area}${offerLine}${cvLine}${message ? `\n• Mensaje: ${message}` : ''}`
-    window.open(`https://wa.me/573164976104?text=${encodeURIComponent(whatsappMsg)}`, '_blank')
+    window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(whatsappMsg)}`, '_blank')
 
     setSaving(false)
     setSubmitted(true)

@@ -8,8 +8,7 @@ import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
-import { ServiceIcon, NfcKeyIcon } from '@/lib/icons_new'
-import CarLinkLogo from '@/components/CarLinkLogo'
+import { ServiceTypeIcon, NfcKeyIcon } from '@/lib/icons_new'
 import { isPdf, proxyUrl } from '@/lib/upload'
 import ExpenseScanModal from '@/components/ExpenseScanModal'
 import type { Vehicle, MaintenanceRecord, FuelSummary, VehicleExpense } from '@/lib/types'
@@ -56,6 +55,10 @@ interface FichaTabProps {
   onOpenPublicar: () => void
   onOpenTransfer: () => void
   transferLocked?: boolean
+  /** Función en pruebas (2026-09-18, pedido del usuario) — el botón entero
+   * se oculta para cualquiera que no sea la cuenta admin, en vez de mostrar
+   * "Requiere perfil verificado" a todo el mundo mientras se prueba. */
+  showTransfer?: boolean
   onNavigate: (tab: string) => void
   toggleNfcActive: () => void
   refreshKey?: number
@@ -75,7 +78,7 @@ interface FichaTabProps {
   isNfcPublished?: boolean
 }
 
-export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, onNavigate, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain, isNfcPublished = false }: FichaTabProps) {
+export default function FichaTab({ vehicle, onAddService, onEditService, onOpenPublicar, onOpenTransfer, transferLocked, showTransfer = false, onNavigate, toggleNfcActive, refreshKey, theme, onAddVehicle, keychainAvailable, onBuyKeychain, isNfcPublished = false }: FichaTabProps) {
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
@@ -525,7 +528,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ position: 'relative', width: 150, height: 150, borderRadius: '50%', background: `conic-gradient(from 135deg, ${oilColorDyn} 0deg ${oilDegDyn}deg, ${gaugeTrack} ${oilDegDyn}deg 270deg, transparent 270deg 360deg)`, filter: 'drop-shadow(0 0 14px rgba(245,197,24,0.25))' }}>
               <div style={{ position: 'absolute', inset: 12, borderRadius: '50%', background: gaugeInnerBg, border: `1px solid ${gaugeBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill={oilColorDyn} style={{ marginBottom: 2 }}><path d="M12 2c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11z"/></svg>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill={oilColorDyn} style={{ marginBottom: 2 }}><path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z"/></svg>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, lineHeight: 1, color: oilColorDyn }}>{oilPctDyn}%</div>
                 <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, marginTop: 2 }}>Vida aceite</div>
               </div>
@@ -628,13 +631,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 border: t.tracked ? `1.5px solid ${t.color}` : `1.5px dashed ${t.color}`,
                 color: t.color, opacity: !t.tracked ? 0.9 : t.critical ? 1 : 0.75,
                 animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
-              {t.iconKey === 'brakes' && <ServiceIcon type="Frenos" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'tire' && <CarLinkLogo size={26} />}
-              {t.iconKey === 'battery' && <ServiceIcon type="Batería" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'temp' && <ServiceIcon type="Refrigerante" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'filter' && <ServiceIcon type="Aire" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'suspension' && <ServiceIcon type="Suspensión" size={20} strokeWidth={1.5} />}
-              {t.iconKey === 'transmission' && <ServiceIcon type="Transmisión" size={20} strokeWidth={1.5} />}
+              {t.iconKey === 'brakes' && <ServiceTypeIcon type="Frenos" size={20} />}
+              {t.iconKey === 'tire' && <ServiceTypeIcon type="Llantas" size={20} />}
+              {t.iconKey === 'battery' && <ServiceTypeIcon type="Batería" size={20} />}
+              {t.iconKey === 'temp' && <ServiceTypeIcon type="Refrigerante" size={20} />}
+              {t.iconKey === 'filter' && <ServiceTypeIcon type="Aire" size={20} />}
+              {t.iconKey === 'suspension' && <ServiceTypeIcon type="Suspensión" size={20} />}
+              {t.iconKey === 'transmission' && <ServiceTypeIcon type="Transmisión" size={20} />}
             </button>
           ))}
         </div>
@@ -680,13 +683,13 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             : t.pct <= 0.5
               ? `${quien} pasó la mitad de su vida útil — le quedan ${Math.round(t.pct * 100)}% de su intervalo. Ve agendando la revisión.`
               : `${quien} está dentro de su vida útil normal.`
-        const iconSvg = t.iconKey === 'brakes' ? <ServiceIcon type="Frenos" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'tire' ? <CarLinkLogo size={29} />
-          : t.iconKey === 'filter' ? <ServiceIcon type="Aire" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'suspension' ? <ServiceIcon type="Suspensión" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'transmission' ? <ServiceIcon type="Transmisión" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'battery' ? <ServiceIcon type="Batería" size={22} strokeWidth={1.5} />
-          : t.iconKey === 'temp' ? <ServiceIcon type="Refrigerante" size={22} strokeWidth={1.5} />
+        const iconSvg = t.iconKey === 'brakes' ? <ServiceTypeIcon type="Frenos" size={22} />
+          : t.iconKey === 'tire' ? <ServiceTypeIcon type="Llantas" size={22} />
+          : t.iconKey === 'filter' ? <ServiceTypeIcon type="Aire" size={22} />
+          : t.iconKey === 'suspension' ? <ServiceTypeIcon type="Suspensión" size={22} />
+          : t.iconKey === 'transmission' ? <ServiceTypeIcon type="Transmisión" size={22} />
+          : t.iconKey === 'battery' ? <ServiceTypeIcon type="Batería" size={22} />
+          : t.iconKey === 'temp' ? <ServiceTypeIcon type="Refrigerante" size={22} />
           : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V6.2a1.6 1.6 0 0 1 1.6-1.6h4.8A1.6 1.6 0 0 1 12 6.2V21"/><path d="M4 12.5h8"/><path d="M4 21h8"/><path d="M12 8.4l3 2.6v6.6a1.4 1.4 0 0 0 2.8 0v-4.8l-2.2-2.2"/></svg>
 
         return createPortal(
@@ -926,7 +929,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                         cursor: 'default',
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: item.isActive ? '#F5C518' : item.isExpired ? '#ff4d6a' : cMuted, fontSize: 11, fontWeight: 700 }}>
-                          <span style={{ flex: '0 0 auto', display: 'flex' }}><ServiceIcon type={item.key} size={13} /></span>{item.title}
+                          <span style={{ flex: '0 0 auto', display: 'flex' }}><ServiceTypeIcon type={item.key} size={13} /></span>{item.title}
                           {item.isActive && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto' }}><path d="M20 6L9 17l-5-5"/></svg>}
                           {item.isExpired && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto' }}><path d="M18 6L6 18M6 6l12 12"/></svg>}
                         </div>
@@ -1035,6 +1038,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 </button>
               )
             })()}
+            {showTransfer && (
             <button onClick={onOpenTransfer} title={transferLocked ? 'Requiere perfil verificado' : undefined} style={{
               position: 'relative', overflow: 'hidden',
               opacity: transferLocked ? 0.55 : 1,
@@ -1056,6 +1060,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 borderRadius: 999, padding: '2px 8px', flex: '0 0 auto',
               }}>Próximamente</span>
             </button>
+            )}
 
           </div>
         </div>

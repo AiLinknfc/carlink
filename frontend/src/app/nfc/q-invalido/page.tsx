@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 
 /* A dónde redirige GET /api/nfc/q/{slug} (backend/app/routers/nfc.py,
    access_via_qr) cuando el slug no resuelve a ninguna ficha — la causa más
@@ -38,7 +39,7 @@ export default function QrInvalidoPage() {
         <a href={isAuthed ? '/app' : '/'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', boxSizing: 'border-box' }}>
           {isAuthed ? 'Ir al panel' : 'Ir a CarLink para activarlo'}
         </a>
-        <a href="https://wa.me/573164976104?text=Hola%2C%20escane%C3%A9%20un%20llavero%20CarLink%20y%20me%20dice%20que%20no%20est%C3%A1%20activado" target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginTop: 14, fontSize: 12, color: '#7c786e', textDecoration: 'none' }}>
+        <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, escaneé un llavero CarLink y me dice que no está activado')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginTop: 14, fontSize: 12, color: '#7c786e', textDecoration: 'none' }}>
           Ya lo activaste y ves este mensaje? Escribinos por WhatsApp
         </a>
       </div>

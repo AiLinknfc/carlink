@@ -18,7 +18,7 @@
 .plate:hover {
   transform: perspective(800px) rotateY(-6deg) rotateX(2deg);
 }
-.plate-label { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; flex-shrink: 0; line-height: 1.2; margin-bottom: 1px; }
+.plate-label { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; flex-shrink: 0; line-height: 1.2; margin-top: 1px; }
 .plate-number { font-family: var(--font-display); letter-spacing: .03em; line-height: 1; text-align: center; text-shadow: 0 2px 0 rgba(255,255,255,.28); flex-shrink: 0; }
 .plate-city { text-align: center; font-weight: 700; letter-spacing: .26em; padding: 0; text-indent: .26em; text-transform: uppercase; flex-shrink: 0; line-height: 1.2; margin-top: 1px; }
 .plate-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.6) 48%, transparent 66%); animation: shineSweep 6s ease-in-out infinite; pointer-events: none; }

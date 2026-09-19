@@ -10,6 +10,7 @@
 | `next_service_mileage` | int? | Kilometraje estimado del **próximo servicio de este tipo** (`currentKm + lifespan_km`) |
 | `lubricant_brand` | text | Marca del aceite (solo servicios Aceite) |
 | `lubricant_type` | text | Tipo/viscosidad del aceite (solo servicios Aceite) |
+| `lubricant_product` | text | Producto exacto del catálogo elegido en el wizard de Aceite (ej. "Mobil 1 ESP 5W-30"), o `''` si se escribió marca/viscosidad libre. Migración 052. Solo lo usa el propio formulario (vista previa) — historial, ficha y escaneo NFC siguen mostrando `lubricant_brand`/`lubricant_type` como siempre |
 
 ### Tabla `parts`
 | Campo | Tipo | Descripción |
@@ -34,6 +35,22 @@ Usuario selecciona tipo → Ingresa datos específicos → Ingresa kilometraje
                                               Backend crea/actualiza Part(s) asociadas
                                               Backend invalida cache del vehículo
 ```
+
+**Caso especial: Aceite (2026-09-12).** En vez del formulario plano de arriba, `ServiceFormModal.tsx`
+muestra un wizard corto de 3 pasos solo para este tipo de servicio — el resto sigue con el formulario
+plano de siempre:
+
+1. **Producto** — Marca (autocomplete con logo contra `frontend/src/lib/oilCatalog.ts`, generado desde
+   un catálogo real de 40 productos de motor / 12 marcas) → Producto/línea (autocomplete filtrado por
+   la marca, opcional) → Tipo/viscosidad (se autocompleta solo al elegir un producto, o se escribe
+   libre como antes) → Filtro de aceite.
+2. **Datos generales** — Kilometraje, fecha, taller, costo (mismos campos/validación de siempre).
+3. **Confirmar** — Predicción de vida útil, próximo servicio (km), vista previa.
+
+Elegir un producto del catálogo autocompleta viscosidad y `lubricant_product` a la vez; si la marca no
+está en el catálogo o el usuario prefiere texto libre, ambos campos se comportan como antes (no bloquea
+nada). El cálculo de vida útil sigue dependiendo solo de `lubricant_type` (viscosidad) vía
+`LUBRICANT_RULES` — el catálogo no cambia esa lógica, solo ayuda a completar los campos.
 
 ### Cálculo automático del próximo servicio
 

@@ -212,7 +212,6 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
     if (result) { flash('Certificado actualizado'); setEditingCert(null) }
   }, [editingCert, editName, editExpiry, updateCertificate, flash])
 
-  const isEmpty = !loading && certificates.length === 0
 
   return (
     <div style={{ animation: 'sectionIn .55s both', maxWidth: 880 }}>
@@ -476,29 +475,11 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
         </div>
       )}
 
-      {/* Empty state — example cards the client can add */}
-      {isEmpty && (
-        <div style={{ animation: 'textIn .5s .1s both' }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 700, marginBottom: 12 }}>Ejemplos — toca para agregar</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 12 }}>
-            {CERTIFICATE_TYPES.map(ct => (
-              <button key={ct.type} onClick={() => openCreateModal(ct.name)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, background: 'var(--surface-2)', border: '1px dashed var(--border-2)', cursor: 'pointer', textAlign: 'left', color: 'inherit', transition: 'border-color .18s, background .18s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.5)'; e.currentTarget.style.background = 'rgba(245,197,24,0.06)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-2)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
-                <span style={{ width: 40, height: 40, borderRadius: 11, flex: '0 0 auto', background: 'rgba(245,197,24,0.12)', color: '#F5C518', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CertIcon type={ct.type} size={20} /></span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{ct.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>Agregar
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Certificate cards — always show CERTIFICATE_TYPES as fixed slots, like DocumentosTab */}
+      {/* Certificate cards — always show CERTIFICATE_TYPES as fixed slots, like DocumentosTab.
+         Antes había además un grid de "Ejemplos — toca para agregar" con los mismos 6 tipos
+         cuando la lista estaba vacía (isEmpty) — era enteramente redundante con este grid de
+         abajo, que ya muestra esos mismos 6 slots reales con "Sin archivo adjunto" y su propio
+         tap-to-add (FileCard ya soporta estado vacío) — se retiró (2026-09-18, pedido del usuario). */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16, animation: 'textIn .5s .1s both' }}>
         {CERTIFICATE_TYPES.map(ct => {
           const cert = certificates.find((c: Certificate) => {

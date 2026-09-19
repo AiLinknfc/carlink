@@ -164,6 +164,23 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
               <div style={{ fontSize: 12, color: muted, marginBottom: 14 }}><strong style={{ color: text }}>Seguimiento:</strong> {order.tracking_note}</div>
             )}
 
+            {/* Código(s) de activación — entrega digital, reemplaza el
+                impreso (docs/PENDIENTES.md item 5). Solo aparece si el
+                backend logró asignar stock elegible al pedido. */}
+            {order.activation_codes.length > 0 && (
+              <div style={{ padding: 14, borderRadius: 12, marginBottom: 14, background: 'rgba(245,197,24,0.1)', border: `1px solid rgba(245,197,24,0.3)` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: text, marginBottom: 8 }}>
+                  {order.activation_codes.length > 1 ? 'Tus códigos de activación' : 'Tu código de activación'}
+                </div>
+                {order.activation_codes.map((code, i) => (
+                  <div key={i} style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 700, color: GOLD, letterSpacing: '.05em', marginBottom: 4 }}>{code}</div>
+                ))}
+                <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>
+                  Cuando llegue tu llavero, entrá a "Mi llavero" → "Activar" y escribí este código.
+                </div>
+              </div>
+            )}
+
             {/* Item */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: GOLD, flexShrink: 0 }} />

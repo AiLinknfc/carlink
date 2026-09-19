@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { ServiceIcon } from '@/lib/icons_new'
+import { ServiceTypeIcon } from '@/lib/icons_new'
 
 /* Sticky-stack tuning: each card sticks a little lower + a little more
    "in front" than the previous one, so scrolling reveals a fanned deck
@@ -119,7 +119,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
                     background: 'linear-gradient(135deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05))',
                     border: `1px solid ${theme.accent}88`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.accent,
-                  }}><ServiceIcon type={r.service_type} size={18} /></span>
+                  }}><ServiceTypeIcon type={r.service_type} size={18} /></span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: theme.accent, fontWeight: 800 }}>CarLink Service Record</div>
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
