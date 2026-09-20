@@ -270,6 +270,37 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
 
+## En curso: WhatsApp automático + analítica (2026-09-20)
+
+- **Analítica first-party — construida localmente, sin commit ni push.** Migración `060_analytics_events.sql`
+  (aplicada y verificada contra la Supabase real: tabla + RLS activado sin políticas), endpoints
+  `POST /api/analytics/events` (público, en lote, rate-limit) y `GET /api/analytics/summary` (admin),
+  `frontend/src/lib/analytics.ts` (`track()`), `PageViewTracker`, embudos de compra y de
+  registro/activación, panel "Analítica" en `/admin`. Verificado: ingesta 204, nombre de evento inválido
+  422, resumen sin auth 401, resumen con datos reales (luego borrados). **Falta**: revisión visual del
+  panel en el navegador, y desplegar (necesita push autorizado). PostHog (replays) queda para después.
+- **WhatsApp Plan B (2026-09-20) — el cliente escribe primero.** Meta bloquea crear plantillas en la
+  WABA `2590927411358491` (error `2388185`, incluso por API y con método de pago agregado; "Payment
+  configurations" da "no puedes acceder... contactá Meta Business Engineering"). Mientras tanto: tras
+  el pago, `CartModal` muestra el botón "Recibir mi código por WhatsApp" (abre chat con
+  `+57 316 4976104` y la referencia `CLK-...`); el webhook entrante
+  (`whatsapp_webhook._reply_activation_code`) responde con el código SOLO si el número que escribe
+  coincide con el celular del pedido y está aprobado (con cuenta: solo aviso "Mis pedidos"; tope 5
+  respuestas por pedido; dedupe de reintentos de Meta). 27 tests. **No probado de punta a punta**:
+  requiere desplegar el backend (push autorizado), variables de WhatsApp en Railway y registrar el
+  webhook en Meta con los campos `messages`. Soporte de Meta: caso por `2388185` / WABA arriba.
+- **WhatsApp Cloud API — servicio construido localmente (sin commit/push), falta configurar Meta.**
+  Migración `061_whatsapp_messages.sql` aplicada y verificada; `services/whatsapp.py`, envío en
+  `_notify_order_approved`, `POST /shop/orders/{ref}/whatsapp-resend` (admin), webhook firmado
+  `GET|POST /api/webhooks/whatsapp`, checkbox de consentimiento (desmarcado por defecto) en `CartModal`.
+  Tests: 91 passed. **Falta**: (1) el número real `+57 316 4976104` (Phone Number ID
+  `1376166688907871`, CONNECTED/LIVE) está en una WABA distinta a `1078907358308647` — hay que
+  crear ahí las plantillas `codigo_activacion_carlink` y `codigo_listo_carlink` (es) y aprobarlas;
+  (2) poner `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` en
+  `backend/.env` y Railway; (3) registrar el webhook en Meta tras desplegar; (4) botón "Reenviar" en
+  la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
+  (ventana de 24 h) — por eso todo va con plantilla.
+
 ## 🔴 Prioridad alta
 
 1. **`DEEPSEEK_API_KEY` no está configurada en Railway** (confirmado por el usuario, 2026-08-07).

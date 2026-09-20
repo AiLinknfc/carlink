@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { track } from '@/lib/analytics'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/store/auth'
@@ -98,6 +99,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
     setIsSubmitting(true)
     setStep('loading')
+    if (mode === 'signup') track('signup_submit')
 
     const result = mode === 'signin'
       ? await signInWithEmail(email, password)

@@ -2,6 +2,21 @@
 
 _Última actualización: 2026-09-09._
 
+## Analítica propia y WhatsApp automático (2026-09-20, en local, sin desplegar)
+
+**Analítica first-party** (migración `060`): `analytics_events` (ids anónimos, sin PII, RLS sin
+políticas), `POST /api/analytics/events` público con rate limit, `GET /api/analytics/summary`
+solo admin, `frontend/src/lib/analytics.ts` (`track()`), pestaña "Analítica" en `/admin` con
+embudos de compra y de registro/activación. PostHog (replays) queda para más adelante.
+
+**WhatsApp Cloud API** (migración `061`, `services/whatsapp.py`, `routers/whatsapp_webhook.py`):
+número `+57 316 4976104` (Phone Number ID `1376166688907871`) en la WABA `2590927411358491`.
+Meta bloquea crear plantillas (error `2388185`), así que el envío con plantilla existe pero no se
+puede usar todavía; el **Plan B** hace que el comprador escriba primero (botón post-pago con la
+referencia) y el webhook le responde el código solo si su número coincide con el del pedido.
+Secretos solo en `.env`/Railway (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`,
+`WHATSAPP_VERIFY_TOKEN`). Detalle y pendientes: `docs/PENDIENTES.md`; pruebas: Suite 6.
+
 ## Rediseño de landing + georreferenciación de talleres (2026-08-30 → 2026-09-09)
 
 5 commits sin documentar hasta esta pasada (`19c3a96`…`9602e71`): animación scroll-scrub del

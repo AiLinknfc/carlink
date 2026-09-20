@@ -11,8 +11,9 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.config import get_settings
 from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
-from app.models.models import NfcTokenWhitelist, ShopOrder
+from app.models.models import NfcTokenWhitelist, ShopOrder, WhatsappMessage
 from app.schemas.schemas import (
     ShopOrderConfirm,
     ShopOrderCreate,
@@ -22,7 +23,7 @@ from app.schemas.schemas import (
     ShopOrderOut,
     ShopOrderStatsOut,
 )
-from app.services import email, wompi
+from app.services import email, whatsapp, wompi
 from app.services.crypto import decrypt_url
 
 logger = logging.getLogger("carlink")
@@ -113,6 +114,46 @@ async def _assign_activation_codes(order: ShopOrder, db: AsyncSession) -> list[s
     return [c for c in codes if c]
 
 
+async def _send_order_whatsapp(order: ShopOrder, codes: list[str], db: AsyncSession) -> WhatsappMessage | None:
+    """WhatsApp automático tras aprobarse el pago. Solo si el comprador dio
+    consentimiento (`whatsapp_opt_in`), hay códigos digitales asignados y el
+    celular es válido. Mismo criterio de seguridad que el correo: con cuenta
+    CarLink solo se avisa que el código está en "Mis pedidos" (nunca el
+    código); invitado (sin cuenta) lo recibe en el mensaje. Best-effort: deja
+    una fila en whatsapp_messages con el resultado, jamás lanza."""
+    if not (order.whatsapp_opt_in and codes and whatsapp.is_configured()):
+        return None
+    to = whatsapp.normalize_co_phone(order.customer_phone)
+    settings = get_settings()
+    first_name = order.customer_name.split(" ")[0] or "cliente"
+    if order.user_id is None:
+        # Plantilla Authentication (Meta clasifica cualquier mensaje con un
+        # código como Authentication: formato fijo, un código por mensaje,
+        # botón "Copy code"). Un mensaje por unidad del pedido.
+        sends = [(settings.whatsapp_template_code, [c], c) for c in codes]
+    else:
+        sends = [(settings.whatsapp_template_ready, [first_name, order.reference], None)]
+    last: WhatsappMessage | None = None
+    for template, params, copy_code in sends:
+        msg = WhatsappMessage(order_id=order.id, to_phone=to or order.customer_phone, template=template)
+        if not to:
+            msg.status, msg.error = "failed", "celular no valido para WhatsApp (se espera celular colombiano)"
+        else:
+            message_id, error = await run_in_threadpool(
+                lambda t=template, p=params, c=copy_code: whatsapp.send_template(to, t, p, copy_code=c)
+            )
+            msg.provider_message_id = message_id
+            msg.status, msg.error = ("sent", "") if message_id else ("failed", error)
+            if error:
+                logger.error(f"whatsapp send failed for {order.reference}: {error}")
+        db.add(msg)
+        await db.flush()
+        last = msg
+        if not to:
+            break
+    return last
+
+
 async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
     """Correo al cliente ("pago confirmado") + al admin ("hay que
     despachar"), disparado una sola vez por orden — el caller solo debe
@@ -145,6 +186,11 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
         )
     except Exception as e:
         logger.error(f"send_order_confirmed_email failed for {order.reference}: {e}")
+
+    try:
+        await _send_order_whatsapp(order, codes, db)
+    except Exception as e:
+        logger.error(f"_send_order_whatsapp failed for {order.reference}: {e}")
 
     try:
         await run_in_threadpool(
@@ -193,6 +239,7 @@ async def create_shop_order(
         shipping_address=body.shipping_address.strip(),
         shipping_city=body.shipping_city.strip(),
         notes=body.notes.strip(),
+        whatsapp_opt_in=body.whatsapp_opt_in,
         user_id=uuid.UUID(user_id) if user_id else None,
     )
     db.add(order)
@@ -342,6 +389,30 @@ async def mark_shop_order_paid(
     await db.flush()
     await db.refresh(order)
     return order
+
+
+@router.post("/orders/{reference}/whatsapp-resend")
+async def resend_order_whatsapp(
+    reference: str,
+    admin_user_id: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin — reenvía el WhatsApp de un pedido aprobado (ej. el primero
+    falló). Reusa los códigos ya asignados al pedido (descifrados al vuelo),
+    no reserva códigos nuevos. Respeta el consentimiento del comprador."""
+    order = await _get_order_by_reference(reference, db)
+    if order.status != "approved":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El pedido no esta aprobado")
+    if not order.whatsapp_opt_in:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El comprador no acepto WhatsApp")
+    rows = await db.execute(
+        select(NfcTokenWhitelist.activation_code_encrypted).where(NfcTokenWhitelist.shop_order_id == order.id)
+    )
+    codes = [c for c in (decrypt_url(r[0]) for r in rows.all() if r[0]) if c]
+    msg = await _send_order_whatsapp(order, codes, db)
+    if msg is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sin codigos digitales asignados o WhatsApp no configurado")
+    return {"status": msg.status, "error": msg.error}
 
 
 @router.patch("/orders/{reference}/fulfillment", response_model=ShopOrderDetailOut)

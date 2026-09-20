@@ -1,5 +1,6 @@
 'use client'
 
+import { track } from '@/lib/analytics'
 import { useState, useEffect } from 'react'
 import { apiGet, apiPost } from '@/lib/api'
 import { uploadFile, scanVehicleCard } from '@/lib/upload'
@@ -344,6 +345,7 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
     saveDraft(userId, 'vehiculo_city', '')
     saveDraft(userId, 'vehiculo_type', '')
     setSaving(false)
+    track('vehicle_created')
     onCreated(created)
   }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/store/auth'
 import { ThemeProvider } from '@/store/theme'
+import PageViewTracker from '@/components/PageViewTracker'
 import './globals.css'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://carlink.com.co'
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
+          <PageViewTracker />
         </ThemeProvider>
       </body>
     </html>

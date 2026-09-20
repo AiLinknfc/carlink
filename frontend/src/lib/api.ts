@@ -24,7 +24,7 @@ import type {
   NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
-  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
+  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats, AnalyticsSummary,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
@@ -429,6 +429,7 @@ export type WhatsappClickIntent =
 export type WhatsappClickSource = 'landing' | 'shop' | 'app' | 'cart'
 
 export const analyticsApi = {
+  summary: (days: number) => request<AnalyticsSummary>('GET', `/analytics/summary?days=${days}`),
   // Tracking mínimo de clicks en los botones de WhatsApp (docs/PENDIENTES.md
   // — medir volumen real antes de decidir si automatizar algo). Fire-and-forget
   // a propósito: nunca se espera ni se revisa el resultado en el llamador,

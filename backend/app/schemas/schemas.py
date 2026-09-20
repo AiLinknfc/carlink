@@ -1642,6 +1642,69 @@ class WhatsappClickSummaryOut(BaseModel):
     by_source: dict[str, int]
 
 
+# =========== Analytics events (first-party) ===========
+_EVENT_NAME_RE = r"^[a-z0-9_.:-]{1,60}$"
+
+
+class AnalyticsEventIn(BaseModel):
+    anon_id: str = Field(min_length=8, max_length=64)
+    session_id: str = Field(min_length=8, max_length=64)
+    event: str = Field(pattern=_EVENT_NAME_RE)
+    path: str = Field(default="", max_length=300)
+    props: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    referrer: str = Field(default="", max_length=300)
+    utm_source: str = Field(default="", max_length=100)
+    utm_medium: str = Field(default="", max_length=100)
+    utm_campaign: str = Field(default="", max_length=100)
+    device: Literal["mobile", "tablet", "desktop", ""] = ""
+
+    @field_validator("props")
+    @classmethod
+    def _props_small(cls, v):
+        if len(v) > 10 or any(len(k) > 40 or (isinstance(x, str) and len(x) > 200) for k, x in v.items()):
+            raise ValueError("props demasiado grande")
+        return v
+
+
+class AnalyticsEventBatch(BaseModel):
+    events: list[AnalyticsEventIn] = Field(min_length=1, max_length=20)
+
+
+class AnalyticsDayPoint(BaseModel):
+    day: str
+    visitors: int
+    sessions: int
+    pageviews: int
+
+
+class AnalyticsCount(BaseModel):
+    label: str
+    count: int
+
+
+class AnalyticsFunnelStep(BaseModel):
+    label: str
+    count: int
+
+
+class AnalyticsFunnel(BaseModel):
+    key: str
+    title: str
+    steps: list[AnalyticsFunnelStep]
+
+
+class AnalyticsSummaryOut(BaseModel):
+    days: int
+    visitors: int
+    sessions: int
+    pageviews: int
+    series: list[AnalyticsDayPoint]
+    top_pages: list[AnalyticsCount]
+    top_sources: list[AnalyticsCount]
+    devices: list[AnalyticsCount]
+    funnels: list[AnalyticsFunnel]
+
+
 # =========== NFC Tag Inventory ===========
 # Raw metadata scanned off a physical keychain (manual today, meant to be
 # automated later). Fields are free text on purpose — real scans are
@@ -1712,6 +1775,7 @@ class ShopOrderCreate(BaseModel):
     shipping_city: str
     notes: str = ""
     payment_method: Literal["wompi", "cod"] = "wompi"
+    whatsapp_opt_in: bool = False
 
     @field_validator('quantity')
     @classmethod

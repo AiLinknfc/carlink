@@ -549,6 +549,27 @@ class WhatsappClick(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AnalyticsEvent(Base):
+    """Evento de analítica first-party (migración 060) — visitas, pasos del
+    wizard, embudo del checkout. Sin PII: anon_id/session_id son ids
+    aleatorios generados en el navegador."""
+    __tablename__ = "analytics_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    anon_id: Mapped[str] = mapped_column(Text)
+    session_id: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    event: Mapped[str] = mapped_column(Text)
+    path: Mapped[str] = mapped_column(Text, default="")
+    props: Mapped[dict] = mapped_column(JSONB, default=dict)
+    referrer: Mapped[str] = mapped_column(Text, default="")
+    utm_source: Mapped[str] = mapped_column(Text, default="")
+    utm_medium: Mapped[str] = mapped_column(Text, default="")
+    utm_campaign: Mapped[str] = mapped_column(Text, default="")
+    device: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Panel de negocio del taller/empresa (migración de tallerpro/)
 # Ver docs/PLAN_MIGRACION_TALLERPRO.md — todo escopeado por workshop_id,
@@ -839,6 +860,22 @@ class Review(Base):
     )
 
 
+class WhatsappMessage(Base):
+    """Log de cada mensaje automático de WhatsApp y su estado de entrega
+    (migración 061) — el estado lo actualiza el webhook de Meta."""
+    __tablename__ = "whatsapp_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id", ondelete="SET NULL"), nullable=True)
+    to_phone: Mapped[str] = mapped_column(Text)
+    template: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    provider_message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class ShopOrder(Base):
     """Órdenes reales del checkout del llavero NFC (CartModal.tsx), pagadas
     con Wompi. Reemplaza la maqueta que solo vivía en localStorage del
@@ -864,6 +901,8 @@ class ShopOrder(Base):
     shipping_address: Mapped[str] = mapped_column(Text)
     shipping_city: Mapped[str] = mapped_column(Text)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # Consentimiento explícito para WhatsApp automático (migración 061).
+    whatsapp_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     wompi_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     wompi_last_event: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

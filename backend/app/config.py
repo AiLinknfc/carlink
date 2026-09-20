@@ -51,6 +51,17 @@ class Settings(BaseSettings):
     # Encryption (AES-256-GCM, 64-char hex = 32 bytes)
     encryption_key: str = ""
 
+    # WhatsApp Cloud API (Meta) — envío automático del código de activación.
+    # Todas secretas salvo template/lang; van en backend/.env y Railway, nunca
+    # en el repo (docs/SECURITY.md). Plantillas aprobadas en WhatsApp Manager.
+    whatsapp_token: str = ""
+    whatsapp_phone_id: str = ""
+    whatsapp_app_secret: str = ""
+    whatsapp_verify_token: str = ""
+    whatsapp_template_code: str = "codigo_activacion_carlink"  # invitado: incluye el código
+    whatsapp_template_ready: str = "codigo_listo_carlink"  # con cuenta: solo avisa
+    whatsapp_template_lang: str = "es"
+
     # Wompi (pasarela de pagos del checkout del llavero NFC). La llave
     # pública NO va acá — es del frontend (NEXT_PUBLIC_WOMPI_PUBLIC_KEY),
     # se manda al navegador a propósito. Estas tres son secretas.

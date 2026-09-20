@@ -1153,3 +1153,17 @@ export interface FuelSummary {
   avg_price_per_liter?: number;
   record_count?: number;
 }
+export interface AnalyticsDayPoint { day: string; visitors: number; sessions: number; pageviews: number }
+export interface AnalyticsCount { label: string; count: number }
+export interface AnalyticsFunnel { key: string; title: string; steps: AnalyticsCount[] }
+export interface AnalyticsSummary {
+  days: number
+  visitors: number
+  sessions: number
+  pageviews: number
+  series: AnalyticsDayPoint[]
+  top_pages: AnalyticsCount[]
+  top_sources: AnalyticsCount[]
+  devices: AnalyticsCount[]
+  funnels: AnalyticsFunnel[]
+}
