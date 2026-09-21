@@ -36,16 +36,17 @@ type Mode = 'signin' | 'signup'
 type Step = 'form' | 'loading' | 'confirm'
 type AccountType = 'user' | 'business'
 
-export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, theme, initialMode = 'signin', initialAccountType = 'user' }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onOpenPolicy, theme, initialMode = 'signin', initialAccountType = 'user' }: LoginModalProps) {
   const router = useRouter()
-  const { signIn, signInWithEmail, signUpWithEmail } = useAuth()
+  const { signIn, signInWithEmail, signUpWithEmail, resendConfirmation } = useAuth()
 
   const [mode, setMode] = useState<Mode>(initialMode)
   const [accountType, setAccountType] = useState<AccountType>('user')
   const [step, setStep] = useState<Step>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
+  const [resendState, setResendState] = useState<'idle' | 'sent' | 'error'>('idle')
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [password2, setPassword2] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -60,7 +61,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError(null)
       setIsSubmitting(false)
       setShowTermsError(false)
-      setFullName('')
+      setResendState('idle')
       setPassword2('')
     } else {
       setMode(initialMode)
@@ -85,10 +86,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setShowTermsError(true)
       return false
     }
-    if (mode === 'signup' && fullName.trim().length < 3) {
-      setError('Ingresa tu nombre completo.')
-      return false
-    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('Ingresa un correo electrónico válido.')
       return false
@@ -102,7 +99,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       return false
     }
     return true
-  }, [mode, acceptedTerms, fullName, email, password, password2])
+  }, [mode, acceptedTerms, email, password, password2])
 
   const handleEmailAuth = useCallback(async () => {
     setError(null)
@@ -115,7 +112,13 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
     const result = mode === 'signin'
       ? await signInWithEmail(email, password)
-      : await signUpWithEmail(email, password, fullName.trim())
+      : await signUpWithEmail(email, password)
+
+    if (result.error && result.error.toLowerCase().includes('email not confirmed')) {
+      setStep('confirm')
+      setIsSubmitting(false)
+      return
+    }
 
     if (result.error) {
       setError(traducirError(result.error))
@@ -138,7 +141,19 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     }
 
     router.push('/auth/callback')
-  }, [mode, email, password, fullName, validate, signInWithEmail, signUpWithEmail, router, accountType])
+  }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router, accountType])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
+
+  const handleResend = async () => {
+    const { error: err } = await resendConfirmation(email)
+    setResendState(err ? 'error' : 'sent')
+    setResendCooldown(60)
+  }
 
   const handleGoogle = useCallback(() => {
     setError(null)
@@ -247,10 +262,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       }}>
                         {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
                       </h2>
-                      <p style={{ fontSize: 13, color: textMuted, maxWidth: '28ch', margin: '0 auto', lineHeight: 1.5 }}>
-                        {mode === 'signin' ? 'Ingresa para gestionar tu placa' : 'Crea tu cuenta; después te pediremos tu placa y tu WhatsApp'}{' '}
-                        <span style={{ color: gold, fontFamily: 'var(--font-display)', fontWeight: 400 }}>{plateText || '—'}</span>.
-                      </p>
                     </div>
 
                     {/* Account type selector */}
@@ -289,22 +300,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
                     {/* Email + Password */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {mode === 'signup' && (
-                        <div>
-                          <label htmlFor="signup-name" style={labelStyle(textMuted)}>Nombre completo</label>
-                          <input
-                            id="signup-name"
-                            type="text"
-                            autoComplete="name"
-                            value={fullName}
-                            onChange={(e) => { setFullName(e.target.value); setError(null) }}
-                            placeholder="Como aparece en tu documento"
-                            style={inputStyle(inputBg, inputBorder, textPrimary)}
-                            onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
-                            onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
-                          />
-                        </div>
-                      )}
                       <div>
                         <label htmlFor="login-email" style={labelStyle(textMuted)}>Correo electrónico</label>
                         <div style={{ position: 'relative' }}>
@@ -532,6 +527,18 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     <p style={{ fontSize: 13, color: textSecondary, maxWidth: '30ch', margin: 0, lineHeight: 1.5 }}>
                       Te enviamos un enlace de confirmación a <span style={{ color: gold, fontWeight: 700 }}>{email}</span>. Ábrelo para activar tu cuenta.
                     </p>
+                    <p style={{ fontSize: 11.5, color: textMuted, maxWidth: '32ch', margin: 0, lineHeight: 1.5 }}>
+                      Si no lo ves, revisa la carpeta de spam. El enlace confirma que el correo es tuyo.
+                    </p>
+                    <button
+                      onClick={handleResend}
+                      disabled={resendCooldown > 0}
+                      style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: gold, color: '#111', fontSize: 13, fontWeight: 800, cursor: resendCooldown > 0 ? 'default' : 'pointer', opacity: resendCooldown > 0 ? 0.55 : 1 }}
+                    >
+                      {resendCooldown > 0 ? `Reenviar enlace (${resendCooldown}s)` : 'Reenviar enlace'}
+                    </button>
+                    {resendState === 'sent' && <span style={{ fontSize: 12, color: '#2ecc71', fontWeight: 600 }}>Enlace reenviado.</span>}
+                    {resendState === 'error' && <span style={{ fontSize: 12, color: '#ff6b6b', fontWeight: 600 }}>No pudimos reenviarlo. Intenta en unos minutos.</span>}
                     <button
                       onClick={() => { setMode('signin'); setStep('form') }}
                       style={{ marginTop: 4, padding: '10px 20px', borderRadius: 10, border: `1px solid ${goldBorder}`, background: 'transparent', color: gold, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}

@@ -11,7 +11,8 @@ interface AuthCtx {
   loading: boolean
   signIn: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
-  signUpWithEmail: (email: string, password: string, fullName?: string) => Promise<{ error?: string; needsConfirmation?: boolean }>
+  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>
+  resendConfirmation: (email: string) => Promise<{ error?: string }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthCtx>({
   signIn: async () => {},
   signInWithEmail: async () => ({}),
   signUpWithEmail: async () => ({}),
+  resendConfirmation: async () => ({}),
   refreshProfile: async () => {},
   signOut: async () => {},
 })
@@ -91,18 +93,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message }
   }
 
-  const signUpWithEmail = async (email: string, password: string, fullName?: string) => {
+  const signUpWithEmail = async (email: string, password: string) => {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // full_name en user_metadata: el trigger de auth.users lo copia a profiles.full_name.
-      options: { emailRedirectTo: `${siteUrl}/auth/callback`, data: fullName ? { full_name: fullName } : undefined },
+      options: { emailRedirectTo: `${siteUrl}/auth/callback` },
     })
     if (error) return { error: error.message }
     // If email confirmation is required, Supabase returns a user without a session.
     const needsConfirmation = !data.session
     return { needsConfirmation }
+  }
+
+  // Reenvía el enlace de confirmación (magic link) a un correo aún sin confirmar.
+  const resendConfirmation = async (email: string) => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+    const { error } = await supabase.auth.resend({
+      type: 'signup', email, options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+    })
+    return { error: error?.message }
   }
 
   const signOut = async () => {
@@ -112,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, resendConfirmation, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )
