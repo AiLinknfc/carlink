@@ -1,6 +1,14 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-09-09._
+_Última actualización: 2026-09-21._
+
+## Sitio público, soporte y textos legales (2026-09-21)
+
+- **Landings**: `/` (conductor, llavero) y `/taller` (talleres y proveedores; antes `/shop`, que redirige a `/`). Comparten `SiteFooter` y el fondo animado (`SiteBackdrop`). Páginas de empresa `/nosotros`, `/blog` (estático, `lib/blog.ts`) y `/trabaja` viven en `app/(public)/(company)/` con header y footer comunes.
+- **Textos legales v2.2** en una sola fuente (`lib/legalContent.ts`): modal `PolicyModal` y PDF (`legalPdf.ts`) leen lo mismo. Pestañas: Privacidad, Garantía, Uso/Planes/Espacio, Soporte. Cupo de archivos por cuenta: 100 MB gratis / 200 MB con llavero / 500 MB con 3+ llaveros (`services/storage_quota.py`, 413 en `POST /upload`).
+- **Soporte**: `POST /api/support-tickets` (migración 063) + pestaña Admin > Soporte; el autodiagnóstico (`lib/diagnostics.ts`) genera un PDF con datos reales del dispositivo y un ID que se adjunta al ticket.
+- **Registro**: confirmación de correo por enlace activa (`mailer_autoconfirm=false` verificado en Supabase), con "Reenviar enlace".
+- **Admin**: pestañas Postulaciones (talleres), Soporte y Recursos (secciones archivadas de la landing).
 
 ## Landing /taller y postulaciones de talleres (2026-09-21, en local, sin desplegar)
 

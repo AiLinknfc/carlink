@@ -1,7 +1,7 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-09-09 (auditoría de arquitectura/organización, fix de deuda de
-tests real, CI ejecuta tests, limpieza de raíz, modelo de ramas)._
+_Última actualización: 2026-09-21 (publicación de landing /taller, postulaciones, soporte real, textos
+legales v2.2, blog y footer único; ver las secciones de esa fecha más abajo)._
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza

@@ -189,7 +189,18 @@ psql "postgresql://postgres:<password>@db.xgdshunvmeceqnzmkcsg.supabase.co:5432/
 \i supabase/migrations/059_vehicle_verification_and_owner_name.sql
 i supabase/migrations/060_analytics_events.sql
 i supabase/migrations/061_whatsapp_messages.sql
+\i supabase/migrations/062_workshop_applications.sql
+\i supabase/migrations/063_support_tickets.sql
 ```
+
+**Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y
+aditivas, con RLS activado y sin políticas (solo el backend las lee/escribe). `062_workshop_applications`
+guarda las postulaciones de talleres desde `/taller` (NIT, logo, consentimiento con versión del texto legal).
+`063_support_tickets` guarda los tickets del modal de Soporte, con consecutivo visible `number`
+(identity desde 10001; las pruebas dejaron el contador en 10003). Ambas se probaron con `TestClient`
+contra la base real y se borró el residuo. **Variables nuevas a confirmar en Railway**: `ADMIN_EMAIL`
+(destino de los avisos de postulación y de ticket) y `RESEND_API_KEY` (envío de correos); sin ellas la
+postulación y el ticket quedan guardados y visibles en Admin, pero no llegan correos.
 
 **Nota sobre 052 (2026-09-12, confirmada aplicada contra la base real)**: agrega
 `maintenance_records.lubricant_product` (`TEXT DEFAULT ''`) — producto exacto del catálogo

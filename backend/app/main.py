@@ -78,7 +78,7 @@ app.add_middleware(
 # Healthcheck
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "service": "carlink-api", "version": "1.0.2"}
+    return {"ok": True, "service": "carlink-api", "version": "1.1.0"}
 
 # Routers
 app.include_router(auth.router, prefix="/api")
