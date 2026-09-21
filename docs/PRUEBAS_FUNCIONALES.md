@@ -203,6 +203,18 @@ en pantalla (escritorio) con Chromium; móvil, tema claro y el envío del formul
 - [ ] Trabaja: no envía sin la casilla de autorización de datos; el enlace/correo de eliminación de datos es visible
 - [ ] Los textos de Nosotros ya no dicen "inalterable" ni "imposible de alterar"
 
+## Suite 10 — Autodiagnóstico de soporte (2026-09-21)
+
+Cubre: `lib/diagnostics.ts`, `legalPdf.ts::downloadDiagnosticPdf`, tarjeta de `PolicyModal.tsx`. La
+recolección se probó en Chromium contra el backend local; el PDF se revisó con datos de muestra.
+
+- [ ] Soporte > Autodiagnóstico > "Generar reporte" baja `CarLink_DX-AAAAMMDD-XXXX.pdf` y muestra el resumen con el ID
+- [ ] Con el backend caído: "Servidor de CarLink" sale con FALLA y la recomendación correspondiente
+- [ ] Sin sesión: "No hay sesión iniciada"; con sesión: correo enmascarado y vigencia del acceso
+- [ ] Android con Chrome: "Lectura NFC ... Disponible"; iPhone: nota de que lee con la cámara/sistema; computador: aviso de que no lee NFC
+- [ ] "Copiar ID" copia el ID; el PDF menciona ese mismo ID
+- [ ] Ningún dato sensible en el PDF (sin tokens, contraseñas ni correo completo)
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

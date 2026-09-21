@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@/lib/checkout'
 import { LEGAL_DOCS, LEGAL_VERSION, LEGAL_UPDATED, type LegalTabId } from '@/lib/legalContent'
 import { downloadLegalPdf, downloadDiagnosticPdf } from '@/lib/legalPdf'
+import { collectDiagnostics, type DiagnosticReport } from '@/lib/diagnostics'
 
 export type PolicyTab = LegalTabId | 'support'
 
@@ -57,6 +58,9 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
   const [type, setType] = useState('NFC_READ_ERROR')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [dx, setDx] = useState<DiagnosticReport | null>(null)
+  const [dxBusy, setDxBusy] = useState(false)
+  const [dxCopied, setDxCopied] = useState(false)
 
   useEffect(() => { if (isOpen) { setActive(tab); setSubmitted(false) } }, [isOpen, tab])
 
@@ -73,6 +77,20 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
   const meta = { plate: plateText, city }
   // Pie del modal: siempre el expediente completo (privacidad + garantía + uso y planes).
   const handleDownloadAll = () => downloadLegalPdf(meta)
+
+  const runDiagnostic = async () => {
+    setDxBusy(true); setDxCopied(false)
+    try {
+      const r = await collectDiagnostics({ plate: plateText, city })
+      setDx(r)
+      downloadDiagnosticPdf(r)
+    } finally { setDxBusy(false) }
+  }
+  const copyDxId = async () => {
+    if (!dx) return
+    try { await navigator.clipboard.writeText(dx.id); setDxCopied(true) } catch { /* sin permiso de portapapeles */ }
+  }
+  const dxColor = (st: string) => st === 'ok' ? GREEN : st === 'fail' ? '#ff4d6a' : st === 'warn' ? '#ff8a3d' : textMuted
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -209,12 +227,37 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                           <a href={`tel:+${SUPPORT_PHONE}`} style={{ textAlign: 'center', fontSize: 12.5, color: textPrimary, textDecoration: 'none' }}>Llamadas: {SUPPORT_PHONE_DISPLAY}</a>
                           <a href="mailto:business@carlink.com.co" style={{ textAlign: 'center', fontSize: 12.5, color: GOLD, textDecoration: 'none' }}>business@carlink.com.co</a>
                         </div>
-                        <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <span style={{ ...label, color: GOLD, letterSpacing: '.14em' }}>Autodiagnóstico</span>
-                          <p style={{ fontSize: 12, lineHeight: 1.55, color: textMuted, margin: 0 }}>Descarga el estado de tu placa y los registros del sistema para agilizar tu ticket.</p>
-                          <button onClick={() => downloadDiagnosticPdf(meta)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px', borderRadius: 10, background: 'transparent', border: `1px solid ${subtle}`, color: textPrimary, fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
-                            {Ic.download(GOLD)}<span>Descargar diagnóstico</span>
+                          <p style={{ fontSize: 12, lineHeight: 1.55, color: textMuted, margin: 0 }}>
+                            Revisa en tu dispositivo el estado del servicio de CarLink, tu conexión, tu sesión y la lectura NFC, y descarga un reporte en PDF para adjuntarlo a tu ticket.
+                          </p>
+                          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.6, color: textMuted }}>
+                            <li>Se genera en tu equipo; no se envía a CarLink.</li>
+                            <li>No incluye contraseñas, documentos ni datos de tu vehículo, y tu correo va enmascarado.</li>
+                          </ul>
+                          <button onClick={runDiagnostic} disabled={dxBusy} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px', borderRadius: 10, background: 'transparent', border: `1px solid ${subtle}`, color: textPrimary, fontWeight: 700, fontSize: 12.5, cursor: dxBusy ? 'default' : 'pointer', opacity: dxBusy ? 0.6 : 1 }}>
+                            {dxBusy ? <span style={{ width: 14, height: 14, border: '2px solid rgba(128,128,128,0.4)', borderTopColor: GOLD, borderRadius: '50%', display: 'inline-block', animation: 'spin .8s linear infinite' }} /> : Ic.download(GOLD)}
+                            <span>{dxBusy ? 'Revisando...' : dx ? 'Volver a generar reporte' : 'Generar reporte de diagnóstico'}</span>
                           </button>
+                          {dx && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
+                              <div style={{ fontSize: 11.5, fontWeight: 700, color: textPrimary }}>
+                                {dx.summary.fail > 0 ? `${dx.summary.fail} con falla` : dx.summary.warn > 0 ? `${dx.summary.warn} por revisar` : 'Todo en orden'}
+                                <span style={{ fontWeight: 500, color: textMuted }}> · {dx.summary.ok} verificaciones correctas</span>
+                              </div>
+                              {[...dx.checks.service, ...dx.checks.connection, ...dx.checks.session, ...dx.checks.nfc.slice(0, 1)].map(c => (
+                                <div key={c.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 11.5 }}>
+                                  <span style={{ color: textMuted }}>{c.label}</span>
+                                  <span style={{ color: dxColor(c.state), fontWeight: 600, textAlign: 'right' }}>{c.value}</span>
+                                </div>
+                              ))}
+                              {dx.hints.map(h => <p key={h} style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: textSecondary }}>{h}</p>)}
+                              <button onClick={copyDxId} style={{ alignSelf: 'flex-start', padding: '6px 10px', borderRadius: 8, background: 'transparent', border: `1px solid ${subtle}`, color: textSecondary, fontWeight: 600, fontSize: 11.5, cursor: 'pointer' }}>
+                                {dxCopied ? 'ID copiado' : `Copiar ID ${dx.id}`}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

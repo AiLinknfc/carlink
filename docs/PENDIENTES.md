@@ -301,6 +301,13 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
+## Soporte: el formulario de ticket es simulado (hallazgo 2026-09-21)
+
+En `PolicyModal.tsx` el formulario "Enviar ticket de soporte" NO envía nada: `handleSubmit` solo espera
+1,1 s y muestra "Ticket #C-xxxxx enviado", con un número aleatorio. El texto promete respuesta "en menos
+de 2 horas". Hay que conectarlo (endpoint público con rate limit y correo, o redirigir a WhatsApp/correo
+con el ID del autodiagnóstico) o quitar la promesa. El autodiagnóstico sí es real (`lib/diagnostics.ts`).
+
 ## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
 
 Las tres viven bajo `app/(public)/(company)/` con header y footer compartidos. Blog estático en
