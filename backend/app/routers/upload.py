@@ -7,7 +7,11 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, Response
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
 from app.dependencies import get_current_user
+from app.services.storage_quota import MB, ensure_room, get_usage
 from app.services.storage import delete_file, upload_file, get_file
 from app.utils import validate_upload_file
 
@@ -20,14 +24,25 @@ _executor = ThreadPoolExecutor(max_workers=4)
 async def upload_file_endpoint(
     file: UploadFile,
     user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     contents = await validate_upload_file(file)
+    await ensure_room(db, user_id, len(contents))
 
     ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
     key = f"{user_id}/{uuid.uuid4()}.{ext}"
 
     url = await upload_file(contents, key, file.content_type)
     return JSONResponse({"url": url, "key": key})
+
+
+@router.get("/usage")
+async def storage_usage(
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    used, limit = await get_usage(db, user_id)
+    return {"used_mb": round(used / MB, 1), "limit_mb": None if limit is None else limit // MB}
 
 
 @router.delete("/{key:path}")

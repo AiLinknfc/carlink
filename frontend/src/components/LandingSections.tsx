@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, type FormEvent } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
+import SiteFooter from '@/components/SiteFooter'
 import Link from 'next/link'
 import { reviewsApi, waitlistApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, KIT_ORDER_ENABLED } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, KIT_ORDER_ENABLED } from '@/lib/checkout'
 import { checkContact } from '@/lib/contactValidation'
 
 type Theme = 'light' | 'dark'
@@ -72,7 +73,7 @@ const ARROW = (
 const CHECK = (color = GOLD, size = 15) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto', marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
 )
-type PolicyTab = 'warranty' | 'privacy' | 'support'
+import type { PolicyTab } from '@/components/PolicyModal'
 
 export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenPolicy, onOpenPqrs, onOpenCart }: { theme: Theme; onStart: () => void; onOpenEmpresa: (accountType?: 'user' | 'business') => void; onOpenPolicy: (tab: PolicyTab) => void; onOpenPqrs: () => void; onOpenCart: () => void }) {
   const [faqOpen, setFaqOpen] = useState<number>(-1)
@@ -202,7 +203,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>Qué vas a recibir</div>
           <h2 style={H2}>Elige tu llavero CarLink</h2>
-          <p style={{ fontSize: 15, color: k.muted, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Esto es exactamente lo que llega a tu puerta — sin sorpresas.</p>
+          <p style={{ fontSize: 15, color: k.muted, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Esto es exactamente lo que llega a tu puerta — sin sorpresas. Registrarte en la web es gratis e incluye 100 MB de almacenamiento; con tu llavero se amplía.</p>
         </div>
         <div data-r="hProductos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, maxWidth: 1000, margin: '0 auto' }}>
 
@@ -217,7 +218,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$39.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>pago único · envío incluido</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
-              {['1 llavero NFC de alta resistencia', 'QR de respaldo', 'Acceso vitalicio a la plataforma'].map(f => (
+              {['1 llavero NFC de alta resistencia', 'QR de respaldo', '200 MB de almacenamiento en la nube', 'Acceso vitalicio a la plataforma'].map(f => (
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
@@ -243,9 +244,9 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <CarLinkLogo size={15} />Kit CarLink
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$59.900</div>
-            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>accesorios para todo el carro, con 3 chips NFC</div>
+            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>kit de 3 llaveros para tu mismo vehículo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
-              {['2 chips NFC — llavero y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', 'Acceso vitalicio a la plataforma'].map(f => (
+              {['3 llaveros NFC — llavero, tarjeta y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', '500 MB de almacenamiento en la nube', 'Acceso vitalicio a la plataforma'].map(f => (
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
@@ -400,7 +401,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input
                   type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
@@ -408,8 +409,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
                   onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14) }}
                 />
-                <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía'}
+                <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {leadStatus === 'loading' ? 'Enviando…' : <>Descargar guía{ARROW}</>}
                 </button>
                 {leadContactCheck.status === 'valid' && (
                   <p style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
@@ -436,92 +437,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         </div>
       </section>
 
-      {/* ===== FOOTER ===== */}
-      <footer style={{ borderTop: `1px solid ${k.thinBorder}`, padding: '52px clamp(20px,5vw,64px) 28px' }}>
-        <div data-r="footergrid" className="footergrid" style={{ maxWidth: 1160, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr 1fr 1fr 1.1fr', gap: 24 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 12 }}>
-              <CarLinkLogo size={33} />
-              <span>Car<span style={{ color: GOLD }}>Link</span></span>
-            </div>
-            <p style={{ ...lead, fontSize: 13.5, maxWidth: '32ch' }}>La ficha técnica digital de tu vehículo, viva y verificada por talleres reales.</p>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Producto</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
-              <a href="#h-como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</a>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Planes</Link>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Para talleres</Link>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Tienda NFC</Link>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Tienda</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Llavero NFC CarLink</Link>
-              <Link href="#h-productos" style={{ color: k.muted, textDecoration: 'none' }}>Precios</Link>
-              <Link href="/shop#como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</Link>
-              <Link href="/shop#faq" style={{ color: k.muted, textDecoration: 'none' }}>Preguntas frecuentes</Link>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14, color: GOLD }}>Empresa</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, fontWeight: 500 }}>
-              <Link href="/nosotros" style={{ color: k.text, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, transition: 'color .15s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
-                onMouseLeave={e => { e.currentTarget.style.color = k.text }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></svg>
-                Nosotros
-              </Link>
-              <Link href="/trabaja" style={{ color: k.text, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, transition: 'color .15s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = GOLD }}
-                onMouseLeave={e => { e.currentTarget.style.color = k.text }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
-                Trabaja con nosotros
-              </Link>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Legal y soporte</div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
-              {([['warranty', 'Términos de Garantía'], ['privacy', 'Privacidad de Datos'], ['support', 'Soporte Técnico']] as [PolicyTab, string][]).map(([t, l]) => (
-                <button key={t} onClick={() => onOpenPolicy(t)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: k.muted, fontSize: 13.5, fontWeight: 300, fontFamily: 'inherit', textAlign: 'left' }}>{l}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Contacto</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300, color: k.muted }}>
-              <a href="https://maps.google.com/?q=Cra+70+%2380-24+Bogotá" target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>Cra 70 #80-24, Bogotá D.C., Colombia</a>
-              <a href="mailto:business@carlink.com.co" style={{ color: k.muted, textDecoration: 'none' }}>business@carlink.com.co</a>
-              <a href={`tel:+${SUPPORT_WHATSAPP}`} style={{ color: k.muted, textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <a href="https://www.instagram.com/ailink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
-              </a>
-              <a href="https://www.facebook.com/people/AiLink/61578774262078/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
-              </a>
-              <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3A2.8 2.8 0 0 0 6.5 9c0 1.7 1.2 3.3 1.4 3.5s2.4 3.7 5.9 5c2.1.8 2.5.6 3 .6s1.4-.6 1.6-1.1.2-1 .1-1.1-.3-.1-.5-.2z" /></svg>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: 1160, margin: '36px auto 0', paddingTop: 20, borderTop: `1px solid ${k.thinBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 12, fontWeight: 300, color: k.muted }}>
-          <span>© 2026 CarLink · Bogotá, Colombia · Todos los derechos reservados</span>
-          <a href="https://ailink.com.co/" target="_blank" rel="noreferrer" title="Ir a AiLink"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 999, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.22)', color: k.muted, textDecoration: 'none', transition: 'all .16s', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.16)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.08)'; e.currentTarget.style.borderColor = 'rgba(245,197,24,0.22)' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19" /></svg>
-            <span>Impulsado por <b style={{ fontWeight: 700, color: k.text }}>Ai<span style={{ color: GOLD }}>Link</span></b></span>
-          </a>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, boxShadow: `0 0 6px ${GOLD}` }} />Todos los sistemas operativos</span>
-        </div>
-      </footer>
+      {/* ===== FOOTER (compartido con /taller) ===== */}
+      <SiteFooter theme={theme} onOpenPolicy={onOpenPolicy} />
     </div>
   )
 }

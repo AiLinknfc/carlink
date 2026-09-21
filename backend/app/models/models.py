@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DECIMAL, Boolean, Date, DateTime, Float, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import DECIMAL, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Identity, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -549,6 +549,27 @@ class WhatsappClick(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class AnalyticsEvent(Base):
+    """Evento de analítica first-party (migración 060) — visitas, pasos del
+    wizard, embudo del checkout. Sin PII: anon_id/session_id son ids
+    aleatorios generados en el navegador."""
+    __tablename__ = "analytics_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    anon_id: Mapped[str] = mapped_column(Text)
+    session_id: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    event: Mapped[str] = mapped_column(Text)
+    path: Mapped[str] = mapped_column(Text, default="")
+    props: Mapped[dict] = mapped_column(JSONB, default=dict)
+    referrer: Mapped[str] = mapped_column(Text, default="")
+    utm_source: Mapped[str] = mapped_column(Text, default="")
+    utm_medium: Mapped[str] = mapped_column(Text, default="")
+    utm_campaign: Mapped[str] = mapped_column(Text, default="")
+    device: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Panel de negocio del taller/empresa (migración de tallerpro/)
 # Ver docs/PLAN_MIGRACION_TALLERPRO.md — todo escopeado por workshop_id,
@@ -839,6 +860,22 @@ class Review(Base):
     )
 
 
+class WhatsappMessage(Base):
+    """Log de cada mensaje automático de WhatsApp y su estado de entrega
+    (migración 061) — el estado lo actualiza el webhook de Meta."""
+    __tablename__ = "whatsapp_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id", ondelete="SET NULL"), nullable=True)
+    to_phone: Mapped[str] = mapped_column(Text)
+    template: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="queued")
+    provider_message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class ShopOrder(Base):
     """Órdenes reales del checkout del llavero NFC (CartModal.tsx), pagadas
     con Wompi. Reemplaza la maqueta que solo vivía en localStorage del
@@ -864,6 +901,8 @@ class ShopOrder(Base):
     shipping_address: Mapped[str] = mapped_column(Text)
     shipping_city: Mapped[str] = mapped_column(Text)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # Consentimiento explícito para WhatsApp automático (migración 061).
+    whatsapp_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
     wompi_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     wompi_last_event: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -876,3 +915,54 @@ class ShopOrder(Base):
     tracking_note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WorkshopApplication(Base):
+    """Postulación de un taller/proveedor desde la landing /taller (migración 062).
+    Sin cuenta; queda 'pending' hasta revisión del admin."""
+    __tablename__ = "workshop_applications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_type: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    legal_name: Mapped[str] = mapped_column(Text, default="")
+    nit: Mapped[str] = mapped_column(Text)
+    city: Mapped[str] = mapped_column(Text)
+    address: Mapped[str] = mapped_column(Text)
+    contact_name: Mapped[str] = mapped_column(Text)
+    contact_role: Mapped[str] = mapped_column(Text, default="")
+    phone: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    website: Mapped[str] = mapped_column(Text, default="")
+    instagram: Mapped[str] = mapped_column(Text, default="")
+    specialties: Mapped[str] = mapped_column(Text, default="")
+    monthly_volume: Mapped[str] = mapped_column(Text, default="")
+    logo_url: Mapped[str] = mapped_column(Text)
+    facade_url: Mapped[str] = mapped_column(Text, default="")
+    doc_url: Mapped[str] = mapped_column(Text, default="")
+    logo_authorized: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_version: Mapped[str] = mapped_column(Text)
+    consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    source: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    admin_notes: Mapped[str] = mapped_column(Text, default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportTicket(Base):
+    """Ticket enviado desde el modal de Soporte (migración 063). `number` es el consecutivo visible."""
+    __tablename__ = "support_tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    number: Mapped[int] = mapped_column(BigInteger, Identity(always=True, start=10001), unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    type: Mapped[str] = mapped_column(Text)
+    message: Mapped[str] = mapped_column(Text)
+    plate: Mapped[str] = mapped_column(Text, default="")
+    diagnostic_id: Mapped[str] = mapped_column(Text, default="")
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

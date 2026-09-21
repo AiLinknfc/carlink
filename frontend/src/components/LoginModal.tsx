@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { track } from '@/lib/analytics'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/store/auth'
@@ -25,7 +26,7 @@ interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
   plateText: string
-  onOpenPolicy: (tab: 'warranty' | 'privacy' | 'support') => void
+  onOpenPolicy: (tab: 'warranty' | 'privacy' | 'support' | 'terms') => void
   theme: 'light' | 'dark'
   initialMode?: 'signin' | 'signup'
   initialAccountType?: 'user' | 'business'
@@ -35,15 +36,18 @@ type Mode = 'signin' | 'signup'
 type Step = 'form' | 'loading' | 'confirm'
 type AccountType = 'user' | 'business'
 
-export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, theme, initialMode = 'signin', initialAccountType = 'user' }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onOpenPolicy, theme, initialMode = 'signin', initialAccountType = 'user' }: LoginModalProps) {
   const router = useRouter()
-  const { signIn, signInWithEmail, signUpWithEmail } = useAuth()
+  const { signIn, signInWithEmail, signUpWithEmail, resendConfirmation } = useAuth()
 
   const [mode, setMode] = useState<Mode>(initialMode)
   const [accountType, setAccountType] = useState<AccountType>('user')
   const [step, setStep] = useState<Step>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [resendState, setResendState] = useState<'idle' | 'sent' | 'error'>('idle')
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [password2, setPassword2] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsError, setShowTermsError] = useState(false)
@@ -57,6 +61,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError(null)
       setIsSubmitting(false)
       setShowTermsError(false)
+      setResendState('idle')
+      setPassword2('')
     } else {
       setMode(initialMode)
       setAccountType(initialAccountType)
@@ -88,8 +94,12 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError('La contraseña debe tener al menos 6 caracteres.')
       return false
     }
+    if (mode === 'signup' && password !== password2) {
+      setError('Las contraseñas no coinciden.')
+      return false
+    }
     return true
-  }, [mode, acceptedTerms, email, password])
+  }, [mode, acceptedTerms, email, password, password2])
 
   const handleEmailAuth = useCallback(async () => {
     setError(null)
@@ -98,10 +108,17 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
     setIsSubmitting(true)
     setStep('loading')
+    if (mode === 'signup') track('signup_submit')
 
     const result = mode === 'signin'
       ? await signInWithEmail(email, password)
       : await signUpWithEmail(email, password)
+
+    if (result.error && result.error.toLowerCase().includes('email not confirmed')) {
+      setStep('confirm')
+      setIsSubmitting(false)
+      return
+    }
 
     if (result.error) {
       setError(traducirError(result.error))
@@ -125,6 +142,18 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
     router.push('/auth/callback')
   }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router, accountType])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
+
+  const handleResend = async () => {
+    const { error: err } = await resendConfirmation(email)
+    setResendState(err ? 'error' : 'sent')
+    setResendCooldown(60)
+  }
 
   const handleGoogle = useCallback(() => {
     setError(null)
@@ -233,10 +262,6 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                       }}>
                         {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
                       </h2>
-                      <p style={{ fontSize: 13, color: textMuted, maxWidth: '28ch', margin: '0 auto', lineHeight: 1.5 }}>
-                        {mode === 'signin' ? 'Ingresa para gestionar tu placa' : 'Regístrate para vincular y certificar'}{' '}
-                        <span style={{ color: gold, fontFamily: 'var(--font-display)', fontWeight: 400 }}>{plateText || '—'}</span>.
-                      </p>
                     </div>
 
                     {/* Account type selector */}
@@ -308,7 +333,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                             value={password}
                             onChange={(e) => { setPassword(e.target.value); setError(null) }}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleEmailAuth() }}
-                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Crea una contraseña (6+ chars)'}
+                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Crea una contraseña (mínimo 6 caracteres)'}
                             style={{ ...inputStyle(inputBg, inputBorder, textPrimary), paddingRight: 42 }}
                             onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
                             onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
@@ -326,6 +351,24 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           </button>
                         </div>
                       </div>
+
+                      {mode === 'signup' && (
+                        <div>
+                          <label htmlFor="signup-password2" style={labelStyle(textMuted)}>Repite la contraseña</label>
+                          <input
+                            id="signup-password2"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            value={password2}
+                            onChange={(e) => { setPassword2(e.target.value); setError(null) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleEmailAuth() }}
+                            placeholder="Escríbela otra vez"
+                            style={inputStyle(inputBg, inputBorder, textPrimary)}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Error */}
@@ -348,7 +391,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           style={{ marginTop: 2, width: 16, height: 16, accentColor: gold, cursor: 'pointer', flexShrink: 0 }}
                         />
                         <label htmlFor="accept-terms" style={{ fontSize: 11.5, color: textSecondary, lineHeight: 1.5, cursor: 'pointer' }}>
-                          Acepto la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('privacy') }}>Política de Privacidad</span> y los <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('warranty') }}>Términos</span> de CarLink.
+                          Acepto la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('privacy') }}>Política de Privacidad</span> y los <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('terms') }}>Términos de Uso</span> y la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('warranty') }}>Garantía</span> de CarLink.
                         </label>
                       </div>
                       {showTermsError && (
@@ -484,6 +527,18 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                     <p style={{ fontSize: 13, color: textSecondary, maxWidth: '30ch', margin: 0, lineHeight: 1.5 }}>
                       Te enviamos un enlace de confirmación a <span style={{ color: gold, fontWeight: 700 }}>{email}</span>. Ábrelo para activar tu cuenta.
                     </p>
+                    <p style={{ fontSize: 11.5, color: textMuted, maxWidth: '32ch', margin: 0, lineHeight: 1.5 }}>
+                      Si no lo ves, revisa la carpeta de spam. El enlace confirma que el correo es tuyo.
+                    </p>
+                    <button
+                      onClick={handleResend}
+                      disabled={resendCooldown > 0}
+                      style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: gold, color: '#111', fontSize: 13, fontWeight: 800, cursor: resendCooldown > 0 ? 'default' : 'pointer', opacity: resendCooldown > 0 ? 0.55 : 1 }}
+                    >
+                      {resendCooldown > 0 ? `Reenviar enlace (${resendCooldown}s)` : 'Reenviar enlace'}
+                    </button>
+                    {resendState === 'sent' && <span style={{ fontSize: 12, color: '#2ecc71', fontWeight: 600 }}>Enlace reenviado.</span>}
+                    {resendState === 'error' && <span style={{ fontSize: 12, color: '#ff6b6b', fontWeight: 600 }}>No pudimos reenviarlo. Intenta en unos minutos.</span>}
                     <button
                       onClick={() => { setMode('signin'); setStep('form') }}
                       style={{ marginTop: 4, padding: '10px 20px', borderRadius: 10, border: `1px solid ${goldBorder}`, background: 'transparent', color: gold, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}

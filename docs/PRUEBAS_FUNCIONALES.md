@@ -88,6 +88,9 @@ Cubre: `frontend/src/components/onboarding/*`, `frontend/src/app/auth/callback/p
 | 1.18 | Sin "Omitir" si ya está hecho | Con el llavero ya activado | El pie del wizard no muestra "Omitir por ahora" (no tiene sentido omitir algo ya hecho) |
 | 1.19 | Cuenta taller nunca ve este wizard | Crear/usar una cuenta `taller` | Nunca se dispara `OnboardingWizard` — la cuenta va directo a `/app/negocio` |
 | 1.20 | Reanudar tras cerrar sesión a mitad de camino | Cerrar la pestaña en medio del paso Vehículo (sin guardar), volver a entrar | Retoma en el mismo paso, con lo que ya estaba tecleado (placa/ciudad/tipo) |
+| 1.21 | Registro con correo: sin nombre, con repetir contraseña | Modal > "Crear una" (cuenta persona) | Muestra Correo, Contraseña y Repite la contraseña (sin nombre); contraseñas distintas no envían; sin subtítulo con placa en registro ni en inicio de sesión |
+| 1.22 | Magic link de confirmación | Registrar un correo real nuevo | Pantalla "Revisa tu correo"; llega el enlace; sin abrirlo, iniciar sesión vuelve a esa pantalla; al abrirlo aterriza en `/auth/callback` con sesión. `mailer_autoconfirm=false` verificado en la Supabase real 2026-09-20; **falta probar la entrega real del correo y que la URL de callback esté permitida en Supabase** |
+| 1.23 | Reenviar enlace | En "Revisa tu correo" tocar "Reenviar enlace" | Aviso "Enlace reenviado" y botón bloqueado 60 s |
 
 ## Suite 2 — Completar datos desde el perfil
 
@@ -125,6 +128,103 @@ Cubre: `frontend/src/components/CartModal.tsx`, `backend/app/routers/vehicles.py
 | 4.3 | Placa de otra cuenta sí bloquea | Escribir la placa de un vehículo de otra cuenta | Bloquea con "Verifica tu cuenta", correcto — este caso sí debe seguir fallando siempre (es la protección real) |
 
 ---
+
+## Suite 5 — Plan gratuito, tarjeta de propiedad y toggles (post-deploy 2026-09-18)
+
+Cubre: `backend/app/services/plan.py`, `vehicles.py`, `StepVehiculo.tsx`, `OnboardingWizard.tsx`,
+`DocumentosTab.tsx`, `FileCard.tsx`, panel de perfil y toggles de `app/app/page.tsx`. Ninguno de estos
+casos se había probado en navegador ni contra el servidor desplegado cuando se escribió esta suite.
+
+**Antes de empezar:** esperar a que Railway y Vercel terminen el deploy y confirmar que el commit
+desplegado es el del merge (un "Redeploy" sobre una fila vieja reconstruye código viejo; ver
+`docs/DEPLOY.md`). Resetear la cuenta de pruebas (`python scripts/qa_test_account.py reset`), usar
+ventana de incógnito, y repetir lo visual (5.2, 5.3, 5.13) a 360 px de ancho.
+
+| # | Caso | Cómo probarlo | Resultado esperado |
+|---|------|----------------|---------------------|
+| 5.1 | Pantalla final del wizard | Completar el wizard (cuenta reseteada, incógnito) | Se queda "Configuración finalizada" hasta tocar "Comenzar recorrido"; recién ahí arranca el tutorial |
+| 5.2 | Pasos centrados y compactos | Mirar el indicador de pasos y el paso 3 (WhatsApp) | Círculos simétricos de borde a borde; "Omitir por ahora" pegado al contenido, sin hueco |
+| 5.3 | Tutorial en pantalla chica | Repetir a 360px de ancho | Tarjeta centrada y por encima de todo, marco amarillo visible en cada paso |
+| 5.4 | Reverso neutro hasta escanear | Paso Vehículo, escanear solo el frente | "Escanear reverso" neutro; amarillo solo tras escanearlo |
+| 5.5 | Envío automático desde el wizard | Escanear frente y reverso, terminar el wizard | El aviso final dice que la tarjeta se envió a revisión; en `/admin` aparece en Verificaciones |
+| 5.6 | Una sola cara no se envía | Escanear solo una cara | Vehículo queda "Sin verificar"; nada en la cola del admin |
+| 5.7 | Perfil: caras ya cargadas bloqueadas | Perfil → Datos del vehículo, tras 5.5/5.6 | "Frente cargado" / "Reverso cargado" sin poder volver a escanear; la cara que falta sigue habilitada |
+| 5.8 | Perfil: envío manual | Escanear las caras desde el perfil | No se envía solo: hay que tocar "Enviar a revisión" |
+| 5.9 | Documentos: frente y reverso | Documentos → Tarjeta de propiedad | Solo el frente en la vista previa; al ampliar, flechas para ver el reverso; sin botón de subir archivo |
+| 5.10 | Propietario leído | Escanear una tarjeta real | El nombre del propietario se llena (frente o reverso); si no, el aviso dice qué sí leyó |
+| 5.11 | Plan gratuito: servicios | Cuenta sin llavero activo → Inicio | Solo Aceite se puede registrar; los demás con candado y abren el panel del llavero |
+| 5.12 | Plan gratuito: publicar | Sin llavero, intentar encender ficha pública o "Vender" | Aviso "Activa tu llavero NFC…"; el toggle no se queda encendido |
+| 5.13 | Agregar vehículo | Perfil → Agregar vehículo sin llavero comprado | Botón atenuado con el mismo nombre; al pasar el mouse y al tocar dice "Comprar llavero para agregar" |
+| 5.14 | Activar llavero redirige | Activar el código `BHXEMCAKW7` desde el panel del llavero | Aviso y, en ~1 s, abre la ficha pública; "Copiar enlace" y "Revocar" siguen en la lista |
+| 5.15 | Toggles fiables | Georreferenciación, Perdí mi llavero, Vender: encender/apagar rápido y recargar | Cambian al instante, un solo cambio por toque, el valor se mantiene tras recargar y al cambiar de vehículo |
+| 5.16 | Placa: un solo texto | Landing, carrito, menú lateral, ficha NFC con moto y con carro | Moto: "COLOMBIA" debajo del número; carro: ciudad (o "CIUDAD" hasta elegirla); nunca los dos |
+| 5.17 | Reserva de placas | Con otra cuenta, registrar una placa ya verificada | El wizard la bloquea; si solo estaba registrada gratis sin verificar, deja seguir con aviso |
+
+## Suite 7 — Textos legales y PDF (2026-09-20)
+
+Cubre: `legalContent.ts`, `legalPdf.ts`, `PolicyModal.tsx`, enlaces de pie de landing y casilla de
+`LoginModal`. Sin backend. No probado en navegador real cuando se escribió.
+
+- [ ] Pie de la landing: 4 enlaces (Garantía, Uso/Planes/Espacio, Privacidad, Soporte) abren el modal en la pestaña correcta
+- [ ] Registro: la casilla enlaza a Privacidad, Términos de Uso y Garantía
+- [ ] Modal claro y oscuro: viñetas, avisos en negrita y scroll legibles en móvil (375 px)
+- [ ] "Descargar documento completo" baja un PDF de ~7 páginas con las 3 secciones, encabezado y "Página X de Y"
+- [ ] El PDF no tiene caracteres rotos (tildes, ñ, ¿, ¡) ni texto cortado por el pie
+- [ ] Soporte > "Descargar diagnóstico" baja la hoja de autodiagnóstico (1 página)
+- [ ] Lo que dice el texto coincide con el sistema: 10 MB por archivo, plan gratis = 1 vehículo + aceite
+
+## Suite 8 — Landing /taller y postulaciones de talleres (2026-09-21)
+
+Cubre: `app/(public)/taller/(landing)`, `PostulacionForm.tsx`, `routers/workshop_applications.py`,
+pestaña "Postulaciones" de `/admin`, migración `062`. La API y la pestaña se probaron con
+`TestClient` contra la base real (con limpieza); **el clic a clic del formulario en un navegador y el
+correo real siguen sin probarse**.
+
+- [ ] `/taller` carga; `/shop` y `/shop/x` redirigen (308) a `/`; `/taller/TLR-XXXXX` (ficha de un taller) conserva su propio título
+- [ ] Hero conserva la animación (tarjetas que se van al tocar el NFC); en móvil el nav no se sale de pantalla
+- [ ] Orden: hero, problema, beneficios, cómo funciona, panel, cobertura, planes, respaldo, vehículos certificados, postulación, FAQ
+- [ ] Formulario: sin tipo/logo/consentimiento no envía; NIT con dígito malo muestra el error; logo SVG rechazado; logo de más de 2 MB rechazado
+- [ ] Envío válido: mensaje de éxito, fila `pending` en `workshop_applications` con `consent_version` y `logo_authorized` correctos; enviarlo dos veces con el mismo NIT no duplica
+- [ ] NIT que ya es un taller registrado muestra "ya está registrado"
+- [ ] Llegan los correos: aviso al admin y acuse al postulante (requiere `ADMIN_EMAIL` y `RESEND_API_KEY`)
+- [ ] Admin > Postulaciones: lista con logo, filtros por estado, notas, Contactada / Aprobar / Rechazar; Aprobar manda el correo con el enlace a `/register?mode=empresa`
+- [ ] Enlace "Política de Privacidad" del formulario abre el modal; pie de la landing abre los 4 textos legales
+- [ ] Analítica: aparecen `taller_form_start` y `taller_form_submit`
+
+## Suite 9 — Nosotros, Trabaja con nosotros y Blog (2026-09-21)
+
+Cubre: `app/(public)/(company)/*`, `components/company/*`, `lib/blog.ts`, `SiteFooter.tsx`. Revisado
+en pantalla (escritorio) con Chromium; móvil, tema claro y el envío del formulario de empleo sin probar.
+
+- [ ] `/nosotros`, `/blog`, `/blog/<slug>`, `/trabaja` muestran el mismo header (Nosotros, Blog, Para talleres, Trabaja con nosotros) y el footer único
+- [ ] Un slug inexistente devuelve 404; una entrada con `published: false` no aparece en el listado ni en el sitemap
+- [ ] `/nosotros` muestra "Blog y noticias" con las 3 últimas entradas y enlace a `/blog`
+- [ ] Tema claro: legible en las cuatro páginas; el botón de tema del header alterna
+- [ ] Trabaja: no envía sin la casilla de autorización de datos; el enlace/correo de eliminación de datos es visible
+- [ ] Los textos de Nosotros ya no dicen "inalterable" ni "imposible de alterar"
+
+## Suite 10 — Autodiagnóstico de soporte (2026-09-21)
+
+Cubre: `lib/diagnostics.ts`, `legalPdf.ts::downloadDiagnosticPdf`, tarjeta de `PolicyModal.tsx`. La
+recolección se probó en Chromium contra el backend local; el PDF se revisó con datos de muestra.
+
+- [ ] Soporte > Autodiagnóstico > "Generar reporte" baja `CarLink_DX-AAAAMMDD-XXXX.pdf` y muestra el resumen con el ID
+- [ ] Con el backend caído: "Servidor de CarLink" sale con FALLA y la recomendación correspondiente
+- [ ] Sin sesión: "No hay sesión iniciada"; con sesión: correo enmascarado y vigencia del acceso
+- [ ] Android con Chrome: "Lectura NFC ... Disponible"; iPhone: nota de que lee con la cámara/sistema; computador: aviso de que no lee NFC
+- [ ] "Copiar ID" copia el ID; el PDF menciona ese mismo ID
+- [ ] Ningún dato sensible en el PDF (sin tokens, contraseñas ni correo completo)
+
+## Suite 11 — Ticket de soporte y responsive en pantallas de 320 px (2026-09-21)
+
+- [ ] Soporte > enviar con nombre, correo válido, tipo y mensaje de 10+ caracteres: muestra "Tu ticket es C-100xx" y la fila aparece en Admin > Soporte
+- [ ] Mensaje de menos de 10 caracteres y correo inválido muestran error claro; sin internet muestra el aviso de conexión
+- [ ] Tras generar un autodiagnóstico, el ticket queda con su ID (visible en Admin > Soporte)
+- [ ] Admin > Soporte: filtros Abiertos/Resueltos/Todos, "Marcar resuelto" y "Reabrir"
+- [ ] A 320 px de ancho: `/taller`, `/nosotros`, `/blog`, `/blog/<slug>`, `/trabaja` y los 4 textos de "Legal y soporte" no tienen scroll horizontal
+- [ ] A 320 px: header de `/taller` muestra logo, "Iniciar sesión" y el interruptor de tema completos; en Nosotros/Blog/Trabaja aparece la fila de enlaces desplazable
+- [ ] A 320 px: las pestañas del modal legal se desplazan en una fila y el contenido se lee sin recortes; el pie tiene los botones a ancho completo
+- [ ] Botón "Descargar guía" de la home tiene el mismo tamaño y tipografía que "Únete a la comunidad"
 
 ## Automatizado (referencia, no reemplaza lo de arriba)
 

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { track } from '@/lib/analytics'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
-import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, activationCodeWhatsappUrl } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, plateShowsCountryLabel, plateShowsCity, type PlateType } from '@/lib/plate'
 import { apiGet, apiPost, analyticsApi } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
@@ -90,6 +91,12 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const citySelect = isDark ? '#f5f3ec' : '#17171a'
 
   const [step, setStep] = useState<Step>(skipPlateStep ? 'shipping' : 'customize')
+
+  // Analítica del embudo de compra (docs: analytics_events, migración 060).
+  useEffect(() => { if (isOpen) track('cart_open') }, [isOpen])
+  useEffect(() => {
+    if (isOpen && (step === 'shipping' || step === 'payment')) track('checkout_step', { step })
+  }, [isOpen, step])
   const [selectedType, setSelectedType] = useState('')
   const [plateLetters, setPlateLetters] = useState('')
   const [plateNumbers, setPlateNumbers] = useState('')
@@ -103,6 +110,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false)
   const [address, setAddress] = useState('')
   const [shipCity, setShipCity] = useState('')
   const [payMethod, setPayMethod] = useState('wompi')
@@ -224,6 +232,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     if (!canPay || paying) return
     setPayError(null)
     setPaying(true)
+    track('payment_start', { method: payMethod })
     try {
       // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
       // calcula el backend (39.900 * cantidad), nunca se manda un precio
@@ -245,6 +254,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         // pedido no tenía forma de salir de 'pending' si el cliente pagaba
         // contraentrega (ver docs/DEPLOY.md, nota sobre la migración 046).
         payment_method: payMethod === 'whatsapp' ? 'cod' : 'wompi',
+        whatsapp_opt_in: whatsappOptIn,
       }), 12000, 'Crear la orden')
       if (!created) throw new Error('No se pudo crear la orden')
 
@@ -395,6 +405,13 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       </div>
                     </div>
                   </div>
+                  {payMethod !== 'whatsapp' && orderId && (
+                    <a href={activationCodeWhatsappUrl(orderId)} target="_blank" rel="noopener noreferrer"
+                      onClick={() => track('activation_code_whatsapp_click')}
+                      style={{ display: 'block', textAlign: 'center', padding: 12, borderRadius: 10, background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', marginBottom: 8 }}>
+                      Recibir mi código de activación por WhatsApp
+                    </a>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => { reset(); onClose() }} style={{ flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cerrar</button>
                     <button onClick={reset} style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: 'rgba(245,197,24,0.12)', color: GOLD, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Comprar otro</button>
@@ -581,6 +598,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       <div style={{ fontSize: 10, color: muted, marginTop: 3 }}>
                         {phone.length === 0 ? '10 dígitos, sin el +57' : isPhoneValid ? 'Número completo' : `Faltan ${10 - phone.length} dígito${10 - phone.length === 1 ? '' : 's'}`}
                       </div>
+                      <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 11, color: muted, marginTop: 8, cursor: 'pointer', lineHeight: 1.4 }}>
+                        <input type="checkbox" checked={whatsappOptIn} onChange={e => setWhatsappOptIn(e.target.checked)} style={{ marginTop: 2, accentColor: GOLD }} />
+                        <span>Acepto recibir por WhatsApp la confirmación de mi pedido y mi código de activación.</span>
+                      </label>
                     </div>
                     <div style={{ position: 'relative' }} ref={shipCityRef}>
                       <div style={fieldLabel}>Ciudad de envío <span style={{ color: GOLD }}>*</span></div>

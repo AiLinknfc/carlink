@@ -9,7 +9,22 @@
 // cambiarlo significaba tocar 7 lugares a mano. Ahora todos importan estas
 // dos constantes — cambiar el número es cambiarlo una sola vez, acá.
 export const SUPPORT_WHATSAPP = '573124033960' // E.164 sin "+", para wa.me/ y tel:
+// Número de CarLink en WhatsApp Cloud API (el que responde solo con el código
+// de activación cuando el comprador escribe primero — ver
+// backend/app/routers/whatsapp_webhook.py). Distinto de SUPPORT_WHATSAPP, que
+// es el WhatsApp de soporte atendido por una persona.
+export const ACTIVATION_BOT_WHATSAPP = '573164976104'
+
+export function activationCodeWhatsappUrl(reference: string): string {
+  const text = `Hola CarLink, quiero recibir el codigo de activacion de mi pedido ${reference}`
+  return `https://wa.me/${ACTIVATION_BOT_WHATSAPP}?text=${encodeURIComponent(text)}`
+}
+
 export const SUPPORT_WHATSAPP_DISPLAY = '+57 312 403 3960' // para mostrarlo en pantalla/PDF
+// Línea para llamadas telefónicas (2026-09-20). Es el mismo número de WhatsApp Cloud API de
+// ACTIVATION_BOT_WHATSAPP (abajo): confirmar que recibe llamadas de voz normales.
+export const SUPPORT_PHONE = '573164976104' // E.164 sin "+", para tel:
+export const SUPPORT_PHONE_DISPLAY = '+57 316 497 6104'
 
 // Pedidos del "Kit CarLink" (bundle BAJO PEDIDO — 2 chips NFC + tarjeta
 // grabada + llavero personalizado, ver LandingSections.tsx) pausados

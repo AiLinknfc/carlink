@@ -12,6 +12,7 @@ interface AuthCtx {
   signIn: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>
   signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>
+  resendConfirmation: (email: string) => Promise<{ error?: string }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthCtx>({
   signIn: async () => {},
   signInWithEmail: async () => ({}),
   signUpWithEmail: async () => ({}),
+  resendConfirmation: async () => ({}),
   refreshProfile: async () => {},
   signOut: async () => {},
 })
@@ -104,6 +106,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { needsConfirmation }
   }
 
+  // Reenvía el enlace de confirmación (magic link) a un correo aún sin confirmar.
+  const resendConfirmation = async (email: string) => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+    const { error } = await supabase.auth.resend({
+      type: 'signup', email, options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+    })
+    return { error: error?.message }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
@@ -111,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signUpWithEmail, resendConfirmation, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

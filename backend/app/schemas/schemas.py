@@ -1642,6 +1642,69 @@ class WhatsappClickSummaryOut(BaseModel):
     by_source: dict[str, int]
 
 
+# =========== Analytics events (first-party) ===========
+_EVENT_NAME_RE = r"^[a-z0-9_.:-]{1,60}$"
+
+
+class AnalyticsEventIn(BaseModel):
+    anon_id: str = Field(min_length=8, max_length=64)
+    session_id: str = Field(min_length=8, max_length=64)
+    event: str = Field(pattern=_EVENT_NAME_RE)
+    path: str = Field(default="", max_length=300)
+    props: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    referrer: str = Field(default="", max_length=300)
+    utm_source: str = Field(default="", max_length=100)
+    utm_medium: str = Field(default="", max_length=100)
+    utm_campaign: str = Field(default="", max_length=100)
+    device: Literal["mobile", "tablet", "desktop", ""] = ""
+
+    @field_validator("props")
+    @classmethod
+    def _props_small(cls, v):
+        if len(v) > 10 or any(len(k) > 40 or (isinstance(x, str) and len(x) > 200) for k, x in v.items()):
+            raise ValueError("props demasiado grande")
+        return v
+
+
+class AnalyticsEventBatch(BaseModel):
+    events: list[AnalyticsEventIn] = Field(min_length=1, max_length=20)
+
+
+class AnalyticsDayPoint(BaseModel):
+    day: str
+    visitors: int
+    sessions: int
+    pageviews: int
+
+
+class AnalyticsCount(BaseModel):
+    label: str
+    count: int
+
+
+class AnalyticsFunnelStep(BaseModel):
+    label: str
+    count: int
+
+
+class AnalyticsFunnel(BaseModel):
+    key: str
+    title: str
+    steps: list[AnalyticsFunnelStep]
+
+
+class AnalyticsSummaryOut(BaseModel):
+    days: int
+    visitors: int
+    sessions: int
+    pageviews: int
+    series: list[AnalyticsDayPoint]
+    top_pages: list[AnalyticsCount]
+    top_sources: list[AnalyticsCount]
+    devices: list[AnalyticsCount]
+    funnels: list[AnalyticsFunnel]
+
+
 # =========== NFC Tag Inventory ===========
 # Raw metadata scanned off a physical keychain (manual today, meant to be
 # automated later). Fields are free text on purpose — real scans are
@@ -1712,6 +1775,7 @@ class ShopOrderCreate(BaseModel):
     shipping_city: str
     notes: str = ""
     payment_method: Literal["wompi", "cod"] = "wompi"
+    whatsapp_opt_in: bool = False
 
     @field_validator('quantity')
     @classmethod
@@ -1787,3 +1851,109 @@ class ShopOrderStatsOut(BaseModel):
     delivered_count: int
     revenue_in_cents: int
 
+
+
+# =========== Workshop Applications (landing /taller) ===========
+
+WORKSHOP_BUSINESS_TYPES = {
+    "mecanica_general", "latoneria_pintura", "llantas_alineacion", "electrico",
+    "lubricentro", "tecnicentro", "repuestos", "otro",
+}
+
+
+class WorkshopApplicationCreate(BaseModel):
+    business_type: str
+    name: str = Field(min_length=2, max_length=120)
+    legal_name: str = Field("", max_length=160)
+    nit: str = Field(max_length=32)
+    city: str = Field(min_length=2, max_length=80)
+    address: str = Field(min_length=4, max_length=200)
+    contact_name: str = Field(min_length=2, max_length=120)
+    contact_role: str = Field("", max_length=80)
+    phone: str = Field(max_length=32)
+    email: str = Field(max_length=160)
+    website: str = Field("", max_length=200)
+    instagram: str = Field("", max_length=200)
+    specialties: str = Field("", max_length=300)
+    monthly_volume: str = Field("", max_length=40)
+    logo_url: str = Field(max_length=300)
+    facade_url: str = Field("", max_length=300)
+    doc_url: str = Field("", max_length=300)
+    logo_authorized: bool = False
+    consent_accepted: bool
+    # Versión del texto legal que la persona vio al aceptar (LEGAL_VERSION del frontend).
+    consent_version: str = Field(max_length=16)
+    source: str = Field("", max_length=80)
+    # Campo trampa anti-bots: las personas no lo ven ni lo llenan.
+    website_confirm: str = Field("", max_length=200)
+
+
+class WorkshopApplicationOut(BaseModel):
+    id: UUID
+    business_type: str
+    name: str
+    legal_name: str
+    nit: str
+    city: str
+    address: str
+    contact_name: str
+    contact_role: str
+    phone: str
+    email: str
+    website: str
+    instagram: str
+    specialties: str
+    monthly_volume: str
+    logo_url: str
+    facade_url: str
+    doc_url: str
+    logo_authorized: bool
+    consent_version: str
+    source: str
+    status: str
+    admin_notes: str
+    created_at: datetime
+    reviewed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class WorkshopApplicationUpdate(BaseModel):
+    status: str | None = None
+    admin_notes: str | None = Field(None, max_length=2000)
+
+
+# =========== Support tickets ===========
+
+SUPPORT_TICKET_TYPES = {"NFC_READ_ERROR", "MILEAGE_CORRECTION", "OWNER_TRANSFER", "SHOP_AFFILIATION", "BUG_REPORT"}
+
+
+class SupportTicketCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(max_length=160)
+    type: str
+    message: str = Field(min_length=10, max_length=2000)
+    plate: str = Field("", max_length=12)
+    diagnostic_id: str = Field("", max_length=32)
+    # Campo trampa anti-bots.
+    website_confirm: str = Field("", max_length=200)
+
+
+class SupportTicketOut(BaseModel):
+    id: UUID
+    number: int
+    name: str
+    email: str
+    type: str
+    message: str
+    plate: str
+    diagnostic_id: str
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class SupportTicketUpdate(BaseModel):
+    status: str

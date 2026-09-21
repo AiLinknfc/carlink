@@ -377,3 +377,92 @@ def send_order_admin_notification_email(
     """
     html = _email_shell(body, footer_text='Marca el pedido como enviado desde "Mis pedidos" cuando lo despaches — eso le avisa al cliente.')
     return _send_email(ADMIN_EMAIL, subject, html, log_label=f"order admin-notification email ({reference})")
+
+
+# ── Postulaciones de talleres (landing /taller) ──
+# Todo texto que escribió el postulante se escapa: va dentro de HTML.
+def _esc(v: object) -> str:
+    import html as _html
+    return _html.escape(str(v or ""), quote=True)
+
+
+def send_workshop_application_admin_email(app) -> bool:
+    if not ADMIN_EMAIL:
+        print("[email] ADMIN_EMAIL not configured — skipping workshop application email")
+        return False
+    subject = f"CarLink — Nueva postulación de taller: {app.name}"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Nueva postulación a la red</h2>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee;">
+          <div style="font-size: 14px; color: #333; line-height: 1.8;">
+            <strong>Negocio:</strong> {_esc(app.name)} ({_esc(app.business_type)})<br>
+            <strong>NIT:</strong> {_esc(app.nit)}<br>
+            <strong>Ciudad:</strong> {_esc(app.city)} - {_esc(app.address)}<br>
+            <strong>Contacto:</strong> {_esc(app.contact_name)} {_esc(app.contact_role)}<br>
+            <strong>Teléfono:</strong> {_esc(app.phone)}<br>
+            <strong>Correo:</strong> {_esc(app.email)}<br>
+            <strong>Autoriza uso del logo:</strong> {"sí" if app.logo_authorized else "no"}
+          </div>
+        </div>
+    """
+    html = _email_shell(body, footer_text="Revísala en Admin > Postulaciones.")
+    return _send_email(ADMIN_EMAIL, subject, html, log_label="workshop application admin email")
+
+
+def send_workshop_application_ack_email(to_email: str, contact_name: str, business_name: str) -> bool:
+    subject = "CarLink — Recibimos la postulación de tu negocio"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Hola {_esc(contact_name)}</h2>
+        <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0;">
+          Recibimos la postulación de <strong>{_esc(business_name)}</strong> a la red CarLink.
+          Vamos a validar los datos y te escribiremos a este correo con el resultado.
+        </p>
+    """
+    return _send_email(to_email, subject, _email_shell(body), log_label="workshop application ack email")
+
+
+def send_workshop_application_approved_email(to_email: str, contact_name: str, business_name: str) -> bool:
+    link = f"{FRONTEND_URL}/register?mode=empresa"
+    subject = "CarLink — Tu postulación fue aprobada"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Bienvenido a la red, {_esc(contact_name)}!</h2>
+        <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 16px;">
+          La postulación de <strong>{_esc(business_name)}</strong> fue aprobada. El último paso es crear
+          tu cuenta de taller con el mismo NIT para activar tu panel.
+        </p>
+        <a href="{link}" style="display:inline-block;background:#F5C518;color:#111;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Crear mi cuenta de taller</a>
+    """
+    return _send_email(to_email, subject, _email_shell(body), log_label="workshop application approved email")
+
+
+# ── Soporte ──
+def send_support_ticket_admin_email(t) -> bool:
+    if not ADMIN_EMAIL:
+        print("[email] ADMIN_EMAIL not configured — skipping support ticket email")
+        return False
+    subject = f"CarLink Soporte C-{t.number}: {t.type}"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Nuevo ticket C-{t.number}</h2>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee;">
+          <div style="font-size: 14px; color: #333; line-height: 1.8;">
+            <strong>Tipo:</strong> {_esc(t.type)}<br>
+            <strong>De:</strong> {_esc(t.name)} &lt;{_esc(t.email)}&gt;<br>
+            <strong>Placa:</strong> {_esc(t.plate) or "-"}<br>
+            <strong>ID de autodiagnóstico:</strong> {_esc(t.diagnostic_id) or "-"}<br><br>
+            <strong>Mensaje:</strong><br>{_esc(t.message).replace(chr(10), "<br>")}
+          </div>
+        </div>
+    """
+    return _send_email(ADMIN_EMAIL, subject, _email_shell(body, footer_text="Revísalo en Admin > Soporte."), log_label="support ticket admin email")
+
+
+def send_support_ticket_ack_email(to_email: str, name: str, number: int) -> bool:
+    subject = f"CarLink — Recibimos tu solicitud C-{number}"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Hola {_esc(name)}</h2>
+        <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0;">
+          Recibimos tu solicitud de soporte. Tu número de ticket es <strong>C-{number}</strong>.
+          Te responderemos a este correo lo antes posible.
+        </p>
+    """
+    return _send_email(to_email, subject, _email_shell(body), log_label="support ticket ack email")
