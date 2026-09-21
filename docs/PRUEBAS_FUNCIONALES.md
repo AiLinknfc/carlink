@@ -88,6 +88,8 @@ Cubre: `frontend/src/components/onboarding/*`, `frontend/src/app/auth/callback/p
 | 1.18 | Sin "Omitir" si ya está hecho | Con el llavero ya activado | El pie del wizard no muestra "Omitir por ahora" (no tiene sentido omitir algo ya hecho) |
 | 1.19 | Cuenta taller nunca ve este wizard | Crear/usar una cuenta `taller` | Nunca se dispara `OnboardingWizard` — la cuenta va directo a `/app/negocio` |
 | 1.20 | Reanudar tras cerrar sesión a mitad de camino | Cerrar la pestaña en medio del paso Vehículo (sin guardar), volver a entrar | Retoma en el mismo paso, con lo que ya estaba tecleado (placa/ciudad/tipo) |
+| 1.21 | Registro con correo pide nombre y confirma contraseña | Modal > "Crear una" (cuenta persona) | Muestra Nombre completo, Correo, Contraseña y Repite la contraseña; con nombre de menos de 3 letras o contraseñas distintas no envía; el modo "Iniciar sesión" no muestra esos dos campos |
+| 1.22 | El nombre llega al perfil | Registrar una cuenta nueva por correo con nombre, confirmar el correo y abrir "Mi perfil" | El nombre ya aparece (viene de `user_metadata.full_name` vía trigger `handle_new_user`, verificado en la DB real 2026-09-20; la prueba de extremo a extremo con un usuario real falta) |
 
 ## Suite 2 — Completar datos desde el perfil
 

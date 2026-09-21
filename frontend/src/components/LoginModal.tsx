@@ -45,6 +45,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
   const [step, setStep] = useState<Step>('form')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [password2, setPassword2] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsError, setShowTermsError] = useState(false)
@@ -58,6 +60,8 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError(null)
       setIsSubmitting(false)
       setShowTermsError(false)
+      setFullName('')
+      setPassword2('')
     } else {
       setMode(initialMode)
       setAccountType(initialAccountType)
@@ -81,6 +85,10 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setShowTermsError(true)
       return false
     }
+    if (mode === 'signup' && fullName.trim().length < 3) {
+      setError('Ingresa tu nombre completo.')
+      return false
+    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError('Ingresa un correo electrónico válido.')
       return false
@@ -89,8 +97,12 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
       setError('La contraseña debe tener al menos 6 caracteres.')
       return false
     }
+    if (mode === 'signup' && password !== password2) {
+      setError('Las contraseñas no coinciden.')
+      return false
+    }
     return true
-  }, [mode, acceptedTerms, email, password])
+  }, [mode, acceptedTerms, fullName, email, password, password2])
 
   const handleEmailAuth = useCallback(async () => {
     setError(null)
@@ -103,7 +115,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
     const result = mode === 'signin'
       ? await signInWithEmail(email, password)
-      : await signUpWithEmail(email, password)
+      : await signUpWithEmail(email, password, fullName.trim())
 
     if (result.error) {
       setError(traducirError(result.error))
@@ -126,7 +138,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
     }
 
     router.push('/auth/callback')
-  }, [mode, email, password, validate, signInWithEmail, signUpWithEmail, router, accountType])
+  }, [mode, email, password, fullName, validate, signInWithEmail, signUpWithEmail, router, accountType])
 
   const handleGoogle = useCallback(() => {
     setError(null)
@@ -236,7 +248,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                         {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
                       </h2>
                       <p style={{ fontSize: 13, color: textMuted, maxWidth: '28ch', margin: '0 auto', lineHeight: 1.5 }}>
-                        {mode === 'signin' ? 'Ingresa para gestionar tu placa' : 'Regístrate para vincular y certificar'}{' '}
+                        {mode === 'signin' ? 'Ingresa para gestionar tu placa' : 'Crea tu cuenta; después te pediremos tu placa y tu WhatsApp'}{' '}
                         <span style={{ color: gold, fontFamily: 'var(--font-display)', fontWeight: 400 }}>{plateText || '—'}</span>.
                       </p>
                     </div>
@@ -277,6 +289,22 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
 
                     {/* Email + Password */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {mode === 'signup' && (
+                        <div>
+                          <label htmlFor="signup-name" style={labelStyle(textMuted)}>Nombre completo</label>
+                          <input
+                            id="signup-name"
+                            type="text"
+                            autoComplete="name"
+                            value={fullName}
+                            onChange={(e) => { setFullName(e.target.value); setError(null) }}
+                            placeholder="Como aparece en tu documento"
+                            style={inputStyle(inputBg, inputBorder, textPrimary)}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
+                          />
+                        </div>
+                      )}
                       <div>
                         <label htmlFor="login-email" style={labelStyle(textMuted)}>Correo electrónico</label>
                         <div style={{ position: 'relative' }}>
@@ -310,7 +338,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                             value={password}
                             onChange={(e) => { setPassword(e.target.value); setError(null) }}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleEmailAuth() }}
-                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Crea una contraseña (6+ chars)'}
+                            placeholder={mode === 'signin' ? 'Tu contraseña' : 'Crea una contraseña (mínimo 6 caracteres)'}
                             style={{ ...inputStyle(inputBg, inputBorder, textPrimary), paddingRight: 42 }}
                             onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
                             onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
@@ -328,6 +356,24 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           </button>
                         </div>
                       </div>
+
+                      {mode === 'signup' && (
+                        <div>
+                          <label htmlFor="signup-password2" style={labelStyle(textMuted)}>Repite la contraseña</label>
+                          <input
+                            id="signup-password2"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            value={password2}
+                            onChange={(e) => { setPassword2(e.target.value); setError(null) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleEmailAuth() }}
+                            placeholder="Escríbela otra vez"
+                            style={inputStyle(inputBg, inputBorder, textPrimary)}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = gold }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = inputBorder }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Error */}
