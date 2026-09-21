@@ -2,6 +2,15 @@
 
 _Última actualización: 2026-09-09._
 
+## Landing /taller y postulaciones de talleres (2026-09-21, en local, sin desplegar)
+
+`/taller` (antes `/shop`) capta talleres y proveedores: formulario público -> tabla
+`workshop_applications` (migración `062`, RLS sin políticas) -> pestaña "Postulaciones" en `/admin`;
+aprobar envía el enlace a `/register?mode=empresa` (no crea cuentas). Backend:
+`routers/workshop_applications.py` (upload público solo PNG/JPG/WebP/PDF verificados por firma,
+rate limit por IP, sin SVG). `/shop` redirige a `/` (`next.config.ts`). Secciones archivadas de la
+landing anterior: `/admin` > Recursos. Detalle: `docs/PLAN_LANDING_TALLERES.md`.
+
 ## Analítica propia y WhatsApp automático (2026-09-20, en local, sin desplegar)
 
 **Analítica first-party** (migración `060`): `analytics_events` (ids anónimos, sin PII, RLS sin

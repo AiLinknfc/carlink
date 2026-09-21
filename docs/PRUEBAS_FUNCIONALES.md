@@ -173,6 +173,24 @@ Cubre: `legalContent.ts`, `legalPdf.ts`, `PolicyModal.tsx`, enlaces de pie de la
 - [ ] Soporte > "Descargar diagnóstico" baja la hoja de autodiagnóstico (1 página)
 - [ ] Lo que dice el texto coincide con el sistema: 10 MB por archivo, plan gratis = 1 vehículo + aceite
 
+## Suite 8 — Landing /taller y postulaciones de talleres (2026-09-21)
+
+Cubre: `app/(public)/taller/(landing)`, `PostulacionForm.tsx`, `routers/workshop_applications.py`,
+pestaña "Postulaciones" de `/admin`, migración `062`. La API y la pestaña se probaron con
+`TestClient` contra la base real (con limpieza); **el clic a clic del formulario en un navegador y el
+correo real siguen sin probarse**.
+
+- [ ] `/taller` carga; `/shop` y `/shop/x` redirigen (308) a `/`; `/taller/TLR-XXXXX` (ficha de un taller) conserva su propio título
+- [ ] Hero conserva la animación (tarjetas que se van al tocar el NFC); en móvil el nav no se sale de pantalla
+- [ ] Orden: hero, problema, beneficios, cómo funciona, panel, cobertura, planes, respaldo, vehículos certificados, postulación, FAQ
+- [ ] Formulario: sin tipo/logo/consentimiento no envía; NIT con dígito malo muestra el error; logo SVG rechazado; logo de más de 2 MB rechazado
+- [ ] Envío válido: mensaje de éxito, fila `pending` en `workshop_applications` con `consent_version` y `logo_authorized` correctos; enviarlo dos veces con el mismo NIT no duplica
+- [ ] NIT que ya es un taller registrado muestra "ya está registrado"
+- [ ] Llegan los correos: aviso al admin y acuse al postulante (requiere `ADMIN_EMAIL` y `RESEND_API_KEY`)
+- [ ] Admin > Postulaciones: lista con logo, filtros por estado, notas, Contactada / Aprobar / Rechazar; Aprobar manda el correo con el enlace a `/register?mode=empresa`
+- [ ] Enlace "Política de Privacidad" del formulario abre el modal; pie de la landing abre los 4 textos legales
+- [ ] Analítica: aparecen `taller_form_start` y `taller_form_submit`
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

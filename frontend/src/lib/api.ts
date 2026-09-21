@@ -377,6 +377,41 @@ export const jobApplicationApi = {
     request<JobApplication>('PATCH', `/job-applications/${id}`, { status }),
 }
 
+export interface WorkshopApplication {
+  id: string
+  business_type: string
+  name: string
+  legal_name: string
+  nit: string
+  city: string
+  address: string
+  contact_name: string
+  contact_role: string
+  phone: string
+  email: string
+  website: string
+  instagram: string
+  specialties: string
+  monthly_volume: string
+  logo_url: string
+  facade_url: string
+  doc_url: string
+  logo_authorized: boolean
+  consent_version: string
+  source: string
+  status: 'pending' | 'contacted' | 'approved' | 'rejected'
+  admin_notes: string
+  created_at: string
+  reviewed_at: string | null
+}
+
+export const workshopApplicationApi = {
+  list: (status?: string) =>
+    request<WorkshopApplication[]>('GET', `/admin/workshop-applications${status ? `?status_filter=${status}` : ''}`),
+  update: (id: string, data: { status?: string; admin_notes?: string }) =>
+    request<WorkshopApplication>('PATCH', `/admin/workshop-applications/${id}`, data),
+}
+
 export interface WaitlistLead {
   id: string
   contact: string

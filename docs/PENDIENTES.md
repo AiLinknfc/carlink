@@ -301,12 +301,19 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
-## Landing `/taller` para captar talleres — PLAN escrito, sin implementar (2026-09-20)
+## Landing `/taller` para captar talleres — IMPLEMENTADA en local (2026-09-21), sin desplegar
 
-Detalle, estructura por sección, formulario, backend y decisiones abiertas: `docs/PLAN_LANDING_TALLERES.md`.
-Puntos que requieren al dueño antes de construir: destino de `/shop` tras el cambio, si se muestra el
-precio $79.900/mes, tipos de negocio aceptados, flujo al aprobar, y confirmar que los logos de
-marcas y las cifras de la sección "Respaldo" (que se conserva) sean verificables.
+Plan y decisiones: `docs/PLAN_LANDING_TALLERES.md`. Hecho: `/shop` pasó a `/taller` (redirección 308 de
+`/shop` a `/`), página reescrita para talleres con el hero animado conservado, formulario de
+postulación (`workshop_applications`, migración `062` **ya aplicada a la Supabase compartida**),
+upload público acotado, pestaña "Postulaciones" en `/admin`, textos legales v2.1. Verificado con
+`TestClient` contra la DB y R2 reales (cero residuo). **Falta**:
+1. Desplegar (push con autorización) y confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway: sin ellos no llegan los correos de la postulación (localmente se omiten).
+2. Prueba clic a clic en navegador y Suite 8.
+3. **Sección "Respaldo" (se conservó a pedido): los logos `/images/sponsors/*.svg` NO existen en el repo** (imágenes rotas en la página) y las cifras/marcas (Terpel, Mobil 1, Shell, Castrol, Michelin, SURA; 4.8/5, 23+, 342) no tienen respaldo en ningún doc. Riesgo de publicidad engañosa y uso de marca ajena: ocultar hasta tener logos y aliados reales, o autorización de cada marca.
+4. Supuestos tomados sin respuesta del dueño (cambiarlos es trivial): `/shop` redirige a `/`; se muestra el plan $79.900/mes con 7 días de prueba (no hay cobro implementado); proveedores de repuestos entran por el mismo formulario; aprobar = correo con enlace de registro; se promete respuesta "normalmente en 2 días hábiles"; rechazadas se borran a los 12 meses (en la política, sin job que lo haga aún).
+5. Fase posterior: alimentar "Respaldo" con los logos de talleres aprobados que autorizaron su uso.
+6. "Diagnóstico IA" se omitió a propósito de la lista del panel porque `DEEPSEEK_API_KEY` sigue sin estar en Railway.
 
 ## Legal: privacidad, garantía y términos v2.0 (2026-09-20, en local, sin desplegar)
 

@@ -450,18 +450,17 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Producto</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
               <a href="#h-como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</a>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Planes</Link>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Para talleres</Link>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Tienda NFC</Link>
+              <Link href="/taller#h-planes" style={{ color: k.muted, textDecoration: 'none' }}>Planes</Link>
+              <Link href="/taller" style={{ color: k.muted, textDecoration: 'none' }}>Para talleres</Link>
+              <Link href="#h-productos" style={{ color: k.muted, textDecoration: 'none' }}>Tienda NFC</Link>
             </div>
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Tienda</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
-              <Link href="/shop" style={{ color: k.muted, textDecoration: 'none' }}>Llavero NFC CarLink</Link>
+              <Link href="#h-productos" style={{ color: k.muted, textDecoration: 'none' }}>Llavero NFC CarLink</Link>
               <Link href="#h-productos" style={{ color: k.muted, textDecoration: 'none' }}>Precios</Link>
-              <Link href="/shop#como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</Link>
-              <Link href="/shop#faq" style={{ color: k.muted, textDecoration: 'none' }}>Preguntas frecuentes</Link>
+              <Link href="#h-como" style={{ color: k.muted, textDecoration: 'none' }}>Cómo funciona</Link>
             </div>
           </div>
           <div>

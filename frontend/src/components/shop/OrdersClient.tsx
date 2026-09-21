@@ -48,7 +48,7 @@ export default function OrdersClient() {
         </div>
         <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Sin pedidos aún</div>
         <div style={{ fontSize: 14, color: muted, marginBottom: 24 }}>Cuando compres un llavero, tus pedidos aparecerán aquí</div>
-        <a href="/shop" style={{ display: 'inline-flex', padding: '12px 24px', borderRadius: 12, background: GOLD, color: '#111', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Explorar tienda</a>
+        <a href="/" style={{ display: 'inline-flex', padding: '12px 24px', borderRadius: 12, background: GOLD, color: '#111', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Explorar tienda</a>
       </div>
     )
   }
@@ -139,7 +139,7 @@ export default function OrdersClient() {
                     </div>
 
                     {order.status !== 'delivered' && (
-                      <a href="/shop" style={{ display: 'block', textAlign: 'center', marginTop: 14, padding: 12, borderRadius: 10, border: 'none', background: 'rgba(245,197,24,0.12)', color: GOLD, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                      <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: 14, padding: 12, borderRadius: 10, border: 'none', background: 'rgba(245,197,24,0.12)', color: GOLD, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                         Comprar otro llavero
                       </a>
                     )}

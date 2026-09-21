@@ -1,6 +1,7 @@
 'use client'
 
 import AnalyticsPanel from '@/components/admin/AnalyticsPanel'
+import PostulacionesPanel from '@/components/admin/PostulacionesPanel'
 import dynamic from 'next/dynamic'
 
 // Recursos archivados de la landing (2026-09-20): chunk aparte, solo se descarga al abrir la pestaña.
@@ -74,7 +75,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -499,6 +500,7 @@ export default function AdminPage() {
     { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
     { key: 'reviews', label: `Reseñas${reviewsSummary && reviewsSummary.total > 0 ? ` (${reviewsSummary.total})` : ''}` },
     { key: 'analytics', label: 'Analítica' },
+    { key: 'postulaciones', label: 'Postulaciones' },
     { key: 'recursos', label: 'Recursos' },
     { key: 'verifications', label: `Verificaciones${pendingVerifications.length ? ` (${pendingVerifications.length})` : ''}` },
   ] as const
@@ -1096,6 +1098,8 @@ export default function AdminPage() {
 
         {/* Verificaciones de perfil */}
         {tab === 'analytics' && <AnalyticsPanel c={c} />}
+
+        {tab === 'postulaciones' && <PostulacionesPanel c={c} />}
 
         {tab === 'recursos' && <RecursosPanel isDark={isDark} />}
 

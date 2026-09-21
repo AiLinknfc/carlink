@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import CarLinkLogo from '@/components/CarLinkLogo'
-import { NfcKeyIcon } from '@/lib/icons_new'
-import { waitlistApi, reviewsApi, analyticsApi } from '@/lib/api'
-import type { Review } from '@/lib/types'
+import { analyticsApi } from '@/lib/api'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { useTheme } from '@/store/theme'
-import { checkContact } from '@/lib/contactValidation'
+import PostulacionForm from '@/components/taller/PostulacionForm'
+import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -44,95 +43,38 @@ function CarLinkWordmark({ fontSize, iconSize, textColor = '#f5f3ec' }: { fontSi
 }
 
 const PROBLEMS = [
-  { text: '¿No recuerdas cuándo cambiaste el aceite?', icon: <path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z" /> },
-  { text: '¿Perdiste la factura del taller?', icon: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 12h6M9 16h4" /></> },
-  { text: '¿Compraste un carro usado y no sabes si le hicieron mantenimiento?', icon: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M21 21l-4.35-4.35" /></> },
-  { text: '¿Olvidaste cuándo vence el SOAT?', icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M12 14v3M12 19h.01" /></> },
+  { text: '¿Tus clientes no vuelven porque nadie recuerda qué se le hizo a su carro?', icon: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> },
+  { text: '¿Discuten la garantía porque no hay prueba de qué se cambió y cuándo?', icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> },
+  { text: '¿Pierdes tiempo buscando órdenes y facturas en papel?', icon: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 12h6M9 16h4" /></> },
+  { text: '¿Tu buen trabajo no lo ve quien compra un carro usado?', icon: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M21 21l-4.35-4.35" /></> },
 ]
 const BENEFITS = [
-  { title: 'Nunca pierdes la información', desc: 'Todo queda guardado en la nube, asociado a tu placa — no a un papel que se moja o se pierde.' },
-  { title: 'Aumenta el valor de reventa', desc: 'Un historial verificable le da confianza inmediata al comprador y respalda tu precio.' },
-  { title: 'Demuestras el mantenimiento', desc: 'Cada servicio queda firmado por el taller que lo hizo. No es tu palabra: es un registro.' },
-  { title: 'Compartes en un segundo', desc: 'Un enlace o un toque del llavero y la otra persona ve toda la ficha.' },
-  { title: 'Conservas todas las facturas', desc: 'Escaneas el recibo con la cámara y queda archivado junto al servicio correspondiente.' },
-  { title: 'Recibes recordatorios', desc: 'Aceite, SOAT, tecnomecánica, llantas, frenos y batería — te avisamos antes de que se venza.' },
+  { title: 'Clientes que vuelven', desc: 'Cada servicio queda en la ficha del cliente, con recordatorios de su próximo mantenimiento a nombre de tu taller.' },
+  { title: 'Garantías con respaldo', desc: 'La fecha, el kilometraje y el trabajo registrado sirven de evidencia si hay un reclamo.' },
+  { title: 'Certificados y facturación', desc: 'Genera certificados y facturas numeradas desde la propia orden de trabajo.' },
+  { title: 'Visibilidad en la red', desc: 'Un perfil público con reseñas reales y tu ubicación en el mapa de talleres aliados.' },
+  { title: 'Todo tu taller en un panel', desc: 'Clientes, órdenes, inventario, citas y rentabilidad en un solo lugar.' },
+  { title: 'Sin equipos ni instalaciones', desc: 'Funciona desde el navegador, en el celular o en el computador que ya tienes.' },
 ]
 const STEPS = [
-  { n: '1', title: 'Compra el llavero', desc: 'Pídelo con tu placa o el texto que quieras. Llega personalizado a tu casa.' },
-  { n: '2', title: 'Descarga la app', desc: 'Disponible para Android e iPhone. Entras con tu cuenta de Google.' },
-  { n: '3', title: 'Registra tu vehículo', desc: 'Placa, marca, modelo y año. Toma menos de un minuto.' },
-  { n: '4', title: 'Escanea', desc: 'Acerca el llavero al teléfono y ya tienes tu historial vivo.' },
+  { n: '1', title: 'Postula tu negocio', desc: 'Llena el formulario con tu NIT y tu logo. Toma unos minutos.' },
+  { n: '2', title: 'Validamos tus datos', desc: 'Revisamos el NIT y la información del negocio y te respondemos por correo.' },
+  { n: '3', title: 'Activa tu panel', desc: 'Al aprobarte creas tu cuenta de taller y empiezas con 7 días de prueba.' },
+  { n: '4', title: 'Registra servicios', desc: 'Vincula el vehículo de tu cliente y registra cada servicio en su ficha.' },
 ]
-const INCLUDES = ['Llavero personalizado', 'Perfil del vehículo', 'Historial de mantenimiento', 'Recordatorios', 'Fotos', 'Facturas', 'Kilometraje', 'Cambios de aceite', 'Llantas', 'Frenos', 'Documentación']
-// Precios y features iguales a los de la sección "Planes" (h-planes) y "Compra tu llavero"
-// (h-buyfob) del home — no inventar números nuevos aquí. Se arma dentro del componente
-// (buildPlans) porque border/priceColor/bg dependen de isDark.
-function buildPlans(isDark: boolean, border: string, textColor: string) {
-  return [
-    {
-      name: 'Conductor', price: 'Gratis', period: 'para siempre', tag: '',
-      border, priceColor: textColor,
-      features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'],
-      cta: 'Crear mi ficha', href: '/register', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-    },
-    {
-      name: 'Llavero NFC CarLink', price: '$39.900', period: 'pago único · envío incluido', tag: 'MÁS POPULAR',
-      border: `2px solid ${GOLD}`, priceColor: GOLD, bg: isDark ? 'linear-gradient(165deg,#241f0c,#141418)' : 'linear-gradient(165deg,#fff6d9,#fffdf5)',
-      features: ['Todo lo del plan Conductor', 'Llavero personalizado', 'Modo público', 'Perfil verificable', 'Compartir historial con un toque'],
-      cta: 'Quiero mi CarLink', href: '/#h-buyfob', btnBg: GOLD, btnColor: '#111',
-    },
-    {
-      name: 'Taller aliado', price: '$79.900', period: '/mes · Pruebalo ya!', tag: '',
-      border: `1px solid rgba(245,197,24,0.28)`, priceColor: textColor,
-      features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'],
-      cta: 'Registrar mi taller', href: '/register?mode=empresa', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD,
-    },
-  ]
-}
+const INCLUDES = ['Clientes y vehículos', 'Órdenes de trabajo', 'Inventario de repuestos', 'Citas y agenda', 'Notificaciones a clientes', 'Rentabilidad', 'Certificados y facturas', 'Documentos numerados', 'Perfil público con reseñas', 'Ficha pública del taller', 'Registro de mecánicos']
 
-const TESTIMONIALS = [
-  {
-    id: '1',
-    name: 'Andrés Felipe Gómez',
-    city: 'Bogotá',
-    carModel: 'Mazda 3 Touring 2020',
-    rating: 5,
-    title: 'Vendí mi carro sin que me pidieran rebaja',
-    text: 'El comprador quería ver el historial antes de cerrar. Le mostré la ficha del llavero con los mantenimientos al día y no hubo más preguntas.',
-  },
-  {
-    id: '2',
-    name: 'María Camila Torres',
-    city: 'Medellín',
-    carModel: 'Kia Sportage 2021',
-    rating: 5,
-    title: 'Se acabó buscar papeles en la guantera',
-    text: 'Cada vez que salgo del taller, acerco el llavero y queda el registro guardado. Ya no cargo con recibos que se borran.',
-  },
-  {
-    id: '3',
-    name: 'Juan Esteban Prado',
-    city: 'Cali',
-    carModel: 'Renault Duster 4x4',
-    rating: 5,
-    title: 'Casi repito un cambio que ya estaba hecho',
-    text: 'Iba a cambiar una correa por precaución. El llavero mostró que el dueño anterior ya la había cambiado hacía poco — me ahorré ese gasto.',
-  },
-]
 
 const FAQS = [
-  { q: '¿Qué incluye cada servicio del taller?', a: 'Cada visita queda registrada con fecha, kilometraje, tall mecánico, los repuestos cambiados y una foto del comprobante. El historial es inmutable y verificable.' },
-  { q: '¿Qué pasa si cambio de taller?', a: 'Nada se pierde. El historial queda asociado a tu placa, no al taller — cada visita nueva simplemente se agrega con el nombre de quien te atendió.' },
-  { q: '¿Cómo verifico que el historial no esté adulterado?', a: 'Cada registro tiene un hash de integridad y la ubicación GPS del taller. Si alguien intenta editar un servicio pasado, la app marca la inconsistencia.' },
-  { q: '¿Necesito descargar alguna aplicación?', a: 'No. CarLink funciona con la tecnología NFC nativa de todos los smartphones (iPhone y Android). Al acercar tu celular al llavero, se abre automáticamente tu navegador seguro con la bitácora digital de tu vehículo.' },
+  { q: '¿Cuánto cuesta postularme?', a: 'Postularte no tiene costo. Si te aprobamos, creas tu cuenta de taller y empiezas con 7 días de prueba. El plan Taller aliado tiene la mensualidad que ves en esta página y nada se cobra sin que lo aceptes.' },
+  { q: '¿Qué pasa después de enviar el formulario?', a: 'Validamos tu NIT y los datos del negocio y te escribimos por correo, normalmente en 2 días hábiles. Si te aprobamos, recibes un enlace para crear tu cuenta de taller con el mismo NIT.' },
+  { q: '¿Qué datos me piden y para qué?', a: 'NIT, nombre del negocio, ubicación, contacto y logo, para validar que tu negocio existe y armar tu perfil en la red. Tu logo solo se muestra en el sitio si lo autorizas. Tratamos tus datos según la Ley 1581 de 2012.' },
+  { q: '¿Qué ve mi taller de mis clientes?', a: 'Tu panel muestra únicamente a los clientes y vehículos de tu propio taller. El dueño del vehículo decide qué información de su ficha se muestra al público.' },
+  { q: '¿Soy proveedor de repuestos u otro negocio del sector, puedo postularme?', a: 'Sí. Elige tu tipo de negocio en el formulario y revisamos cada caso. La red está pensada para talleres, pero también para quienes los abastecen.' },
+  { q: '¿Necesito instalar algo o comprar equipos?', a: 'No. CarLink funciona desde el navegador de tu celular o computador. Tus clientes pueden usar un llavero NFC para compartir su historial, pero tu taller no necesita hardware.' },
+  { q: '¿Puedo salir de la red cuando quiera?', a: 'Sí. Escribe a business@carlink.com.co y cerramos tu perfil y eliminamos tus datos, salvo lo que la ley nos obligue a conservar.' },
 ]
 
-const TRUST = [
-  { title: 'Talleres verificados', desc: 'Cada taller aliado pasa por un proceso de verificación antes de poder actualizar fichas.', icon: <path d="M20 6L9 17l-5-5" /> },
-  { title: 'Garantía respaldada', desc: 'Cada servicio queda con su sello de garantía visible en la ficha, no en un papel que se pierde.', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></> },
-  { title: 'Historial inalterable', desc: 'Cada registro queda con fecha, taller y kilometraje — nadie lo puede reescribir después.', icon: <><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /></> },
-  { title: 'Datos protegidos', desc: 'Solo tú decides quién ve tu ficha. La verificación es tuya, no de terceros.', icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /> },
-]
 
 const COVERAGE = [
   { city: 'Bogotá D.C.', count: 4 }, { city: 'Medellín', count: 3 }, { city: 'Cali', count: 2 }, { city: 'Barranquilla', count: 2 },
@@ -155,7 +97,7 @@ const MARKET_PREVIEW = [
   { model: 'Chevrolet Tracker LT 2022', price: '$85.200.000', km: '22.900 km', city: 'Medellín', img: '/images/cars/chevrolet-tracker-2022.webp' },
 ]
 
-export default function ShopPage() {
+export default function TallerPage() {
   const { isDark, toggleTheme } = useTheme()
 
   // Antes eran const a nivel de módulo, fijas en oscuro. GOLD no cambia
@@ -197,32 +139,12 @@ export default function ShopPage() {
   const SECTION: React.CSSProperties = { maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }
   const CARD_STYLE: React.CSSProperties = { padding: 28, borderRadius: 18, background: CARD, border: `1px solid ${BORDER}` }
   const CTA_BTN: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 0 28px rgba(245,197,24,.38)', textDecoration: 'none' }
-  const PLANS = buildPlans(isDark, BORDER, textColor)
 
   const [faqOpen, setFaqOpen] = useState(-1)
-  const [leadContact, setLeadContact] = useState('')
-  const [leadStatus, setLeadStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  // 'invalid_contact' = el backend rechazó el formato (422, lo resuelve la
-  // persona corrigiendo lo que escribió); 'network' = cualquier otra falla.
-  const [leadErrorReason, setLeadErrorReason] = useState<'invalid_contact' | 'network' | null>(null)
-  const [leadContactType, setLeadContactType] = useState<'email' | 'phone' | null>(null)
+  const [policyTab, setPolicyTab] = useState<PolicyTab | null>(null)
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
   const mapRef = useRef<HTMLIFrameElement>(null)
-  // Reseñas reales de producto (ver ResenasTab) — la lectura pública no expone
-  // nombre/email del autor (mismo criterio de privacidad que el resto de fichas
-  // públicas de la app), así que solo se muestran si hay suficientes con
-  // comentario para no verse vacías; si no, se mantienen los testimonios
-  // curados de abajo (TESTIMONIALS) como respaldo.
-  const [realReviews, setRealReviews] = useState<Review[] | null>(null)
-
-  useEffect(() => {
-    reviewsApi.list({ targetType: 'product', sort: 'mejores', limit: 6 }).then(list => {
-      const withComment = (list || []).filter(r => r.rating >= 4 && r.comment.trim().length > 0)
-      if (withComment.length >= 3) setRealReviews(withComment)
-    })
-  }, [])
-
   useEffect(() => {
     if (activeCard < 0 || activeCard > 6) return
     const t = setTimeout(() => {
@@ -233,52 +155,9 @@ export default function ShopPage() {
     return () => clearTimeout(t)
   }, [activeCard])
 
-  const leadContactCheck = checkContact(leadContact)
-
-  const handleLeadSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!leadContact.trim() || leadStatus === 'loading') return
-    if (leadContactCheck.status !== 'valid') {
-      setLeadStatus('error')
-      setLeadErrorReason('invalid_contact')
-      return
-    }
-    setLeadStatus('loading')
-    setLeadErrorReason(null)
-    const res = await waitlistApi.create(leadContact.trim(), 'shop_guia_mantenimiento')
-    if (!res.ok) {
-      setLeadStatus('error')
-      setLeadErrorReason(res.reason)
-      return
-    }
-    setLeadContactType(res.lead.contact_type)
-    // El backend solo manda el PDF por correo — si dejó celular, no hay
-    // envío automático de WhatsApp, así que lo abrimos acá con el mensaje
-    // precargado (mismo criterio que la sección equivalente de la landing,
-    // LandingSections.tsx) en vez de prometerle "revisa tu WhatsApp" y que
-    // no llegue nada.
-    if (res.lead.contact_type === 'phone') {
-      analyticsApi.trackWhatsappClick('guide_phone_lead', 'shop')
-      window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, quiero recibir la Guía de Mantenimiento gratis')}`, '_blank', 'noopener,noreferrer')
-    }
-    setLeadStatus('done')
-  }
-
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'Product',
-        name: 'Llavero NFC CarLink',
-        description: 'Llavero NFC/QR para el historial de mantenimiento de tu vehículo — resistente al agua, caídas y roce con otras llaves.',
-        offers: {
-          '@type': 'Offer',
-          priceCurrency: 'COP',
-          price: '49900',
-          availability: 'https://schema.org/InStock',
-          url: 'https://carlink.com.co/shop',
-        },
-      },
       {
         '@type': 'FAQPage',
         mainEntity: FAQS.map(f => ({
@@ -303,6 +182,7 @@ export default function ShopPage() {
         @media(max-width:860px){
           [data-r="shopTestimonials"]{grid-template-columns:1fr !important}
           [data-r="shopHero"]{grid-template-columns:1fr !important}
+          [data-r="shopFormGrid"]{grid-template-columns:1fr !important}
           [data-r="shopPrecio"]{grid-template-columns:1fr !important}
           [data-r="shopComo"]{grid-template-columns:1fr 1fr !important}
           [data-r="shopBox"]{grid-template-columns:1fr !important}
@@ -393,11 +273,11 @@ export default function ShopPage() {
         <nav data-r="shopNavLinks" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14.5, fontWeight: 500, color: MUTED }}>
           <a href="#problema" style={{ color: 'inherit', textDecoration: 'none' }}>El problema</a>
           <a href="#como" style={{ color: 'inherit', textDecoration: 'none' }}>Cómo funciona</a>
-          <a href="#precio" style={{ color: 'inherit', textDecoration: 'none' }}>Precio</a>
+          <a href="#h-planes" style={{ color: 'inherit', textDecoration: 'none' }}>Planes</a>
           <a href="#faq" style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</a>
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/register" style={{ padding: '6px 12px', borderRadius: 9, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: 'transparent', color: MUTED, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Registrar</Link>
+          <a href="#registro" style={{ padding: '6px 12px', borderRadius: 9, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: 'transparent', color: MUTED, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Postular</a>
           <Link href="/login" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
           <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" style={{ position: 'relative', width: 56, height: 28, borderRadius: 999, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 3px', transition: 'all .25s' }}>
             <span style={{ position: 'absolute', left: 7, fontSize: 10, opacity: isDark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
@@ -414,21 +294,18 @@ export default function ShopPage() {
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 62% 44%,rgba(245,197,24,0.14),transparent 58%)', pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1, animation: 'shopFadeUp .7s both' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />El pasaporte digital de tu vehículo
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: GOLD }} />Red de talleres aliados CarLink
           </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(38px,5.4vw,72px)', lineHeight: 1.02, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
-          <p style={{ fontSize: 'clamp(17px,1.7vw,21px)', lineHeight: 1.55, color: MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(38px,5.4vw,72px)', lineHeight: 1.02, margin: 0, textTransform: 'uppercase' as const }}>Tu taller, con el historial de cada cliente en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
+          <p style={{ fontSize: 'clamp(17px,1.7vw,21px)', lineHeight: 1.55, color: MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>Únete a la red CarLink: registra cada servicio en la ficha digital de tu cliente, respalda tus garantías y hazte visible ante quienes buscan un taller de confianza. Talleres y proveedores de repuestos son bienvenidos.</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Obtén tu CarLink{ARROW}</Link>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
-              <div style={{ fontSize: 13, color: MUTED, marginTop: 3 }}>pago único · envío incluido</div>
-            </div>
+            <a href="#registro" data-r="shopCtaBtn" style={CTA_BTN}>Postular mi taller{ARROW}</a>
+            <a href="#como" style={{ color: MUTED, fontSize: 15, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 4 }}>Ver cómo funciona</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 32, fontSize: 13.5, color: MUTED, flexWrap: 'wrap' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}App gratis para siempre</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Android e iPhone</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Sin batería</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Postularte no tiene costo</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Sin instalar equipos</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Respuesta por correo</span>
           </div>
         </div>
 
@@ -601,7 +478,7 @@ export default function ShopPage() {
       <section id="problema" style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>El problema</div>
-          <h2 style={H2}>¿Te suena familiar?</h2>
+          <h2 style={H2}>¿Te suena familiar en tu taller?</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
           {PROBLEMS.map(p => (
@@ -612,6 +489,60 @@ export default function ShopPage() {
               <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: textColor }}>{p.text}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* BENEFICIOS */}
+      <section style={SECTION}>
+        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
+          <div style={EYEBROW}>Beneficios</div>
+          <h2 style={H2}>Lo que gana tu taller</h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
+          {BENEFITS.map(b => (
+            <div key={b.title} data-r="shopBenefitCard" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
+              <span style={{ width: 34, height: 34, flex: '0 0 auto', borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{CHECK(GOLD, 18)}</span>
+              <div><div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 7 }}>{b.title}</div><div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{b.desc}</div></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CÓMO FUNCIONA */}
+      <section id="como" style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 50px' }}>
+          <div style={EYEBROW}>Cómo funciona</div>
+          <h2 style={H2}>Cuatro pasos para unirte</h2>
+        </div>
+        <div data-r="shopComo" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          {STEPS.map(st => (
+            <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.2)' }}>
+              <div data-r="shopStepNum" style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
+              <div style={{ fontSize: 19, fontWeight: 700, margin: '20px 0 9px' }}>{st.title}</div>
+              <div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 38 }}>
+          <a href="#registro" data-r="shopCtaBtn" style={CTA_BTN}>Postular mi taller{ARROW}</a>
+        </div>
+      </section>
+
+      {/* QUÉ INCLUYE */}
+      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+        <div style={SECTION}>
+          <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 44px' }}>
+            <div style={EYEBROW}>Panel de taller</div>
+            <h2 style={H2}>Todo lo que incluye tu panel</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 11, maxWidth: 1040, margin: '0 auto' }}>
+            {INCLUDES.map(inc => (
+              <div key={inc} data-r="shopIncludeItem" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
+                {CHECK(GOLD, 16)}
+                <span style={{ fontSize: 14.5, fontWeight: 500, color: mutedLight }}>{inc}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -635,7 +566,7 @@ export default function ShopPage() {
           ))}
         </div>
         <div style={{ textAlign: 'center', marginTop: 28 }}>
-          <Link href="/register?mode=empresa" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', textDecoration: 'none' }}>
+          <Link href="#registro" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', textDecoration: 'none' }}>
             ¿Tienes un taller? Únete a la red{ARROW}
           </Link>
         </div>
@@ -645,13 +576,13 @@ export default function ShopPage() {
       <section id="h-planes" style={{ ...SECTION_MAX, padding: '64px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
           <div style={EYEBROW}>Planes</div>
-          <h2 style={H2}>Gratis para conductores, simple para talleres</h2>
-          <p style={{ ...lead, marginTop: 8 }}>Gratis para conductores, simple para talleres</p>
+          <h2 style={H2}>Un plan simple para tu taller</h2>
+          <p style={{ ...lead, marginTop: 8 }}>Postularte es gratis y empiezas con 7 días de prueba. Tus clientes conductores usan CarLink sin costo.</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
           {[
+            { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Pruebalo ya!', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Postular mi taller', btnBg: GOLD, btnColor: '#111' },
             { name: 'Conductor', price: 'Gratis', period: '', tag: '', border: BORDER, features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'], cta: 'Crear mi ficha', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD },
-            { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Pruebalo ya!', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Registrar mi taller', btnBg: GOLD, btnColor: '#111' },
           ].map(pl => (
             <div key={pl.name} style={{ padding: 28, borderRadius: 20, ...card(pl.border), position: 'relative' }}>
               {pl.tag && <span style={{ position: 'absolute', top: -11, right: 24, background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{pl.tag}</span>}
@@ -666,7 +597,7 @@ export default function ShopPage() {
                 ))}
               </div>
               {pl.name === 'Taller aliado'
-                ? <Link href="/register?mode=empresa" style={{ width: '100%', padding: 12, borderRadius: 11, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 600, fontSize: 14, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'block' }}>{pl.cta}</Link>
+                ? <Link href="#registro" style={{ width: '100%', padding: 12, borderRadius: 11, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 600, fontSize: 14, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'block' }}>{pl.cta}</Link>
                 : <Link href="/register" style={{ width: '100%', padding: 12, borderRadius: 11, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 600, fontSize: 14, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'block' }}>{pl.cta}</Link>
               }
             </div>
@@ -758,6 +689,18 @@ export default function ShopPage() {
         </div>
       </section>
 
+      {/* ===== POSTULACIÓN ===== */}
+      <section id="registro" style={{ background: goldCtaGradient, borderTop: '1px solid rgba(245,197,24,0.16)' }}>
+        <div style={{ ...SECTION, maxWidth: 900 }}>
+          <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 36px' }}>
+            <div style={EYEBROW}>Únete a la red</div>
+            <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)' }}>Postula tu negocio a CarLink</h2>
+            <p style={{ ...lead, marginTop: 12 }}>Talleres, proveedores de repuestos y negocios del sector: déjanos tus datos y tu logo. Validamos tu NIT y te respondemos por correo.</p>
+          </div>
+          <PostulacionForm onOpenPolicy={() => setPolicyTab('privacy')} isDark={isDark} muted={MUTED} border={BORDER} card={CARD} textColor={textColor} />
+        </div>
+      </section>
+
       {/* FAQ */}
       <section id="faq" style={{ maxWidth: 860, margin: '0 auto', padding: 'clamp(48px,6vw,84px) clamp(20px,5vw,64px)' }}>
         <div style={{ textAlign: 'center', marginBottom: 42 }}>
@@ -797,347 +740,22 @@ export default function ShopPage() {
         </div>
       </section>
 
-      {/* CTA FINAL */}
-      <section style={{ background: goldCtaGradient, borderTop: '1px solid rgba(245,197,24,0.16)' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(56px,7vw,96px) clamp(20px,5vw,64px)', textAlign: 'center' }}>
-          <h2 style={{ ...H2, fontSize: 'clamp(28px,3.6vw,42px)', margin: '0 auto' }}>Empieza gratis. <span style={{ color: GOLD }}>Escala con tu llavero.</span></h2>
-          <p style={{ fontSize: 18, color: MUTED, lineHeight: 1.55, margin: '22px auto 0', maxWidth: '52ch' }}>Crea el perfil de tu vehículo sin costo. Cuando quieras compartir tu historial con un toque, pide tu CarLink NFC.</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 38 }}>
-            <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink — $39.900{ARROW}</Link>
-            <Link href="/register" data-r="shopCtaSecondary" style={{ padding: '17px 30px', borderRadius: 14, border: '1px solid rgba(245,197,24,0.42)', background: 'rgba(245,197,24,0.06)', color: GOLD, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* CAPTURA DE LEADS */}
-      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}` }}>
-        <div data-r="shopCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
-          <div>
-            <div style={EYEBROW}>¿Aún lo estás pensando?</div>
-            <h2 style={{ ...H2, margin: '12px 0 12px' }}>Te avisamos cuando salga el próximo lote</h2>
-            <p style={{ fontSize: 15.5, color: MUTED, lineHeight: 1.6, margin: 0 }}>Déjanos tu correo y te escribimos con el descuento de lanzamiento. Sin spam, solo cuando haya novedades.</p>
-          </div>
-          <div>
-            <div data-r="shopCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <input placeholder="tu@correo.com" style={{ flex: 1, minWidth: 200, padding: '15px 18px', borderRadius: 12, border: `1px solid ${softTint(0.14)}`, background: softTint(0.04), color: textColor, fontSize: 15, outline: 'none' }} />
-              <button data-r="shopCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>Avísame</button>
-            </div>
-            <div style={{ fontSize: 12.5, color: isDark ? '#6f6a5f' : '#8f8a7a', marginTop: 12, lineHeight: 1.5 }}>Al enviar aceptas nuestra política de tratamiento de datos. Puedes darte de baja cuando quieras.</div>
-          </div>
-        </div>
-      </section>
-
-      {/* BENEFICIOS */}
-      <section style={SECTION}>
-        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
-          <div style={EYEBROW}>Beneficios</div>
-          <h2 style={H2}>Lo que ganas de verdad</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
-          {BENEFITS.map(b => (
-            <div key={b.title} data-r="shopBenefitCard" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
-              <span style={{ width: 34, height: 34, flex: '0 0 auto', borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{CHECK(GOLD, 18)}</span>
-              <div><div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 7 }}>{b.title}</div><div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{b.desc}</div></div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CÓMO FUNCIONA */}
-      <section id="como" style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
-        <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 50px' }}>
-          <div style={EYEBROW}>Cómo funciona</div>
-          <h2 style={H2}>Cuatro pasos y listo</h2>
-        </div>
-        <div data-r="shopComo" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {STEPS.map(st => (
-            <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.2)' }}>
-              <div data-r="shopStepNum" style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
-              <div style={{ fontSize: 19, fontWeight: 700, margin: '20px 0 9px' }}>{st.title}</div>
-              <div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ textAlign: 'center', marginTop: 38 }}>
-          <Link href="/#h-buyfob" data-r="shopCtaBtn" style={CTA_BTN}>Quiero mi CarLink{ARROW}</Link>
-        </div>
-      </section>
-
-      {/* QUÉ INCLUYE */}
-      <section style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={SECTION}>
-          <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 44px' }}>
-            <div style={EYEBROW}>Qué incluye</div>
-            <h2 style={H2}>Todo esto viene contigo</h2>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 11, maxWidth: 1040, margin: '0 auto' }}>
-            {INCLUDES.map(inc => (
-              <div key={inc} data-r="shopIncludeItem" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
-                {CHECK(GOLD, 16)}
-                <span style={{ fontSize: 14.5, fontWeight: 500, color: mutedLight }}>{inc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRECIO */}
-      <section id="precio" style={{ background: sectionAltBg, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-        <div style={SECTION}>
-          <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 52px' }}>
-            <div style={EYEBROW}>Precio</div>
-            <h2 style={H2}>Claro y sin letra menuda</h2>
-          </div>
-          <div data-r="shopPrecio" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, maxWidth: 1080, margin: '0 auto' }}>
-            {PLANS.map(pl => (
-              <div key={pl.name} data-r="shopPlanCard" style={{ position: 'relative', padding: '36px 30px', borderRadius: 22, background: pl.bg ?? CARD, border: pl.border, display: 'flex', flexDirection: 'column' }}>
-                {pl.tag && <span data-r="shopPricingBadge" style={{ position: 'absolute', top: -13, left: 30, background: GOLD, color: '#111', fontSize: 11.5, fontWeight: 800, padding: '6px 16px', borderRadius: 999, letterSpacing: '.08em' }}>{pl.tag}</span>}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' as const, color: pl.priceColor === GOLD ? GOLD : MUTED }}>
-                  {pl.name.includes('Llavero') && <NfcKeyIcon size={15} />}
-                  {pl.name}
-                </div>
-                <div data-r="shopPlanPrice" style={{ fontFamily: 'var(--font-display)', fontSize: 46, color: pl.priceColor, lineHeight: 1, margin: '16px 0 5px' }}>{pl.price}</div>
-                <div style={{ fontSize: 14, color: MUTED }}>{pl.period}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '28px 0 26px', flex: 1 }}>
-                  {pl.features.map(f => (
-                    <div key={f} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 14.5, color: mutedLight, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
-                  ))}
-                </div>
-                <Link href={pl.href} style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: pl.btnBg, color: pl.btnColor, fontWeight: 800, fontSize: 15, textAlign: 'center', textDecoration: 'none' }}>{pl.cta}</Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRUEBA SOCIAL VERIFICADA */}
-      <section style={{ ...SECTION, borderTop: `1px solid ${BORDER}` }}>
-        <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 46px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: softTint(0.05), border: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 12 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-            Prueba social verificada
-          </div>
-          <h2 style={H2}>Conductores en Colombia que ya protegen su vehículo</h2>
-          <p style={{ fontSize: 15, color: MUTED, lineHeight: 1.55, margin: '14px auto 0', maxWidth: '52ch' }}>Más de 2.400 conductores particulares confían en CarLink para cuidar su patrimonio y defender su valor de reventa.</p>
-        </div>
-
-        <div data-r="shopTestimonials">
-          {realReviews ? realReviews.map(r => (
-            <div key={r.id} data-r="shopTestimonialCard" style={{ background: sectionAltBg, padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', gap: 2, color: GOLD }}>
-                    {Array.from({ length: r.rating }).map((_, i) => (
-                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
-                    ))}
-                  </div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: GOLD, background: 'rgba(245,197,24,0.12)', border: `1px solid rgba(245,197,24,0.3)`, padding: '3px 8px', borderRadius: 6 }}>
-                    {CHECK(GOLD, 11)}Cliente CarLink
-                  </span>
-                </div>
-                <p style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{r.comment}"</p>
-              </div>
-            </div>
-          )) : TESTIMONIALS.map(t => (
-            <div key={t.id} data-r="shopTestimonialCard" style={{ background: sectionAltBg, padding: 'clamp(22px,3vw,30px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', gap: 2, color: GOLD }}>
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill={GOLD} stroke="none"><path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.8L5.7 21l1.7-7-5.4-4.7 7.1-.7z" /></svg>
-                    ))}
-                  </div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' as const, color: GOLD, background: 'rgba(245,197,24,0.12)', border: `1px solid rgba(245,197,24,0.3)`, padding: '3px 8px', borderRadius: 6 }}>
-                    {CHECK(GOLD, 11)}Verificado
-                  </span>
-                </div>
-                <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 8, lineHeight: 1.35 }}>"{t.title}"</div>
-                <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.55, margin: 0 }}>"{t.text}"</p>
-              </div>
-              <div style={{ paddingTop: 16, borderTop: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(245,197,24,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 16, color: GOLD, flex: '0 0 auto' }}>{t.name[0]}</div>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.2 }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{t.carModel} · {t.city}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 32, padding: '22px clamp(20px,4vw,32px)', borderRadius: 22, background: CARD, border: `1px solid ${BORDER}`, maxWidth: 720, margin: '32px auto 0', display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 20, flexWrap: 'wrap', textAlign: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div data-r="shopScoreNum" style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: GOLD }}>4.9 / 5.0</div>
-            <div style={{ fontSize: 12, color: MUTED, textAlign: 'left' }}>
-              <div style={{ color: textColor, fontWeight: 700, fontSize: 11, textTransform: 'uppercase' as const }}>Promedio de satisfacción</div>
-              Basado en 380+ calificaciones en Colombia
-            </div>
-          </div>
-          <span style={{ width: 1, height: 32, background: BORDER }} />
-          <div style={{ fontSize: 12, color: MUTED }}>
-            <div style={{ color: GOLD, fontWeight: 700, fontSize: 14 }}>98.4% recomiendan</div>
-            CarLink a otros conductores en el país
-          </div>
-        </div>
-      </section>
-
-      {/* LEAD CAPTURE — Guía de Mantenimiento gratis */}
-      <section style={SECTION}>
-        <div data-r="shopLeadGuia" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 28, alignItems: 'center', padding: 'clamp(24px,4vw,36px)', borderRadius: 24, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,.3)' }}>
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: softTint(0.05), border: `1px solid ${BORDER}`, fontSize: 10, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 10 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2 2M8.5 8.5l-2-2m11 11l-2-2M8.5 15.5l-2 2" /><circle cx="12" cy="12" r="3.5" /></svg>
-              Regalo gratis en PDF
-            </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px,3vw,30px)', textTransform: 'uppercase' as const, margin: '0 0 8px', lineHeight: 1.08 }}>
-              ¿Aún lo estás pensando? Recibe gratis la Guía de Mantenimiento
-            </h3>
-            <p style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.55, margin: 0 }}>
-              Descarga sin costo el PDF "Lista de Chequeo para Vender tu Carro al Mayor Precio en Colombia" y recibe un bono de <strong style={{ color: GOLD }}>$5.000 COP de descuento adicional</strong> para tu primer llavero.
-            </p>
-          </div>
-
-          <div>
-            {leadStatus === 'done' ? (
-              <div style={{ padding: '18px 20px', borderRadius: 16, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.35)', textAlign: 'center' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{CHECK('#5be89a', 24)}</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{leadContactType === 'email' ? '¡Guía enviada con éxito!' : '¡Ya casi! Envía el mensaje de WhatsApp'}</div>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: MUTED }}>
-                  {leadContactType === 'email' ? 'Revisa tu correo.' : 'Te abrimos WhatsApp en otra pestaña — envía el mensaje y te mandamos la guía.'}
-                  {' '}Tu cupón de descuento es: <strong style={{ color: GOLD, fontFamily: "'JetBrains Mono',monospace" }}>CARLINK5K</strong>
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input
-                  type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
-                  placeholder="Tu correo o celular con WhatsApp"
-                  style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: `1px solid ${leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER}`, background: CARD, color: textColor, fontSize: 13.5, outline: 'none' }}
-                  onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
-                  onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : BORDER }}
-                />
-                <button type="submit" disabled={leadStatus === 'loading'} data-r="shopCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px 22px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '.04em', cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
-                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía + Bono $5.000'}
-                </button>
-                {leadContactCheck.status === 'valid' && (
-                  <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>
-                    {CHECK('#5be89a', 13)} {leadContactCheck.type === 'email' ? 'Correo válido' : 'Celular válido'}
-                  </p>
-                )}
-                {leadContactCheck.status === 'invalid' && (
-                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a3d' }}>
-                    Revisa el correo o el celular — si es de otro país, incluí el indicativo (ej. +57 300 1234567).
-                  </p>
-                )}
-                {leadStatus === 'error' && leadErrorReason === 'network' && (
-                  <p style={{ margin: 0, fontSize: 12, color: '#ff8a8a' }}>No se pudo guardar tu contacto. Intenta de nuevo.</p>
-                )}
-              </form>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== CONFIANZA ===== */}
-      <section id="h-confianza" style={{ ...SECTION_MAX, padding: '64px clamp(20px,5vw,64px)', borderTop: `1px solid ${BORDER}` }}>
-        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
-          <div style={EYEBROW}>Por qué confiar</div>
-          <h2 style={H2}>Cada dato queda respaldado</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 16 }}>
-          {TRUST.map(tr => (
-            <div key={tr.title} style={{ padding: 22, borderRadius: 18, ...card(), display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <span style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,197,24,0.12)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{tr.icon}</svg>
-              </span>
-              <div style={{ fontSize: 15.5, fontWeight: 500 }}>{tr.title}</div>
-              <p style={{ ...lead, fontSize: 13.5, lineHeight: 1.55 }}>{tr.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== COMPRA TU LLAVERO ===== */}
-      <section id="h-buyfob" style={{ ...SECTION_MAX, padding: '56px clamp(20px,5vw,64px) 64px', borderTop: `1px solid ${BORDER}` }}>
-        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 40px' }}>
-          <div style={EYEBROW}>Llavero NFC</div>
-          <h2 style={{ ...H2, margin: '10px 0 12px' }}>Compra tu llavero — 3 pasos, sin vueltas</h2>
-          <p style={lead}>Vincúlalo a tu placa y tu ficha aparece al instante en cualquier taller.</p>
-        </div>
-        <div className="buyfob-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 44, maxWidth: 920, margin: '0 auto', alignItems: 'center' }}>
-          {/* Left — Steps + benefits */}
-          <div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 36 }}>
-              {[
-                ['1', 'Elige tu llavero', 'Selecciona el llavero Premium que mejor se adapte a tu estilo.'],
-                ['2', 'Confirma tu dirección', 'Ingresa tu placa y la dirección de envío. Validamos la cobertura en tu ciudad.'],
-                ['3', 'Paga y listo', 'Acepta Stripe, Nequi, Bancolombia o contraentrega. Recibe tu llavero en 5 días hábiles.'],
-              ].map(([n, t, d]) => (
-                <div key={n} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '16px 18px', borderRadius: 14, ...card() }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{n}</div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>{t}</div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: MUTED }}>{d}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginBottom: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: GOLD }}>¿Qué incluye tu llavero?</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {([
-                  { id: 'enc', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>, title: 'Placa encriptada', desc: 'Datos protegidos con cifrado de extremo a extremo.' },
-                  { id: 'fir', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" /></svg>, title: 'Firma digital', desc: 'Cada ficha lleva tu firma digital certificada.' },
-                  { id: 'exp', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>, title: 'Expediente digital', desc: 'Historial completo de mantenimiento y servicios.' },
-                  { id: 'ges', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>, title: 'Gestión inteligente', desc: 'Administra repuestos, talleres y mantenimiento desde tu ficha.' },
-                  { id: 'fic', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>, title: 'Ficha publicable', desc: 'Un toque publica tu ficha. Incluye opción de reportar el llavero en caso de pérdida.' },
-                  { id: 'not', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg>, title: 'Notificaciones predictivas', desc: 'Alertas automáticas de mantenimiento, cambios de aceite y revisiones programadas.' },
-                ] as const).map((item) => (
-                  <div key={item.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.04)', border: `1px solid ${BORDER}` }}>
-                    <span style={{ flexShrink: 0, lineHeight: 1, marginTop: 2 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 2 }}>{item.title}</div>
-                      <div style={{ fontSize: 11, lineHeight: 1.45, color: MUTED }}>{item.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          {/* Right — Product card */}
-          <div style={{ position: 'sticky', top: 120 }}>
-            <div style={{ padding: 28, borderRadius: 20, ...card(GOLD), position: 'relative', textAlign: 'center' }}>
-              <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 14px', borderRadius: 999 }}>Premium</span>
-              <div style={{ width: 80, height: 80, margin: '0 auto 16px', borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#111', display: 'flex' }}><NfcKeyIcon size={38} strokeWidth={1.6} /></span>
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 700 }}>Llavero NFC CarLink</div>
-              <p style={{ fontWeight: 300, fontSize: 13, lineHeight: 1.5, color: MUTED, margin: '10px 0 18px' }}>Impreso en PLA con chip NFC. Tu ficha se abre al instante con un toque.</p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 18, fontSize: 12, color: MUTED }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg> Encriptado</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></svg> Predictivo</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6" /></svg> Expediente</span>
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>$39.900</div>
-              <div style={{ fontSize: 12, color: MUTED, marginBottom: 18 }}>Envío incluido · Llega en 5 días hábiles</div>
-              <Link href="/#h-buyfob" style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'opacity 0.2s', textAlign: 'center', textDecoration: 'none', display: 'block' }}>Comprar ahora</Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FOOTER */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
         <div data-r="shopFooter" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
           <Link href="/" style={{ textDecoration: 'none' }}>
             <CarLinkWordmark fontSize={20} iconSize={33} textColor={textColor} />
           </Link>
+          <Link href="/" style={{ fontSize: 13.5, color: GOLD, textDecoration: 'none', fontWeight: 600 }}>¿Eres conductor? Conoce el llavero CarLink</Link>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13.5 }}>
+            {([['privacy', 'Privacidad de Datos'], ['terms', 'Uso, Planes y Espacio'], ['warranty', 'Garantía'], ['support', 'Soporte']] as [PolicyTab, string][]).map(([t, l]) => (
+              <button key={t} onClick={() => setPolicyTab(t)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: MUTED, fontSize: 13.5, fontFamily: 'inherit' }}>{l}</button>
+            ))}
+          </div>
           <div data-r="shopFooterText" style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
         </div>
       </footer>
+      <PolicyModal isOpen={policyTab !== null} onClose={() => setPolicyTab(null)} tab={policyTab ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
     </div>
   )
 }

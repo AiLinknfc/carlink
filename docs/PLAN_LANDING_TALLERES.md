@@ -1,6 +1,6 @@
 # Plan — Landing `/taller` para captar talleres y proveedores (2026-09-20)
 
-_Estado: PLAN, sin implementar. Decisiones abiertas al final. Pendientes derivados: `docs/PENDIENTES.md`._
+_Estado: IMPLEMENTADO en local (2026-09-21); ver docs/PENDIENTES.md para lo que falta. Decisiones abiertas al final. Pendientes derivados: `docs/PENDIENTES.md`._
 
 ## Objetivo
 Convertir la landing secundaria actual (`/shop`, hoy enfocada en el llavero para conductores) en
