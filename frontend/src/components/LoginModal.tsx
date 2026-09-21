@@ -26,7 +26,7 @@ interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
   plateText: string
-  onOpenPolicy: (tab: 'warranty' | 'privacy' | 'support') => void
+  onOpenPolicy: (tab: 'warranty' | 'privacy' | 'support' | 'terms') => void
   theme: 'light' | 'dark'
   initialMode?: 'signin' | 'signup'
   initialAccountType?: 'user' | 'business'
@@ -350,7 +350,7 @@ export default function LoginModal({ isOpen, onClose, plateText, onOpenPolicy, t
                           style={{ marginTop: 2, width: 16, height: 16, accentColor: gold, cursor: 'pointer', flexShrink: 0 }}
                         />
                         <label htmlFor="accept-terms" style={{ fontSize: 11.5, color: textSecondary, lineHeight: 1.5, cursor: 'pointer' }}>
-                          Acepto la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('privacy') }}>Política de Privacidad</span> y los <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('warranty') }}>Términos</span> de CarLink.
+                          Acepto la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('privacy') }}>Política de Privacidad</span> y los <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('terms') }}>Términos de Uso</span> y la <span style={{ color: gold, fontWeight: 700 }} onClick={(e) => { e.preventDefault(); onOpenPolicy('warranty') }}>Garantía</span> de CarLink.
                         </label>
                       </div>
                       {showTermsError && (
