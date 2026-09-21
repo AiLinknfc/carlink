@@ -915,3 +915,36 @@ class ShopOrder(Base):
     tracking_note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WorkshopApplication(Base):
+    """Postulación de un taller/proveedor desde la landing /taller (migración 062).
+    Sin cuenta; queda 'pending' hasta revisión del admin."""
+    __tablename__ = "workshop_applications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_type: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    legal_name: Mapped[str] = mapped_column(Text, default="")
+    nit: Mapped[str] = mapped_column(Text)
+    city: Mapped[str] = mapped_column(Text)
+    address: Mapped[str] = mapped_column(Text)
+    contact_name: Mapped[str] = mapped_column(Text)
+    contact_role: Mapped[str] = mapped_column(Text, default="")
+    phone: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    website: Mapped[str] = mapped_column(Text, default="")
+    instagram: Mapped[str] = mapped_column(Text, default="")
+    specialties: Mapped[str] = mapped_column(Text, default="")
+    monthly_volume: Mapped[str] = mapped_column(Text, default="")
+    logo_url: Mapped[str] = mapped_column(Text)
+    facade_url: Mapped[str] = mapped_column(Text, default="")
+    doc_url: Mapped[str] = mapped_column(Text, default="")
+    logo_authorized: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_version: Mapped[str] = mapped_column(Text)
+    consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    source: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    admin_notes: Mapped[str] = mapped_column(Text, default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

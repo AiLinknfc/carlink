@@ -1851,3 +1851,73 @@ class ShopOrderStatsOut(BaseModel):
     delivered_count: int
     revenue_in_cents: int
 
+
+
+# =========== Workshop Applications (landing /taller) ===========
+
+WORKSHOP_BUSINESS_TYPES = {
+    "mecanica_general", "latoneria_pintura", "llantas_alineacion", "electrico",
+    "lubricentro", "tecnicentro", "repuestos", "otro",
+}
+
+
+class WorkshopApplicationCreate(BaseModel):
+    business_type: str
+    name: str = Field(min_length=2, max_length=120)
+    legal_name: str = Field("", max_length=160)
+    nit: str = Field(max_length=32)
+    city: str = Field(min_length=2, max_length=80)
+    address: str = Field(min_length=4, max_length=200)
+    contact_name: str = Field(min_length=2, max_length=120)
+    contact_role: str = Field("", max_length=80)
+    phone: str = Field(max_length=32)
+    email: str = Field(max_length=160)
+    website: str = Field("", max_length=200)
+    instagram: str = Field("", max_length=200)
+    specialties: str = Field("", max_length=300)
+    monthly_volume: str = Field("", max_length=40)
+    logo_url: str = Field(max_length=300)
+    facade_url: str = Field("", max_length=300)
+    doc_url: str = Field("", max_length=300)
+    logo_authorized: bool = False
+    consent_accepted: bool
+    # Versión del texto legal que la persona vio al aceptar (LEGAL_VERSION del frontend).
+    consent_version: str = Field(max_length=16)
+    source: str = Field("", max_length=80)
+    # Campo trampa anti-bots: las personas no lo ven ni lo llenan.
+    website_confirm: str = Field("", max_length=200)
+
+
+class WorkshopApplicationOut(BaseModel):
+    id: UUID
+    business_type: str
+    name: str
+    legal_name: str
+    nit: str
+    city: str
+    address: str
+    contact_name: str
+    contact_role: str
+    phone: str
+    email: str
+    website: str
+    instagram: str
+    specialties: str
+    monthly_volume: str
+    logo_url: str
+    facade_url: str
+    doc_url: str
+    logo_authorized: bool
+    consent_version: str
+    source: str
+    status: str
+    admin_notes: str
+    created_at: datetime
+    reviewed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class WorkshopApplicationUpdate(BaseModel):
+    status: str | None = None
+    admin_notes: str | None = Field(None, max_length=2000)
