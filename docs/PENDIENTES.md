@@ -301,12 +301,15 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
-## Soporte: el formulario de ticket es simulado (hallazgo 2026-09-21)
+## Soporte: formulario de ticket — CORREGIDO en local (2026-09-21), sin desplegar
 
-En `PolicyModal.tsx` el formulario "Enviar ticket de soporte" NO envía nada: `handleSubmit` solo espera
-1,1 s y muestra "Ticket #C-xxxxx enviado", con un número aleatorio. El texto promete respuesta "en menos
-de 2 horas". Hay que conectarlo (endpoint público con rate limit y correo, o redirigir a WhatsApp/correo
-con el ID del autodiagnóstico) o quitar la promesa. El autodiagnóstico sí es real (`lib/diagnostics.ts`).
+Era simulado (mostraba "Ticket #C-xxxxx enviado" sin enviar nada). Ahora: `support_tickets`
+(migración `063`, **ya aplicada a la Supabase compartida**), `POST /api/support-tickets` público con rate
+limit y campo trampa, número consecutivo real (C-10001 en adelante; las pruebas dejaron el contador en
+10003), correo al admin y acuse al usuario, pestaña "Soporte" en `/admin`. Verificado con `TestClient`
+contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway (sin ellos no
+llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
+El texto ya no promete "menos de 2 horas".
 
 ## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
 

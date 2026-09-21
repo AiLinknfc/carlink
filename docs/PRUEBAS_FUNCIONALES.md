@@ -215,6 +215,17 @@ recolección se probó en Chromium contra el backend local; el PDF se revisó co
 - [ ] "Copiar ID" copia el ID; el PDF menciona ese mismo ID
 - [ ] Ningún dato sensible en el PDF (sin tokens, contraseñas ni correo completo)
 
+## Suite 11 — Ticket de soporte y responsive en pantallas de 320 px (2026-09-21)
+
+- [ ] Soporte > enviar con nombre, correo válido, tipo y mensaje de 10+ caracteres: muestra "Tu ticket es C-100xx" y la fila aparece en Admin > Soporte
+- [ ] Mensaje de menos de 10 caracteres y correo inválido muestran error claro; sin internet muestra el aviso de conexión
+- [ ] Tras generar un autodiagnóstico, el ticket queda con su ID (visible en Admin > Soporte)
+- [ ] Admin > Soporte: filtros Abiertos/Resueltos/Todos, "Marcar resuelto" y "Reabrir"
+- [ ] A 320 px de ancho: `/taller`, `/nosotros`, `/blog`, `/blog/<slug>`, `/trabaja` y los 4 textos de "Legal y soporte" no tienen scroll horizontal
+- [ ] A 320 px: header de `/taller` muestra logo, "Iniciar sesión" y el interruptor de tema completos; en Nosotros/Blog/Trabaja aparece la fila de enlaces desplazable
+- [ ] A 320 px: las pestañas del modal legal se desplazan en una fila y el contenido se lee sin recortes; el pie tiene los botones a ancho completo
+- [ ] Botón "Descargar guía" de la home tiene el mismo tamaño y tipografía que "Únete a la comunidad"
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

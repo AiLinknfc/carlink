@@ -134,6 +134,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
       {isOpen && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="pm-overlay"
           style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
         >
           <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
@@ -141,10 +142,28 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+            className="pm-panel"
             style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 880, maxHeight: '86vh', display: 'flex', flexDirection: 'column', background: panelBg, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: `1px solid ${border}`, borderRadius: 14, overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,.6)', color: textPrimary }}
           >
+            <style>{`
+              @media(max-width:600px){
+                .pm-overlay{padding:8px !important}
+                .pm-panel{max-height:94vh !important;border-radius:12px !important}
+                .pm-head,.pm-tabs,.pm-foot{flex-shrink:0 !important}
+                .pm-head{padding:12px 14px !important}
+                .pm-head h2{font-size:15px !important}
+                .pm-head p{display:none !important}
+                .pm-tabs{flex-wrap:nowrap !important;overflow-x:auto !important;padding:8px 12px !important;gap:6px !important;scrollbar-width:none}
+                .pm-tabs::-webkit-scrollbar{display:none}
+                .pm-tabs button{padding:8px 11px !important;font-size:12px !important}
+                .pm-body{padding:14px !important}
+                .pm-foot{padding:10px 14px !important;flex-direction:column !important;align-items:stretch !important;gap:8px !important}
+                .pm-foot button{width:100% !important;justify-content:center !important}
+                .pm-2col{grid-template-columns:1fr !important}
+              }
+            `}</style>
             {/* Header */}
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div className="pm-head" style={{ padding: '20px 24px', borderBottom: `1px solid ${subtle}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(245,197,24,0.12)', border: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ic.shield(GOLD)}</span>
                 <div>
@@ -156,11 +175,11 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
             </div>
 
             {/* Tabs */}
-            <div style={{ padding: '10px 24px', borderBottom: `1px solid ${subtle}`, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="pm-tabs" role="tablist" style={{ padding: '10px 24px', borderBottom: `1px solid ${subtle}`, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {TABS.map(tb => {
                 const on = active === tb.id
                 return (
-                  <button key={tb.id} onClick={() => setActive(tb.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 11, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: on ? GOLD : 'transparent', color: on ? '#111' : textSecondary, transition: 'all .15s' }}>
+                  <button key={tb.id} role="tab" aria-selected={on} onClick={() => setActive(tb.id)} style={{ flex: '0 0 auto', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 11, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: on ? GOLD : 'transparent', color: on ? '#111' : textSecondary, transition: 'all .15s' }}>
                     {tb.icon(on ? '#111' : textMuted)}<span>{tb.label}</span>
                   </button>
                 )
@@ -168,7 +187,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
             </div>
 
             {/* Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <div className="pm-body" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
               <AnimatePresence mode="wait">
                 <motion.div key={active} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
                   {active !== 'support' ? (
@@ -205,7 +224,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                           <p style={{ fontSize: 12.5, color: textMuted, margin: '4px 0 0' }}>Te respondemos al correo que indiques lo antes posible. Si generaste un autodiagnóstico, se adjunta su ID automáticamente.</p>
                         </div>
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <div className="pm-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                               <label style={label}>Tu nombre</label>
                               <input required value={name} onChange={e => setName(e.target.value)} style={input} />
@@ -289,7 +308,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '14px 24px', borderTop: `1px solid ${subtle}`, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}>
+            <div className="pm-foot" style={{ padding: '14px 24px', borderTop: `1px solid ${subtle}`, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: textMuted, fontFamily: 'var(--font-ui)', letterSpacing: '.04em' }}>
                 <span style={{ padding: '2px 7px', borderRadius: 6, background: cardBg, border: `1px solid ${subtle}`, color: GREEN }}>v{LEGAL_VERSION}</span>
                 <span>Actualizado: {LEGAL_UPDATED}</span>
