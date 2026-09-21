@@ -6,6 +6,7 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import SiteFooter from '@/components/SiteFooter'
 import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 import { useTheme } from '@/store/theme'
+import SiteBackdrop, { backdropPageBg } from '@/components/SiteBackdrop'
 
 /* Marco común de las páginas de empresa (Nosotros, Blog, Trabaja con nosotros): mismo header
    y mismo footer que el resto del sitio, con los estilos por variables CSS de las guías de diseño. */
@@ -22,11 +23,13 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   const [policy, setPolicy] = useState<PolicyTab | null>(null)
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'var(--font-ui)' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', background: backdropPageBg(isDark ? 'dark' : 'light'), color: 'var(--text-1)', fontFamily: 'var(--font-ui)' }}>
+      <SiteBackdrop theme={isDark ? 'dark' : 'light'} />
+      <div style={{ position: 'relative', zIndex: 10, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @media(max-width:820px){ .pc-nav{display:none !important} }
       `}</style>
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '10px clamp(16px,4vw,40px)', background: 'var(--surface)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '10px clamp(16px,4vw,40px)', background: isDark ? 'rgba(6,6,6,0.72)' : 'rgba(247,246,242,0.8)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em', color: 'inherit', textDecoration: 'none' }}>
           <CarLinkLogo size={33} />
           <span>Car<span style={{ color: 'var(--accent)' }}>Link</span></span>
@@ -51,6 +54,7 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
 
       <SiteFooter theme={isDark ? 'dark' : 'light'} onOpenPolicy={setPolicy} />
       <PolicyModal isOpen={policy !== null} onClose={() => setPolicy(null)} tab={policy ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
+      </div>
     </div>
   )
 }

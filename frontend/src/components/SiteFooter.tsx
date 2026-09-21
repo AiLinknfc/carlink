@@ -64,7 +64,7 @@ export default function SiteFooter({ theme, onOpenPolicy }: Props) {
   )
 
   return (
-    <footer style={{ borderTop: `1px solid ${t.line}`, padding: '56px clamp(20px,5vw,64px) 28px', background: dark ? '#08080a' : '#ffffff', color: t.text }}>
+    <footer style={{ borderTop: `1px solid ${t.line}`, padding: '56px clamp(20px,5vw,64px) 28px', color: t.text }}>
       <style>{`
         .sf-grid{display:grid;grid-template-columns:1.25fr 1fr 1.15fr .9fr 1.1fr 1.6fr;gap:28px}
         @media(max-width:1100px){.sf-grid{grid-template-columns:repeat(3,1fr)}.sf-brand{grid-column:1/-1}}

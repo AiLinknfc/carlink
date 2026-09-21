@@ -9,6 +9,7 @@ import { useTheme } from '@/store/theme'
 import PostulacionForm from '@/components/taller/PostulacionForm'
 import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 import SiteFooter from '@/components/SiteFooter'
+import SiteBackdrop, { backdropPageBg } from '@/components/SiteBackdrop'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -109,11 +110,11 @@ export default function TallerPage() {
   const BORDER = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.1)'
   const CARD = isDark ? '#121216' : '#f7f6f2'
   const textColor = isDark ? '#f5f3ec' : '#17171a'
-  const pageBg = isDark ? '#08080a' : '#ffffff'
+  const pageBg = backdropPageBg(isDark ? 'dark' : 'light')
   // Secciones alternadas usan un fondo levemente distinto al de la página
   // para separarse visualmente (mismo criterio en ambos temas: un paso muy
   // sutil desde el fondo de página hacia el de las tarjetas).
-  const sectionAltBg = isDark ? '#0c0c10' : '#f7f6f2'
+  const sectionAltBg = 'transparent' // sin fondo propio: se ve el fondo animado de la página
   const navBg = isDark ? 'rgba(8,8,10,0.82)' : 'rgba(255,255,255,0.86)'
   // Tints translúcidos sueltos (franjas cebra de tabla, fondo de badges,
   // inputs) — blanco translúcido sobre oscuro, negro translúcido sobre
@@ -122,9 +123,7 @@ export default function TallerPage() {
   // Gradientes "tarjeta premium" con matiz dorado — tarjetas puntuales
   // (paso a paso, guía de mantenimiento, CTA final).
   const goldCardGradient = isDark ? 'linear-gradient(160deg,#17160f,#121216)' : 'linear-gradient(160deg,#fff8e1,#fdfaf2)'
-  const goldCtaGradient = isDark
-    ? 'radial-gradient(120% 100% at 50% 100%,#241f0c 0%,#0b0b0d 58%,#08080a 100%)'
-    : 'radial-gradient(120% 100% at 50% 100%,#fff3c4 0%,#fbfaf6 58%,#ffffff 100%)'
+  const goldCtaGradient = 'radial-gradient(120% 100% at 50% 100%, rgba(245,197,24,0.09) 0%, transparent 62%)'
   const goldSolutionGradient = isDark
     ? 'radial-gradient(110% 100% at 50% 0%,#1c1a12 0%,#08080a 62%)'
     : 'radial-gradient(110% 100% at 50% 0%,#fff3c4 0%,#ffffff 62%)'
@@ -171,7 +170,9 @@ export default function TallerPage() {
   }
 
   return (
-    <div style={{ background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh', overflowX: 'hidden' }}>
+    <div style={{ position: 'relative', background: pageBg, color: textColor, fontFamily: 'var(--font-ui)', minHeight: '100vh', overflowX: 'hidden' }}>
+      <SiteBackdrop theme={isDark ? 'dark' : 'light'} />
+      <div style={{ position: 'relative', zIndex: 10 }}>
       {/* Datos estructurados: reusa el mismo array FAQS que ya se pinta más
           abajo, no contenido inventado aparte. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -744,6 +745,7 @@ export default function TallerPage() {
       {/* FOOTER (compartido con la home) */}
       <SiteFooter theme={isDark ? 'dark' : 'light'} onOpenPolicy={setPolicyTab} />
       <PolicyModal isOpen={policyTab !== null} onClose={() => setPolicyTab(null)} tab={policyTab ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
+      </div>
     </div>
   )
 }
