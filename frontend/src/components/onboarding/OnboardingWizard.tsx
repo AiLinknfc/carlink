@@ -1,5 +1,6 @@
 'use client'
 
+import { track } from '@/lib/analytics'
 import { useState, useEffect, useCallback } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import { isTourDone } from './GuidedTour'
@@ -109,6 +110,7 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
   }, [existingVehicle])
 
   useEffect(() => { saveStep(userId, step) }, [step, userId])
+  useEffect(() => { track('wizard_step', { step: STEPS[step].id }) }, [step])
 
   // Pantalla final (2026-09-18): al terminar el wizard se queda un mensaje de
   // "configuración finalizada" que avisa del recorrido que sigue, en vez de
@@ -147,6 +149,7 @@ export default function OnboardingWizard({ userId, existingVehicle, existingProf
   const confirmClose = useCallback(() => {
     setShowCloseConfirm(false)
     markAllDone(userId)
+    track('wizard_complete')
     onComplete()
   }, [userId, onComplete])
 

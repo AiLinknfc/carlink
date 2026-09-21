@@ -1,7 +1,7 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-09-09 (auditoría de arquitectura/organización, fix de deuda de
-tests real, CI ejecuta tests, limpieza de raíz, modelo de ramas)._
+_Última actualización: 2026-09-21 (publicación de landing /taller, postulaciones, soporte real, textos
+legales v2.2, blog y footer único; ver las secciones de esa fecha más abajo)._
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza
@@ -269,6 +269,111 @@ histórico** de cómo se construyó cada cosa (verificaciones, bugs encontrados,
 ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
+
+## En curso: WhatsApp automático + analítica (2026-09-20)
+
+- **Analítica first-party — construida localmente, sin commit ni push.** Migración `060_analytics_events.sql`
+  (aplicada y verificada contra la Supabase real: tabla + RLS activado sin políticas), endpoints
+  `POST /api/analytics/events` (público, en lote, rate-limit) y `GET /api/analytics/summary` (admin),
+  `frontend/src/lib/analytics.ts` (`track()`), `PageViewTracker`, embudos de compra y de
+  registro/activación, panel "Analítica" en `/admin`. Verificado: ingesta 204, nombre de evento inválido
+  422, resumen sin auth 401, resumen con datos reales (luego borrados). **Falta**: revisión visual del
+  panel en el navegador, y desplegar (necesita push autorizado). PostHog (replays) queda para después.
+- **WhatsApp Plan B (2026-09-20) — el cliente escribe primero.** Meta bloquea crear plantillas en la
+  WABA `2590927411358491` (error `2388185`, incluso por API y con método de pago agregado; "Payment
+  configurations" da "no puedes acceder... contactá Meta Business Engineering"). Mientras tanto: tras
+  el pago, `CartModal` muestra el botón "Recibir mi código por WhatsApp" (abre chat con
+  `+57 316 4976104` y la referencia `CLK-...`); el webhook entrante
+  (`whatsapp_webhook._reply_activation_code`) responde con el código SOLO si el número que escribe
+  coincide con el celular del pedido y está aprobado (con cuenta: solo aviso "Mis pedidos"; tope 5
+  respuestas por pedido; dedupe de reintentos de Meta). 27 tests. **No probado de punta a punta**:
+  requiere desplegar el backend (push autorizado), variables de WhatsApp en Railway y registrar el
+  webhook en Meta con los campos `messages`. Soporte de Meta: caso por `2388185` / WABA arriba.
+- **WhatsApp Cloud API — servicio construido localmente (sin commit/push), falta configurar Meta.**
+  Migración `061_whatsapp_messages.sql` aplicada y verificada; `services/whatsapp.py`, envío en
+  `_notify_order_approved`, `POST /shop/orders/{ref}/whatsapp-resend` (admin), webhook firmado
+  `GET|POST /api/webhooks/whatsapp`, checkbox de consentimiento (desmarcado por defecto) en `CartModal`.
+  Tests: 91 passed. **Falta**: (1) el número real `+57 316 4976104` (Phone Number ID
+  `1376166688907871`, CONNECTED/LIVE) está en una WABA distinta a `1078907358308647` — hay que
+  crear ahí las plantillas `codigo_activacion_carlink` y `codigo_listo_carlink` (es) y aprobarlas;
+  (2) poner `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` en
+  `backend/.env` y Railway; (3) registrar el webhook en Meta tras desplegar; (4) botón "Reenviar" en
+  la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
+  (ventana de 24 h) — por eso todo va con plantilla.
+
+## Soporte: formulario de ticket — CORREGIDO en local (2026-09-21), sin desplegar
+
+Era simulado (mostraba "Ticket #C-xxxxx enviado" sin enviar nada). Ahora: `support_tickets`
+(migración `063`, **ya aplicada a la Supabase compartida**), `POST /api/support-tickets` público con rate
+limit y campo trampa, número consecutivo real (C-10001 en adelante; las pruebas dejaron el contador en
+10003), correo al admin y acuse al usuario, pestaña "Soporte" en `/admin`. Verificado con `TestClient`
+contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway (sin ellos no
+llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
+El texto ya no promete "menos de 2 horas".
+
+## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
+
+Las tres viven bajo `app/(public)/(company)/` con header y footer compartidos. Blog estático en
+`frontend/src/lib/blog.ts` (3 entradas iniciales **redactadas por mí como base: el dueño debe revisarlas
+y reemplazarlas**). Textos de Nosotros alineados con la política legal (se quitó "inalterable" e
+"imposible de alterar"). Textos legales v2.2 (postulaciones de empleo). **Falta**:
+1. `job_applications` no guarda el consentimiento (la casilla solo bloquea el envío en el frontend); guardar `consent_version` como en `workshop_applications` (migración nueva).
+2. Job de borrado: postulaciones de empleo/talleres rechazadas a los 12 meses (la política ya lo promete).
+3. La línea de tiempo de Nosotros (2024 idea, 2025 llavero, 2026 red) y "múltiples ciudades" no tienen respaldo en ningún doc: confirmar o ajustar.
+4. La hoja de vida solo se adjunta con sesión iniciada (el upload público de `/trabaja` no existe); considerar reusar el patrón de `POST /workshop-applications/upload`.
+5. `tsc` muestra errores en `.next/types` (rutas viejas `(public)/nosotros`) hasta que el dev server regenere; no son del código fuente.
+
+## Landing `/taller` para captar talleres — IMPLEMENTADA en local (2026-09-21), sin desplegar
+
+Plan y decisiones: `docs/PLAN_LANDING_TALLERES.md`. Hecho: `/shop` pasó a `/taller` (redirección 308 de
+`/shop` a `/`), página reescrita para talleres con el hero animado conservado, formulario de
+postulación (`workshop_applications`, migración `062` **ya aplicada a la Supabase compartida**),
+upload público acotado, pestaña "Postulaciones" en `/admin`, textos legales v2.1. Verificado con
+`TestClient` contra la DB y R2 reales (cero residuo). **Falta**:
+1. Desplegar (push con autorización) y confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway: sin ellos no llegan los correos de la postulación (localmente se omiten).
+2. Prueba clic a clic en navegador y Suite 8.
+3. **Sección "Respaldo" (se conservó a pedido): los logos `/images/sponsors/*.svg` NO existen en el repo** (imágenes rotas en la página) y las cifras/marcas (Terpel, Mobil 1, Shell, Castrol, Michelin, SURA; 4.8/5, 23+, 342) no tienen respaldo en ningún doc. Riesgo de publicidad engañosa y uso de marca ajena: ocultar hasta tener logos y aliados reales, o autorización de cada marca.
+4. Supuestos tomados sin respuesta del dueño (cambiarlos es trivial): `/shop` redirige a `/`; se muestra el plan $79.900/mes con 7 días de prueba (no hay cobro implementado); proveedores de repuestos entran por el mismo formulario; aprobar = correo con enlace de registro; se promete respuesta "normalmente en 2 días hábiles"; rechazadas se borran a los 12 meses (en la política, sin job que lo haga aún).
+5. Fase posterior: alimentar "Respaldo" con los logos de talleres aprobados que autorizaron su uso.
+6. "Diagnóstico IA" se omitió a propósito de la lista del panel porque `DEEPSEEK_API_KEY` sigue sin estar en Railway.
+
+## Legal: privacidad, garantía y términos v2.0 (2026-09-20, en local, sin desplegar)
+
+Texto legal unificado en `frontend/src/lib/legalContent.ts` (única fuente; modal `PolicyModal.tsx` y
+PDF `legalPdf.ts` lo leen). Nueva pestaña "Uso, Planes y Espacio"; el PDF del pie es el expediente
+completo (7 págs, paginado). **No es asesoría legal: hace falta revisión de un abogado antes de
+desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirmar:
+
+1. **Se quitó la garantía universal "12 meses o 15.000 km" de CarLink sobre servicios de taller**
+   (nada en el sistema la valida ni CarLink puede respaldarla; ahora cada taller define su plazo).
+2. **"Garantía de por vida" del llavero pasó a "vida útil con uso normal"** y se quitó el rango
+   -40 a 120 °C y "desmagnetización" (el cuerpo es PLA, se deforma con calor; NFC no es magnético).
+   Decidir si se quiere mantener algún compromiso más fuerte.
+3. **Espacio en la nube — cupo implementado en local (2026-09-20)**: persona 100 MB gratis / 200 MB
+   con llavero activo / 500 MB con 3+ llaveros activos (proxy del Kit, que no tiene SKU);
+   taller/empresa sin tope. `backend/app/services/storage_quota.py`, enforcement en `POST /upload`
+   (413), `GET /upload/usage`; el uso se calcula sumando R2 bajo `{user_id}/`. Tope por archivo sigue
+   en 10 MB. **Falta**: mostrar el uso ("X de Y MB") en la UI y el error 413 amigable en los
+   formularios de subida; decidir cupo para talleres; verificar contra R2 real (solo hay test de
+   los tramos, no de la suma sobre el bucket).
+4. **Landing** (`LandingSections.tsx` COMPARISON): "Costo mensual de almacenamiento: $0 COP — pago
+   único de por vida" contradice los términos nuevos y `docs/MODELO_NEGOCIO.md` §12. Decidir redacción.
+5. **DeepSeek** (China) recibe el texto extraído de recibos, tarjeta de propiedad y Diagnóstico IA —
+   se declara como transferencia internacional; evaluar si se quiere consentimiento explícito extra.
+6. **Archivos por enlace sin autenticación**: `GET /api/upload/files/{key}` sirve cualquier archivo a
+   quien tenga la URL (UUID no adivinable, pero sin login; cache público 1 año). Incluye tarjeta de
+   propiedad y SOAT. Se declaró en la política; conviene URLs firmadas/autenticadas.
+7. **No hay borrado de cuenta self-service** (solo vehículos/archivos); hoy es por correo. Ley 1581 lo
+   permite por solicitud, pero conviene un botón "Eliminar mi cuenta".
+8. **Datos que el abogado debe validar/completar**: NIT y razón social exactos de CarLink S.A.S.,
+   si aplica inscripción en el RNBD de la SIC (obligatoria solo sobre cierto tamaño de activos),
+   nombre de canal PQRS, política de retracto para llavero personalizado (
+   el checkout dice "programado con tu placa" pero otro pendiente indica que el llavero individual
+   no se personaliza físicamente; de eso depende si aplica la excepción de retracto), y regiones reales de los proveedores.
+9. Falta un registro de aceptación versionado (hoy solo casilla en `LoginModal`, sin guardar
+   versión/fecha aceptada en la DB). Útil como prueba de autorización ante la SIC.
+10. Ya existía el ítem de auto-sincronización de facturación sin consentimiento por registro
+    (🔴 #3): el texto de privacidad dice que vincular un taller lo autoriza; alinear cuando se decida.
 
 ## 🔴 Prioridad alta
 
@@ -1745,3 +1850,23 @@ Causas encontradas y corregidas (no reproducido en navegador, sin verificar cont
   estaba escribiendo; ahora solo depende de abrir el panel / cambiar de vehículo.
 - Backend (`vehicles.py`, `cache.py`): commit antes de invalidar el caché (antes otra lectura podía
   re-cachear el valor viejo 120 s) y `SCAN` en lugar de `KEYS` para borrar claves de Redis.
+
+## Falta por verificar / hacer tras el deploy del 2026-09-18
+
+Se mezcló a `develop` (PR #6) y luego a `master` (deploy automático a Railway/Vercel). Estado: **desplegado, pruebas post-deploy pendientes** — casos en `docs/PRUEBAS_FUNCIONALES.md` → Suite 5. Este commit de documentación quedó solo en el `master` local (sin subir).
+
+- **Sin probar en navegador ni en el servidor desplegado:** escaneo con cámara (wizard, perfil y
+  Documentos), envío automático a revisión, lectura del propietario, toggles, redirección al activar el
+  llavero, bloqueos de servicios y candados, indicador de pasos y tutorial responsive.
+- **`DEEPSEEK_API_KEY` sigue sin estar en Railway** (ver ítem 1 de esta lista): sin ella el OCR de la
+  tarjeta no llena datos, incluido el propietario. Verificar además que `tesseract` esté en la imagen
+  desplegada (el Dockerfile lo instala; en local no hay).
+- **Sin cubrir:** `POST /reviews` no está bloqueado por el plan gratuito; leer módulos bloqueados no se
+  valida en el backend; el escaneo de documentos del topbar falla con 403 sin mensaje propio para
+  servicios no gratuitos; códigos de llavero que no vienen de la tienda no habilitan un vehículo extra.
+- **CI:** no se corrió lint ni type-check del backend, y `eslint` del frontend ya mostraba errores
+  viejos de `any` en `app/app/page.tsx`; confirmar `lint-typecheck` en verde en el PR a `master`.
+- **Reversión:** si algo falla en producción, revertir el merge en `master` (las migraciones 058/059
+  son aditivas y ya están aplicadas; no hace falta deshacerlas).
+- **Decisiones que dejó pendientes el dueño:** lista de qué otros módulos/servicios bloquear más
+  adelante; si Ficha e Historial quedan libres (hoy sí).

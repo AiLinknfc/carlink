@@ -61,7 +61,7 @@ export default function CartDrawer({ isOpen, onClose, theme }: Props) {
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Tu carrito está vacío</div>
                   <div style={{ fontSize: 13, color: muted, marginBottom: 20 }}>Explora nuestros llaveros NFC y personaliza el tuyo</div>
-                  <button onClick={() => { onClose(); router.push('/shop') }} style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Explorar tienda</button>
+                  <button onClick={() => { onClose(); router.push('/') }} style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Explorar tienda</button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

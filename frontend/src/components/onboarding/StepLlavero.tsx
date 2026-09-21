@@ -1,5 +1,6 @@
 'use client'
 
+import { track } from '@/lib/analytics'
 import { useState, useEffect } from 'react'
 import { activateNfcCode } from '@/lib/api'
 import { useAuth } from '@/store/auth'
@@ -63,6 +64,7 @@ export default function StepLlavero({ userId, theme, vehicle, onActivated, onCon
     const { data, error: err } = await activateNfcCode(code.trim(), vehicle.id)
     setLoading(false)
     if (data) {
+      track('keychain_activated')
       setActivated(true)
       saveDraft(userId, DRAFT_KEY, '')
       onActivated()

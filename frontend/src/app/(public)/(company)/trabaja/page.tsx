@@ -70,8 +70,9 @@ export default function TrabajaPage() {
   const [uploading, setUploading] = useState(false)
   const [selectedOffer, setSelectedOffer] = useState('')
   const [saving, setSaving] = useState(false)
+  const [consent, setConsent] = useState(false)
 
-  const canSubmit = name.trim() && /.+@.+\..+/.test(email) && phone.trim() && area
+  const canSubmit = name.trim() && /.+@.+\..+/.test(email) && phone.trim() && area && consent
 
   const handleCvSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -121,11 +122,7 @@ export default function TrabajaPage() {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px clamp(16px,4vw,40px) 60px' }}>
-      <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-2)', textDecoration: 'none', marginBottom: 20 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-        Volver al inicio
-      </Link>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px clamp(16px,4vw,40px) 72px' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px,3.5vw,36px)', lineHeight: 1, margin: '0 0 10px', textTransform: 'uppercase' }}>
@@ -139,7 +136,7 @@ export default function TrabajaPage() {
       {/* Tab toggle */}
       <div style={{ display: 'flex', gap: 6, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: 5, marginBottom: 28, maxWidth: 380, margin: '0 auto 28px' }}>
         {([['ofertas', 'Ofertas disponibles'], ['postular', 'Postúlate']] as const).map(([id, label]) => (
-          <button key={id} onClick={() => setActiveTab(id)}
+          <button type="button" key={id} onClick={() => setActiveTab(id)}
             style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, transition: 'all .18s', background: activeTab === id ? 'var(--accent)' : 'transparent', color: activeTab === id ? '#111' : 'var(--text-2)' }}>
             {label}
           </button>
@@ -164,7 +161,7 @@ export default function TrabajaPage() {
                     </div>
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55, margin: '0 0 14px' }}>{job.description}</p>
-                  <button onClick={() => { setSelectedOffer(job.title); setActiveTab('postular') }}
+                  <button type="button" onClick={() => { setSelectedOffer(job.title); setActiveTab('postular') }}
                     style={{ padding: '9px 18px', borderRadius: 10, border: '1px solid var(--accent-border)', background: 'var(--accent-dim)', color: 'var(--accent)', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#111' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}>
@@ -214,7 +211,7 @@ export default function TrabajaPage() {
               <label style={labelStyle}>Área de interés *</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {AREAS.map(a => (
-                  <button key={a} onClick={() => setArea(a)} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${area === a ? 'var(--accent)' : 'var(--border)'}`, background: area === a ? 'var(--accent-dim)' : 'transparent', color: area === a ? 'var(--accent)' : 'var(--text-2)', transition: 'all .15s' }}>{a}</button>
+                  <button type="button" key={a} onClick={() => setArea(a)} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${area === a ? 'var(--accent)' : 'var(--border)'}`, background: area === a ? 'var(--accent-dim)' : 'transparent', color: area === a ? 'var(--accent)' : 'var(--text-2)', transition: 'all .15s' }}>{a}</button>
                 ))}
               </div>
             </div>
@@ -244,10 +241,14 @@ export default function TrabajaPage() {
                 </div>
                 <input type="file" accept=".pdf,.doc,.docx" onChange={handleCvSelect} style={{ display: 'none' }} />
               </label>
-              {!user && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>Sin sesión la hoja de vida no se adjunta.</div>}
+              {!user && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>Sin sesión la hoja de vida no se adjunta; puedes enviarla luego por correo a business@carlink.com.co.</div>}
             </div>
 
             <div><label style={labelStyle}>Cuéntanos sobre ti (opcional)</label><textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} placeholder="Tu experiencia, por qué quieres unirte..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 3, accentColor: 'var(--accent)', width: 16, height: 16, flexShrink: 0 }} />
+              <span>Autorizo a CarLink S.A.S. a tratar mis datos personales y mi hoja de vida para evaluar mi postulación y contactarme, según su Política de Privacidad (Ley 1581 de 2012). Puedes pedir la eliminación de tus datos escribiendo a business@carlink.com.co. *</span>
+            </label>
             <button onClick={handleSubmit} disabled={!canSubmit || saving || uploading} style={{ padding: 14, borderRadius: 12, border: 'none', background: 'var(--accent)', color: '#111', fontWeight: 800, fontSize: 14, cursor: canSubmit && !saving && !uploading ? 'pointer' : 'not-allowed', opacity: canSubmit && !saving && !uploading ? 1 : 0.5, boxShadow: '0 0 24px var(--accent-dim)' }}>
               {saving ? 'Enviando…' : uploading ? 'Subiendo hoja de vida…' : 'Enviar solicitud'}
             </button>

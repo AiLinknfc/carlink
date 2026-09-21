@@ -19,8 +19,8 @@ escaneando un llavero físico con NFC o QR, o buscando la placa.
 
 ## Páginas clave
 
-- [Comprar el llavero NFC](https://carlink.com.co/shop): producto físico, precio, preguntas
-  frecuentes, cómo funciona.
+- [Comprar el llavero NFC](https://carlink.com.co/#h-buyfob): producto físico, precio, cómo funciona.
+- [Para talleres y proveedores](https://carlink.com.co/taller): postula tu negocio a la red CarLink.
 - [Registro para talleres](https://carlink.com.co/register): alta de taller/empresa.
 - [Trabaja con nosotros](https://carlink.com.co/trabaja): postulaciones.
 

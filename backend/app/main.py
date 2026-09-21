@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.routers import (
     admin,
     analytics,
+    whatsapp_webhook,
     appointments,
     auth,
     certificates,
@@ -19,6 +20,8 @@ from app.routers import (
     found_requests,
     gallery,
     job_applications,
+    workshop_applications,
+    support_tickets,
     maintenance,
     nfc,
     ocr,
@@ -75,7 +78,7 @@ app.add_middleware(
 # Healthcheck
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "service": "carlink-api", "version": "1.0.2"}
+    return {"ok": True, "service": "carlink-api", "version": "1.1.0"}
 
 # Routers
 app.include_router(auth.router, prefix="/api")
@@ -95,11 +98,16 @@ app.include_router(ocr.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(found_requests.router, prefix="/api")
 app.include_router(job_applications.router, prefix="/api")
+app.include_router(workshop_applications.router, prefix="/api")
+app.include_router(workshop_applications.admin_router, prefix="/api")
+app.include_router(support_tickets.router, prefix="/api")
+app.include_router(support_tickets.admin_router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(whatsapp_webhook.router, prefix="/api")
 # Reseñas de plataforma/producto/taller enviadas por usuarios autenticados —
 # ver docs/PENDIENTES.md y el plan de este feature. Router propio, no vive bajo
 # /workshops/me porque no está scopeado a una cuenta taller (cualquier usuario).

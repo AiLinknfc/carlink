@@ -9,20 +9,20 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   // `absolute` para no heredar la plantilla "%s | CarLink" del layout raíz
   // — este title ya incluye la marca, se duplicaba ("... | CarLink").
-  title: { absolute: 'Llavero NFC CarLink — Historial de tu vehículo en un toque' },
+  title: { absolute: 'Únete a la red de talleres CarLink — Postula tu taller o negocio' },
   description:
-    'Llavero NFC/QR resistente al agua y caídas: escanéalo para ver el historial de mantenimiento de tu vehículo, o para que un taller registre un servicio. $39.900 COP, envío a toda Colombia.',
+    'Registra los servicios de tus clientes en su ficha digital, respalda tus garantías y hazte visible en la red de talleres aliados de CarLink. Postula tu taller o negocio del sector.',
   openGraph: {
-    title: 'Llavero NFC CarLink — Historial de tu vehículo en un toque',
+    title: 'Únete a la red de talleres CarLink',
     description:
-      'Escanea el llavero y accede al historial de mantenimiento de tu vehículo. Resistente al agua, caídas y roce con otras llaves.',
-    url: 'https://carlink.com.co/shop',
+      'Postula tu taller o negocio del sector: historial de tus clientes, garantías con respaldo y visibilidad en la red.',
+    url: 'https://carlink.com.co/taller',
     siteName: 'CarLink',
     locale: 'es_CO',
     type: 'website',
   },
 }
 
-export default function ShopLayout({ children }: { children: React.ReactNode }) {
+export default function TallerLandingLayout({ children }: { children: React.ReactNode }) {
   return children
 }

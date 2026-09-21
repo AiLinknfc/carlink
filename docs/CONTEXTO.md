@@ -1,6 +1,38 @@
 # CarLink — Contexto de Desarrollo
 
-_Última actualización: 2026-09-09._
+_Última actualización: 2026-09-21._
+
+## Sitio público, soporte y textos legales (2026-09-21)
+
+- **Landings**: `/` (conductor, llavero) y `/taller` (talleres y proveedores; antes `/shop`, que redirige a `/`). Comparten `SiteFooter` y el fondo animado (`SiteBackdrop`). Páginas de empresa `/nosotros`, `/blog` (estático, `lib/blog.ts`) y `/trabaja` viven en `app/(public)/(company)/` con header y footer comunes.
+- **Textos legales v2.2** en una sola fuente (`lib/legalContent.ts`): modal `PolicyModal` y PDF (`legalPdf.ts`) leen lo mismo. Pestañas: Privacidad, Garantía, Uso/Planes/Espacio, Soporte. Cupo de archivos por cuenta: 100 MB gratis / 200 MB con llavero / 500 MB con 3+ llaveros (`services/storage_quota.py`, 413 en `POST /upload`).
+- **Soporte**: `POST /api/support-tickets` (migración 063) + pestaña Admin > Soporte; el autodiagnóstico (`lib/diagnostics.ts`) genera un PDF con datos reales del dispositivo y un ID que se adjunta al ticket.
+- **Registro**: confirmación de correo por enlace activa (`mailer_autoconfirm=false` verificado en Supabase), con "Reenviar enlace".
+- **Admin**: pestañas Postulaciones (talleres), Soporte y Recursos (secciones archivadas de la landing).
+
+## Landing /taller y postulaciones de talleres (2026-09-21, en local, sin desplegar)
+
+`/taller` (antes `/shop`) capta talleres y proveedores: formulario público -> tabla
+`workshop_applications` (migración `062`, RLS sin políticas) -> pestaña "Postulaciones" en `/admin`;
+aprobar envía el enlace a `/register?mode=empresa` (no crea cuentas). Backend:
+`routers/workshop_applications.py` (upload público solo PNG/JPG/WebP/PDF verificados por firma,
+rate limit por IP, sin SVG). `/shop` redirige a `/` (`next.config.ts`). Secciones archivadas de la
+landing anterior: `/admin` > Recursos. Detalle: `docs/PLAN_LANDING_TALLERES.md`.
+
+## Analítica propia y WhatsApp automático (2026-09-20, en local, sin desplegar)
+
+**Analítica first-party** (migración `060`): `analytics_events` (ids anónimos, sin PII, RLS sin
+políticas), `POST /api/analytics/events` público con rate limit, `GET /api/analytics/summary`
+solo admin, `frontend/src/lib/analytics.ts` (`track()`), pestaña "Analítica" en `/admin` con
+embudos de compra y de registro/activación. PostHog (replays) queda para más adelante.
+
+**WhatsApp Cloud API** (migración `061`, `services/whatsapp.py`, `routers/whatsapp_webhook.py`):
+número `+57 316 4976104` (Phone Number ID `1376166688907871`) en la WABA `2590927411358491`.
+Meta bloquea crear plantillas (error `2388185`), así que el envío con plantilla existe pero no se
+puede usar todavía; el **Plan B** hace que el comprador escriba primero (botón post-pago con la
+referencia) y el webhook le responde el código solo si su número coincide con el del pedido.
+Secretos solo en `.env`/Railway (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`,
+`WHATSAPP_VERIFY_TOKEN`). Detalle y pendientes: `docs/PENDIENTES.md`; pruebas: Suite 6.
 
 ## Rediseño de landing + georreferenciación de talleres (2026-08-30 → 2026-09-09)
 

@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: '10mb' },
   },
+  // /shop pasó a ser /taller (2026-09-20, landing para captar talleres). La compra del llavero
+  // vive en la home (#h-buyfob); la redirección permanente conserva los enlaces ya compartidos.
+  async redirects() {
+    return [
+      { source: '/shop', destination: '/', permanent: true },
+      { source: '/shop/:path*', destination: '/', permanent: true },
+    ]
+  },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     return [

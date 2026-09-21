@@ -24,7 +24,7 @@ import type {
   NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
-  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats,
+  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats, AnalyticsSummary,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
@@ -377,6 +377,60 @@ export const jobApplicationApi = {
     request<JobApplication>('PATCH', `/job-applications/${id}`, { status }),
 }
 
+export interface WorkshopApplication {
+  id: string
+  business_type: string
+  name: string
+  legal_name: string
+  nit: string
+  city: string
+  address: string
+  contact_name: string
+  contact_role: string
+  phone: string
+  email: string
+  website: string
+  instagram: string
+  specialties: string
+  monthly_volume: string
+  logo_url: string
+  facade_url: string
+  doc_url: string
+  logo_authorized: boolean
+  consent_version: string
+  source: string
+  status: 'pending' | 'contacted' | 'approved' | 'rejected'
+  admin_notes: string
+  created_at: string
+  reviewed_at: string | null
+}
+
+export const workshopApplicationApi = {
+  list: (status?: string) =>
+    request<WorkshopApplication[]>('GET', `/admin/workshop-applications${status ? `?status_filter=${status}` : ''}`),
+  update: (id: string, data: { status?: string; admin_notes?: string }) =>
+    request<WorkshopApplication>('PATCH', `/admin/workshop-applications/${id}`, data),
+}
+
+export interface SupportTicket {
+  id: string
+  number: number
+  name: string
+  email: string
+  type: string
+  message: string
+  plate: string
+  diagnostic_id: string
+  status: 'open' | 'resolved'
+  created_at: string
+  resolved_at: string | null
+}
+
+export const supportTicketApi = {
+  list: (status?: string) => request<SupportTicket[]>('GET', `/admin/support-tickets${status ? `?status_filter=${status}` : ''}`),
+  setStatus: (id: string, status: 'open' | 'resolved') => request<SupportTicket>('PATCH', `/admin/support-tickets/${id}`, { status }),
+}
+
 export interface WaitlistLead {
   id: string
   contact: string
@@ -429,6 +483,7 @@ export type WhatsappClickIntent =
 export type WhatsappClickSource = 'landing' | 'shop' | 'app' | 'cart'
 
 export const analyticsApi = {
+  summary: (days: number) => request<AnalyticsSummary>('GET', `/analytics/summary?days=${days}`),
   // Tracking mínimo de clicks en los botones de WhatsApp (docs/PENDIENTES.md
   // — medir volumen real antes de decidir si automatizar algo). Fire-and-forget
   // a propósito: nunca se espera ni se revisa el resultado en el llamador,
