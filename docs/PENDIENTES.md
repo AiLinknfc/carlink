@@ -301,6 +301,13 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
+## Landing `/taller` para captar talleres — PLAN escrito, sin implementar (2026-09-20)
+
+Detalle, estructura por sección, formulario, backend y decisiones abiertas: `docs/PLAN_LANDING_TALLERES.md`.
+Puntos que requieren al dueño antes de construir: destino de `/shop` tras el cambio, si se muestra el
+precio $79.900/mes, tipos de negocio aceptados, flujo al aprobar, y confirmar que los logos de
+marcas y las cifras de la sección "Respaldo" (que se conserva) sean verificables.
+
 ## Legal: privacidad, garantía y términos v2.0 (2026-09-20, en local, sin desplegar)
 
 Texto legal unificado en `frontend/src/lib/legalContent.ts` (única fuente; modal `PolicyModal.tsx` y
