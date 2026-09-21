@@ -30,6 +30,7 @@ const TALLERES: [string, string][] = [
 ]
 const EMPRESA: [string, string][] = [
   ['Nosotros', '/nosotros'],
+  ['Blog y noticias', '/blog'],
   ['Trabaja con nosotros', '/trabaja'],
 ]
 const LEGAL: [PolicyTab, string][] = [

@@ -9,7 +9,7 @@
 
 import { SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP_DISPLAY } from './checkout'
 
-export const LEGAL_VERSION = '2.1'
+export const LEGAL_VERSION = '2.2'
 export const LEGAL_UPDATED = '21 de septiembre de 2026'
 export const LEGAL_EMAIL = 'business@carlink.com.co'
 export const LEGAL_ADDRESS = 'Cl. 87 #20-42, Bogotá D.C., Colombia'
@@ -67,6 +67,7 @@ const PRIVACY: LegalDoc = {
         'Compras: nombre, teléfono, dirección de envío, correo y referencia del pedido. Los datos de tu tarjeta o cuenta bancaria los procesa la pasarela de pagos; CarLink no los almacena.',
         'Talleres y empresas: NIT, razón social, ubicación del taller y los datos de clientes, órdenes e inventario que el propio taller registra.',
         'Postulaciones de talleres y negocios (landing /taller): nombre comercial, razón social, NIT, ciudad, dirección, datos de contacto (nombre, cargo, teléfono, correo), sitio web e Instagram, especialidades, volumen de atención, logo, foto de fachada y, si lo adjuntas, Cámara de Comercio o RUT. Guardamos la versión de este texto que aceptaste.',
+        'Postulaciones de empleo (Trabaja con nosotros): nombre, correo, WhatsApp, área de interés, mensaje y, si la adjuntas, tu hoja de vida.',
         'Contacto por llavero encontrado: el mensaje y los datos de contacto que deja quien encuentra un llavero, que enviamos al dueño por correo.',
         'Analítica propia: un identificador aleatorio de navegador y de sesión, páginas visitadas, tipo de dispositivo y origen de la visita (UTM). No guardamos tu IP en la analítica. Si tienes la sesión iniciada, el evento puede asociarse a tu cuenta.',
         'Almacenamiento local del navegador: preferencias (tema claro/oscuro), carrito y avisos que descartaste. No usamos cookies de publicidad de terceros.',
@@ -80,6 +81,7 @@ const PRIVACY: LegalDoc = {
         'Permitir que quien escanee tu llavero vea únicamente la información pública que tú habilitaste.',
         'Registrar y consultar servicios, kilometraje, documentos, gastos y recordatorios de mantenimiento.',
         'Procesar compras, envíos, activación del llavero y atención posventa.',
+        'Evaluar postulaciones de empleo y contactar a quien se postula.',
         'Evaluar postulaciones de talleres y negocios, validar su NIT y contactar a quien postula. El logo y el nombre del negocio solo se muestran públicamente como aliado si lo autorizas de forma expresa y puedes revocarlo cuando quieras.',
         'Enviarte avisos operativos (pedido, código de activación, llavero encontrado, vencimientos) por correo o WhatsApp.',
         'Mejorar el producto con analítica agregada y prevenir fraude, abuso y suplantación.',
@@ -163,7 +165,7 @@ const PRIVACY: LegalDoc = {
       items: [
         'Mientras tu cuenta esté activa y sea necesario para las finalidades de esta política.',
         'Si pides eliminar tu cuenta, suprimimos o anonimizamos tus datos dentro de los plazos de ley, salvo lo que debamos conservar por obligación legal: por ejemplo, soportes de pedidos y facturación, que la ley comercial exige guardar hasta 10 años.',
-        'Las postulaciones rechazadas o sin respuesta se eliminan a más tardar a los 12 meses; las aprobadas pasan a la cuenta del taller y se rigen por la regla general.',
+        'Las postulaciones de empleo y de talleres rechazadas o sin respuesta se eliminan a más tardar a los 12 meses; las aprobadas pasan a la cuenta del taller y se rigen por la regla general.',
         'La analítica se conserva de forma anonimizada o agregada.',
         'Copias de respaldo de los proveedores pueden conservar datos por un tiempo limitado antes de eliminarse por completo.',
       ],

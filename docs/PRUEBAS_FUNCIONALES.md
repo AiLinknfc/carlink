@@ -191,6 +191,18 @@ correo real siguen sin probarse**.
 - [ ] Enlace "Política de Privacidad" del formulario abre el modal; pie de la landing abre los 4 textos legales
 - [ ] Analítica: aparecen `taller_form_start` y `taller_form_submit`
 
+## Suite 9 — Nosotros, Trabaja con nosotros y Blog (2026-09-21)
+
+Cubre: `app/(public)/(company)/*`, `components/company/*`, `lib/blog.ts`, `SiteFooter.tsx`. Revisado
+en pantalla (escritorio) con Chromium; móvil, tema claro y el envío del formulario de empleo sin probar.
+
+- [ ] `/nosotros`, `/blog`, `/blog/<slug>`, `/trabaja` muestran el mismo header (Nosotros, Blog, Para talleres, Trabaja con nosotros) y el footer único
+- [ ] Un slug inexistente devuelve 404; una entrada con `published: false` no aparece en el listado ni en el sitemap
+- [ ] `/nosotros` muestra "Blog y noticias" con las 3 últimas entradas y enlace a `/blog`
+- [ ] Tema claro: legible en las cuatro páginas; el botón de tema del header alterna
+- [ ] Trabaja: no envía sin la casilla de autorización de datos; el enlace/correo de eliminación de datos es visible
+- [ ] Los textos de Nosotros ya no dicen "inalterable" ni "imposible de alterar"
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

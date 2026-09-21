@@ -301,6 +301,18 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
+## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
+
+Las tres viven bajo `app/(public)/(company)/` con header y footer compartidos. Blog estático en
+`frontend/src/lib/blog.ts` (3 entradas iniciales **redactadas por mí como base: el dueño debe revisarlas
+y reemplazarlas**). Textos de Nosotros alineados con la política legal (se quitó "inalterable" e
+"imposible de alterar"). Textos legales v2.2 (postulaciones de empleo). **Falta**:
+1. `job_applications` no guarda el consentimiento (la casilla solo bloquea el envío en el frontend); guardar `consent_version` como en `workshop_applications` (migración nueva).
+2. Job de borrado: postulaciones de empleo/talleres rechazadas a los 12 meses (la política ya lo promete).
+3. La línea de tiempo de Nosotros (2024 idea, 2025 llavero, 2026 red) y "múltiples ciudades" no tienen respaldo en ningún doc: confirmar o ajustar.
+4. La hoja de vida solo se adjunta con sesión iniciada (el upload público de `/trabaja` no existe); considerar reusar el patrón de `POST /workshop-applications/upload`.
+5. `tsc` muestra errores en `.next/types` (rutas viejas `(public)/nosotros`) hasta que el dev server regenere; no son del código fuente.
+
 ## Landing `/taller` para captar talleres — IMPLEMENTADA en local (2026-09-21), sin desplegar
 
 Plan y decisiones: `docs/PLAN_LANDING_TALLERES.md`. Hecho: `/shop` pasó a `/taller` (redirección 308 de
