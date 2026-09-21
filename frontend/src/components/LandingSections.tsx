@@ -202,7 +202,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         <div style={{ textAlign: 'center', maxWidth: 660, margin: '0 auto 46px' }}>
           <div style={EYEBROW}>Qué vas a recibir</div>
           <h2 style={H2}>Elige tu llavero CarLink</h2>
-          <p style={{ fontSize: 15, color: k.muted, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Esto es exactamente lo que llega a tu puerta — sin sorpresas.</p>
+          <p style={{ fontSize: 15, color: k.muted, lineHeight: 1.6, margin: '14px auto 0', maxWidth: '52ch' }}>Esto es exactamente lo que llega a tu puerta — sin sorpresas. Registrarte en la web es gratis e incluye 100 MB de almacenamiento; con tu llavero se amplía.</p>
         </div>
         <div data-r="hProductos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, maxWidth: 1000, margin: '0 auto' }}>
 
@@ -217,7 +217,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$39.900</div>
             <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>pago único · envío incluido</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
-              {['1 llavero NFC de alta resistencia', 'QR de respaldo', 'Acceso vitalicio a la plataforma'].map(f => (
+              {['1 llavero NFC de alta resistencia', 'QR de respaldo', '200 MB de almacenamiento en la nube', 'Acceso vitalicio a la plataforma'].map(f => (
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
@@ -243,9 +243,9 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               <CarLinkLogo size={15} />Kit CarLink
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 36, margin: '14px 0 4px' }}>$59.900</div>
-            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>accesorios para todo el carro, con 3 chips NFC</div>
+            <div style={{ fontSize: 13.5, color: k.muted, marginBottom: 20 }}>kit de 3 llaveros para tu mismo vehículo</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24, flex: 1 }}>
-              {['2 chips NFC — llavero y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', 'Acceso vitalicio a la plataforma'].map(f => (
+              {['3 llaveros NFC — llavero, tarjeta y botón adhesivo', 'Tarjeta QR con grabado laser', 'Llavero personalizado con tu placa', 'Acabado en resina + aro de lujo', '500 MB de almacenamiento en la nube', 'Acceso vitalicio a la plataforma'].map(f => (
                 <div key={f} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: k.muted, lineHeight: 1.4 }}>{CHECK(GOLD, 15)}{f}</div>
               ))}
             </div>
@@ -484,7 +484,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Legal y soporte</div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 9, fontSize: 13.5, fontWeight: 300 }}>
-              {([['warranty', 'Términos de Garantía'], ['privacy', 'Privacidad de Datos'], ['support', 'Soporte Técnico']] as [PolicyTab, string][]).map(([t, l]) => (
+              {([['warranty', 'Términos de Garantía'], ['terms', 'Uso, Planes y Espacio'], ['privacy', 'Privacidad de Datos'], ['support', 'Soporte Técnico']] as [PolicyTab, string][]).map(([t, l]) => (
                 <button key={t} onClick={() => onOpenPolicy(t)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: k.muted, fontSize: 13.5, fontWeight: 300, fontFamily: 'inherit', textAlign: 'left' }}>{l}</button>
               ))}
             </div>

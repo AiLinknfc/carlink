@@ -157,6 +157,19 @@ ventana de incógnito, y repetir lo visual (5.2, 5.3, 5.13) a 360 px de ancho.
 | 5.16 | Placa: un solo texto | Landing, carrito, menú lateral, ficha NFC con moto y con carro | Moto: "COLOMBIA" debajo del número; carro: ciudad (o "CIUDAD" hasta elegirla); nunca los dos |
 | 5.17 | Reserva de placas | Con otra cuenta, registrar una placa ya verificada | El wizard la bloquea; si solo estaba registrada gratis sin verificar, deja seguir con aviso |
 
+## Suite 7 — Textos legales y PDF (2026-09-20)
+
+Cubre: `legalContent.ts`, `legalPdf.ts`, `PolicyModal.tsx`, enlaces de pie de landing y casilla de
+`LoginModal`. Sin backend. No probado en navegador real cuando se escribió.
+
+- [ ] Pie de la landing: 4 enlaces (Garantía, Uso/Planes/Espacio, Privacidad, Soporte) abren el modal en la pestaña correcta
+- [ ] Registro: la casilla enlaza a Privacidad, Términos de Uso y Garantía
+- [ ] Modal claro y oscuro: viñetas, avisos en negrita y scroll legibles en móvil (375 px)
+- [ ] "Descargar documento completo" baja un PDF de ~7 páginas con las 3 secciones, encabezado y "Página X de Y"
+- [ ] El PDF no tiene caracteres rotos (tildes, ñ, ¿, ¡) ni texto cortado por el pie
+- [ ] Soporte > "Descargar diagnóstico" baja la hoja de autodiagnóstico (1 página)
+- [ ] Lo que dice el texto coincide con el sistema: 10 MB por archivo, plan gratis = 1 vehículo + aceite
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

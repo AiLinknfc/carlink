@@ -301,6 +301,44 @@ ya no repiten listas de pendientes, solo enlazan aquí.
   la UI de admin (el endpoint ya existe). Texto libre solo llega si el cliente escribió primero
   (ventana de 24 h) — por eso todo va con plantilla.
 
+## Legal: privacidad, garantía y términos v2.0 (2026-09-20, en local, sin desplegar)
+
+Texto legal unificado en `frontend/src/lib/legalContent.ts` (única fuente; modal `PolicyModal.tsx` y
+PDF `legalPdf.ts` lo leen). Nueva pestaña "Uso, Planes y Espacio"; el PDF del pie es el expediente
+completo (7 págs, paginado). **No es asesoría legal: hace falta revisión de un abogado antes de
+desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirmar:
+
+1. **Se quitó la garantía universal "12 meses o 15.000 km" de CarLink sobre servicios de taller**
+   (nada en el sistema la valida ni CarLink puede respaldarla; ahora cada taller define su plazo).
+2. **"Garantía de por vida" del llavero pasó a "vida útil con uso normal"** y se quitó el rango
+   -40 a 120 °C y "desmagnetización" (el cuerpo es PLA, se deforma con calor; NFC no es magnético).
+   Decidir si se quiere mantener algún compromiso más fuerte.
+3. **Espacio en la nube — cupo implementado en local (2026-09-20)**: persona 100 MB gratis / 200 MB
+   con llavero activo / 500 MB con 3+ llaveros activos (proxy del Kit, que no tiene SKU);
+   taller/empresa sin tope. `backend/app/services/storage_quota.py`, enforcement en `POST /upload`
+   (413), `GET /upload/usage`; el uso se calcula sumando R2 bajo `{user_id}/`. Tope por archivo sigue
+   en 10 MB. **Falta**: mostrar el uso ("X de Y MB") en la UI y el error 413 amigable en los
+   formularios de subida; decidir cupo para talleres; verificar contra R2 real (solo hay test de
+   los tramos, no de la suma sobre el bucket).
+4. **Landing** (`LandingSections.tsx` COMPARISON): "Costo mensual de almacenamiento: $0 COP — pago
+   único de por vida" contradice los términos nuevos y `docs/MODELO_NEGOCIO.md` §12. Decidir redacción.
+5. **DeepSeek** (China) recibe el texto extraído de recibos, tarjeta de propiedad y Diagnóstico IA —
+   se declara como transferencia internacional; evaluar si se quiere consentimiento explícito extra.
+6. **Archivos por enlace sin autenticación**: `GET /api/upload/files/{key}` sirve cualquier archivo a
+   quien tenga la URL (UUID no adivinable, pero sin login; cache público 1 año). Incluye tarjeta de
+   propiedad y SOAT. Se declaró en la política; conviene URLs firmadas/autenticadas.
+7. **No hay borrado de cuenta self-service** (solo vehículos/archivos); hoy es por correo. Ley 1581 lo
+   permite por solicitud, pero conviene un botón "Eliminar mi cuenta".
+8. **Datos que el abogado debe validar/completar**: NIT y razón social exactos de CarLink S.A.S.,
+   si aplica inscripción en el RNBD de la SIC (obligatoria solo sobre cierto tamaño de activos),
+   nombre de canal PQRS, política de retracto para llavero personalizado (
+   el checkout dice "programado con tu placa" pero otro pendiente indica que el llavero individual
+   no se personaliza físicamente; de eso depende si aplica la excepción de retracto), y regiones reales de los proveedores.
+9. Falta un registro de aceptación versionado (hoy solo casilla en `LoginModal`, sin guardar
+   versión/fecha aceptada en la DB). Útil como prueba de autorización ante la SIC.
+10. Ya existía el ítem de auto-sincronización de facturación sin consentimiento por registro
+    (🔴 #3): el texto de privacidad dice que vincular un taller lo autoriza; alinear cuando se decida.
+
 ## 🔴 Prioridad alta
 
 1. **`DEEPSEEK_API_KEY` no está configurada en Railway** (confirmado por el usuario, 2026-08-07).
