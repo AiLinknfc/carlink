@@ -401,7 +401,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <form onSubmit={handleLeadSubmit} data-r="hCaptureInput" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input
                   type="text" required value={leadContact} onChange={e => { setLeadContact(e.target.value); if (leadStatus === 'error') { setLeadStatus('idle'); setLeadErrorReason(null) } }}
                   placeholder="Tu correo o celular con WhatsApp"
@@ -409,8 +409,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
                   onFocus={e => { e.currentTarget.style.borderColor = GOLD }}
                   onBlur={e => { e.currentTarget.style.borderColor = leadContactCheck.status === 'invalid' ? 'rgba(255,138,61,0.6)' : softTint(0.14) }}
                 />
-                <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ padding: '15px 26px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 15, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                  {leadStatus === 'loading' ? 'Enviando…' : 'Descargar Guía'}
+                <button type="submit" disabled={leadStatus === 'loading'} data-r="hCaptureBtn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 22px', borderRadius: 999, border: 'none', background: GOLD, color: '#111', fontWeight: 600, fontSize: 13.5, cursor: leadStatus === 'loading' ? 'default' : 'pointer', opacity: leadStatus === 'loading' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {leadStatus === 'loading' ? 'Enviando…' : <>Descargar guía{ARROW}</>}
                 </button>
                 {leadContactCheck.status === 'valid' && (
                   <p style={{ width: '100%', margin: 0, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#5be89a' }}>

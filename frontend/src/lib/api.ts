@@ -412,6 +412,25 @@ export const workshopApplicationApi = {
     request<WorkshopApplication>('PATCH', `/admin/workshop-applications/${id}`, data),
 }
 
+export interface SupportTicket {
+  id: string
+  number: number
+  name: string
+  email: string
+  type: string
+  message: string
+  plate: string
+  diagnostic_id: string
+  status: 'open' | 'resolved'
+  created_at: string
+  resolved_at: string | null
+}
+
+export const supportTicketApi = {
+  list: (status?: string) => request<SupportTicket[]>('GET', `/admin/support-tickets${status ? `?status_filter=${status}` : ''}`),
+  setStatus: (id: string, status: 'open' | 'resolved') => request<SupportTicket>('PATCH', `/admin/support-tickets/${id}`, { status }),
+}
+
 export interface WaitlistLead {
   id: string
   contact: string

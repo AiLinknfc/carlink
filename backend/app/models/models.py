@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DECIMAL, Boolean, Date, DateTime, Float, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import DECIMAL, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Identity, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -948,3 +948,21 @@ class WorkshopApplication(Base):
     admin_notes: Mapped[str] = mapped_column(Text, default="")
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportTicket(Base):
+    """Ticket enviado desde el modal de Soporte (migración 063). `number` es el consecutivo visible."""
+    __tablename__ = "support_tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    number: Mapped[int] = mapped_column(BigInteger, Identity(always=True, start=10001), unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(Text)
+    type: Mapped[str] = mapped_column(Text)
+    message: Mapped[str] = mapped_column(Text)
+    plate: Mapped[str] = mapped_column(Text, default="")
+    diagnostic_id: Mapped[str] = mapped_column(Text, default="")
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

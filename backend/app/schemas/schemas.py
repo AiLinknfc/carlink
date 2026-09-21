@@ -1921,3 +1921,39 @@ class WorkshopApplicationOut(BaseModel):
 class WorkshopApplicationUpdate(BaseModel):
     status: str | None = None
     admin_notes: str | None = Field(None, max_length=2000)
+
+
+# =========== Support tickets ===========
+
+SUPPORT_TICKET_TYPES = {"NFC_READ_ERROR", "MILEAGE_CORRECTION", "OWNER_TRANSFER", "SHOP_AFFILIATION", "BUG_REPORT"}
+
+
+class SupportTicketCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(max_length=160)
+    type: str
+    message: str = Field(min_length=10, max_length=2000)
+    plate: str = Field("", max_length=12)
+    diagnostic_id: str = Field("", max_length=32)
+    # Campo trampa anti-bots.
+    website_confirm: str = Field("", max_length=200)
+
+
+class SupportTicketOut(BaseModel):
+    id: UUID
+    number: int
+    name: str
+    email: str
+    type: str
+    message: str
+    plate: str
+    diagnostic_id: str
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class SupportTicketUpdate(BaseModel):
+    status: str

@@ -433,3 +433,36 @@ def send_workshop_application_approved_email(to_email: str, contact_name: str, b
         <a href="{link}" style="display:inline-block;background:#F5C518;color:#111;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Crear mi cuenta de taller</a>
     """
     return _send_email(to_email, subject, _email_shell(body), log_label="workshop application approved email")
+
+
+# ── Soporte ──
+def send_support_ticket_admin_email(t) -> bool:
+    if not ADMIN_EMAIL:
+        print("[email] ADMIN_EMAIL not configured — skipping support ticket email")
+        return False
+    subject = f"CarLink Soporte C-{t.number}: {t.type}"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Nuevo ticket C-{t.number}</h2>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee;">
+          <div style="font-size: 14px; color: #333; line-height: 1.8;">
+            <strong>Tipo:</strong> {_esc(t.type)}<br>
+            <strong>De:</strong> {_esc(t.name)} &lt;{_esc(t.email)}&gt;<br>
+            <strong>Placa:</strong> {_esc(t.plate) or "-"}<br>
+            <strong>ID de autodiagnóstico:</strong> {_esc(t.diagnostic_id) or "-"}<br><br>
+            <strong>Mensaje:</strong><br>{_esc(t.message).replace(chr(10), "<br>")}
+          </div>
+        </div>
+    """
+    return _send_email(ADMIN_EMAIL, subject, _email_shell(body, footer_text="Revísalo en Admin > Soporte."), log_label="support ticket admin email")
+
+
+def send_support_ticket_ack_email(to_email: str, name: str, number: int) -> bool:
+    subject = f"CarLink — Recibimos tu solicitud C-{number}"
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">Hola {_esc(name)}</h2>
+        <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0;">
+          Recibimos tu solicitud de soporte. Tu número de ticket es <strong>C-{number}</strong>.
+          Te responderemos a este correo lo antes posible.
+        </p>
+    """
+    return _send_email(to_email, subject, _email_shell(body), log_label="support ticket ack email")

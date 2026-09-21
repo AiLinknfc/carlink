@@ -21,6 +21,7 @@ from app.routers import (
     gallery,
     job_applications,
     workshop_applications,
+    support_tickets,
     maintenance,
     nfc,
     ocr,
@@ -99,6 +100,8 @@ app.include_router(found_requests.router, prefix="/api")
 app.include_router(job_applications.router, prefix="/api")
 app.include_router(workshop_applications.router, prefix="/api")
 app.include_router(workshop_applications.admin_router, prefix="/api")
+app.include_router(support_tickets.router, prefix="/api")
+app.include_router(support_tickets.admin_router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")

@@ -6,6 +6,7 @@ import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, SUPPORT_PHONE, SUPPORT_PHON
 import { LEGAL_DOCS, LEGAL_VERSION, LEGAL_UPDATED, type LegalTabId } from '@/lib/legalContent'
 import { downloadLegalPdf, downloadDiagnosticPdf } from '@/lib/legalPdf'
 import { collectDiagnostics, type DiagnosticReport } from '@/lib/diagnostics'
+import { supabase } from '@/lib/supabase'
 
 export type PolicyTab = LegalTabId | 'support'
 
@@ -57,12 +58,14 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
   const [msg, setMsg] = useState('')
   const [type, setType] = useState('NFC_READ_ERROR')
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState<number | null>(null)
+  const [ticketError, setTicketError] = useState<string | null>(null)
+  const [trap, setTrap] = useState('')
   const [dx, setDx] = useState<DiagnosticReport | null>(null)
   const [dxBusy, setDxBusy] = useState(false)
   const [dxCopied, setDxCopied] = useState(false)
 
-  useEffect(() => { if (isOpen) { setActive(tab); setSubmitted(false) } }, [isOpen, tab])
+  useEffect(() => { if (isOpen) { setActive(tab); setSubmitted(null); setTicketError(null) } }, [isOpen, tab])
 
   const isDark = theme === 'dark'
   const panelBg = isDark ? 'rgba(16,16,16,0.97)' : 'rgba(247,246,242,0.98)'
@@ -92,11 +95,28 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
   }
   const dxColor = (st: string) => st === 'ok' ? GREEN : st === 'fail' ? '#ff4d6a' : st === 'warn' ? '#ff8a3d' : textMuted
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const TICKET_ERRORS: Record<string, string> = {
+    email_invalid: 'Ese correo no parece válido.',
+    rate_limited: 'Enviaste varias solicitudes seguidas. Intenta de nuevo en un rato o escríbenos por WhatsApp.',
+  }
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!msg.trim()) return
-    setSubmitting(true)
-    setTimeout(() => { setSubmitting(false); setSubmitted(true); setMsg('') }, 1100)
+    if (msg.trim().length < 10) { setTicketError('Cuéntanos un poco más del problema (mínimo 10 caracteres).'); return }
+    setSubmitting(true); setTicketError(null)
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      if (token) headers.Authorization = `Bearer ${token}`
+      const res = await fetch('/api/support-tickets', {
+        method: 'POST', headers,
+        body: JSON.stringify({ name, email, type, message: msg, plate: plateText, diagnostic_id: dx?.id ?? '', website_confirm: trap }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setTicketError(TICKET_ERRORS[j.detail] || 'No pudimos enviar tu solicitud. Escríbenos por WhatsApp o correo.'); return }
+      setSubmitted(j.number ?? 0); setMsg('')
+    } catch {
+      setTicketError('No pudimos enviar tu solicitud. Revisa tu conexión o escríbenos por WhatsApp.')
+    } finally { setSubmitting(false) }
   }
 
   const sectionDot = (accent: string) => <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flex: '0 0 auto' }} />
@@ -182,7 +202,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <div>
                           <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, margin: 0 }}>Enviar ticket de soporte</h3>
-                          <p style={{ fontSize: 12.5, color: textMuted, margin: '4px 0 0' }}>Nuestro equipo responde al correo asociado en menos de 2 horas.</p>
+                          <p style={{ fontSize: 12.5, color: textMuted, margin: '4px 0 0' }}>Te respondemos al correo que indiques lo antes posible. Si generaste un autodiagnóstico, se adjunta su ID automáticamente.</p>
                         </div>
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -205,13 +225,15 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                             <label style={label}>Detalles del caso</label>
                             <textarea required rows={4} value={msg} onChange={e => setMsg(e.target.value)} placeholder="Describe qué ocurre con tu placa o tu ficha…" style={{ ...input, resize: 'none', lineHeight: 1.5 }} />
                           </div>
-                          <button type="submit" disabled={submitting || submitted} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 11, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting || submitted ? 0.6 : 1 }}>
+                          <input tabIndex={-1} autoComplete="off" aria-hidden="true" name="website_confirm" value={trap} onChange={e => setTrap(e.target.value)} style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
+                          {ticketError && <div role="alert" style={{ fontSize: 12.5, fontWeight: 600, color: '#ff4d6a' }}>{ticketError}</div>}
+                          <button type="submit" disabled={submitting || submitted !== null} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 11, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: submitting || submitted ? 0.6 : 1 }}>
                             {submitting ? <span style={{ width: 15, height: 15, border: '2px solid rgba(0,0,0,0.35)', borderTopColor: '#111', borderRadius: '50%', display: 'inline-block', animation: 'spin .8s linear infinite' }} /> : Ic.send('#111')}
                             <span>Enviar solicitud</span>
                           </button>
-                          {submitted && (
+                          {submitted !== null && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, borderRadius: 11, background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.25)', color: GREEN, fontSize: 12.5 }}>
-                              {Ic.check(GREEN)}<span>¡Ticket #C-{Math.floor(Math.random() * 90000 + 10000)} enviado! Te contactaremos pronto.</span>
+                              {Ic.check(GREEN)}<span>{submitted > 0 ? `Recibimos tu solicitud. Tu ticket es C-${submitted}; te escribiremos a ${email}.` : 'Recibimos tu solicitud.'}</span>
                             </div>
                           )}
                         </form>
