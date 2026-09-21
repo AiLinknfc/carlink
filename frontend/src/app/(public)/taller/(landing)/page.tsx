@@ -8,6 +8,7 @@ import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { useTheme } from '@/store/theme'
 import PostulacionForm from '@/components/taller/PostulacionForm'
 import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
+import SiteFooter from '@/components/SiteFooter'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -740,21 +741,8 @@ export default function TallerPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer style={{ borderTop: `1px solid ${BORDER}`, padding: '44px clamp(20px,5vw,64px) 30px' }}>
-        <div data-r="shopFooter" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 22, flexWrap: 'wrap' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <CarLinkWordmark fontSize={20} iconSize={33} textColor={textColor} />
-          </Link>
-          <Link href="/" style={{ fontSize: 13.5, color: GOLD, textDecoration: 'none', fontWeight: 600 }}>¿Eres conductor? Conoce el llavero CarLink</Link>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13.5 }}>
-            {([['privacy', 'Privacidad de Datos'], ['terms', 'Uso, Planes y Espacio'], ['warranty', 'Garantía'], ['support', 'Soporte']] as [PolicyTab, string][]).map(([t, l]) => (
-              <button key={t} onClick={() => setPolicyTab(t)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: MUTED, fontSize: 13.5, fontFamily: 'inherit' }}>{l}</button>
-            ))}
-          </div>
-          <div data-r="shopFooterText" style={{ fontSize: 13.5, color: MUTED }}>© 2026 CarLink · Bogotá, Colombia · business@carlink.com.co</div>
-        </div>
-      </footer>
+      {/* FOOTER (compartido con la home) */}
+      <SiteFooter theme={isDark ? 'dark' : 'light'} onOpenPolicy={setPolicyTab} />
       <PolicyModal isOpen={policyTab !== null} onClose={() => setPolicyTab(null)} tab={policyTab ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
     </div>
   )
