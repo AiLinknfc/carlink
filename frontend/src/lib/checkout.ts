@@ -21,6 +21,10 @@ export function activationCodeWhatsappUrl(reference: string): string {
 }
 
 export const SUPPORT_WHATSAPP_DISPLAY = '+57 312 403 3960' // para mostrarlo en pantalla/PDF
+// Línea para llamadas telefónicas (2026-09-20). Es el mismo número de WhatsApp Cloud API de
+// ACTIVATION_BOT_WHATSAPP (abajo): confirmar que recibe llamadas de voz normales.
+export const SUPPORT_PHONE = '573164976104' // E.164 sin "+", para tel:
+export const SUPPORT_PHONE_DISPLAY = '+57 316 497 6104'
 
 // Pedidos del "Kit CarLink" (bundle BAJO PEDIDO — 2 chips NFC + tarjeta
 // grabada + llavero personalizado, ver LandingSections.tsx) pausados

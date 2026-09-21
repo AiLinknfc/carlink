@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@/lib/checkout'
 import { LEGAL_DOCS, LEGAL_VERSION, LEGAL_UPDATED, type LegalTabId } from '@/lib/legalContent'
 import { downloadLegalPdf, downloadDiagnosticPdf } from '@/lib/legalPdf'
 
@@ -206,6 +206,7 @@ export default function PolicyModal({ isOpen, onClose, tab, theme, plateText, ci
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 700 }}>{Ic.phone(GOLD)}<span>Soporte por WhatsApp</span></div>
                           <p style={{ fontSize: 12, lineHeight: 1.55, color: textMuted, margin: 0 }}>¿Eres taller de la red y tienes problemas escribiendo los llaveros? Escríbenos por el canal directo.</p>
                           <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color: GREEN, background: isDark ? '#000' : 'rgba(0,0,0,0.04)', border: `1px solid ${subtle}`, borderRadius: 9, padding: '9px', textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
+                          <a href={`tel:+${SUPPORT_PHONE}`} style={{ textAlign: 'center', fontSize: 12.5, color: textPrimary, textDecoration: 'none' }}>Llamadas: {SUPPORT_PHONE_DISPLAY}</a>
                           <a href="mailto:business@carlink.com.co" style={{ textAlign: 'center', fontSize: 12.5, color: GOLD, textDecoration: 'none' }}>business@carlink.com.co</a>
                         </div>
                         <div style={{ padding: 16, borderRadius: 14, background: cardBg, border: `1px solid ${subtle}`, display: 'flex', flexDirection: 'column', gap: 8 }}>

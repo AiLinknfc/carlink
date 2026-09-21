@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf'
-import { SUPPORT_WHATSAPP_DISPLAY } from './checkout'
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP_DISPLAY } from './checkout'
 import {
   LEGAL_ADDRESS, LEGAL_DOCS, LEGAL_EMAIL, LEGAL_ORDER, LEGAL_UPDATED, LEGAL_VERSION,
   type LegalDoc, type LegalTabId,
@@ -112,7 +112,7 @@ function build(meta: Meta, tabs: LegalTabId[], title: string): jsPDF {
   doc.setDrawColor(...GOLD); doc.setLineWidth(0.4); doc.line(margin, y, w - margin, y)
   y += 6
   write('Contacto y ejercicio de derechos', { size: 10, bold: true, color: DARK, gap: 1.8 })
-  write(`CarLink S.A.S. - ${LEGAL_ADDRESS}. Correo: ${LEGAL_EMAIL}. WhatsApp: ${SUPPORT_WHATSAPP_DISPLAY}. Autoridad de protección de datos y del consumidor: Superintendencia de Industria y Comercio (sic.gov.co).`, { size: 8.5, gap: 2 })
+  write(`CarLink S.A.S. - ${LEGAL_ADDRESS}. Correo: ${LEGAL_EMAIL}. WhatsApp: ${SUPPORT_WHATSAPP_DISPLAY}. Telefono: ${SUPPORT_PHONE_DISPLAY}. Autoridad de protección de datos y del consumidor: Superintendencia de Industria y Comercio (sic.gov.co).`, { size: 8.5, gap: 2 })
 
   // Pie y numeración en todas las hojas
   const total = doc.getNumberOfPages()
@@ -163,6 +163,7 @@ export function downloadDiagnosticPdf(meta: Meta) {
   row('CIUDAD DE REGISTRO', meta.city || '-')
   row('CORREO DE SOPORTE', LEGAL_EMAIL)
   row('WHATSAPP', SUPPORT_WHATSAPP_DISPLAY)
+  row('TELEFONO', SUPPORT_PHONE_DISPLAY)
   row('QUE ADJUNTAR', 'Describe que ocurre, adjunta capturas de pantalla y, si es un problema con el llavero, indica el modelo de tu telefono y si tiene la funcion NFC activada.')
   doc.save(`CarLink_soporte_${meta.plate || 'general'}.pdf`)
 }

@@ -5,7 +5,7 @@ import CarLinkLogo from '@/components/CarLinkLogo'
 import Link from 'next/link'
 import { reviewsApi, waitlistApi, analyticsApi } from '@/lib/api'
 import type { Review } from '@/lib/types'
-import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, KIT_ORDER_ENABLED } from '@/lib/checkout'
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_DISPLAY, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY, KIT_ORDER_ENABLED } from '@/lib/checkout'
 import { checkContact } from '@/lib/contactValidation'
 
 type Theme = 'light' | 'dark'
@@ -492,15 +492,16 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 14 }}>Contacto</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, fontWeight: 300, color: k.muted }}>
-              <a href="https://maps.google.com/?q=Cra+70+%2380-24+Bogotá" target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>Cra 70 #80-24, Bogotá D.C., Colombia</a>
+              <a href="https://maps.google.com/?q=Cl.+87+%2320-42+Bogotá" target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>Cl. 87 #20-42, Bogotá D.C., Colombia</a>
               <a href="mailto:business@carlink.com.co" style={{ color: k.muted, textDecoration: 'none' }}>business@carlink.com.co</a>
-              <a href={`tel:+${SUPPORT_WHATSAPP}`} style={{ color: k.muted, textDecoration: 'none' }}>{SUPPORT_WHATSAPP_DISPLAY}</a>
+              <a href={`tel:+${SUPPORT_PHONE}`} style={{ color: k.muted, textDecoration: 'none' }}>Llamadas: {SUPPORT_PHONE_DISPLAY}</a>
+              <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ color: k.muted, textDecoration: 'none' }}>WhatsApp: {SUPPORT_WHATSAPP_DISPLAY}</a>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <a href="https://www.instagram.com/ailink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+              <a href="https://www.instagram.com/carlink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
               </a>
-              <a href="https://www.facebook.com/people/AiLink/61578774262078/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+              <a href="https://www.facebook.com/carlink.nfc" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
               </a>
               <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#062b12' }}>

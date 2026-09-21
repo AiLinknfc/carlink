@@ -7,12 +7,12 @@
    archivos, un proveedor, el borrado de cuenta), este texto debe cambiar en el mismo commit.
    Sin emojis (regla de la interfaz, docs/DESIGN_GUIDELINES.md). */
 
-import { SUPPORT_WHATSAPP_DISPLAY } from './checkout'
+import { SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP_DISPLAY } from './checkout'
 
 export const LEGAL_VERSION = '2.0'
 export const LEGAL_UPDATED = '20 de septiembre de 2026'
 export const LEGAL_EMAIL = 'business@carlink.com.co'
-export const LEGAL_ADDRESS = 'Cra 70 #80-24, Bogotá D.C., Colombia'
+export const LEGAL_ADDRESS = 'Cl. 87 #20-42, Bogotá D.C., Colombia'
 
 /** Tope por archivo que aplica el backend (`MAX_FILE_SIZE` en backend/app/utils.py). */
 export const MAX_FILE_MB = 10
@@ -36,7 +36,7 @@ export interface LegalDoc {
   sections: LegalSection[]
 }
 
-const CONTACT = `${LEGAL_EMAIL} o WhatsApp ${SUPPORT_WHATSAPP_DISPLAY}`
+const CONTACT = `${LEGAL_EMAIL}, WhatsApp ${SUPPORT_WHATSAPP_DISPLAY} o teléfono ${SUPPORT_PHONE_DISPLAY}`
 
 /* ─────────────────────────── PRIVACIDAD ─────────────────────────── */
 
