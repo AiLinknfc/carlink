@@ -9,6 +9,7 @@ import { useTheme } from '@/store/theme'
 import PostulacionForm from '@/components/taller/PostulacionForm'
 import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 import SiteFooter from '@/components/SiteFooter'
+import WhatsAppFloat, { WhatsAppIcon } from '@/components/WhatsAppFloat'
 import SiteBackdrop, { backdropPageBg } from '@/components/SiteBackdrop'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
@@ -737,7 +738,7 @@ export default function TallerPage() {
             onClick={() => analyticsApi.trackWhatsappClick('general_question', 'shop')}
             style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
+            <WhatsAppIcon size={18} />
             Hablar por WhatsApp
           </a>
         </div>
@@ -745,6 +746,7 @@ export default function TallerPage() {
 
       {/* FOOTER (compartido con la home) */}
       <SiteFooter theme={isDark ? 'dark' : 'light'} onOpenPolicy={setPolicyTab} />
+      <WhatsAppFloat watchId="h-planes" />
       <PolicyModal isOpen={policyTab !== null} onClose={() => setPolicyTab(null)} tab={policyTab ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
       </div>
     </div>
