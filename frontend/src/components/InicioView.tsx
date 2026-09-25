@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
-import { useDocuments } from '@/lib/hooks'
+import { useDocuments, useSafetyItems } from '@/lib/hooks'
+import SafetyFormModal from '@/components/SafetyFormModal'
+import SafetyIcon from '@/components/SafetyIcon'
+import { KIT_ITEMS } from '@/lib/safety'
+import type { SafetyItem, SafetyKind } from '@/lib/types'
 
 const SERVICE_TYPES = [
   { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
@@ -76,6 +80,19 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   const REQUIRED_DOCS = ['soat', 'rtm', 'propiedad', 'poliza']
   const docsPending = REQUIRED_DOCS.filter(t => !docList.some((d: { type: string; file_url?: string }) => d.type === t && d.file_url)).length
   const servicesCount = maintenanceRecords?.length || 0
+
+  // Elementos de seguridad (extintor, botiquin, kit de carretera y sus piezas): mismas tarjetas que
+  // "Registrar servicio"; una tarjeta se marca como registrada si ya existe ese elemento.
+  const { items: safetyItems, reload: reloadSafety } = useSafetyItems(vehicle?.id)
+  const [safetyForm, setSafetyForm] = useState<{ kind: SafetyKind; item: SafetyItem | null; presetCheck?: string } | null>(null)
+  const kit = safetyItems.find(i => i.kind === 'kit_carretera') ?? null
+  const SAFETY_CARDS: { id: string; kind: SafetyKind; label: string; desc: string; presetCheck?: string; done: boolean }[] = [
+    { id: 'extintor', kind: 'extintor', label: 'Extintor', desc: 'Compra, recarga y vencimiento', done: safetyItems.some(i => i.kind === 'extintor') },
+    { id: 'botiquin', kind: 'botiquin', label: 'Botiquin', desc: 'Revision y elementos faltantes', done: safetyItems.some(i => i.kind === 'botiquin') },
+    { id: 'kit', kind: 'kit_carretera', label: 'Kit de carretera', desc: 'Revisa que tiene tu kit', done: !!kit },
+    ...KIT_ITEMS.map(k => ({ id: k.key, kind: 'kit_carretera' as SafetyKind, label: k.label, desc: 'Marcalo en tu kit', presetCheck: k.key, done: !!kit?.checklist?.[k.key] })),
+    { id: 'otro', kind: 'otro', label: 'Otro elemento', desc: 'Linterna, cables, etc.', done: safetyItems.some(i => i.kind === 'otro') },
+  ]
 
   // Toque en un indicador: pequeno "empujon" animado y luego la accion (evita el salto seco).
   const [nudge, setNudge] = useState<string | null>(null)
@@ -237,6 +254,42 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
           })}
         </div>
       </div>
+
+      {/* Registrar elemento de seguridad — mismo estilo que "Registrar servicio" */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar elemento de seguridad</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+          {SAFETY_CARDS.map(c => {
+            const existing = c.kind === 'kit_carretera' ? kit : null
+            return (
+              <button key={c.id} onClick={() => setSafetyForm({ kind: c.kind, item: existing, presetCheck: c.presetCheck })} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
+                padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                background: c.done ? cardExploredBg : cardBg,
+                border: `1px solid ${c.done ? cardExploredBorder : cardBorder}`,
+                opacity: c.done ? 1 : 0.65, transition: 'all .2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = c.done ? '1' : '0.65'; e.currentTarget.style.transform = 'none' }}
+              >
+                <span style={{ color: c.done ? '#F5C518' : textMuted, transition: 'color .2s' }}>
+                  <SafetyIcon type={c.presetCheck ?? c.kind} size={32} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: textPrimary }}>{c.label}</div>
+                  <div style={{ fontSize: 9, color: textMuted, marginTop: 1 }}>{c.desc}</div>
+                </div>
+                {c.done && <span style={{ alignSelf: 'flex-end', width: 5, height: 5, borderRadius: '50%', background: '#F5C518' }} />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {safetyForm && vehicle?.id && (
+        <SafetyFormModal vehicleId={vehicle.id} item={safetyForm.item} defaultKind={safetyForm.kind} presetCheck={safetyForm.presetCheck}
+          onClose={() => setSafetyForm(null)} onSaved={reloadSafety} />
+      )}
     </div>
   )
 }

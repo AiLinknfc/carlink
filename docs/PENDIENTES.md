@@ -311,6 +311,21 @@ contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` 
 llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
 El texto ya no promete "menos de 2 horas".
 
+## Sección "Seguridad" del vehículo (2026-09-25, en local, sin desplegar)
+
+Nueva pestaña **Seguridad** en el menú lateral del cliente (`components/tabs/SeguridadTab.tsx`): extintor
+(compra, vencimiento, recarga, marca/capacidad/agente), botiquín (revisión, reposición, elementos faltantes),
+kit de carretera (gato, llave de ruedas, triángulos/conos, chaleco, herramientas) y "otro elemento". Cada
+elemento muestra su estado (en orden / por vencer en 30 días / vencido / faltan N). Se registra a mano o
+escaneando/subiendo la foto de la etiqueta: `POST /api/ocr/safety` (Tesseract + DeepSeek, mismo patrón que la
+tarjeta de propiedad) prellena el formulario y el usuario confirma. Datos en `vehicle_safety_items`
+(migración `065`), CRUD en `/api/safety`.
+**Falta**: (1) aplicar `supabase/migrations/065_vehicle_safety_items.sql` a la Supabase compartida **antes**
+de desplegar el backend; (2) probar el escaneo con fotos reales de extintores/botiquines (la lectura de fechas
+depende de `DEEPSEEK_API_KEY` en Railway, que sigue sin estar) y en un celular; (3) decidir si los vencimientos
+deben alimentar los avisos/recordatorios de la app y el indicador de "Estado de tu vehículo" en Inicio;
+(4) el plan gratuito no está restringido en esta sección — decidir si debe estarlo.
+
 ## Encuestas de satisfacción gestionables desde Admin (2026-09-25, en local, sin desplegar)
 
 Los prompts de calificación flotantes de la app del cliente salen de un catálogo (`surveys`, migración

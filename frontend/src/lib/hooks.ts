@@ -21,6 +21,7 @@ import {
   workshopReviewsApi,
   reviewsApi,
   adminReviewsApi,
+  safetyApi,
   nfcApi,
   uploadApi,
   profileApi,
@@ -53,6 +54,7 @@ import type {
   AdminReview,
   AdminReviewSummary,
   ReviewTargetType,
+  SafetyItem,
 } from './types'
 
 export function useVehicle(vehicleId: string | undefined) {
@@ -970,6 +972,34 @@ export function useMyReviews() {
   )
 
   return { mine, loading, reload: load, submitReview, bySurvey }
+}
+
+/** Elementos de seguridad del vehículo (extintor, botiquín, kit de carretera, otros). */
+export function useSafetyItems(vehicleId: string | undefined) {
+  const [items, setItems] = useState<SafetyItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    if (!vehicleId) { setLoading(false); return }
+    setLoading(true)
+    try {
+      setItems((await safetyApi.list(vehicleId)) || [])
+    } catch (e) {
+      console.error('Failed to load safety items:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [vehicleId])
+
+  useEffect(() => { load() }, [load])
+
+  const removeItem = useCallback(async (id: string) => {
+    const ok = await safetyApi.remove(id)
+    if (ok) await load()
+    return !!ok
+  }, [load])
+
+  return { items, loading, reload: load, removeItem }
 }
 
 /** Vista global de Admin — las 3 categorías juntas, filtrable. */

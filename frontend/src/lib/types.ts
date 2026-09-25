@@ -1201,3 +1201,41 @@ export interface AnalyticsSummary {
   devices: AnalyticsCount[]
   funnels: AnalyticsFunnel[]
 }
+
+
+/* Seguridad del vehículo (migración 065): extintor, botiquín, kit de carretera y otros. */
+export type SafetyKind = 'extintor' | 'botiquin' | 'kit_carretera' | 'otro';
+
+export interface SafetyItem {
+  id: string;
+  vehicle_id: string;
+  kind: SafetyKind;
+  name: string;
+  purchase_date: string | null;
+  expiry_date: string | null;
+  recharge_date: string | null;
+  review_date: string | null;
+  restock_date: string | null;
+  missing_items: string[];
+  checklist: Record<string, boolean>;
+  details: Record<string, string>;
+  notes: string;
+  file_url: string;
+  created_at: string;
+}
+
+export type SafetyItemInput = Omit<SafetyItem, 'id' | 'created_at'>;
+
+export interface SafetyScan {
+  kind: SafetyKind | null;
+  name: string | null;
+  purchase_date: string | null;
+  expiry_date: string | null;
+  recharge_date: string | null;
+  review_date: string | null;
+  brand: string | null;
+  capacity: string | null;
+  agent: string | null;
+  missing_items: string[];
+  raw_text: string;
+}

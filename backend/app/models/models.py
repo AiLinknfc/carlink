@@ -207,6 +207,29 @@ class Document(Base):
     vehicle = relationship("Vehicle", back_populates="documents")
 
 
+class VehicleSafetyItem(Base):
+    """Elemento de seguridad del vehículo (extintor, botiquín, kit de carretera, otros) — migración 065."""
+
+    __tablename__ = "vehicle_safety_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(Text)  # extintor | botiquin | kit_carretera | otro
+    name: Mapped[str] = mapped_column(Text, default="")
+    purchase_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    recharge_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    restock_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    missing_items: Mapped[list] = mapped_column(JSONB, default=list)
+    checklist: Mapped[dict] = mapped_column(JSONB, default=dict)
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    file_url: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class VehicleExpense(Base):
     __tablename__ = "vehicle_expenses"
 

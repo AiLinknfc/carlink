@@ -30,6 +30,7 @@ import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
 import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
 import { useSurveys } from '@/lib/surveys'
+import SeguridadTab from '@/components/tabs/SeguridadTab'
 import type { Survey } from '@/lib/types'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
@@ -1004,6 +1005,7 @@ export default function AppPage() {
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
+           activeTab === 'seguridad' ? <SeguridadTab vehicleId={vehicle?.id} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
            <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}

@@ -28,6 +28,8 @@ from app.routers import (
     parts,
     partners,
     reviews,
+    safety,
+    surveys,
     service_logs,
     shop_orders,
     upload,
@@ -112,6 +114,7 @@ app.include_router(whatsapp_webhook.router, prefix="/api")
 # ver docs/PENDIENTES.md y el plan de este feature. Router propio, no vive bajo
 # /workshops/me porque no está scopeado a una cuenta taller (cualquier usuario).
 app.include_router(reviews.router, prefix="/api")
+app.include_router(safety.router, prefix="/api")
 app.include_router(reviews.admin_router, prefix="/api")
 app.include_router(surveys.router, prefix="/api")
 app.include_router(surveys.admin_router, prefix="/api")

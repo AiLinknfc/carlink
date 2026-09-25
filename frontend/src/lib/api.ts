@@ -29,7 +29,7 @@ import type {
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
   VehicleExpense, ExpenseCreate, ExpenseUpdate, FuelSummary,
-  ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary, Survey, AdminSurvey, SurveyTriggerInfo,
+  ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary, Survey, AdminSurvey, SurveyTriggerInfo, SafetyItem, SafetyItemInput,
 } from './types'
 
 async function request<T = unknown>(
@@ -279,6 +279,14 @@ export const surveysApi = {
   adminCreate: (data: { title: string; hint: string; trigger_key: string; target_type: ReviewTargetType }) =>
     request<Survey>('POST', '/admin/surveys', data),
   adminDelete: (key: string) => request<boolean>('DELETE', `/admin/surveys/${key}`),
+}
+
+// Seguridad del vehículo (extintor, botiquín, kit de carretera, otros) — migración 065.
+export const safetyApi = {
+  list: (vehicleId: string) => request<SafetyItem[]>('GET', `/safety/vehicle/${vehicleId}`),
+  create: (data: SafetyItemInput) => request<SafetyItem>('POST', '/safety', data),
+  update: (id: string, data: Partial<SafetyItemInput>) => request<SafetyItem>('PUT', `/safety/${id}`, data),
+  remove: (id: string) => request<boolean>('DELETE', `/safety/${id}`),
 }
 
 export const adminReviewsApi = {
