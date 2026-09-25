@@ -921,6 +921,10 @@ export default function AppPage() {
            en el prop `inert` de Sidebar.tsx. Estos botones (ej. "Comprar
            llavero NFC") comparten z-index con CartModal, así que sin esto
            quedaban alcanzables por teclado detrás del overlay del wizard. */}
+        <div className="mobile-topbar-logo" aria-hidden="true" style={{ color: rootTextColor }}>
+          <CarLinkLogo size={33} />
+          <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
+        </div>
         <div className="topbar-actions" data-tour="topbar-actions" inert={showOnboarding || undefined} style={{ position: 'absolute', top: 14, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
           <button onClick={toggleTheme} title="Cambiar apariencia" className="topbar-theme"
             style={topBtn()}
@@ -931,14 +935,14 @@ export default function AppPage() {
               : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.9A9 9 0 1 1 9.1 3.3a7.2 7.2 0 0 0 11.6 11.6z"/></svg>}
           </button>
 
-          <button onClick={() => setShowQuickRegister(true)} title="Escanear documento"
+          <button onClick={() => setShowQuickRegister(true)} title="Escanear documento" className="topbar-scan"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
           </button>
 
-          <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC"
+          <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC" className="topbar-nfc"
             /* Único con estado activo: es un interruptor, no una acción. */
             style={{ ...topBtn(), ...(showNfc ? { border: '1px solid #F5C518', background: 'rgba(245,197,24,0.2)', color: theme === 'light' ? '#17171a' : '#fff' } : null) }}
             onMouseEnter={e => { if (!showNfc) { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' } }}
@@ -950,7 +954,7 @@ export default function AppPage() {
           </button>
 
           {foundRequests.filter(r => r.status === 'pending').length > 0 && (
-            <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados"
+            <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados" className="topbar-found"
               style={topBtn('#ff6b6b')}
               onMouseEnter={e => topBtnHover(e, '#ff6b6b')}
               onMouseLeave={e => topBtnLeave(e, '#ff6b6b')}>
@@ -960,7 +964,7 @@ export default function AppPage() {
           )}
 
           {isBusiness && subValid && (
-          <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS"
+          <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS" className="topbar-pqrs"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>
@@ -971,7 +975,7 @@ export default function AppPage() {
           </button>
           )}
 
-          <button onClick={() => setShowNotifications(true)} title="Notificaciones"
+          <button onClick={() => setShowNotifications(true)} title="Notificaciones" className="topbar-notif"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>

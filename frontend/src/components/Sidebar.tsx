@@ -76,7 +76,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'galeria', label: 'Galería', icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></> },
   { id: 'certificados', label: 'Facturas', icon: <><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></> },
   { id: 'documentos', label: 'Documentos', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></> },
-  { id: 'seguridad', label: 'Seguridad', icon: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/></> },
+  { id: 'seguridad', label: 'Seguridad', icon: <><path d="M10.5 4h3l4 13h-11z"/><path d="M9.2 9.5h5.6M7.9 13.7h8.2"/><rect x="3.5" y="17" width="17" height="3.5" rx="1"/></> },
 ]
 
 const TALLER_NAV_ITEMS: NavItem[] = [
@@ -242,7 +242,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         <button
           onClick={() => setMobileOpen(true)}
           style={{
-            position: 'fixed', top: 14, left: 14, zIndex: 35,
+            position: 'fixed', top: 14, right: 14, zIndex: 35,
             width: 42, height: 42, borderRadius: 11,
             border: `1px solid ${sidebarBorder}`,
             background: sidebarBg, backdropFilter: 'blur(24px)',
