@@ -448,6 +448,9 @@ export default function AppPage() {
   // un token nuevo. El botón "Llavero NFC" del topbar y el estado
   // "Activo"/"Sin activar" de Inicio quedaban con el dato viejo hasta
   // recargar la página (bug real reportado por el usuario).
+  // Al cambiar de vehiculo se limpian los llaveros del anterior antes de traer los del nuevo.
+  useEffect(() => { setNfcTokens([]) }, [vehicle?.id])
+
   useEffect(() => {
     if (!user || !vehicle?.id) return
     setTokensLoading(true)
@@ -670,11 +673,14 @@ export default function AppPage() {
     vehicleApi.keychainAvailability().then(r => setKeychainAvailable(r?.available ?? 0))
   }, [user, loading, router])
 
-  const switchVehicle = useCallback((id: string) => {
+  // Desde el selector de placa de Inicio (stay) se queda en la misma pantalla y solo cambia el
+  // vehiculo activo (el estado, los servicios y los documentos se recargan por su id); desde el
+  // menu lateral sigue llevando a la ficha del vehiculo elegido.
+  const switchVehicle = useCallback((id: string, opts?: { stay?: boolean }) => {
     const found = vehicles.find(v => v.id === id)
     if (!found) return
     setVehicle(found)
-    setActiveTab('ficha')
+    if (!opts?.stay) setActiveTab('ficha')
     if (typeof window !== 'undefined') localStorage.setItem('carlink_active_vehicle_id', id)
   }, [vehicles])
 
@@ -1001,7 +1007,7 @@ export default function AppPage() {
         </div>
 
         <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
+          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} vehicles={vehicles} onSwitchVehicle={id => switchVehicle(id, { stay: true })} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
            activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -1012,7 +1018,7 @@ export default function AppPage() {
            activeTab === 'seguridad' ? <SeguridadTab vehicleId={vehicle?.id} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
-           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
+           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} vehicles={vehicles} onSwitchVehicle={id => switchVehicle(id, { stay: true })} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
         {/* Bienvenida */}

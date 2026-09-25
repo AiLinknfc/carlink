@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
+import Plate3D from '@/components/Plate3D'
+import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 import { useDocuments, useSafetyItems } from '@/lib/hooks'
 import SafetyFormModal from '@/components/SafetyFormModal'
 import SafetyIcon from '@/components/SafetyIcon'
@@ -47,11 +49,14 @@ interface Props {
   maintenanceRecords?: any[]
   nfcActive?: boolean
   isVerified?: boolean
+  /** Vehiculos de la cuenta y cambio del activo: permiten pasar de una placa a otra desde Inicio. */
+  vehicles?: { id: string; plate: string; brand?: string; model?: string }[]
+  onSwitchVehicle?: (id: string) => void
   /** Plan gratuito: único servicio que se puede registrar; el resto se ve bloqueado. */
   freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId, vehicles, onSwitchVehicle }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
@@ -107,6 +112,20 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     { id: 'servicios', title: 'Servicios', ok: servicesCount > 0, text: servicesCount > 0 ? `${servicesCount} registrado${servicesCount > 1 ? 's' : ''}` : 'Ninguno', color: servicesCount > 0 ? '#2ecc71' : textMuted, action: () => onNavigate?.('historial'), aria: 'Va al historial de servicios' },
   ]
 
+  // Selector de placa: flechas circulares a cada lado; la navegacion es circular (despues de la
+  // ultima vuelve a la primera) y solo aparecen si la cuenta tiene mas de un vehiculo.
+  const activeIdx = Math.max(0, (vehicles ?? []).findIndex(v => v.id === vehicle?.id))
+  const multi = !!vehicles && vehicles.length > 1 && !!onSwitchVehicle
+  const step = (dir: 1 | -1) => {
+    if (!vehicles || !onSwitchVehicle) return
+    const next = vehicles[(activeIdx + dir + vehicles.length) % vehicles.length]
+    if (next) onSwitchVehicle(next.id)
+  }
+  const arrowStyle = {
+    width: 36, height: 36, borderRadius: '50%', flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: '#F5C518', color: '#111', border: 'none', cursor: 'pointer', boxShadow: '0 0 14px rgba(245,197,24,0.3)',
+  } as const
+
   const quickActionStyle = {
     display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
     padding: '16px 8px', borderRadius: 14, cursor: 'pointer', textAlign: 'center' as const,
@@ -133,7 +152,32 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     <div style={{ padding: '0 4px' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: textPrimary, fontFamily: 'var(--font-display)' }}>Inicio</div>
-        <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{vehicle?.plate ? `${vehicle.plate} — ` : ''}Accesos rapidos y registro de servicios</div>
+        {vehicle?.plate && (
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', maxWidth: '100%' }}>
+            {multi && (
+              <button type="button" onClick={() => step(-1)} aria-label="Vehiculo anterior" data-r="plateArrow" style={arrowStyle}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+              </button>
+            )}
+            <div key={vehicle.id} data-r="plateSlide" style={{ width: 200, flex: '0 0 auto', pointerEvents: 'none' }}>
+              <div>
+                <Plate3D plate={vehicle.plate} city={vehicle.city || ''} size="md" showLabel={plateShowsCountryLabel(vehicle.type)} showCity={plateShowsCity(vehicle.type)} />
+              </div>
+            </div>
+            {multi && (
+              <button type="button" onClick={() => step(1)} aria-label="Vehiculo siguiente" data-r="plateArrow" style={arrowStyle}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            )}
+          </div>
+        )}
+        <div style={{ fontSize: 12, color: textMuted, marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {multi && <span style={{ fontWeight: 700, color: '#F5C518' }}>Vehiculo {activeIdx + 1} de {vehicles!.length}</span>}
+          {multi && vehicles!.map((v, i) => (
+            <span key={v.id} aria-hidden="true" style={{ width: i === activeIdx ? 16 : 6, height: 6, borderRadius: 3, background: i === activeIdx ? '#F5C518' : cardBorder, transition: 'all .2s' }} />
+          ))}
+          <span>{[vehicle?.brand, vehicle?.model].filter(Boolean).join(' ') || 'Accesos rapidos y registro de servicios'}</span>
+        </div>
       </div>
 
       {/* Acciones rapidas */}
@@ -193,6 +237,14 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <style>{`
         @keyframes statusNudge { 0%{transform:scale(1)} 35%{transform:scale(.94) translateX(3px)} 70%{transform:scale(1.03) translateX(-2px)} 100%{transform:scale(1)} }
         @keyframes statusPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.22);opacity:.7} }
+        @keyframes plateSlide { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
+        [data-r="plateSlide"]{animation:plateSlide .28s ease both}
+        [data-r="plateArrow"]{transition:transform .15s ease,box-shadow .15s ease}
+        [data-r="plateArrow"]:hover{transform:scale(1.1);box-shadow:0 0 20px rgba(245,197,24,0.5)}
+        [data-r="plateArrow"]:active{transform:scale(.92)}
+        @media(prefers-reduced-motion:reduce){[data-r="plateSlide"],[data-r="plateArrow"]{animation:none !important;transition:none !important}}
+        @media(max-width:400px){[data-r="plateSlide"]{width:164px !important}[data-r="plateSlide"]>div{zoom:.82}}
+        @media(max-width:560px){[data-r="svcGrid"],[data-r="safeGrid"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
         [data-r="statusCard"]{transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
         [data-r="statusCard"]:hover{transform:translateY(-3px);background:#FFD84D !important;box-shadow:0 10px 28px rgba(245,197,24,0.42) !important}
         [data-r="statusCard"]:active{transform:scale(.97)}
@@ -221,7 +273,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       {/* Registrar servicio */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar servicio</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+        <div data-r="svcGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
           {SERVICE_TYPES.map(st => {
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
@@ -257,8 +309,8 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
 
       {/* Registrar elemento de seguridad — mismo estilo que "Registrar servicio" */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar elemento de seguridad</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Verificar elementos</div>
+        <div data-r="safeGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
           {SAFETY_CARDS.map(c => {
             const existing = c.kind === 'kit_carretera' ? kit : null
             return (

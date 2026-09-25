@@ -109,6 +109,10 @@ export function useMaintenance(vehicleId: string | undefined, refreshKey?: numbe
     }
   }, [vehicleId, refreshKey])
 
+  // Al cambiar de vehiculo se descartan los registros del anterior de inmediato (no se mezclan
+  // en pantalla mientras llegan los del nuevo).
+  useEffect(() => { setRecords([]); setLatest(null) }, [vehicleId])
+
   useEffect(() => {
     load()
   }, [load])
@@ -324,6 +328,8 @@ export function useDocuments(vehicleId: string | undefined) {
       setLoading(false)
     }
   }, [vehicleId])
+
+  useEffect(() => { setDocuments([]) }, [vehicleId])
 
   useEffect(() => {
     load()
@@ -990,6 +996,8 @@ export function useSafetyItems(vehicleId: string | undefined) {
       setLoading(false)
     }
   }, [vehicleId])
+
+  useEffect(() => { setItems([]) }, [vehicleId])
 
   useEffect(() => { load() }, [load])
 
