@@ -854,6 +854,31 @@ class Review(Base):
     # llavero", "Proceso de compra") — vacío si fue una calificación general
     # desde ResenasTab.tsx, no atada a un evento puntual.
     context: Mapped[str] = mapped_column(Text, default="")
+    # Encuesta (surveys.key) que originó la respuesta — migración 064. Una respuesta por
+    # (usuario, encuesta); NULL solo en filas anteriores a la migración sin backfill posible.
+    survey_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Survey(Base):
+    """Catálogo de encuestas de satisfacción (migración 064), gestionable desde Admin.
+    `trigger_key` es el evento del código que la dispara (los eventos soportados los define
+    el frontend); `location`/`timing` documentan dónde y cuándo aparece, solo para Admin."""
+
+    __tablename__ = "surveys"
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    hint: Mapped[str] = mapped_column(Text, default="")
+    target_type: Mapped[str] = mapped_column(Text)  # 'platform' | 'product' | 'workshop'
+    trigger_key: Mapped[str] = mapped_column(Text)
+    location: Mapped[str] = mapped_column(Text, default="")
+    timing: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -311,6 +311,27 @@ contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` 
 llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
 El texto ya no promete "menos de 2 horas".
 
+## Encuestas de satisfacción gestionables desde Admin (2026-09-25, en local, sin desplegar)
+
+Los prompts de calificación flotantes de la app del cliente salen de un catálogo (`surveys`, migración
+`064`, **ya aplicada a la Supabase compartida**, verificada con `TestClient` contra la base real: 6 encuestas
+sembradas, respuestas existentes rellenadas por `survey_key`, ciclo crear/editar/borrar sin residuo). Se
+gestionan en **Admin > Reseñas > Encuestas**: dónde y cuándo sale cada una, cuántas veces se mostró, cuántas
+se respondieron y cuántas el cliente cerró sin responder (eventos `survey_shown` / `survey_answered` /
+`survey_dismissed` en `analytics_events`, sin migración nueva), editar texto, pausar y crear encuestas nuevas
+sobre los momentos que la app ya dispara (`TRIGGERS` en `backend/app/routers/surveys.py` y
+`lib/surveys.ts`). La pestaña "Calificar" del menú del cliente se eliminó (su función pasó a Admin > Reseñas);
+los prompts flotantes siguen saliendo en los mismos lugares. Catálogo inicial (6): `app_satisfaction`
+(30 días o 3 servicios), `ease_of_use` (primer servicio), `keychain_setup` (tras activar el llavero),
+`keychain_found_notice` (aviso de llavero encontrado), `purchase_experience` (pedido entregado),
+`workshop_service` (servicio con taller aliado).
+**Falta**: (1) probar en navegador con un usuario real que cada prompt sale donde debe y que Admin muestra
+mostrada/cerrada/respondida; (2) un momento NUEVO para preguntar (ej. 7 días después de activar el llavero)
+requiere código: agregarlo a `TRIGGERS` (backend), `SurveyTrigger` (`lib/surveys.ts`) y dispararlo donde
+corresponda; (3) los eventos de la encuesta solo cuentan desde que se despliegue esto (antes no se medían).
+Además: el login de `/taller` ahora abre el modal de inicio de sesión de la landing (`/?login=business`);
+antes apuntaba a `/login`, que no existe.
+
 ## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
 
 Las tres viven bajo `app/(public)/(company)/` con header y footer compartidos. Blog estático en

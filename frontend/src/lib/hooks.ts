@@ -935,8 +935,8 @@ export function useWorkshopReviews() {
   return { reviews, loading, reload: load, addReview, respondReview }
 }
 
-/** "Mis calificaciones" — las 3 propias del usuario logueado (plataforma,
- * producto, taller si ya calificó alguno), para el estado de ResenasTab. */
+/** "Mis calificaciones" — las respuestas propias del usuario logueado (una por
+ * encuesta), para no volver a preguntar lo que ya respondió. */
 export function useMyReviews() {
   const [mine, setMine] = useState<ReviewSubmit[]>([])
   const [loading, setLoading] = useState(true)
@@ -960,13 +960,16 @@ export function useMyReviews() {
     return result
   }, [load])
 
-  const byTarget = useCallback(
-    (targetType: ReviewTargetType, workshopId?: string) =>
-      mine.find(r => r.target_type === targetType && (targetType !== 'workshop' || r.workshop_id === workshopId)),
+  // Encuestas de taller: una respuesta por taller; el resto, por survey_key.
+  const bySurvey = useCallback(
+    (surveyKey: string, targetType: ReviewTargetType, workshopId?: string) =>
+      mine.find(r => targetType === 'workshop'
+        ? r.target_type === 'workshop' && r.workshop_id === workshopId
+        : r.survey_key === surveyKey),
     [mine]
   )
 
-  return { mine, loading, reload: load, submitReview, byTarget }
+  return { mine, loading, reload: load, submitReview, bySurvey }
 }
 
 /** Vista global de Admin — las 3 categorías juntas, filtrable. */

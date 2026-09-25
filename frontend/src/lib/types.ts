@@ -469,6 +469,8 @@ export type ReviewCreate = {
      llavero", "Proceso de compra") — solo aplica a platform/product, se
      ignora para workshop (ahí el detalle específico ya es el taller). */
   context?: string;
+  /* Encuesta (surveys.key) que origina la respuesta — ver lib/surveys.ts. */
+  survey_key?: string;
 };
 
 export interface ReviewSubmit {
@@ -478,8 +480,40 @@ export interface ReviewSubmit {
   rating: number;
   comment: string;
   context?: string;
+  survey_key?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/* Encuesta de satisfacción del catálogo (migración 064). trigger_key es el evento
+   del código que la dispara — los soportados están en lib/surveys.ts. */
+export interface Survey {
+  key: string;
+  title: string;
+  hint: string;
+  target_type: ReviewTargetType;
+  trigger_key: string;
+}
+
+export interface AdminSurvey extends Survey {
+  location: string;
+  timing: string;
+  is_active: boolean;
+  position: number;
+  responses: number;
+  average: number;
+  shown: number;
+  dismissed: number;
+  last_shown_at: string | null;
+  last_shown_path: string;
+}
+
+export interface SurveyTriggerInfo {
+  key: string;
+  label: string;
+  target_types: ReviewTargetType[];
+  location: string;
+  timing: string;
 }
 
 export interface Review {

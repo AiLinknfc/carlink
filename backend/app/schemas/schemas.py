@@ -1077,6 +1077,9 @@ class ReviewCreate(BaseModel):
     # desde ResenasTab.tsx. Solo aplica a platform/product; se ignora si
     # target_type == "workshop" (ahí el detalle específico ya es el taller).
     context: str = ""
+    # Encuesta que origina la respuesta (surveys.key). Vacío = clientes antiguos: se asigna
+    # la encuesta por defecto de la categoría (ver routers/reviews.py).
+    survey_key: str = ""
 
 
 class ReviewOut(BaseModel):
@@ -1102,6 +1105,7 @@ class ReviewSubmitOut(BaseModel):
     rating: int
     comment: str
     context: str = ""
+    survey_key: str | None = None
     created_at: datetime
     updated_at: datetime
 

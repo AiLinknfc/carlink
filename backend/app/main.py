@@ -113,6 +113,8 @@ app.include_router(whatsapp_webhook.router, prefix="/api")
 # /workshops/me porque no está scopeado a una cuenta taller (cualquier usuario).
 app.include_router(reviews.router, prefix="/api")
 app.include_router(reviews.admin_router, prefix="/api")
+app.include_router(surveys.router, prefix="/api")
+app.include_router(surveys.admin_router, prefix="/api")
 
 # Panel de negocio taller/empresa (migración de tallerpro/, ver
 # docs/PLAN_MIGRACION_TALLERPRO.md) — todos comparten el prefijo /workshops,

@@ -29,7 +29,8 @@ import HistorialTab from '@/components/tabs/HistorialTab'
 import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
 import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
-import ResenasTab from '@/components/tabs/ResenasTab'
+import { useSurveys } from '@/lib/surveys'
+import type { Survey } from '@/lib/types'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
 import OrderTrackingModal from '@/components/OrderTrackingModal'
@@ -183,13 +184,10 @@ export default function AppPage() {
   // menú suelto) — ver docs del plan de este feature. Supresión unificada por
   // target (ya calificado o descartado), un solo prompt a la vez.
   const { shouldPrompt: shouldPromptRating, dismiss: dismissRatingPrompt, submitReview: submitRatingPrompt } = useRatingPrompts()
-  const [activePrompt, setActivePrompt] = useState<{
-    targetType: 'platform' | 'product' | 'workshop'; workshopId?: string; workshopName?: string; title: string; hint: string
-    /* Etiqueta del evento que disparó el prompt, mostrada en Admin junto a la
-       categoría (ej. "Producto · Activación de llavero") — vacía en la
-       calificación general de ResenasTab.tsx. */
-    context: string
-  } | null>(null)
+  // Textos, categoría y estado activo de cada encuesta salen del catálogo que se gestiona en
+  // Admin > Encuestas (lib/surveys.ts); aquí solo se decide EN QUÉ MOMENTO se dispara cada una.
+  const { forTrigger: surveyFor } = useSurveys()
+  const [activePrompt, setActivePrompt] = useState<{ survey: Survey; workshopId?: string; workshopName?: string } | null>(null)
 
   // Derived: is the ficha actually publishable? True only if DB says nfc_active
   // AND we have loaded tokens and at least one is active. This prevents the
@@ -469,34 +467,23 @@ export default function AppPage() {
     // "Contacto exitoso": en realidad es que el dueño abrió el aviso de que
     // alguien encontró su vehículo (no hay un estado "contactado" todavía) —
     // igual es el momento de mayor confianza en la plataforma que existe hoy.
-    if (!activePrompt && shouldPromptRating('platform')) {
-      setActivePrompt({
-        targetType: 'platform',
-        title: '¿Cómo te fue con CarLink?',
-        hint: 'Alguien te ayudó a recuperar el contacto con tu vehículo — contanos qué tal tu experiencia con la plataforma.',
-        context: 'Aviso de llavero encontrado',
-      })
-    }
+    const survey = surveyFor('found_notice_opened')
+    if (!activePrompt && survey && shouldPromptRating(survey)) setActivePrompt({ survey })
   }
 
-  // Milestone de uso: 30 días desde el registro, o ya tiene vehículo + un
-  // servicio registrado (proxy de "onboarding completo" con datos que ya
-  // están en scope en esta pantalla, sin fetch nuevo — nfcTokens no sirve acá
-  // porque solo se carga al abrir el panel NFC, no al entrar a /app).
+  // Milestone de uso: 30 días desde el registro, o ya tiene vehículo + 3 servicios
+  // registrados (uso real sostenido, con datos que ya están en scope en esta pantalla, sin
+  // fetch nuevo — nfcTokens no sirve acá porque solo se carga al abrir el panel NFC). Son 3 y
+  // no 1 para no chocar con la encuesta del primer servicio (first_service_registered).
   useEffect(() => {
     if (!profile?.created_at || vehicleLoading || activePrompt) return
+    const survey = surveyFor('usage_milestone')
+    if (!survey) return
     const daysSinceSignup = (Date.now() - new Date(profile.created_at).getTime()) / 86400000
-    const onboardingComplete = vehicles.length > 0 && maintenanceRecords.length > 0
-    if ((daysSinceSignup >= 30 || onboardingComplete) && shouldPromptRating('platform')) {
-      setActivePrompt({
-        targetType: 'platform',
-        title: '¿Qué tal tu experiencia con CarLink?',
-        hint: 'Ya llevás un tiempo usando la app — tu opinión nos ayuda a mejorarla.',
-        context: 'Milestone de uso',
-      })
-    }
+    const sustainedUse = vehicles.length > 0 && maintenanceRecords.length >= 3
+    if ((daysSinceSignup >= 30 || sustainedUse) && shouldPromptRating(survey)) setActivePrompt({ survey })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating])
+  }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating, surveyFor])
 
   const openPublicar = useCallback(async () => {
     if (!vehicle) return
@@ -552,14 +539,8 @@ export default function AppPage() {
           setTimeout(() => { window.location.assign(publicUrl) }, 1200)
         }
       } catch {}
-      if (!activePrompt && shouldPromptRating('product')) {
-        setActivePrompt({
-          targetType: 'product',
-          title: '¿Qué tal el llavero NFC?',
-          hint: 'Acabás de activarlo — contanos qué te pareció el producto.',
-          context: 'Activación de llavero',
-        })
-      }
+      const survey = surveyFor('keychain_activated')
+      if (!activePrompt && survey && shouldPromptRating(survey)) setActivePrompt({ survey })
     } else {
       flashApp(error || 'No se pudo activar el llavero.')
     }
@@ -648,19 +629,18 @@ export default function AppPage() {
 
   const onSaved = useCallback((newWorkshop?: { workshopId: string; workshopName: string }) => {
     setRefreshKey(k => k + 1)
-    if (newWorkshop && !activePrompt && shouldPromptRating('workshop', newWorkshop.workshopId)) {
-      setActivePrompt({
-        targetType: 'workshop',
-        workshopId: newWorkshop.workshopId,
-        workshopName: newWorkshop.workshopName,
-        title: `¿Cómo te fue en ${newWorkshop.workshopName}?`,
-        hint: 'Acabás de registrar un servicio con este taller — contanos qué tal la atención.',
-        // No aplica para workshop — el detalle específico ya es el nombre
-        // del taller (workshopName), no un context de reviews.
-        context: '',
-      })
+    if (activePrompt) return
+    const workshopSurvey = surveyFor('workshop_service_registered')
+    if (newWorkshop && workshopSurvey && shouldPromptRating(workshopSurvey, newWorkshop.workshopId)) {
+      setActivePrompt({ survey: workshopSurvey, workshopId: newWorkshop.workshopId, workshopName: newWorkshop.workshopName })
+      return
     }
-  }, [activePrompt, shouldPromptRating])
+    // Primer servicio del usuario (aún no había ninguno cargado): mide qué tan fácil fue.
+    const firstServiceSurvey = surveyFor('first_service_registered')
+    if (maintenanceRecords.length === 0 && firstServiceSurvey && shouldPromptRating(firstServiceSurvey)) {
+      setActivePrompt({ survey: firstServiceSurvey })
+    }
+  }, [activePrompt, shouldPromptRating, surveyFor, maintenanceRecords.length])
 
   useEffect(() => {
     if (loading) return
@@ -1028,7 +1008,6 @@ export default function AppPage() {
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
-           activeTab === 'resenas' ? <ResenasTab /> :
            <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
@@ -1100,13 +1079,15 @@ export default function AppPage() {
       {/* Prompt de calificación contextual — uno a la vez, no bloquea nada */}
         {activePrompt && (
           <RatingPromptBanner
-            title={activePrompt.title}
-            hint={activePrompt.hint}
-            targetType={activePrompt.targetType}
+            surveyKey={activePrompt.survey.key}
+            surveyTrigger={activePrompt.survey.trigger_key}
+            title={activePrompt.workshopName ? activePrompt.survey.title.replace(/tu taller/i, activePrompt.workshopName) : activePrompt.survey.title}
+            hint={activePrompt.survey.hint}
+            targetType={activePrompt.survey.target_type}
             workshopId={activePrompt.workshopId}
             workshopName={activePrompt.workshopName}
-            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.targetType, rating, comment, workshop_id: activePrompt.workshopId, context: activePrompt.context })}
-            onDismiss={() => { dismissRatingPrompt(activePrompt.targetType, activePrompt.workshopId); setActivePrompt(null) }}
+            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.survey.target_type, rating, comment, workshop_id: activePrompt.workshopId, survey_key: activePrompt.survey.key })}
+            onDismiss={() => { dismissRatingPrompt(activePrompt.survey, activePrompt.workshopId); setActivePrompt(null) }}
           />
         )}
 

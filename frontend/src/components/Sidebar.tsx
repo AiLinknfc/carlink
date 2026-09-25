@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
-import { STAR_PATH } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
 import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
@@ -77,7 +76,6 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'galeria', label: 'Galería', icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></> },
   { id: 'certificados', label: 'Facturas', icon: <><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></> },
   { id: 'documentos', label: 'Documentos', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></> },
-  { id: 'resenas', label: 'Calificar', icon: <path d={STAR_PATH} /> },
 ]
 
 const TALLER_NAV_ITEMS: NavItem[] = [

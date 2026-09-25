@@ -29,7 +29,7 @@ import type {
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
   VehicleExpense, ExpenseCreate, ExpenseUpdate, FuelSummary,
-  ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary,
+  ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary, Survey, AdminSurvey, SurveyTriggerInfo,
 } from './types'
 
 async function request<T = unknown>(
@@ -254,7 +254,7 @@ export const workshopReviewsApi = {
 }
 
 // Servicio único de reseñas (plataforma / producto / taller), llamado desde
-// distintos puntos de la app — ver ResenasTab. mine=true trae las 3 propias del
+// distintos puntos de la app (prompts flotantes, ver lib/surveys.ts). mine=true trae las 3 propias del
 // usuario logueado (incluida la de taller, que en el backend vive en workshop_reviews).
 export const reviewsApi = {
   create: (data: ReviewCreate) => request<ReviewSubmit>('POST', '/reviews', data),
@@ -267,6 +267,18 @@ export const reviewsApi = {
     return request<Review[]>('GET', `/reviews?${params.toString()}`)
   },
   summary: (targetType: ReviewTargetType) => request<ReviewSummary>('GET', `/reviews/summary?target_type=${targetType}`),
+}
+
+// Catálogo de encuestas (migración 064): la app del cliente lee las activas; Admin las gestiona.
+export const surveysApi = {
+  active: () => request<Survey[]>('GET', '/surveys/active'),
+  adminList: () => request<AdminSurvey[]>('GET', '/admin/surveys'),
+  adminUpdate: (key: string, data: { title?: string; hint?: string; is_active?: boolean }) =>
+    request<Survey>('PATCH', `/admin/surveys/${key}`, data),
+  adminTriggers: () => request<SurveyTriggerInfo[]>('GET', '/admin/surveys/triggers'),
+  adminCreate: (data: { title: string; hint: string; trigger_key: string; target_type: ReviewTargetType }) =>
+    request<Survey>('POST', '/admin/surveys', data),
+  adminDelete: (key: string) => request<boolean>('DELETE', `/admin/surveys/${key}`),
 }
 
 export const adminReviewsApi = {
