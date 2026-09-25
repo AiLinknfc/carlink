@@ -311,6 +311,18 @@ contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` 
 llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
 El texto ya no promete "menos de 2 horas".
 
+## Participación de terceros: aliados e inversionistas (2026-09-25, borradores, sin firmar)
+
+Tres documentos en `docs/`: `LEGAL_01_MODELO_DE_PARTICIPACION.md` (asesoría: SAS primero, aliados sin capital,
+inversión solo con instrumentos que no ceden control, blindaje en 4 capas, costos y decisiones),
+`LEGAL_02_CONTRATO_ALIANZA_PARTNER.md` (contrato de alianza/distribución con licencia limitada de marca, tipo
+mini-franquicia, evita agencia comercial y relación laboral) y `LEGAL_03_CONTRATO_CUENTAS_EN_PARTICIPACION.md`
+(aporte de dinero a una operación concreta sin gestión; anexo con hoja de términos de mutuo convertible).
+**Son borradores, no concepto jurídico.** **Falta**: (1) decidir los puntos de la sección 12 del documento 01
+(costo unitario, nivel, territorio, cuota, comisión, si se aceptan inversionistas); (2) constituir CarLink S.A.S.
+y registrar la marca en la SIC antes de firmar; (3) revisión por abogado mercantil (preguntas listas en la
+sección 11); (4) piloto de 2 semanas con un aliado sin dinero usando el rol partner existente.
+
 ## Sección "Seguridad" del vehículo (2026-09-25, en local, sin desplegar)
 
 Nueva pestaña **Seguridad** en el menú lateral del cliente (`components/tabs/SeguridadTab.tsx`): extintor
