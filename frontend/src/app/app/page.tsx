@@ -131,6 +131,13 @@ export default function AppPage() {
   const [brandPickerOpen, setBrandPickerOpen] = useState(false)
   // Sección abierta del panel de perfil (acordeón): datos personales, del vehículo o gestión.
   const [profileSection, setProfileSection] = useState<'personal' | 'vehiculo' | 'gestion' | null>('personal')
+  // Desde el indicador "Perfil" de Inicio: abre Mi perfil con las demas secciones plegadas y solo
+  // "Datos del vehiculo" (donde esta la verificacion) desplegada, y baja hasta el bloque de verificar.
+  const openVerification = () => {
+    setProfileSection('vehiculo')
+    setShowProfile(true)
+    window.setTimeout(() => document.querySelector('[data-verify-block]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 280)
+  }
   const [editModel, setEditModel] = useState('')
   const [editTipo, setEditTipo] = useState('Auto')
   const [editAnio, setEditAnio] = useState(2026)
@@ -980,15 +987,6 @@ export default function AppPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
           </button>
 
-          {/* "Mis pedidos" — único lugar donde se abre OrderTrackingModal ahora
-              (antes se abría solo al cerrar el carrito, sin importar el motivo). */}
-          <button onClick={() => setShowOrderTracking(true)} title="Mis pedidos" className="topbar-cart"
-            style={topBtn()}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>
-          </button>
-
           <button onClick={() => setShowProfile(true)} className="topbar-profile"
             style={{ display: 'flex', alignItems: 'center', gap: 9, height: 42, padding: '0 14px 0 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
             <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>{initial}</span>
@@ -998,7 +996,7 @@ export default function AppPage() {
         </div>
 
         <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
+          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
            activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -1008,7 +1006,7 @@ export default function AppPage() {
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
-           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
+           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
         {/* Bienvenida */}
@@ -1270,7 +1268,7 @@ export default function AppPage() {
                  transferir/vender TODOS los vehículos de la cuenta, no sólo
                  el que se revisó (2026-09-19, bug real encontrado por el
                  usuario). */}
-              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
+              <div data-verify-block style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
                   {isVerified ? 'Vehículo verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Vehículo sin verificar'}
                 </div>
@@ -1338,13 +1336,17 @@ export default function AppPage() {
               </ProfileAccordion>
 
 
-              {/* Gestión: ajustes, ayuda y reentrada al tutorial guiado
+              {/* Gestión: mis pedidos, ajustes, ayuda y reentrada al tutorial guiado
                  (2026-09-18) — para que saltarlo no sea un callejón sin salida. */}
               <ProfileAccordion title="Gestión" open={profileSection === 'gestion'} onToggle={() => setProfileSection(profileSection === 'gestion' ? null : 'gestion')}>
                 {(() => {
                   const rowStyle: React.CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--input-border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', textAlign: 'left' }
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <button type="button" onClick={() => { setShowProfile(false); setShowOrderTracking(true) }} style={rowStyle}>
+                        <span>Mis pedidos</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                      </button>
                       <button type="button" onClick={toggleTheme} style={rowStyle}>
                         <span>Ajustes · Apariencia</span>
                         <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{tDark ? 'Oscuro' : 'Claro'}</span>

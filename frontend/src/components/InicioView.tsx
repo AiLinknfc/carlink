@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
+import { useDocuments } from '@/lib/hooks'
 
 const SERVICE_TYPES = [
   { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
@@ -34,6 +35,8 @@ interface Props {
   onOpenScan?: () => void
   onOpenNfc?: () => void
   onNavigate?: (tab: string) => void
+  /** Abre "Mi perfil" con solo la verificacion del vehiculo desplegada. */
+  onOpenVerification?: () => void
   theme: 'light' | 'dark'
   vehicle?: any
   documents?: any[]
@@ -44,7 +47,7 @@ interface Props {
   freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
@@ -66,13 +69,26 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   const accentDim = isDark ? 'rgba(245,197,24,0.08)' : 'rgba(245,197,24,0.1)'
 
   // Status indicators
-  const docsCount = documents?.length || 0
-  const docsPending = Math.max(0, 4 - docsCount)
+  // Documentos pendientes = de los 4 que pide la seccion Documentos (SOAT, tecnomecanica, tarjeta
+  // de propiedad, poliza), cuantos no tienen todavia un archivo cargado.
+  const { documents: fetchedDocuments } = useDocuments(vehicle?.id)
+  const docList = documents ?? fetchedDocuments
+  const REQUIRED_DOCS = ['soat', 'rtm', 'propiedad', 'poliza']
+  const docsPending = REQUIRED_DOCS.filter(t => !docList.some((d: { type: string; file_url?: string }) => d.type === t && d.file_url)).length
   const servicesCount = maintenanceRecords?.length || 0
 
-  const statusIcon = (ok: boolean) => ok
-    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffb020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+  // Toque en un indicador: pequeno "empujon" animado y luego la accion (evita el salto seco).
+  const [nudge, setNudge] = useState<string | null>(null)
+  const go = (id: string, action?: () => void) => {
+    setNudge(id)
+    window.setTimeout(() => { setNudge(null); action?.() }, 180)
+  }
+  const statusItems = [
+    { id: 'llavero', title: 'Llavero', ok: !!nfcActive, text: nfcActive ? 'Activo' : 'Sin activar', color: nfcActive ? '#2ecc71' : textMuted, action: onOpenNfc, aria: 'Abre el panel del llavero NFC' },
+    { id: 'documentos', title: 'Documentos', ok: docsPending === 0, text: docsPending === 0 ? 'Completos' : `${docsPending} pendiente${docsPending > 1 ? 's' : ''}`, color: docsPending === 0 ? '#2ecc71' : '#ffb020', action: () => onNavigate?.('documentos'), aria: 'Va a la seccion de documentos' },
+    { id: 'perfil', title: 'Perfil', ok: !!isVerified, text: isVerified ? 'Verificado' : 'Sin verificar', color: isVerified ? '#2ecc71' : textMuted, action: onOpenVerification, aria: 'Abre Mi perfil en la verificacion' },
+    { id: 'servicios', title: 'Servicios', ok: servicesCount > 0, text: servicesCount > 0 ? `${servicesCount} registrado${servicesCount > 1 ? 's' : ''}` : 'Ninguno', color: servicesCount > 0 ? '#2ecc71' : textMuted, action: () => onNavigate?.('historial'), aria: 'Va al historial de servicios' },
+  ]
 
   const quickActionStyle = {
     display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
@@ -81,10 +97,20 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     transition: 'all .2s', flex: '1 1 0', minWidth: 90,
   }
 
+  // Botones amarillos solidos (mismo estilo que los CTA de la app); el estado se lee en el icono
+  // (check = listo, exclamacion = pendiente) y en el texto, no en el color del fondo.
   const statusCardStyle = {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
-    background: cardBg, border: `1px solid ${cardBorder}`, flex: '1 1 0', minWidth: 140,
+    display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderRadius: 12,
+    background: '#F5C518', border: 'none', color: '#111', flex: '1 1 0', minWidth: 140,
+    boxShadow: '0 0 20px rgba(245,197,24,0.28)',
   }
+  const statusBadge = (ok: boolean) => (
+    <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(17,17,17,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', flex: '0 0 auto' }}>
+      {ok
+        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 7v6M12 17h.01" /></svg>}
+    </span>
+  )
 
   return (
     <div style={{ padding: '0 4px' }}>
@@ -144,49 +170,34 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
         </div>
       </div>
 
-      {/* Estado del vehiculo */}
+      {/* Estado del vehiculo — cada indicador es un acceso directo al lugar donde se resuelve:
+          Llavero abre el panel NFC, Documentos va a esa seccion, Perfil abre "Mi perfil" con solo la
+          verificacion desplegada, Servicios va al historial. */}
+      <style>{`
+        @keyframes statusNudge { 0%{transform:scale(1)} 35%{transform:scale(.94) translateX(3px)} 70%{transform:scale(1.03) translateX(-2px)} 100%{transform:scale(1)} }
+        @keyframes statusPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.22);opacity:.7} }
+        [data-r="statusCard"]{transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        [data-r="statusCard"]:hover{transform:translateY(-3px);background:#FFD84D !important;box-shadow:0 10px 28px rgba(245,197,24,0.42) !important}
+        [data-r="statusCard"]:active{transform:scale(.97)}
+        [data-r="statusCard"][data-nudge="1"]{animation:statusNudge .32s ease}
+        [data-r="statusCard"]:focus-visible{outline:2px solid #F5C518;outline-offset:2px}
+        [data-r="statusCard"][data-pending="1"] [data-r="statusIcon"]{animation:statusPulse 2.2s ease-in-out infinite}
+        @media(prefers-reduced-motion:reduce){[data-r="statusCard"],[data-r="statusCard"] [data-r="statusIcon"]{animation:none !important;transition:none !important}}
+      `}</style>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Estado de tu vehiculo</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <div style={statusCardStyle}>
-            {statusIcon(!!nfcActive)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Llavero</div>
-              <div style={{ fontSize: 10, color: nfcActive ? '#2ecc71' : textMuted, marginTop: 1 }}>{nfcActive ? 'Activo' : 'Sin activar'}</div>
-            </div>
-          </div>
-
-          <div style={statusCardStyle}>
-            {statusIcon(docsPending === 0)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Documentos</div>
-              <div style={{ fontSize: 10, color: docsPending === 0 ? '#2ecc71' : '#ffb020', marginTop: 1 }}>{docsPending === 0 ? 'Completos' : `${docsPending} pendiente${docsPending > 1 ? 's' : ''}`}</div>
-            </div>
-          </div>
-
-          <div style={statusCardStyle}>
-            {statusIcon(!!isVerified)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Perfil</div>
-              <div style={{ fontSize: 10, color: isVerified ? '#2ecc71' : textMuted, marginTop: 1 }}>{isVerified ? 'Verificado' : 'Sin verificar'}</div>
-            </div>
-          </div>
-
-          {/* Clickeable a historial completo — reemplaza la sección aparte "Ultimos
-             servicios" que había abajo: mismo acceso, ubicado en el estado que ya
-             existe en vez de agregar una lista nueva. */}
-          <button onClick={() => onNavigate?.('historial')} style={{ ...statusCardStyle, cursor: onNavigate ? 'pointer' : 'default', textAlign: 'left', font: 'inherit' }}
-            onMouseEnter={e => { if (onNavigate) e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder }}>
-            {statusIcon(servicesCount > 0)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Servicios</div>
-              <div style={{ fontSize: 10, color: servicesCount > 0 ? '#2ecc71' : textMuted, marginTop: 1 }}>{servicesCount > 0 ? `${servicesCount} registrado${servicesCount > 1 ? 's' : ''}` : 'Ninguno'}</div>
-            </div>
-            {onNavigate && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}><path d="M9 6l6 6-6 6" /></svg>
-            )}
-          </button>
+          {statusItems.map(it => (
+            <button key={it.id} type="button" data-r="statusCard" data-pending={it.ok ? '0' : '1'} data-nudge={nudge === it.id ? '1' : '0'}
+              onClick={() => go(it.id, it.action)} aria-label={`${it.title}: ${it.text}. ${it.aria}`}
+              style={{ ...statusCardStyle, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}>
+              <span data-r="statusIcon" style={{ display: 'flex', flex: '0 0 auto' }}>{statusBadge(it.ok)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#111' }}>{it.title}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(17,17,17,0.72)', marginTop: 1 }}>{it.text}</div>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
