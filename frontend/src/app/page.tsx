@@ -490,7 +490,7 @@ export default function LandingPage() {
               <div style={{ fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: tk.label, fontWeight: 700, marginBottom: 9 }}>
                 Lleva tu ficha en la Wallet
               </div>
-              <div data-r="storeRow" style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <div data-r="storeRow" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                 <a href="#" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 11, background: '#000', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', textDecoration: 'none' }}>
                   <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.1-2.8.9-3.5.9-.7 0-1.9-.8-3-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.6zM14.2 5.7c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-1 2.7 1 .1 2-.5 2.7-1.1z"/></svg>
                   <span style={{ textAlign: 'left', lineHeight: 1.05 }}><span style={{ display: 'block', fontSize: 9, color: '#c9c6ba' }}>Descárgala en</span><span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>App Store</span></span>
@@ -523,8 +523,8 @@ export default function LandingPage() {
         @keyframes bBell{0%,58%,100%{transform:rotate(0)}64%{transform:rotate(13deg)}70%{transform:rotate(-11deg)}76%{transform:rotate(8deg)}82%{transform:rotate(-5deg)}88%{transform:rotate(0)}}
         @keyframes bDot{0%,55%{transform:scale(0);opacity:0}64%{transform:scale(1.25);opacity:1}75%,100%{transform:scale(1);opacity:1}}
         [data-r="hBens"]:hover [data-r="hBens"] > div{border-color:rgba(245,197,24,0.42);transform:translateY(-4px)}
-        @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:1fr 1fr !important} }
-        @media(max-width:720px){ [data-r="hBens"]{grid-template-columns:1fr !important} }
+        @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important} }
+        @media(max-width:440px){ [data-r="storeRow"]{flex-direction:column !important;align-items:center !important} [data-r="storeRow"]>a{width:100% !important;max-width:260px !important;justify-content:center !important} }
         @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} [data-r="scrollArrow"]{animation:none !important} }
       `}</style>
 

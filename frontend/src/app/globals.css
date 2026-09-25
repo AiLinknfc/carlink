@@ -218,8 +218,6 @@ select option { background: #141414; color: #f5f3ec; }
   .heroform, [data-r="heroform"] { flex-direction: column !important; gap: 8px !important; padding: 14px !important; }
   .heroform .divider, [data-r="heroform"] [data-r="divider"] { display: none !important; }
   .heroform > button:last-child, [data-r="heroform"] > button:last-child { width: 100% !important; padding: 14px !important; }
-  .storeRow { flex-wrap: wrap !important; justify-content: center !important; }
-  .storeRow > a { width: 100% !important; max-width: 260px !important; justify-content: center !important; }
   .regGrid { grid-template-columns: 1fr !important; }
   .fichagrid { grid-template-columns: 1fr !important; }
   .grid2 { grid-template-columns: 1fr !important; }
@@ -227,6 +225,19 @@ select option { background: #141414; color: #f5f3ec; }
   .tablero-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
   .topbar-actions { gap: 6px !important; }
+}
+
+/* Landing en pantallas chicas: secciones mas compactas (menos aire vertical entre ellas) */
+@media (max-width: 720px) {
+  #h-como, #h-beneficios, #h-diferencia, #h-productos, #h-comunidad { padding-top: 30px !important; padding-bottom: 28px !important; }
+  #h-faq { padding-top: 28px !important; padding-bottom: 28px !important; }
+  #h-pqrs { padding-bottom: 28px !important; }
+  [data-r="hWaitlist"] { padding-top: 30px !important; padding-bottom: 28px !important; }
+  [data-r="hCaptureLeads"] { padding-top: 28px !important; padding-bottom: 16px !important; gap: 22px !important; }
+  [data-r="entrada"] { min-height: 0 !important; padding-top: 48px !important; padding-bottom: 20px !important; }
+  section > div[style*="border-top"][style*="position: absolute"] { top: 14px !important; }
+  [data-r="shopHero"] [data-r="shopHero-buy"] { margin-top: 48px !important; }
+  #h-como > div:first-child, #h-beneficios > div > div:first-child { margin-bottom: 26px !important; }
 }
 
 @media (max-width: 900px) {

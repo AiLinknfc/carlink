@@ -364,18 +364,18 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
       {/* ===== PQRS · Agente conversacional ===== */}
       <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
-        <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="grid2" data-r="pqrsCard" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
+          <div data-r="pqrsInfo" style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
             </span>
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }}>PQRS · Habla con CarLia</div>
+            <div style={{ minWidth: 0 }}>
+              <div data-r="pqrsLabel" style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }}>PQRS · Habla con CarLia</div>
               <div style={{ fontSize: 15, fontWeight: 600, margin: '4px 0 2px' }}>¿Falta el modelo de tu auto o algo no funciona?</div>
               <p style={{ ...lead, fontSize: 13 }}>Reporta peticiones, quejas, reclamos o sugerencias. CarLink lo resuelve pronto.</p>
             </div>
           </div>
-          <button onClick={onOpenPqrs} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '13px 24px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.35)', whiteSpace: 'nowrap' }}>
+          <button onClick={onOpenPqrs} data-r="pqrsBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '13px 24px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.35)', whiteSpace: 'nowrap' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             Abrir asistente
           </button>
@@ -383,7 +383,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
+      <section data-r="hWaitlist" style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
         <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
@@ -431,8 +431,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           </div>
         </div>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
-            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
+          <div data-r="hRegister" style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
+            <Link href="/register" data-r="hRegisterBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
       </section>
