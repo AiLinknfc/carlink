@@ -194,6 +194,20 @@ export default function LandingPage() {
     setLoginModalOpen(true)
   }
 
+  // Otras paginas (ej. /taller) mandan aqui con ?login=business|user para reutilizar
+  // este mismo inicio de sesion en vez de tener uno propio.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('login')
+    if (!q) return
+    setLoginModalMode('signin')
+    setLoginModalAccountType(q === 'business' ? 'business' : 'user')
+    setLoginModalOpen(true)
+    params.delete('login')
+    const rest = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash)
+  }, [])
+
   const openSignupModal = () => {
     sessionStorage.setItem('carlink_plate', plateText)
     sessionStorage.setItem('carlink_city', city)

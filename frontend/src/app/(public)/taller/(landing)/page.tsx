@@ -282,7 +282,7 @@ export default function TallerPage() {
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <a href="#registro" data-r="shopNavPostular" style={{ padding: '6px 12px', borderRadius: 9, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: 'transparent', color: MUTED, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Postular</a>
-          <Link href="/login" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
+          <Link href="/?login=business" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
           <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" style={{ position: 'relative', width: 56, height: 28, borderRadius: 999, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 3px', transition: 'all .25s' }}>
             <span style={{ position: 'absolute', left: 7, fontSize: 10, opacity: isDark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
             <span style={{ position: 'absolute', right: 6, color: '#111', opacity: isDark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
