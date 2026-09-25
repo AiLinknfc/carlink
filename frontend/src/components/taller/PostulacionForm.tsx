@@ -185,11 +185,11 @@ export default function PostulacionForm({ onOpenPolicy, isDark, muted, border, c
 
       <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.5, color: muted, cursor: 'pointer' }}>
         <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} style={{ marginTop: 3, accentColor: GOLD, width: 16, height: 16, flexShrink: 0 }} />
-        <span>Autorizo a CarLink S.A.S. a tratar los datos de este formulario para validar mi negocio y contactarme, según la <button type="button" onClick={e => { e.preventDefault(); onOpenPolicy() }} style={{ background: 'none', border: 'none', padding: 0, color: GOLD, fontWeight: 700, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', textDecoration: 'underline' }}>Política de Privacidad</button> (Ley 1581 de 2012). *</span>
+        <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>Autorizo a CarLink S.A.S. a tratar los datos de este formulario para validar mi negocio y contactarme, según la <button type="button" onClick={e => { e.preventDefault(); onOpenPolicy() }} style={{ background: 'none', border: 'none', padding: 0, color: GOLD, fontWeight: 700, cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', textDecoration: 'underline' }}>Política de Privacidad</button> (Ley 1581 de 2012). *</span>
       </label>
       <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.5, color: muted, cursor: 'pointer' }}>
         <input type="checkbox" checked={logoAuth} onChange={e => setLogoAuth(e.target.checked)} style={{ marginTop: 3, accentColor: GOLD, width: 16, height: 16, flexShrink: 0 }} />
-        <span>Autorizo a CarLink a mostrar el nombre y el logo de mi negocio como aliado en su sitio web y materiales (opcional; puedes revocarlo escribiendo a business@carlink.com.co).</span>
+        <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>Autorizo a CarLink a mostrar el nombre y el logo de mi negocio como aliado en su sitio web y materiales (opcional; puedes revocarlo escribiendo a business@carlink.com.co).</span>
       </label>
 
       {error && <div role="alert" style={{ fontSize: 13.5, fontWeight: 600, color: '#ff6b6b' }}>{error}</div>}

@@ -145,8 +145,28 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         [data-r="comunidadTrack"]:hover [data-r="comunidadInner"]{ animation-play-state: paused }
         @media(max-width:860px){ [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} [data-r="hProductos"]{grid-template-columns:1fr !important} [data-r="hCaptureLeads"]{grid-template-columns:1fr !important} }
         @media(max-width:1024px){ [data-r="footergrid"]{grid-template-columns:1fr 1fr !important} }
-        @media(max-width:720px){ [data-r="diffScrollHint"]{display:flex !important} }
-        @media(max-width:380px){ [data-r="diffTable"]{min-width:0 !important} [data-r="diffTable"] th,[data-r="diffTable"] td{padding:12px 10px !important;font-size:12px !important} [data-r="diffTable"] th{font-size:9px !important} [data-r="diffTable"] td:first-child{font-size:11.5px !important} }
+        @media(max-width:860px){ [data-r="hRegister"]{margin-top:0 !important} }
+        @media(max-width:520px){
+          [data-r="pqrsCard"]{padding:18px !important;gap:16px !important}
+          [data-r="pqrsInfo"]{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}
+          [data-r="pqrsLabel"]{letter-spacing:.1em !important}
+          [data-r="pqrsBtn"]{width:100% !important;justify-content:center !important;padding:13px 16px !important}
+          [data-r="hCaptureInput"] input{min-width:0 !important;flex:1 1 100% !important;width:100% !important}
+          [data-r="hCaptureBtn"]{width:100% !important}
+          [data-r="hRegisterBtn"]{width:100% !important;max-width:340px !important;justify-content:center !important;padding:14px 20px !important;font-size:15px !important}
+        }
+        @media(max-width:720px){
+          [data-r="diffTable"]{min-width:0 !important;display:block}
+          [data-r="diffTable"] thead{display:none}
+          [data-r="diffTable"] tbody{display:block}
+          [data-r="diffTable"] tr{display:block;padding:14px 16px;border-bottom:1px solid rgba(128,128,128,.18)}
+          [data-r="diffTable"] tr:last-child{border-bottom:none}
+          [data-r="diffTable"] td{display:block;padding:4px 0 !important;border:0 !important;background:transparent !important;font-size:13px !important}
+          [data-r="diffTable"] td:first-child{font-size:14.5px !important;padding-bottom:8px !important}
+          [data-r="diffTable"] td[data-label]::before{content:attr(data-label);display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff4d6a}
+          [data-r="diffTable"] td[data-label="Con CarLink"]{background:rgba(245,197,24,0.06) !important;border-radius:10px;padding:8px 10px !important;margin-top:6px}
+          [data-r="diffTable"] td[data-label="Con CarLink"]::before{color:#F5C518}
+        }
         @media(prefers-reduced-motion:reduce){ [data-r="comunidadInner"]{animation:none !important} }
       `}</style>
 
@@ -178,13 +198,13 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               {COMPARISON.map((row, i) => (
                 <tr key={row.feature} style={{ background: i % 2 ? k.rowTint : 'transparent' }}>
                   <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: k.text, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: k.muted, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>
+                  <td data-label="Sin CarLink" style={{ padding: '18px 20px', fontSize: 14, color: k.muted, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 3 }}><path d="M18 6L6 18M6 6l12 12" /></svg>
                       {row.without}
                     </div>
                   </td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: k.text, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
+                  <td data-label="Con CarLink" style={{ padding: '18px 20px', fontSize: 14, color: k.text, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       {CHECK(GOLD, 15)}
                       {row.withCl}
