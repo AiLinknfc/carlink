@@ -42,17 +42,9 @@ export default function SeguridadTab({ vehicleId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const statuses = useMemo(() => items.map(i => ({ item: i, status: safetyStatus(i) })), [items])
-  const count = (tone: Tone) => statuses.filter(s => s.status.tone === tone).length
   const missingCore = CORE_KINDS.filter(k => !items.some(i => i.kind === k))
 
   const open = (kind: SafetyKind, item: SafetyItem | null = null) => setForm({ item, kind })
-
-  const summary = (n: number, label: string, tone: Tone) => (
-    <div style={{ flex: '1 1 120px', minWidth: 110, padding: '12px 14px', borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-      <div style={{ fontSize: 24, fontWeight: 800, color: TONE_COLOR[tone] }}>{n}</div>
-      <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 1 }}>{label}</div>
-    </div>
-  )
 
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
@@ -69,15 +61,6 @@ export default function SeguridadTab({ vehicleId }: Props) {
           Agregar o escanear
         </button>
       </div>
-
-      {items.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-          {summary(count('ok'), 'En orden', 'ok')}
-          {summary(count('warn'), 'Por vencer o incompletos', 'warn')}
-          {summary(count('bad'), 'Vencidos', 'bad')}
-          {summary(count('none'), 'Sin datos', 'none')}
-        </div>
-      )}
 
       {loading && <div style={{ color: 'var(--text-3)', padding: 20 }}>Cargando...</div>}
 
@@ -143,6 +126,7 @@ export default function SeguridadTab({ vehicleId }: Props) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(170px,100%),1fr))', gap: 8, marginTop: 14 }}>
                 {KIT_ITEMS.map(k => {
                   const has = !!it.checklist?.[k.key]
+                  const photo = it.details?.[`photo_${k.key}`]
                   return (
                     <div key={k.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: has ? 'var(--text-1)' : '#ffb020' }}>
                       <span style={{ width: 18, height: 18, borderRadius: 5, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: has ? '#2ecc71' : 'rgba(255,176,32,0.18)', color: has ? '#111' : '#ffb020' }}>
@@ -150,7 +134,13 @@ export default function SeguridadTab({ vehicleId }: Props) {
                           ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
                           : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /></svg>}
                       </span>
-                      {k.label}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.label}</span>
+                      {photo && (
+                        <a href={proxyUrl(photo)} target="_blank" rel="noopener noreferrer" title="Ver evidencia" aria-label={`Ver foto de evidencia de ${k.label}`}
+                          style={{ flex: '0 0 auto', color: '#F5C518', display: 'flex' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                        </a>
+                      )}
                     </div>
                   )
                 })}
@@ -176,14 +166,6 @@ export default function SeguridadTab({ vehicleId }: Props) {
           </div>
         ))}
       </div>
-
-      {!loading && (
-        <div style={{ marginTop: 16 }}>
-          <button onClick={() => open('otro')} style={{ fontSize: 13, fontWeight: 700, color: '#F5C518', padding: '10px 16px', borderRadius: 10, border: '1px dashed rgba(245,197,24,0.4)', background: 'transparent', cursor: 'pointer' }}>
-            + Otro elemento de seguridad
-          </button>
-        </div>
-      )}
 
       {form && vehicleId && (
         <SafetyFormModal

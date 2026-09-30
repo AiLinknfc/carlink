@@ -51,6 +51,24 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
   const [missing, setMissing] = useState<string[]>(item?.missing_items ?? [])
   const [missingDraft, setMissingDraft] = useState('')
   const [checklist, setChecklist] = useState<Record<string, boolean>>({ ...(item?.checklist ?? {}), ...(presetCheck ? { [presetCheck]: true } : {}) })
+  // Evidencia opcional por pieza del kit (ademas del check) — se guarda en details con la clave
+  // `photo_<pieza>`, reusando el campo generico que ya existe en vez de una columna nueva.
+  const [kitPhotos, setKitPhotos] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {}
+    if (item?.kind === 'kit_carretera') {
+      for (const [k, v] of Object.entries(item.details ?? {})) {
+        if (k.startsWith('photo_') && v) out[k.slice(6)] = v as string
+      }
+    }
+    return out
+  })
+  const [kitUploading, setKitUploading] = useState<string | null>(null)
+  const uploadKitPhoto = useCallback(async (key: string, file: File) => {
+    setKitUploading(key)
+    const url = await uploadFile(file, 'safety')
+    setKitUploading(null)
+    if (url) setKitPhotos(p => ({ ...p, [key]: url }))
+  }, [])
   const [notes, setNotes] = useState(item?.notes ?? '')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoUrl, setPhotoUrl] = useState(item?.file_url ?? '')
@@ -104,6 +122,8 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
     if (brand.trim()) details.brand = brand.trim()
     if (capacity.trim()) details.capacity = capacity.trim()
     if (agent.trim()) details.agent = agent.trim()
+    const kitDetails: Record<string, string> = {}
+    for (const [k, v] of Object.entries(kitPhotos)) kitDetails[`photo_${k}`] = v
     const body = {
       vehicle_id: vehicleId, kind, name: kind === 'otro' ? name.trim() : '',
       purchase_date: kind === 'extintor' ? purchase || null : null,
@@ -113,7 +133,7 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
       restock_date: kind === 'botiquin' ? restock || null : null,
       missing_items: kind === 'botiquin' ? missing : [],
       checklist: kind === 'kit_carretera' ? checklist : {},
-      details: kind === 'extintor' ? details : {},
+      details: kind === 'extintor' ? details : kind === 'kit_carretera' ? kitDetails : {},
       notes: notes.trim(), file_url: fileUrl,
     }
     const res = editing ? await safetyApi.update(item!.id, body) : await safetyApi.create(body)
@@ -228,18 +248,37 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
         {kind === 'kit_carretera' && (
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>¿Qué tiene tu kit?</label>
+            <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: -2, marginBottom: 8 }}>
+              El check ya cuenta como confirmación. La foto es evidencia adicional, opcional.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(200px,100%),1fr))', gap: 8 }}>
               {KIT_ITEMS.map(k => {
                 const on = !!checklist[k.key]
+                const hasPhoto = !!kitPhotos[k.key]
                 return (
-                  <button key={k.key} type="button" onClick={() => setChecklist(c => ({ ...c, [k.key]: !on }))} aria-pressed={on}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                      border: `1px solid ${on ? 'rgba(46,204,113,0.5)' : 'var(--input-border)'}`, background: on ? 'rgba(46,204,113,0.08)' : 'var(--input-bg)', color: 'var(--text-1)', fontSize: 13.5 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 6, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? '#2ecc71' : 'transparent', border: `1.5px solid ${on ? '#2ecc71' : 'var(--text-3)'}`, color: '#111' }}>
-                      {on && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
-                    </span>
-                    {k.label}
-                  </button>
+                  <div key={k.key} style={{ display: 'flex', alignItems: 'center', gap: 6,
+                    borderRadius: 10, border: `1px solid ${on ? 'rgba(46,204,113,0.5)' : 'var(--input-border)'}`, background: on ? 'rgba(46,204,113,0.08)' : 'var(--input-bg)' }}>
+                    <button type="button" onClick={() => setChecklist(c => ({ ...c, [k.key]: !on }))} aria-pressed={on}
+                      style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 6px 11px 13px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 13.5 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 6, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? '#2ecc71' : 'transparent', border: `1.5px solid ${on ? '#2ecc71' : 'var(--text-3)'}`, color: '#111' }}>
+                        {on && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                      </span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.label}</span>
+                    </button>
+                    {hasPhoto ? (
+                      <button type="button" onClick={() => setKitPhotos(p => { const n = { ...p }; delete n[k.key]; return n })}
+                        title="Quitar foto de evidencia" aria-label={`Quitar foto de evidencia de ${k.label}`}
+                        style={{ flex: '0 0 auto', width: 28, height: 28, marginRight: 8, borderRadius: 7, border: 'none', background: '#F5C518', color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                      </button>
+                    ) : (
+                      <label title="Agregar foto de evidencia (opcional)" aria-label={`Agregar foto de evidencia de ${k.label}`}
+                        style={{ flex: '0 0 auto', width: 28, height: 28, marginRight: 8, borderRadius: 7, border: '1px dashed var(--text-3)', color: 'var(--text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: kitUploading === k.key ? 'default' : 'pointer' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                        <input type="file" accept="image/*" disabled={kitUploading === k.key} onChange={e => { const f = e.target.files?.[0]; if (f) uploadKitPhoto(k.key, f); e.target.value = '' }} style={{ display: 'none' }} />
+                      </label>
+                    )}
+                  </div>
                 )
               })}
             </div>
