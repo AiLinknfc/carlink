@@ -11,14 +11,16 @@ import { ServiceTypeIcon } from '@/lib/icons_new'
    Diferencia clave con la referencia (que asume una cantidad fija de tarjetas, ej. 6): el scroll
    total no crece sin limite con el numero de registros. La referencia usa `height:560vh` para 6
    tarjetas (~93vh cada una) — con un historial real de decenas de registros eso volveria la
-   pagina absurdamente larga. Ac imagenes, TRACK_EXTRA_VH tiene un techo (MAX_EXTRA_VH): pasado
-   ese punto, agregar mas registros los hace "acumularse" en el mazo (mas profundidad visible
-   detras de la tarjeta activa) en vez de alargar el scroll — por eso nunca hace falta scrollear
-   mas de un tramo acotado sin importar cuantos servicios tenga el vehiculo. */
-const STAGE_TOP = 96
-const PER_CARD_VH = 46
-const MAX_EXTRA_VH = 420
-const CARD_MIN_H = 300
+   pagina absurdamente larga. Acá TRACK_EXTRA_VH tiene un techo (MAX_EXTRA_VH): pasado ese punto,
+   agregar mas registros los hace "acumularse" en el mazo (mas profundidad visible detras de la
+   tarjeta activa) en vez de alargar el scroll. El tramo tambien se acorto (antes 46vh por
+   tarjeta, techo 420vh — con un historial largo eran ~5 pantallas completas de scroll solo para
+   esta seccion, se sentia interminable) a algo que se recorre rapido sin importar cuantos
+   servicios tenga el vehiculo. */
+const PER_CARD_VH = 22
+const MAX_EXTRA_VH = 220
+const CARD_MIN_H = 280
+const STACK_DOTS_GAP = 26
 
 const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: string; sub: string }> = {
   Aceite:       { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' },
@@ -229,28 +231,33 @@ export default function HistoryStack({ records, onEdit }: Props) {
   return (
     <div ref={trackRef} style={{ position: 'relative', height: `calc(100vh + ${extraVh}vh)` }}>
       <style>{`@media(prefers-reduced-motion:reduce){ .hist-stage *{transition:none !important} }`}</style>
-      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden', perspective: 1500 }}>
-        <div style={{ position: 'relative', width: 'min(92vw, 480px)', marginTop: STAGE_TOP, transformStyle: 'preserve-3d' }}>
-          {records.map((r, i) => {
-            const theme = getTheme(r.service_type)
-            return (
-              <div key={r.id || i}
-                ref={el => { cardRefs.current[i] = el }}
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', willChange: 'transform', transformOrigin: 'bottom center', transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), opacity .25s' }}>
-                <CardFace r={r} theme={theme} onEdit={onEdit} shineRef={el => { shineRefs.current[i] = el }} />
-              </div>
-            )
-          })}
-          {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
-          <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
-        </div>
+      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px' }}>
+        {/* Tarjetas + puntos son UN solo bloque: el stage los centra juntos en el medio real de la
+            pantalla (antes los puntos vivian pegados al borde inferior del viewport, lejos de las
+            tarjetas cuando estas ya no estaban centradas — por eso se sentian "muy abajo"). */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: STACK_DOTS_GAP, maxWidth: '100%' }}>
+          <div style={{ position: 'relative', width: 'min(92vw, 480px)', transformStyle: 'preserve-3d' }}>
+            {records.map((r, i) => {
+              const theme = getTheme(r.service_type)
+              return (
+                <div key={r.id || i}
+                  ref={el => { cardRefs.current[i] = el }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', willChange: 'transform', transformOrigin: 'bottom center', transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), opacity .25s' }}>
+                  <CardFace r={r} theme={theme} onEdit={onEdit} shineRef={el => { shineRefs.current[i] = el }} />
+                </div>
+              )
+            })}
+            {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
+            <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
+          </div>
 
-        <div style={{ position: 'absolute', left: '50%', bottom: 36, transform: 'translateX(-50%)', zIndex: 400, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
-          <span ref={counterRef} style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text-3)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {records.map((r, i) => (
-              <span key={r.id || i} ref={el => { dotRefs.current[i] = el }} style={{ width: 7, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.22)', transition: 'width .4s cubic-bezier(.2,.8,.2,1), background .4s' }} />
-            ))}
+          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
+            <span ref={counterRef} style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text-3)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {records.map((r, i) => (
+                <span key={r.id || i} ref={el => { dotRefs.current[i] = el }} style={{ width: 7, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.22)', transition: 'width .4s cubic-bezier(.2,.8,.2,1), background .4s' }} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
