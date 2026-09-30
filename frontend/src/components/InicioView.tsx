@@ -26,9 +26,11 @@ const SERVICE_TYPES = [
 ]
 
 // Se ven siempre en Inicio, sin necesidad de haberlos usado. El resto (Combustible, Frenos,
-// Refrigerante, Transmision) solo aparece una vez que ya se registro un servicio de ese tipo, o se
-// abrio esa tarjeta al menos una vez (`explored`) — se van "descubriendo" y acumulando, pero siguen
-// accesibles siempre desde "Nuevo servicio" (acciones rapidas), que muestra todas las opciones.
+// Refrigerante, Transmision) solo aparece una vez que ya hay un registro real de ese tipo en el
+// historial — no alcanza con haber abierto la tarjeta alguna vez (`explored`, que solo controla el
+// resaltado dorado) porque eso ya estaba marcado de antes para varios usuarios y los mostraba de
+// entrada, rompiendo el limite de 6. Siguen accesibles siempre desde "Nuevo servicio" (acciones
+// rapidas), que muestra todas las opciones.
 const DEFAULT_SERVICE_IDS = ['Aceite', 'Aire', 'Bateria', 'Llantas', 'Suspension']
 
 const STORAGE_KEY = 'carlink_explored_services'
@@ -292,7 +294,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar servicio</div>
         <div data-r="svcGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-          {SERVICE_TYPES.filter(st => DEFAULT_SERVICE_IDS.includes(st.id) || st.id === 'Otro' || explored[st.id] || maintenanceRecords?.some((r: any) => r.service_type === st.id)).map(st => {
+          {SERVICE_TYPES.filter(st => DEFAULT_SERVICE_IDS.includes(st.id) || st.id === 'Otro' || maintenanceRecords?.some((r: any) => r.service_type === st.id)).map(st => {
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
             return (
