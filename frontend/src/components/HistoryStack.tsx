@@ -21,6 +21,11 @@ const PER_CARD_VH = 22
 const MAX_EXTRA_VH = 220
 const CARD_MIN_H = 280
 const STACK_DOTS_GAP = 26
+// Primer tramo del scroll (fraccion del track) donde las tarjetas todavia no se mueven — le da al
+// usuario un momento para "entrar" a la seccion antes de que el apilado arranque, en vez de que
+// se mueva de entrada apenas se pega el stage. El resto del track (1 - DEAD_ZONE) es lo que
+// realmente recorre las N tarjetas.
+const DEAD_ZONE = 0.1
 
 const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: string; sub: string }> = {
   Aceite:       { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' },
@@ -51,11 +56,13 @@ function CardFace({ r, theme, onEdit, shineRef }: { r: any; theme: { bg: string;
       border: `1px solid ${theme.accent}55`,
       color: theme.text,
     }}>
-      {/* glossy shine sweep — su posicion la controla el scroll (solo mientras es la tarjeta activa) */}
+      {/* glossy shine sweep — recorre TODO el ancho de la tarjeta (antes la banda era angosta y
+          quedaba confinada al lado izquierdo, nunca cruzaba toda la superficie); su posicion la
+          controla el scroll (solo mientras es la tarjeta activa) */}
       <div ref={shineRef} style={{
-        position: 'absolute', top: '-60%', left: '-20%', width: '55%', height: '260%',
+        position: 'absolute', top: '-25%', left: '-15%', width: '130%', height: '190%',
         background: 'linear-gradient(115deg,transparent 32%,rgba(255,255,255,.30) 48%,rgba(255,255,255,.06) 52%,transparent 68%)',
-        backgroundSize: '250% 100%', backgroundPosition: '150% 0',
+        backgroundSize: '230% 100%', backgroundPosition: '160% 0',
         transform: 'skewX(-18deg)', pointerEvents: 'none',
       }} />
 
@@ -163,7 +170,9 @@ export default function HistoryStack({ records, onEdit }: Props) {
     if (!track || N === 0) return
     const trackDocTop = track.getBoundingClientRect().top + window.scrollY
     const span = track.offsetHeight - window.innerHeight
-    const progress = span > 0 ? Math.min(1, Math.max(0, (window.scrollY - trackDocTop) / span)) : 0
+    const rawProgress = span > 0 ? Math.min(1, Math.max(0, (window.scrollY - trackDocTop) / span)) : 0
+    // Los primeros DEAD_ZONE de scroll no mueven nada todavia (ver constante arriba).
+    const progress = Math.min(1, Math.max(0, (rawProgress - DEAD_ZONE) / (1 - DEAD_ZONE)))
     const scrollPos = progress * (N - 1)
     const frac = scrollPos - Math.floor(scrollPos)
     const activeIdx = Math.min(N - 1, Math.round(scrollPos))
@@ -197,7 +206,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
         face.style.boxShadow = `0 ${18 + sd * 8}px ${44 + sd * 14}px rgba(0,0,0,${Math.max(0.16, 0.56 - Math.min(0.4, sd * 0.06))}), inset 0 1px 0 rgba(255,255,255,.14)`
       }
       const shine = shineRefs.current[i]
-      if (shine) shine.style.backgroundPosition = (activeIdx === i ? (frac * 200 - 40) : 150) + '% 0'
+      if (shine) shine.style.backgroundPosition = (activeIdx === i ? (frac * 220 - 60) : 160) + '% 0'
     })
 
     dotRefs.current.forEach((el, i) => {
@@ -231,7 +240,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
   return (
     <div ref={trackRef} style={{ position: 'relative', height: `calc(100vh + ${extraVh}vh)` }}>
       <style>{`@media(prefers-reduced-motion:reduce){ .hist-stage *{transition:none !important} }`}</style>
-      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px' }}>
+      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px 7vh' }}>
         {/* Tarjetas + puntos son UN solo bloque: el stage los centra juntos en el medio real de la
             pantalla (antes los puntos vivian pegados al borde inferior del viewport, lejos de las
             tarjetas cuando estas ya no estaban centradas — por eso se sentian "muy abajo"). */}
