@@ -17,9 +17,17 @@ import { ServiceTypeIcon } from '@/lib/icons_new'
    tarjeta, techo 420vh — con un historial largo eran ~5 pantallas completas de scroll solo para
    esta seccion, se sentia interminable) a algo que se recorre rapido sin importar cuantos
    servicios tenga el vehiculo. */
-const PER_CARD_VH = 22
-const MAX_EXTRA_VH = 220
+// Acortado de nuevo (confirmado por el usuario que el "feel" del scroll ya estaba bien, solo
+// quería que hiciera falta bajar mucho menos pantalla en total) — con esto, aunque el historial
+// tenga muchos registros, nunca hace falta mucho mas de una pantalla extra de scroll para recorrer
+// todo el mazo.
+const PER_CARD_VH = 10
+const MAX_EXTRA_VH = 110
 const CARD_MIN_H = 280
+// Cuanto baja el mazo detras de la tarjeta activa antes de desvanecerse (ver formula de `cl` en
+// paint: translateY llega a ~cl*30, y cl llega hasta ~5.5-6 antes de que la opacidad empiece a
+// bajar) — se usa para reservarle ese espacio real al grupo al centrarlo (ver spacer invisible).
+const STACK_RECEDE_PX = 175
 // El grupo (tarjetas + puntos) se centra en el medio real del stage (alignItems:center). El gap
 // entre la ultima tarjeta y el indicador de puntos queda con algo de aire, no pegado.
 const GAP_UNIT = 48
@@ -262,6 +270,11 @@ export default function HistoryStack({ records, onEdit }: Props) {
             })}
             {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
             <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
+            {/* Espacio invisible que representa cuanto se corre hacia abajo el mazo detras de la
+                tarjeta activa (ver STACK_RECEDE_PX en paint: translateY llega hasta ~170px antes
+                de desvanecerse) — sin esto el centrado solo contaba el alto de UNA tarjeta, dejaba
+                un hueco enorme arriba y recortaba el mazo contra el borde del stage abajo. */}
+            <div style={{ height: STACK_RECEDE_PX, pointerEvents: 'none' }} />
           </div>
 
           <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
