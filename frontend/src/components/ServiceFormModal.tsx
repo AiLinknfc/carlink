@@ -914,13 +914,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             {/* Common fields */}
             {(serviceType !== 'Aceite' || aceiteStep === 2) && <>
             <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
-            <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, alignItems: 'start' }}>
               <div>
                 <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Kilometraje actual *</label>
-                {latestMileage != null && !editRecord && (
-                  <div style={{ fontSize: 10, color: textMuted, marginBottom: 4, height: 14, overflow: 'hidden' }}>Ultimo: {latestMileage.toLocaleString()} km</div>
-                )}
-                {latestMileage == null || editRecord ? <div style={{ height: 19 }} /> : null}
                 <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
                   placeholder="Ej. 50000" style={{
                     width: '100%', padding: '11px 13px', borderRadius: 10,
@@ -934,13 +930,15 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                     background: inputBg,
                     color: textPrimary, fontSize: 14, outline: 'none',
                   }} />
-                {mileage && latestMileage != null && !editRecord && parseInt(mileage) < latestMileage && (
+                {mileage && latestMileage != null && !editRecord && parseInt(mileage) < latestMileage ? (
                   <div style={{ fontSize: 11, color: '#ff4d6a', marginTop: 4, lineHeight: 1.3 }}>No puede ser menor al último registrado ({latestMileage.toLocaleString()} km)</div>
-                )}
+                ) : latestMileage != null && !editRecord ? (
+                  <div style={{ fontSize: 10.5, color: textMuted, marginTop: 4, lineHeight: 1.3 }}>Último registrado: {latestMileage.toLocaleString()} km</div>
+                ) : null}
               </div>
               <div>
                 <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
-                <input type="date" className="date-field" value={date} onChange={e => setDate(e.target.value)} />
+                <input type="date" className="date-field" value={date} onChange={e => setDate(e.target.value)} style={{ height: 40 }} />
               </div>
               <div ref={wsRef} style={{ position: 'relative' }}>
                 <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Taller</label>

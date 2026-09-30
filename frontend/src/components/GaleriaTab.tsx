@@ -1,5 +1,6 @@
 'use client'
 
+import ThemedSelect from '@/components/ThemedSelect'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useGallery } from '@/lib/hooks'
@@ -576,19 +577,15 @@ export default function GaleriaTab({ vehicleId }: Props) {
             {/* Sugerencias que aún no están activas */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Espacios sugeridos</label>
-              <select value={SUGGESTED_CATEGORIES.includes(slotName) ? slotName : ''}
-                onChange={e => setSlotName(e.target.value)}
+              <ThemedSelect
+                value={SUGGESTED_CATEGORIES.includes(slotName) ? slotName : ''}
+                onChange={setSlotName}
+                options={availableCategories}
                 disabled={availableCategories.length === 0}
-                style={{
-                  width: '100%', padding: '11px 13px', borderRadius: 10,
-                  border: '1px solid var(--input-border, rgba(255,255,255,0.14))',
-                  background: 'var(--input-bg, rgba(255,255,255,0.04))',
-                  color: 'var(--text-2, #f5f3ec)',
-                  fontSize: 14, outline: 'none', cursor: 'pointer',
-                }}>
-                <option value="">{availableCategories.length ? 'Elige uno de la lista…' : 'Ya agregaste todos los sugeridos'}</option>
-                {availableCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+                placeholder={availableCategories.length ? 'Elige uno de la lista…' : 'Ya agregaste todos los sugeridos'}
+                ariaLabel="Espacios sugeridos"
+                theme={{ inputBg: 'var(--input-bg)', inputBorder: 'var(--input-border)', inputText: 'var(--text-1)', accent: '#F5C518', muted: 'var(--text-3)', panelBg: 'var(--panel-bg)' }}
+              />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 14px' }}>

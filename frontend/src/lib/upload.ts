@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { ExpenseScanResult } from './types'
+import type { ExpenseScanResult, SafetyScan } from './types'
 
 const R2_PUBLIC_PREFIX = 'https://pub-55bd6d44de784bbb941be717d9645305.r2.dev/'
 
@@ -200,6 +200,30 @@ export async function scanVehicleCard(file: File): Promise<VehicleCardScan | nul
     return res.json()
   } catch (e) {
     console.warn('Vehicle card scan error:', e)
+    return null
+  }
+}
+
+/* Lee la etiqueta/foto de un extintor, botiquín o kit de carretera para prellenar el formulario de
+   Seguridad. Ayuda de captura: el usuario confirma los campos antes de guardar. */
+export async function scanSafetyItem(file: File): Promise<SafetyScan | null> {
+  try {
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) return null
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${API_BASE}/api/ocr/safety`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (!res.ok) {
+      console.warn('Safety scan failed:', await res.text())
+      return null
+    }
+    return res.json()
+  } catch (e) {
+    console.warn('Safety scan error:', e)
     return null
   }
 }

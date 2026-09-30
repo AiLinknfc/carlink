@@ -218,8 +218,6 @@ select option { background: #141414; color: #f5f3ec; }
   .heroform, [data-r="heroform"] { flex-direction: column !important; gap: 8px !important; padding: 14px !important; }
   .heroform .divider, [data-r="heroform"] [data-r="divider"] { display: none !important; }
   .heroform > button:last-child, [data-r="heroform"] > button:last-child { width: 100% !important; padding: 14px !important; }
-  .storeRow { flex-wrap: wrap !important; justify-content: center !important; }
-  .storeRow > a { width: 100% !important; max-width: 260px !important; justify-content: center !important; }
   .regGrid { grid-template-columns: 1fr !important; }
   .fichagrid { grid-template-columns: 1fr !important; }
   .grid2 { grid-template-columns: 1fr !important; }
@@ -229,19 +227,47 @@ select option { background: #141414; color: #f5f3ec; }
   .topbar-actions { gap: 6px !important; }
 }
 
+/* Landing en pantallas chicas: secciones mas compactas (menos aire vertical entre ellas) */
+@media (max-width: 720px) {
+  #h-como, #h-beneficios, #h-diferencia, #h-productos, #h-comunidad { padding-top: 30px !important; padding-bottom: 28px !important; }
+  #h-faq { padding-top: 28px !important; padding-bottom: 28px !important; }
+  #h-pqrs { padding-bottom: 28px !important; }
+  [data-r="hWaitlist"] { padding-top: 30px !important; padding-bottom: 28px !important; }
+  [data-r="hCaptureLeads"] { padding-top: 28px !important; padding-bottom: 16px !important; gap: 22px !important; }
+  [data-r="entrada"] { min-height: 0 !important; padding-top: 48px !important; padding-bottom: 20px !important; }
+  section > div[style*="border-top"][style*="position: absolute"] { top: 14px !important; }
+  [data-r="shopHero"] [data-r="shopHero-buy"] { margin-top: 48px !important; }
+  #h-como > div:first-child, #h-beneficios > div > div:first-child { margin-bottom: 26px !important; }
+}
+
+/* Logo CarLink del topbar movil (solo se muestra en <= 900px) */
+.mobile-topbar-logo { display: none; position: absolute; top: 14px; left: 14px; z-index: 17; height: 42px; align-items: center; gap: 4px; font-family: var(--font-display); font-size: 18px; letter-spacing: .01em; pointer-events: none; }
+
 @media (max-width: 900px) {
   /* El topbar es absolute y al envolverse crece hacia abajo: se le reserva
      altura para que no se solape con el título de la sección. */
   .sidebar-wrap { padding-top: 84px !important; }
-  /* Se acota por la izquierda para que las filas envueltas nunca lleguen debajo
-     del botón hamburguesa, que flota fijo en la esquina (left 14 + 42 de ancho). */
-  .topbar-actions { left: 66px !important; flex-wrap: wrap !important; gap: 6px !important; justify-content: flex-end !important; }
-  .sidebar-wrap .topbar-actions { flex-wrap: wrap !important; gap: 6px !important; justify-content: flex-end !important; }
-  /* El perfil encabeza el grupo para quedar siempre en la fila de arriba. */
-  .topbar-profile { order: -1 !important; }
-  /* Prioridad al ocultar en pantallas estrechas: primero el cambio de apariencia. */
-  .topbar-theme { display: none !important; }
-  .topbar-actions { flex-wrap: wrap !important; gap: 4px !important; }
+  /* Topbar movil: [logo CarLink] ...... [botones] [menu]. El boton del menu vive fijo a la derecha
+     y los demas van pegados a su izquierda en orden de prioridad (el perfil junto al menu). Cuando
+     el ancho no alcanza, los que ya no caben pasan a una segunda fila que el contenedor recorta
+     (alto fijo + overflow hidden): se ocultan uno a uno desde el que toca el logo, sin reacomodar
+     el resto. El padding de 6px evita que se recorten los globos de conteo (top/right -5px). */
+  .topbar-actions, .sidebar-wrap .topbar-actions {
+    left: 126px !important; right: 60px !important; top: 8px !important;
+    height: 54px !important; padding: 6px !important; box-sizing: border-box !important; overflow: hidden !important;
+    flex-direction: row-reverse !important; flex-wrap: wrap !important; align-content: flex-start !important;
+    justify-content: flex-start !important; gap: 20px 6px !important;
+  }
+  .topbar-actions > * { flex: 0 0 auto !important; }
+  .topbar-profile { order: 1 !important; }
+  .topbar-cart { order: 2 !important; }
+  .topbar-notif { order: 3 !important; }
+  .topbar-pqrs { order: 4 !important; }
+  .topbar-found { order: 5 !important; }
+  .topbar-nfc { order: 6 !important; }
+  .topbar-scan { order: 7 !important; }
+  .topbar-theme { order: 8 !important; }
+  .mobile-topbar-logo { display: flex !important; }
   .topbar-actions .action-btn-text { display: none !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
   /* Paneles: ajustados al contenido, centrados, con scroll si superan la pantalla.

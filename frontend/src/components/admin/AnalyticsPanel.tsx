@@ -28,22 +28,24 @@ function StatTile({ c, label, value }: { c: Colors; label: string; value: number
 function Funnel({ c, funnel }: { c: Colors; funnel: AnalyticsFunnel }) {
   const first = funnel.steps[0]?.count ?? 0
   return (
-    <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16 }}>
+    <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, minWidth: 0 }}>
       <div style={{ fontWeight: 700, marginBottom: 12 }}>{funnel.title}</div>
       {funnel.steps.map((s, i) => {
         const prev = i > 0 ? funnel.steps[i - 1].count : null
         const drop = prev !== null && prev > 0 ? 100 - pct(s.count, prev) : null
         return (
           <div key={s.label} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, gap: 8 }}>
-              <span>{s.label}</span>
-              <span style={{ color: c.muted, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', fontSize: 12, marginBottom: 4, gap: '2px 8px' }}>
+              <span style={{ minWidth: 0, flex: '1 1 120px', overflowWrap: 'anywhere' }}>{s.label}</span>
+              <span style={{ color: c.muted, fontVariantNumeric: 'tabular-nums', flex: '0 0 auto', whiteSpace: 'nowrap' }}>
                 {s.count.toLocaleString('es-CO')}
                 {drop !== null && drop > 0 ? <span style={{ color: '#E5534B' }}>{`  cae ${drop}%`}</span> : null}
               </span>
             </div>
-            <div style={{ height: 8, borderRadius: 4, background: c.border }}>
-              <div style={{ height: 8, borderRadius: 4, background: c.accent, width: `${first > 0 ? Math.max(pct(s.count, first), s.count > 0 ? 2 : 0) : 0}%` }} />
+            {/* Tope de 100%: un paso puede superar al primero (ej. carrito abierto sin haber visitado
+                /shop, que entra por la landing) y sin tope la barra se salia del card. */}
+            <div style={{ height: 8, borderRadius: 4, background: c.border, overflow: 'hidden' }} title={first > 0 && s.count > first ? 'Este paso supera al primero: entraron por otra pagina' : undefined}>
+              <div style={{ height: 8, borderRadius: 4, background: c.accent, width: `${first > 0 ? Math.min(100, Math.max(pct(s.count, first), s.count > 0 ? 2 : 0)) : 0}%` }} />
             </div>
           </div>
         )
@@ -109,7 +111,7 @@ export default function AnalyticsPanel({ c }: { c: Colors }) {
 
       {data && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 12 }}>
             <StatTile c={c} label="Visitantes únicos" value={data.visitors} />
             <StatTile c={c} label="Sesiones" value={data.sessions} />
             <StatTile c={c} label="Páginas vistas" value={data.pageviews} />
@@ -132,11 +134,11 @@ export default function AnalyticsPanel({ c }: { c: Colors }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 12 }}>
             {data.funnels.map(f => <Funnel key={f.key} c={c} funnel={f} />)}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 12 }}>
             <RankList c={c} title="Páginas más visitadas" rows={data.top_pages} />
             <RankList c={c} title="Fuentes de tráfico" rows={data.top_sources} />
             <RankList c={c} title="Dispositivos" rows={data.devices} />

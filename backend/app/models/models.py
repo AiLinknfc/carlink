@@ -207,6 +207,29 @@ class Document(Base):
     vehicle = relationship("Vehicle", back_populates="documents")
 
 
+class VehicleSafetyItem(Base):
+    """Elemento de seguridad del vehículo (extintor, botiquín, kit de carretera, otros) — migración 065."""
+
+    __tablename__ = "vehicle_safety_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(Text)  # extintor | botiquin | kit_carretera | otro
+    name: Mapped[str] = mapped_column(Text, default="")
+    purchase_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    recharge_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    restock_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    missing_items: Mapped[list] = mapped_column(JSONB, default=list)
+    checklist: Mapped[dict] = mapped_column(JSONB, default=dict)
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    file_url: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class VehicleExpense(Base):
     __tablename__ = "vehicle_expenses"
 
@@ -854,6 +877,31 @@ class Review(Base):
     # llavero", "Proceso de compra") — vacío si fue una calificación general
     # desde ResenasTab.tsx, no atada a un evento puntual.
     context: Mapped[str] = mapped_column(Text, default="")
+    # Encuesta (surveys.key) que originó la respuesta — migración 064. Una respuesta por
+    # (usuario, encuesta); NULL solo en filas anteriores a la migración sin backfill posible.
+    survey_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Survey(Base):
+    """Catálogo de encuestas de satisfacción (migración 064), gestionable desde Admin.
+    `trigger_key` es el evento del código que la dispara (los eventos soportados los define
+    el frontend); `location`/`timing` documentan dónde y cuándo aparece, solo para Admin."""
+
+    __tablename__ = "surveys"
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    hint: Mapped[str] = mapped_column(Text, default="")
+    target_type: Mapped[str] = mapped_column(Text)  # 'platform' | 'product' | 'workshop'
+    trigger_key: Mapped[str] = mapped_column(Text)
+    location: Mapped[str] = mapped_column(Text, default="")
+    timing: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

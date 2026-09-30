@@ -191,6 +191,8 @@ i supabase/migrations/060_analytics_events.sql
 i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/062_workshop_applications.sql
 \i supabase/migrations/063_support_tickets.sql
+\i supabase/migrations/064_surveys.sql
+\i supabase/migrations/065_vehicle_safety_items.sql
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y
@@ -331,14 +333,45 @@ nuevo — el modelo de ramas no depende de eso).
 - Flujo: `feature/algo` → PR a `develop` (CI en verde) → merge → cuando `develop` tiene algo
   listo para producción → PR de `develop` a `master` (CI en verde) → merge → deploy automático.
 
-**Pendiente de configurar por el usuario** (requiere acceso admin al repo en GitHub — no se
-puede hacer desde un entorno de agente sin `gh` autenticado con esos permisos):
-1. Push de la rama `develop` a `origin` (con autorización fresca — no asumida por este doc).
-2. GitHub → Settings → Branches → Branch protection rules → agregar regla para `master`:
+**Ya en uso real (confirmado 2026-09-30, la nota de abajo estaba desactualizada — `docs/DEPLOY.md`
+no se había vuelto a tocar desde el 2026-09-09 en que se escribió el plan)**: la rama `develop`
+existe en `origin` y ya hubo PRs reales mergeados a `master` a través de ella (PR #8 desde
+`release/taller-soporte-legal-2026-09-21`, PR #9 desde `develop`). **Regla de trabajo, sin
+excepción**: el trabajo de una sesión de Claude Code nunca se pushea directo a `master` — siempre
+va a `develop` (o a una rama propia mergeada a `develop`) y de ahí un PR a `master`, que el usuario
+aprueba/mergea desde GitHub. Esto aplica incluso si local `master` tiene commits hechos ahí
+directamente (pasa cuando se trabajó una sesión larga sin acordarse de ramificar): en ese caso, el
+camino es crear/actualizar `develop` local desde `origin/develop`, hacerle `git merge master` (debería
+quedar limpio si nadie tocó `develop` en paralelo) y pushear *eso*, dejando `master` local intacto
+sin push. No hace falta preguntar cuál de los dos flujos usar — siempre es este.
+
+Sigue pendiente, si el usuario quiere reforzarlo a nivel de GitHub (no bloquea el punto de arriba,
+que es una regla de proceso, no de permisos):
+1. GitHub → Settings → Branches → Branch protection rules → agregar regla para `master`:
    exigir PR antes de merge, exigir que el check de CI (`.github/workflows/ci.yml`) pase, y
    opcionalmente exigir 1 aprobación.
-3. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
+2. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
    apunten ahí en vez de a `master`.
+
+### Cómo hacer una feature branch y mergearla, todo desde GitHub (sin terminal)
+
+1. **Crear la rama**: en local, `git checkout develop && git pull && git checkout -b feature/lo-que-sea` (una sesión de Claude Code la crea así). También se puede crear directo en github.com desde el dropdown de ramas de la página del repo.
+2. **Trabajar y pushear**: `git push -u origin feature/lo-que-sea`.
+3. **Abrir el PR hacia `develop`** — en el navegador: `https://github.com/AiLinknfc/carlink/compare/develop...feature/lo-que-sea?expand=1` (cambiar el nombre de la rama en la URL). GitHub también ofrece un botón amarillo "Compare & pull request" apenas se pushea una rama nueva.
+4. **Mergear**: revisar el diff, botón verde **"Merge pull request"** (se usa merge commit normal, no squash — así se ha hecho en los PRs #8/#9 ya mergeados, mantener el mismo estilo). Justo después aparece un botón **"Delete branch"** — usarlo ahí mismo para no dejar la rama vieja dando vueltas.
+5. **Cuando `develop` tiene algo listo para producción**, mismo mecanismo hacia `master`: `https://github.com/AiLinknfc/carlink/compare/master...develop?expand=1`.
+6. Local, después de cualquier merge en GitHub: `git checkout develop && git pull` (o `master`) para que el local quede al día, y borrar la rama local ya mergeada con `git branch -d feature/lo-que-sea`.
+
+**Para que las ramas viejas no se acumulen sin acordarse de borrarlas a mano**: GitHub → Settings →
+General → sección "Pull Requests" → activar **"Automatically delete head branches"**. Con eso, el
+botón "Delete branch" del paso 4 pasa a ser automático en cada merge — la única forma de terminar
+con ramas sueltas en el remoto es dejar alguna sin mergear a medias.
+
+**Limpieza de ramas viejas del remoto**: página `https://github.com/AiLinknfc/carlink/branches` —
+ícono de basurero junto a cada rama que no sea `master`/`develop`. Verificado 2026-09-30 que
+`feature/plan-gratuito-wizard` y `release/taller-soporte-legal-2026-09-21` ya están 100% mergeadas
+tanto en `master` como en `develop` (`git merge-base --is-ancestor`) — se pueden borrar sin perder
+nada.
 
 ## Lecciones del despliegue de la reactivación NFC (2026-07-27)
 

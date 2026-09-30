@@ -253,6 +253,20 @@ hook so `globals.css` rules can target it:
 
 Used by: CartDrawer, CheckoutClient, OrdersClient.
 
+### Pattern: medidas fluidas en vez de `top`/márgenes negativos fijos (2026-09-25)
+
+El hero de venta de `app/page.tsx` tenía `top: 380px` para el CTA, `marginTop: -200/-120/0` para
+"Cómo funciona" por tiers de altura y un selector `[data-r="shopHero"] section` que nunca
+coincidía (el `section` es el propio `shopHero`), así que en móvil el hero seguía a `100vh`
+y el CTA se montaba sobre "Cómo funciona". Regla: nada de `top` fijo para bloques de texto ni
+márgenes negativos por breakpoint; usar flujo normal + variables CSS con `clamp()`.
+
+- `--hs` (0 a 50px según el ancho) desplaza texto y llavero a la derecha solo en pantallas anchas.
+- `--pull` (`clamp(0, 100vh - 690px, 200px)`) es la holgura real que se le "roba" al hero.
+- Texto + CTA viven en `data-r="shopHero-copy"` (un solo bloque en flujo; `display: contents` en <=860px).
+- Verificar con Chromium headless + CDP midiendo rectángulos en muchos tamaños (320x568 a 2560x1300),
+  no a ojo.
+
 ### Anti-pattern: Relying only on width for responsive behavior
 
 **Don't assume that width-based breakpoints cover all viewport shapes.**

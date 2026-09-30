@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
+import Plate3D from '@/components/Plate3D'
+import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
+import { useDocuments, useSafetyItems } from '@/lib/hooks'
+import SafetyFormModal from '@/components/SafetyFormModal'
+import SafetyIcon from '@/components/SafetyIcon'
+import { KIT_ITEMS } from '@/lib/safety'
+import type { SafetyItem, SafetyKind } from '@/lib/types'
 
 const SERVICE_TYPES = [
   { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
@@ -34,17 +41,22 @@ interface Props {
   onOpenScan?: () => void
   onOpenNfc?: () => void
   onNavigate?: (tab: string) => void
+  /** Abre "Mi perfil" con solo la verificacion del vehiculo desplegada. */
+  onOpenVerification?: () => void
   theme: 'light' | 'dark'
   vehicle?: any
   documents?: any[]
   maintenanceRecords?: any[]
   nfcActive?: boolean
   isVerified?: boolean
+  /** Vehiculos de la cuenta y cambio del activo: permiten pasar de una placa a otra desde Inicio. */
+  vehicles?: { id: string; plate: string; brand?: string; model?: string }[]
+  onSwitchVehicle?: (id: string) => void
   /** Plan gratuito: único servicio que se puede registrar; el resto se ve bloqueado. */
   freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId, vehicles, onSwitchVehicle }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
@@ -66,13 +78,53 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   const accentDim = isDark ? 'rgba(245,197,24,0.08)' : 'rgba(245,197,24,0.1)'
 
   // Status indicators
-  const docsCount = documents?.length || 0
-  const docsPending = Math.max(0, 4 - docsCount)
+  // Documentos pendientes = de los 4 que pide la seccion Documentos (SOAT, tecnomecanica, tarjeta
+  // de propiedad, poliza), cuantos no tienen todavia un archivo cargado.
+  const { documents: fetchedDocuments } = useDocuments(vehicle?.id)
+  const docList = documents ?? fetchedDocuments
+  const REQUIRED_DOCS = ['soat', 'rtm', 'propiedad', 'poliza']
+  const docsPending = REQUIRED_DOCS.filter(t => !docList.some((d: { type: string; file_url?: string }) => d.type === t && d.file_url)).length
   const servicesCount = maintenanceRecords?.length || 0
 
-  const statusIcon = (ok: boolean) => ok
-    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffb020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+  // Elementos de seguridad (extintor, botiquin, kit de carretera y sus piezas): mismas tarjetas que
+  // "Registrar servicio"; una tarjeta se marca como registrada si ya existe ese elemento.
+  const { items: safetyItems, reload: reloadSafety } = useSafetyItems(vehicle?.id)
+  const [safetyForm, setSafetyForm] = useState<{ kind: SafetyKind; item: SafetyItem | null; presetCheck?: string } | null>(null)
+  const kit = safetyItems.find(i => i.kind === 'kit_carretera') ?? null
+  const SAFETY_CARDS: { id: string; kind: SafetyKind; label: string; desc: string; presetCheck?: string; done: boolean }[] = [
+    { id: 'extintor', kind: 'extintor', label: 'Extintor', desc: 'Compra, recarga y vencimiento', done: safetyItems.some(i => i.kind === 'extintor') },
+    { id: 'botiquin', kind: 'botiquin', label: 'Botiquin', desc: 'Revision y elementos faltantes', done: safetyItems.some(i => i.kind === 'botiquin') },
+    { id: 'kit', kind: 'kit_carretera', label: 'Kit de carretera', desc: 'Revisa que tiene tu kit', done: !!kit },
+    ...KIT_ITEMS.map(k => ({ id: k.key, kind: 'kit_carretera' as SafetyKind, label: k.label, desc: 'Marcalo en tu kit', presetCheck: k.key, done: !!kit?.checklist?.[k.key] })),
+    { id: 'otro', kind: 'otro', label: 'Otro elemento', desc: 'Linterna, cables, etc.', done: safetyItems.some(i => i.kind === 'otro') },
+  ]
+
+  // Toque en un indicador: pequeno "empujon" animado y luego la accion (evita el salto seco).
+  const [nudge, setNudge] = useState<string | null>(null)
+  const go = (id: string, action?: () => void) => {
+    setNudge(id)
+    window.setTimeout(() => { setNudge(null); action?.() }, 180)
+  }
+  const statusItems = [
+    { id: 'llavero', title: 'Llavero', ok: !!nfcActive, text: nfcActive ? 'Activo' : 'Sin activar', color: nfcActive ? '#2ecc71' : textMuted, action: onOpenNfc, aria: 'Abre el panel del llavero NFC' },
+    { id: 'documentos', title: 'Documentos', ok: docsPending === 0, text: docsPending === 0 ? 'Completos' : `${docsPending} pendiente${docsPending > 1 ? 's' : ''}`, color: docsPending === 0 ? '#2ecc71' : '#ffb020', action: () => onNavigate?.('documentos'), aria: 'Va a la seccion de documentos' },
+    { id: 'perfil', title: 'Perfil', ok: !!isVerified, text: isVerified ? 'Verificado' : 'Sin verificar', color: isVerified ? '#2ecc71' : textMuted, action: onOpenVerification, aria: 'Abre Mi perfil en la verificacion' },
+    { id: 'servicios', title: 'Servicios', ok: servicesCount > 0, text: servicesCount > 0 ? `${servicesCount} registrado${servicesCount > 1 ? 's' : ''}` : 'Ninguno', color: servicesCount > 0 ? '#2ecc71' : textMuted, action: () => onNavigate?.('historial'), aria: 'Va al historial de servicios' },
+  ]
+
+  // Selector de placa: flechas circulares a cada lado; la navegacion es circular (despues de la
+  // ultima vuelve a la primera) y solo aparecen si la cuenta tiene mas de un vehiculo.
+  const activeIdx = Math.max(0, (vehicles ?? []).findIndex(v => v.id === vehicle?.id))
+  const multi = !!vehicles && vehicles.length > 1 && !!onSwitchVehicle
+  const step = (dir: 1 | -1) => {
+    if (!vehicles || !onSwitchVehicle) return
+    const next = vehicles[(activeIdx + dir + vehicles.length) % vehicles.length]
+    if (next) onSwitchVehicle(next.id)
+  }
+  const arrowStyle = {
+    width: 36, height: 36, borderRadius: '50%', flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: '#F5C518', color: '#111', border: 'none', cursor: 'pointer', boxShadow: '0 0 14px rgba(245,197,24,0.3)',
+  } as const
 
   const quickActionStyle = {
     display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
@@ -81,16 +133,51 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     transition: 'all .2s', flex: '1 1 0', minWidth: 90,
   }
 
+  // Botones amarillos solidos (mismo estilo que los CTA de la app); el estado se lee en el icono
+  // (check = listo, exclamacion = pendiente) y en el texto, no en el color del fondo.
   const statusCardStyle = {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
-    background: cardBg, border: `1px solid ${cardBorder}`, flex: '1 1 0', minWidth: 140,
+    display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderRadius: 12,
+    background: '#F5C518', border: 'none', color: '#111', flex: '1 1 0', minWidth: 140,
+    boxShadow: '0 0 20px rgba(245,197,24,0.28)',
   }
+  const statusBadge = (ok: boolean) => (
+    <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(17,17,17,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111', flex: '0 0 auto' }}>
+      {ok
+        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 7v6M12 17h.01" /></svg>}
+    </span>
+  )
 
   return (
     <div style={{ padding: '0 4px' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: textPrimary, fontFamily: 'var(--font-display)' }}>Inicio</div>
-        <div style={{ fontSize: 12, color: textMuted, marginTop: 2 }}>{vehicle?.plate ? `${vehicle.plate} — ` : ''}Accesos rapidos y registro de servicios</div>
+        {vehicle?.plate && (
+          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', maxWidth: '100%' }}>
+            {multi && (
+              <button type="button" onClick={() => step(-1)} aria-label="Vehiculo anterior" data-r="plateArrow" style={arrowStyle}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+              </button>
+            )}
+            <div key={vehicle.id} data-r="plateSlide" style={{ width: 200, flex: '0 0 auto', pointerEvents: 'none' }}>
+              <div>
+                <Plate3D plate={vehicle.plate} city={vehicle.city || ''} size="md" showLabel={plateShowsCountryLabel(vehicle.type)} showCity={plateShowsCity(vehicle.type)} />
+              </div>
+            </div>
+            {multi && (
+              <button type="button" onClick={() => step(1)} aria-label="Vehiculo siguiente" data-r="plateArrow" style={arrowStyle}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            )}
+          </div>
+        )}
+        <div style={{ fontSize: 12, color: textMuted, marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {multi && <span style={{ fontWeight: 700, color: '#F5C518' }}>Vehiculo {activeIdx + 1} de {vehicles!.length}</span>}
+          {multi && vehicles!.map((v, i) => (
+            <span key={v.id} aria-hidden="true" style={{ width: i === activeIdx ? 16 : 6, height: 6, borderRadius: 3, background: i === activeIdx ? '#F5C518' : cardBorder, transition: 'all .2s' }} />
+          ))}
+          <span>{[vehicle?.brand, vehicle?.model].filter(Boolean).join(' ') || 'Accesos rapidos y registro de servicios'}</span>
+        </div>
       </div>
 
       {/* Acciones rapidas */}
@@ -144,56 +231,49 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
         </div>
       </div>
 
-      {/* Estado del vehiculo */}
+      {/* Estado del vehiculo — cada indicador es un acceso directo al lugar donde se resuelve:
+          Llavero abre el panel NFC, Documentos va a esa seccion, Perfil abre "Mi perfil" con solo la
+          verificacion desplegada, Servicios va al historial. */}
+      <style>{`
+        @keyframes statusNudge { 0%{transform:scale(1)} 35%{transform:scale(.94) translateX(3px)} 70%{transform:scale(1.03) translateX(-2px)} 100%{transform:scale(1)} }
+        @keyframes statusPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.22);opacity:.7} }
+        @keyframes plateSlide { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
+        [data-r="plateSlide"]{animation:plateSlide .28s ease both}
+        [data-r="plateArrow"]{transition:transform .15s ease,box-shadow .15s ease}
+        [data-r="plateArrow"]:hover{transform:scale(1.1);box-shadow:0 0 20px rgba(245,197,24,0.5)}
+        [data-r="plateArrow"]:active{transform:scale(.92)}
+        @media(prefers-reduced-motion:reduce){[data-r="plateSlide"],[data-r="plateArrow"]{animation:none !important;transition:none !important}}
+        @media(max-width:400px){[data-r="plateSlide"]{width:164px !important}[data-r="plateSlide"]>div{zoom:.82}}
+        @media(max-width:560px){[data-r="svcGrid"],[data-r="safeGrid"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+        [data-r="statusCard"]{transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+        [data-r="statusCard"]:hover{transform:translateY(-3px);background:#FFD84D !important;box-shadow:0 10px 28px rgba(245,197,24,0.42) !important}
+        [data-r="statusCard"]:active{transform:scale(.97)}
+        [data-r="statusCard"][data-nudge="1"]{animation:statusNudge .32s ease}
+        [data-r="statusCard"]:focus-visible{outline:2px solid #F5C518;outline-offset:2px}
+        [data-r="statusCard"][data-pending="1"] [data-r="statusIcon"]{animation:statusPulse 2.2s ease-in-out infinite}
+        @media(prefers-reduced-motion:reduce){[data-r="statusCard"],[data-r="statusCard"] [data-r="statusIcon"]{animation:none !important;transition:none !important}}
+      `}</style>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Estado de tu vehiculo</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <div style={statusCardStyle}>
-            {statusIcon(!!nfcActive)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Llavero</div>
-              <div style={{ fontSize: 10, color: nfcActive ? '#2ecc71' : textMuted, marginTop: 1 }}>{nfcActive ? 'Activo' : 'Sin activar'}</div>
-            </div>
-          </div>
-
-          <div style={statusCardStyle}>
-            {statusIcon(docsPending === 0)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Documentos</div>
-              <div style={{ fontSize: 10, color: docsPending === 0 ? '#2ecc71' : '#ffb020', marginTop: 1 }}>{docsPending === 0 ? 'Completos' : `${docsPending} pendiente${docsPending > 1 ? 's' : ''}`}</div>
-            </div>
-          </div>
-
-          <div style={statusCardStyle}>
-            {statusIcon(!!isVerified)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Perfil</div>
-              <div style={{ fontSize: 10, color: isVerified ? '#2ecc71' : textMuted, marginTop: 1 }}>{isVerified ? 'Verificado' : 'Sin verificar'}</div>
-            </div>
-          </div>
-
-          {/* Clickeable a historial completo — reemplaza la sección aparte "Ultimos
-             servicios" que había abajo: mismo acceso, ubicado en el estado que ya
-             existe en vez de agregar una lista nueva. */}
-          <button onClick={() => onNavigate?.('historial')} style={{ ...statusCardStyle, cursor: onNavigate ? 'pointer' : 'default', textAlign: 'left', font: 'inherit' }}
-            onMouseEnter={e => { if (onNavigate) e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder }}>
-            {statusIcon(servicesCount > 0)}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Servicios</div>
-              <div style={{ fontSize: 10, color: servicesCount > 0 ? '#2ecc71' : textMuted, marginTop: 1 }}>{servicesCount > 0 ? `${servicesCount} registrado${servicesCount > 1 ? 's' : ''}` : 'Ninguno'}</div>
-            </div>
-            {onNavigate && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: '0 0 auto' }}><path d="M9 6l6 6-6 6" /></svg>
-            )}
-          </button>
+          {statusItems.map(it => (
+            <button key={it.id} type="button" data-r="statusCard" data-pending={it.ok ? '0' : '1'} data-nudge={nudge === it.id ? '1' : '0'}
+              onClick={() => go(it.id, it.action)} aria-label={`${it.title}: ${it.text}. ${it.aria}`}
+              style={{ ...statusCardStyle, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}>
+              <span data-r="statusIcon" style={{ display: 'flex', flex: '0 0 auto' }}>{statusBadge(it.ok)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#111' }}>{it.title}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(17,17,17,0.72)', marginTop: 1 }}>{it.text}</div>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Registrar servicio */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar servicio</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+        <div data-r="svcGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
           {SERVICE_TYPES.map(st => {
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
@@ -226,6 +306,42 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
           })}
         </div>
       </div>
+
+      {/* Registrar elemento de seguridad — mismo estilo que "Registrar servicio" */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Verificar elementos</div>
+        <div data-r="safeGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+          {SAFETY_CARDS.map(c => {
+            const existing = c.kind === 'kit_carretera' ? kit : null
+            return (
+              <button key={c.id} onClick={() => setSafetyForm({ kind: c.kind, item: existing, presetCheck: c.presetCheck })} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
+                padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                background: c.done ? cardExploredBg : cardBg,
+                border: `1px solid ${c.done ? cardExploredBorder : cardBorder}`,
+                opacity: c.done ? 1 : 0.65, transition: 'all .2s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = c.done ? '1' : '0.65'; e.currentTarget.style.transform = 'none' }}
+              >
+                <span style={{ color: c.done ? '#F5C518' : textMuted, transition: 'color .2s' }}>
+                  <SafetyIcon type={c.presetCheck ?? c.kind} size={32} />
+                </span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: textPrimary }}>{c.label}</div>
+                  <div style={{ fontSize: 9, color: textMuted, marginTop: 1 }}>{c.desc}</div>
+                </div>
+                {c.done && <span style={{ alignSelf: 'flex-end', width: 5, height: 5, borderRadius: '50%', background: '#F5C518' }} />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {safetyForm && vehicle?.id && (
+        <SafetyFormModal vehicleId={vehicle.id} item={safetyForm.item} defaultKind={safetyForm.kind} presetCheck={safetyForm.presetCheck}
+          onClose={() => setSafetyForm(null)} onSaved={reloadSafety} />
+      )}
     </div>
   )
 }

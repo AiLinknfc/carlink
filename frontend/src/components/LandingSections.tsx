@@ -145,8 +145,28 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
         [data-r="comunidadTrack"]:hover [data-r="comunidadInner"]{ animation-play-state: paused }
         @media(max-width:860px){ [data-r="mapFrame"]{min-height:280px !important} [data-r="footergrid"]{grid-template-columns:1fr !important} .buyfob-grid{grid-template-columns:1fr !important} .buyfob-grid>div:last-child{position:static !important} .grid2{grid-template-columns:1fr !important} [data-r="hProductos"]{grid-template-columns:1fr !important} [data-r="hCaptureLeads"]{grid-template-columns:1fr !important} }
         @media(max-width:1024px){ [data-r="footergrid"]{grid-template-columns:1fr 1fr !important} }
-        @media(max-width:720px){ [data-r="diffScrollHint"]{display:flex !important} }
-        @media(max-width:380px){ [data-r="diffTable"]{min-width:0 !important} [data-r="diffTable"] th,[data-r="diffTable"] td{padding:12px 10px !important;font-size:12px !important} [data-r="diffTable"] th{font-size:9px !important} [data-r="diffTable"] td:first-child{font-size:11.5px !important} }
+        @media(max-width:860px){ [data-r="hRegister"]{margin-top:0 !important} }
+        @media(max-width:520px){
+          [data-r="pqrsCard"]{padding:18px !important;gap:16px !important}
+          [data-r="pqrsInfo"]{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}
+          [data-r="pqrsLabel"]{letter-spacing:.1em !important}
+          [data-r="pqrsBtn"]{width:100% !important;justify-content:center !important;padding:13px 16px !important}
+          [data-r="hCaptureInput"] input{min-width:0 !important;flex:1 1 100% !important;width:100% !important}
+          [data-r="hCaptureBtn"]{width:100% !important}
+          [data-r="hRegisterBtn"]{width:100% !important;max-width:340px !important;justify-content:center !important;padding:14px 20px !important;font-size:15px !important}
+        }
+        @media(max-width:720px){
+          [data-r="diffTable"]{min-width:0 !important;display:block}
+          [data-r="diffTable"] thead{display:none}
+          [data-r="diffTable"] tbody{display:block}
+          [data-r="diffTable"] tr{display:block;padding:14px 16px;border-bottom:1px solid rgba(128,128,128,.18)}
+          [data-r="diffTable"] tr:last-child{border-bottom:none}
+          [data-r="diffTable"] td{display:block;padding:4px 0 !important;border:0 !important;background:transparent !important;font-size:13px !important}
+          [data-r="diffTable"] td:first-child{font-size:14.5px !important;padding-bottom:8px !important}
+          [data-r="diffTable"] td[data-label]::before{content:attr(data-label);display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff4d6a}
+          [data-r="diffTable"] td[data-label="Con CarLink"]{background:rgba(245,197,24,0.06) !important;border-radius:10px;padding:8px 10px !important;margin-top:6px}
+          [data-r="diffTable"] td[data-label="Con CarLink"]::before{color:#F5C518}
+        }
         @media(prefers-reduced-motion:reduce){ [data-r="comunidadInner"]{animation:none !important} }
       `}</style>
 
@@ -178,13 +198,13 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
               {COMPARISON.map((row, i) => (
                 <tr key={row.feature} style={{ background: i % 2 ? k.rowTint : 'transparent' }}>
                   <td style={{ padding: '18px 20px', fontSize: 14.5, fontWeight: 700, color: k.text, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>{row.feature}</td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: k.muted, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>
+                  <td data-label="Sin CarLink" style={{ padding: '18px 20px', fontSize: 14, color: k.muted, lineHeight: 1.5, borderBottom: i < COMPARISON.length - 1 ? `1px solid ${k.cardBorder}` : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff4d6a" strokeWidth="2.6" strokeLinecap="round" style={{ flex: '0 0 auto', marginTop: 3 }}><path d="M18 6L6 18M6 6l12 12" /></svg>
                       {row.without}
                     </div>
                   </td>
-                  <td style={{ padding: '18px 20px', fontSize: 14, color: k.text, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
+                  <td data-label="Con CarLink" style={{ padding: '18px 20px', fontSize: 14, color: k.text, fontWeight: 500, lineHeight: 1.5, background: 'rgba(245,197,24,0.05)', borderBottom: i < COMPARISON.length - 1 ? '1px solid rgba(245,197,24,0.16)' : 'none', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                       {CHECK(GOLD, 15)}
                       {row.withCl}
@@ -364,18 +384,18 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
 
       {/* ===== PQRS · Agente conversacional ===== */}
       <section id="h-pqrs" style={{ ...SECTION_NARROW, padding: '0 clamp(20px,5vw,64px) 48px' }}>
-        <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="grid2" data-r="pqrsCard" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 18, alignItems: 'center', padding: '22px 24px', borderRadius: 20, background: 'linear-gradient(120deg, rgba(245,197,24,0.12), rgba(245,197,24,0.03))', border: '1px solid rgba(245,197,24,0.28)' }}>
+          <div data-r="pqrsInfo" style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
             <span style={{ position: 'relative', width: 48, height: 48, borderRadius: 14, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 10h.01M12 10h.01M16 10h.01" /></svg>
             </span>
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }}>PQRS · Habla con CarLia</div>
+            <div style={{ minWidth: 0 }}>
+              <div data-r="pqrsLabel" style={{ fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 700, color: GOLD }}>PQRS · Habla con CarLia</div>
               <div style={{ fontSize: 15, fontWeight: 600, margin: '4px 0 2px' }}>¿Falta el modelo de tu auto o algo no funciona?</div>
               <p style={{ ...lead, fontSize: 13 }}>Reporta peticiones, quejas, reclamos o sugerencias. CarLink lo resuelve pronto.</p>
             </div>
           </div>
-          <button onClick={onOpenPqrs} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '13px 24px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.35)', whiteSpace: 'nowrap' }}>
+          <button onClick={onOpenPqrs} data-r="pqrsBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '13px 24px', borderRadius: 12, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.35)', whiteSpace: 'nowrap' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             Abrir asistente
           </button>
@@ -383,7 +403,7 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
       </section>
 
       {/* ===== WAITLIST — Captura de leads ===== */}
-      <section style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
+      <section data-r="hWaitlist" style={{ ...SECTION_NARROW, position: 'relative', paddingTop: 56, paddingBottom: 40 }}>
         <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: '100%', borderTop: `1px solid ${k.thinBorder}` }} />
         <div data-r="hCaptureLeads" style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(44px,5.4vw,72px) clamp(20px,5vw,64px)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'center' }}>
           <div>
@@ -431,8 +451,8 @@ export default function LandingSections({ theme, onStart, onOpenEmpresa, onOpenP
           </div>
         </div>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
-            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
+          <div data-r="hRegister" style={{ display: 'flex', justifyContent: 'center', marginTop: -50 }}>
+            <Link href="/register" data-r="hRegisterBtn" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '15px 30px', borderRadius: 13, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Registrarme gratis</Link>
           </div>
         </div>
       </section>

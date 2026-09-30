@@ -226,6 +226,22 @@ recolección se probó en Chromium contra el backend local; el PDF se revisó co
 - [ ] A 320 px: las pestañas del modal legal se desplazan en una fila y el contenido se lee sin recortes; el pie tiene los botones a ancho completo
 - [ ] Botón "Descargar guía" de la home tiene el mismo tamaño y tipografía que "Únete a la comunidad"
 
+## Suite 12 — Seguridad del vehículo, selector de placa y topbar móvil (2026-09-30)
+
+Cubre `SeguridadTab.tsx`, `SafetyFormModal.tsx`, `/api/safety`, `/api/ocr/safety`, el selector de
+placa de `InicioView.tsx` y el topbar móvil de `frontend/src/app/app/page.tsx`. No probado contra
+el sistema real todavía — solo automatizado (`pytest`/`vitest`, en verde) y revisión de código.
+
+- [ ] Inicio > "Verificar elementos" > cada tarjeta (extintor, botiquín, kit de carretera, otro) abre `SafetyFormModal` y registra a mano; el estado (en orden/por vencer/vencido/faltan N) se ve correcto en Seguridad
+- [ ] Escanear/subir foto de una etiqueta real de extintor o botiquín prellena el formulario vía `POST /api/ocr/safety`; **requiere `DEEPSEEK_API_KEY` en Railway (`docs/PENDIENTES.md`) — sin ella el endpoint responde con el formulario vacío, no falla, así que probarlo primero contra local con la key puesta**
+- [ ] Cuenta con 2+ vehículos: flechas de la placa en Inicio pasan de uno a otro (navegación circular, "Vehículo N de M"), y el estado (llavero, documentos, verificación, servicios, Seguridad) del vehículo anterior desaparece de inmediato (no se mezcla con el nuevo mientras carga)
+- [ ] Cuenta con 1 solo vehículo: no aparecen flechas ni el indicador "Vehículo N de M"
+- [ ] A 560 px o menos: las grillas de "Registrar servicio" y "Verificar elementos" quedan en 2 columnas
+- [ ] A 400 px o menos: la placa del selector se ve completa (sin desborde) — revisar en Chrome/Safari reales, `zoom` (no soportado en Firefox) se usa para achicarla `[hallazgo conocido, ver revisión de arquitectura 2026-09-30]`
+- [ ] En <= 900px: el botón de menú queda fijo a la derecha, el logo CarLink aparece arriba a la izquierda, y los botones se ocultan uno a uno (desde el que toca el logo) según el ancho disponible, sin reacomodar los que quedan
+- [ ] Menú lateral: el ícono de Seguridad (cono de tráfico) navega a la pestaña Seguridad
+- [ ] Plan gratuito: confirmar si Seguridad debería bloquearse como el resto de secciones — hoy no lo está `[pendiente de decisión de negocio, ver docs/PENDIENTES.md]`
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

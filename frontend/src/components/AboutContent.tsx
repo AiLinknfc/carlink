@@ -73,7 +73,7 @@ export default function AboutContent() {
       {/* Valores */}
       <section style={{ marginBottom: 36 }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Nuestros valores</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(170px,100%),1fr))', gap: 14 }}>
           {VALUES.map(v => (
             <div key={v.title} style={{ padding: 20, borderRadius: 16, background: 'var(--surface-2)', border: '1px solid var(--border)', textAlign: 'center' }}>
               <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center', color: 'var(--accent)' }}><Icon type={v.icon} size={32} strokeWidth={1.5} /></div>
@@ -91,7 +91,7 @@ export default function AboutContent() {
             <h2 id="about-blog" style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>Blog y noticias</h2>
             <Link href="/blog" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textDecoration: 'none' }}>Ver todas las entradas</Link>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(240px,100%),1fr))', gap: 14 }}>
             {publishedPosts().slice(0, 3).map(p => <BlogCard key={p.slug} post={p} />)}
           </div>
         </section>
