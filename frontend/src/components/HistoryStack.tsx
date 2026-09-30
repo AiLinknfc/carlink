@@ -20,10 +20,10 @@ import { ServiceTypeIcon } from '@/lib/icons_new'
 const PER_CARD_VH = 22
 const MAX_EXTRA_VH = 220
 const CARD_MIN_H = 280
-// El grupo (tarjetas + puntos) va pegado arriba del stage, sin margen — lo mas cerca posible del
-// texto de la cabecera de HistorialTab que queda justo encima. El gap entre tarjetas y puntos es
-// chico a proposito: el indicador va pegado a la ultima tarjeta, no separado.
-const STACK_DOTS_GAP = 14
+// El grupo (tarjetas + puntos) se centra en el medio real del stage (alignItems:center). El gap
+// entre la ultima tarjeta y el indicador de puntos queda con algo de aire, no pegado.
+const GAP_UNIT = 48
+const STACK_DOTS_GAP = 14 + GAP_UNIT / 2
 // Primer tramo del scroll (fraccion del track) donde las tarjetas todavia no se mueven — le da al
 // usuario un momento para "entrar" a la seccion antes de que el apilado arranque, en vez de que
 // se mueva de entrada apenas se pega el stage. El resto del track (1 - DEAD_ZONE) es lo que
@@ -243,7 +243,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
   return (
     <div ref={trackRef} style={{ position: 'relative', height: `calc(100vh + ${extraVh}vh)` }}>
       <style>{`@media(prefers-reduced-motion:reduce){ .hist-stage *{transition:none !important} }`}</style>
-      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px' }}>
+      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px' }}>
         {/* Tarjetas + puntos son UN solo bloque, pegado arriba del stage (sin margen/top) — lo mas
             cerca posible del texto de la cabecera de HistorialTab, que queda justo encima en el
             documento. El indicador de puntos no se separa a su propia posicion (eso fue lo que lo
