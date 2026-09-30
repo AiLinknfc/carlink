@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import StarRatingInput from '@/components/StarRatingInput'
 import type { ReviewTargetType } from '@/lib/types'
+import { track } from '@/lib/analytics'
 
 interface WorkshopHit { id: string; code: string; name: string; city: string; address: string; is_verified: boolean }
 
@@ -153,6 +154,10 @@ export function RatingPromptForm({
 }
 
 interface PromptShellProps {
+  /* Encuesta del catálogo (Admin > Reseñas > Encuestas). Con esto el prompt reporta a la
+     analítica propia si se mostró, se respondió o el cliente lo cerró sin responder. */
+  surveyKey?: string
+  surveyTrigger?: string
   title: string
   hint: string
   targetType: ReviewTargetType
@@ -162,17 +167,42 @@ interface PromptShellProps {
   onDismiss: () => void
 }
 
+/** Reporta el ciclo de vida de una encuesta a la analítica propia (migración 060):
+ * survey_shown al montarse, survey_answered al enviar y survey_dismissed solo si el
+ * cliente la cierra sin responder. Devuelve los handlers ya envueltos. */
+function useSurveyTracking(surveyKey: string | undefined, surveyTrigger: string | undefined, onSubmit: PromptShellProps['onSubmit'], onDismiss: () => void) {
+  const answered = useRef(false)
+  const props = { survey_key: surveyKey ?? '', trigger: surveyTrigger ?? '' }
+  useEffect(() => {
+    if (surveyKey) track('survey_shown', props)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surveyKey])
+  const submit: PromptShellProps['onSubmit'] = async (rating, comment, workshopId) => {
+    const result = await onSubmit(rating, comment, workshopId)
+    if (result && surveyKey) { answered.current = true; track('survey_answered', { ...props, rating }) }
+    return result
+  }
+  // Cierre explícito del cliente (x, "Después", "Ahora no", clic fuera): cuenta como salto solo
+  // si no había respondido. El cierre automático posterior a responder no pasa por aquí.
+  const close = () => {
+    if (surveyKey && !answered.current) track('survey_dismissed', props)
+    onDismiss()
+  }
+  return { submit, close }
+}
+
 /** Prompt no intrusivo — tarjeta flotante, no bloquea nada, se descarta con
  * "Después" (dismiss() de useRatingPrompts, no vuelve a salir en esta sesión
  * salvo que se limpie localStorage). */
-export function RatingPromptBanner({ title, hint, targetType, workshopId, workshopName, onSubmit, onDismiss }: PromptShellProps) {
+export function RatingPromptBanner({ surveyKey, surveyTrigger, title, hint, targetType, workshopId, workshopName, onSubmit: rawSubmit, onDismiss: rawDismiss }: PromptShellProps) {
   const [done, setDone] = useState(false)
+  const { submit: onSubmit, close: onDismiss } = useSurveyTracking(surveyKey, surveyTrigger, rawSubmit, rawDismiss)
 
   useEffect(() => {
     if (!done) return
-    const t = setTimeout(onDismiss, 2400)
+    const t = setTimeout(rawDismiss, 2400)
     return () => clearTimeout(t)
-  }, [done, onDismiss])
+  }, [done, rawDismiss])
 
   if (done) {
     return (
@@ -211,8 +241,9 @@ export function RatingPromptBanner({ title, hint, targetType, workshopId, worksh
 
 /** Igual que el banner pero interrumpe — reservado para "pedido entregado"
  * (pedido explícito del usuario, único caso que usa modal en vez de banner). */
-export function RatingPromptModal({ title, hint, targetType, workshopId, workshopName, onSubmit, onDismiss }: PromptShellProps) {
+export function RatingPromptModal({ surveyKey, surveyTrigger, title, hint, targetType, workshopId, workshopName, onSubmit: rawSubmit, onDismiss: rawDismiss }: PromptShellProps) {
   const [done, setDone] = useState(false)
+  const { submit: onSubmit, close: onDismiss } = useSurveyTracking(surveyKey, surveyTrigger, rawSubmit, rawDismiss)
   return (
     <div onClick={onDismiss} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(4,4,4,0.74)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{

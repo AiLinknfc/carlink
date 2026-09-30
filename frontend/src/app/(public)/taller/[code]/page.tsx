@@ -117,7 +117,7 @@ export default function PublicWorkshopPage() {
 
       {workshop.service_items.length > 0 && (
         <Section title="Catálogo de servicios">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px,100%),1fr))', gap: 12 }}>
             {workshop.service_items.map(s => (
               <div key={s.id} style={{ padding: 16, borderRadius: 14, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{s.name}</div>

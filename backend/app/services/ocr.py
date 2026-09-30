@@ -312,3 +312,69 @@ async def structure_vehicle_card_data(raw_text: str) -> dict:
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
         logger.warning(f"DeepSeek vehicle card structuring failed: {e}")
         return fallback
+
+
+_SAFETY_SYSTEM_PROMPT = """Eres un extractor de datos de elementos de seguridad de un vehículo en Colombia.
+Recibes el texto OCR crudo de la etiqueta o foto de UN elemento (extintor, botiquín de primeros auxilios,
+kit de carretera u otro) y devuelves JSON con estas claves exactas:
+  kind            "extintor", "botiquin", "kit_carretera" u "otro"; null si no se puede saber
+  name            nombre corto del elemento si es "otro" (ej. "Linterna", "Cables de batería"), o null
+  purchase_date   fecha de compra o de fabricación, ISO YYYY-MM-DD, o null
+  expiry_date     fecha de vencimiento / "válido hasta" / próxima recarga, ISO YYYY-MM-DD, o null
+  recharge_date   fecha de la última recarga o mantenimiento del extintor, ISO YYYY-MM-DD, o null
+  review_date     fecha de la última revisión/inspección, ISO YYYY-MM-DD, o null
+  brand           marca o fabricante, o null
+  capacity        capacidad tal como aparece (ej. "10 lb", "5 kg"), o null
+  agent           agente extintor (ej. "PQS ABC", "CO2", "Solkaflam", "Agua"), o null
+  missing_items   lista de elementos que el texto indique como faltantes (solo si lo dice explícito), o []
+
+Reglas:
+- Las fechas pueden venir como DD/MM/AAAA, MM-AAAA o "ENE 2027": conviértelas a ISO. Si solo hay mes y año,
+  usa el último día de ese mes para vencimientos y el día 1 para compras. Si el año tiene 2 dígitos, asume 20XX.
+- Si un dato no aparece con claridad, usa null. Nunca inventes ni completes a medias.
+- El OCR trae ruido: ignora números de lote, códigos de barras y textos legales.
+- Devuelve únicamente el objeto JSON."""
+
+
+async def structure_safety_data(raw_text: str) -> dict:
+    """Estructura el texto OCR de una etiqueta de extintor/botiquín/kit. Solo prellena el formulario:
+    el usuario confirma cada campo."""
+    fallback = {
+        "kind": None, "name": None, "purchase_date": None, "expiry_date": None, "recharge_date": None,
+        "review_date": None, "brand": None, "capacity": None, "agent": None, "missing_items": [],
+    }
+
+    if not raw_text.strip():
+        return fallback
+    if not settings.deepseek_api_key:
+        logger.warning("DEEPSEEK_API_KEY not configured; skipping safety item structuring")
+        return fallback
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.deepseek_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
+                json={
+                    "model": settings.deepseek_model,
+                    "messages": [
+                        {"role": "system", "content": _SAFETY_SYSTEM_PROMPT},
+                        {"role": "user", "content": raw_text[:6000]},
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0,
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            parsed = json.loads(resp.json()["choices"][0]["message"]["content"])
+            result = {**fallback, **{k: v for k, v in parsed.items() if k in fallback}}
+            if not isinstance(result["missing_items"], list):
+                result["missing_items"] = []
+            result["missing_items"] = [str(x) for x in result["missing_items"] if x][:40]
+            if result["kind"] not in ("extintor", "botiquin", "kit_carretera", "otro"):
+                result["kind"] = None
+            return result
+    except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+        logger.warning(f"DeepSeek safety structuring failed: {e}")
+        return fallback

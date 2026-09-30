@@ -16,7 +16,7 @@ import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 import BgParticles from '@/components/BgParticles'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import KeychainScrub from '@/components/KeychainScrub'
-import { SUPPORT_WHATSAPP } from '@/lib/checkout'
+import WhatsAppFloat from '@/components/WhatsAppFloat'
 
 const GOLD = '#F5C518'
 const CHECK = (color = GOLD, size = 15) => (
@@ -97,7 +97,6 @@ export default function LandingPage() {
   const [policyTab, setPolicyTab] = useState<PolicyTab>('privacy')
   const [pqrsOpen, setPqrsOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const [showWaFloat, setShowWaFloat] = useState(false)
   // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-09-09) — antes forzaba
   // dark con forceTheme() sin importar la preferencia guardada, pero el propio landing
   // renderiza un switch real de "Cambiar apariencia" (más abajo) que aparentaba funcionar
@@ -117,16 +116,6 @@ export default function LandingPage() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  useEffect(() => {
-    const el = document.getElementById('h-productos')
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => setShowWaFloat(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
-      { threshold: 0 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
   const tk = {
     pageBg: dark ? '#060606' : '#f7f6f2',
     vignette: dark
@@ -205,6 +194,20 @@ export default function LandingPage() {
     setLoginModalOpen(true)
   }
 
+  // Otras paginas (ej. /taller) mandan aqui con ?login=business|user para reutilizar
+  // este mismo inicio de sesion en vez de tener uno propio.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('login')
+    if (!q) return
+    setLoginModalMode('signin')
+    setLoginModalAccountType(q === 'business' ? 'business' : 'user')
+    setLoginModalOpen(true)
+    params.delete('login')
+    const rest = params.toString()
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash)
+  }, [])
+
   const openSignupModal = () => {
     sessionStorage.setItem('carlink_plate', plateText)
     sessionStorage.setItem('carlink_city', city)
@@ -224,29 +227,46 @@ export default function LandingPage() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: tk.vignette }} />
 
       <style>{`
-        @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px) translateX(50px)} to{opacity:1;transform:translateX(50px)} }
+        /* Hero de venta — texto y llavero se mueven JUNTOS como un bloque (misma distancia entre
+           ambos que en pantallas grandes). --hs es el desplazamiento horizontal que comparten:
+           vale 50px (posicion original) desde 1100px de ancho y baja de forma continua hasta
+           -50px en 860px, llevando el bloque completo hacia el margen izquierdo. */
+        [data-r="shopHero"]{--hs:clamp(-50px,calc(-50px + (100vw - 860px) * .4167),50px);--hero-pad:clamp(20px,5vw,64px);--hero-h:max(100vh,650px)}
+        @keyframes shopFadeUp { from{opacity:0;transform:translateY(14px) translateX(var(--hs,50px))} to{opacity:1;transform:translateX(var(--hs,50px))} }
         @keyframes shopFloatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes scrollBounce { 0%,100%{transform:translateY(0);opacity:.7} 50%{transform:translateY(10px);opacity:1} }
         @media(max-width:860px){ [data-r="scrollArrow"]{display:none !important} }
-        [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative}
+        [data-r="shopHero"]{height:var(--hero-h)}
+        [data-r="shopHero-inner"]{display:flex;flex-direction:column;align-items:center;justify-content:center;height:var(--hero-h);position:relative}
         [data-r="shopHero-canvas"]{position:absolute;left:28%;right:0;top:0;bottom:0;display:flex;align-items:flex-start;justify-content:center;padding-top:20px}
         [data-r="shopHero-canvas"] canvas{max-width:100%;max-height:calc(100vh - 40px);object-fit:contain}
-        [data-r="shopHero-text"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:100px;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;width:clamp(320px,42vw,520px)}
-        [data-r="shopHero-cta"]{position:absolute;left:calc(clamp(20px,5vw,64px) + 50px);top:380px;z-index:2;width:clamp(320px,42vw,520px)}
+        [data-r="shopHero-copy"]{position:absolute;left:calc(var(--hero-pad) + 50px);top:clamp(76px,13vh,100px);z-index:2;display:flex;flex-direction:column;width:clamp(320px,42vw,520px)}
+        [data-r="shopHero-text"],[data-r="shopHero-cta"]{width:100%}
+        [data-r="shopHero-h1"]{font-size:clamp(28px,min(4.6vw,7.6vh),58px) !important}
+        [data-r="shopHero-badge"]{margin-bottom:clamp(14px,3.4vh,26px) !important}
+        [data-r="shopHero-lead"]{margin-top:clamp(14px,3.4vh,26px) !important}
+        [data-r="shopHero-buy"]{margin-top:clamp(16px,3.4vh,26px) !important}
+        [data-r="shopHero-checks"]{margin-top:clamp(14px,4vh,32px) !important}
+        [data-r="comoWrap"]{--pull:clamp(0px,calc(100vh - 690px),200px);margin-top:calc(-1 * var(--pull)) !important}
+        [data-r="scrollArrow"]{margin-top:calc(-.3 * var(--pull)) !important}
         @media(max-width:860px){
-          [data-r="shopHero"] section{height:auto !important;min-height:100vh}
-          [data-r="shopHero-inner"]{position:relative !important;height:auto !important;padding:100px clamp(16px,4vw,40px) 40px !important}
-          [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2;transform:none !important}
+          [data-r="shopHero"]{height:auto !important;min-height:0}
+          [data-r="shopHero-inner"]{position:relative !important;height:auto !important;padding:74px clamp(16px,4vw,40px) 24px !important}
+          [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2;transform:none !important;width:100%}
           [data-r="shopHero-canvas"] canvas{max-width:100% !important;height:auto !important;max-height:none !important}
-          [data-r="shopHero-text"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:0 auto;order:1;transform:none !important}
-          [data-r="shopHero-cta"]{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:480px !important;margin:-30px auto 0 !important;order:3;transform:none !important}
+          [data-r="shopHero-copy"]{display:contents}
+          [data-r="shopHero-text"]{width:100% !important;max-width:560px !important;margin:0 auto 0 0;order:1;transform:none !important}
+          [data-r="shopHero-cta"]{width:100% !important;max-width:560px !important;margin:-30px auto 0 0 !important;order:3;transform:none !important}
+          [data-r="shopHero-h1"]{font-size:clamp(30px,4.6vw,58px) !important}
+          [data-r="shopHero-badge"]{margin-bottom:26px !important}
+          [data-r="shopHero-lead"]{margin-top:26px !important}
+          [data-r="shopHero-buy"]{margin-top:68px !important}
+          [data-r="shopHero-checks"]{margin-top:32px !important}
           [data-r="comoWrap"]{margin-top:0 !important}
         }
         @media(max-width:720px){
           [data-r="keychainScrub"] canvas{min-height:200px !important}
         }
-        @media(max-height:800px){ [data-r="comoWrap"]{margin-top:-120px !important} }
-        @media(max-height:680px){ [data-r="comoWrap"]{margin-top:0 !important} }
       `}</style>
 
       {/* ===== HEADER ===== */}
@@ -299,52 +319,53 @@ export default function LandingPage() {
       </header>
 
       {/* ===== SHOP HERO (copiado de /shop) ===== */}
-      <section data-r="shopHero" style={{ position: 'relative', height: '100vh' }}>
-        <div data-r="shopHero-inner" style={{ position: 'sticky', top: 0, height: '100vh', maxWidth: 1280, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
+      <section data-r="shopHero" style={{ position: 'relative' }}>
+        <div data-r="shopHero-inner" style={{ position: 'sticky', top: 0, maxWidth: 1280, margin: '0 auto', padding: '0 clamp(20px,5vw,64px)' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 62% 44%,rgba(245,197,24,0.14),transparent 58%)', pointerEvents: 'none' }} />
           {/* Canvas — shifted right, behind text */}
           <div data-r="shopHero-canvas" style={{ animation: 'shopFadeUp .7s .14s both' }}>
             <KeychainScrub />
           </div>
-          {/* Text — floating left, overlapping canvas ~20% */}
+          {/* Texto + CTA en un solo bloque en flujo (sin top fijo): en desktop va a la izquierda
+              solapando el canvas ~20%; en <=860px pasa a display:contents para ordenarse en columna. */}
+          <div data-r="shopHero-copy">
           <div data-r="shopHero-text" style={{ animation: 'shopFadeUp .7s both' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+            <div data-r="shopHero-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '7px 15px', borderRadius: 999, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 12, fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase' as const, color: GOLD, marginBottom: 26, alignSelf: 'flex-start', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
               El pasaporte digital de tu vehículo
             </div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
-            <p style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
+            <h1 data-r="shopHero-h1" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
+            <p data-r="shopHero-lead" style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
           </div>
           {/* CTA + price + checklist — below canvas on mobile */}
           <div data-r="shopHero-cta" style={{ animation: 'shopFadeUp .7s both' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
+            <div data-r="shopHero-buy" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
               <button onClick={() => setCartOpen(true)} style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</button>
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
                 <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 32, fontSize: 13.5, color: SHOP_MUTED, flexWrap: 'wrap' }}>
+            <div data-r="shopHero-checks" style={{ display: 'flex', alignItems: 'center', gap: '10px 20px', marginTop: 32, fontSize: 13.5, color: SHOP_MUTED, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}App gratis para siempre</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Android e iPhone</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}Sin batería</span>
             </div>
           </div>
+          </div>
         </div>
       </section>
 
       {/* ===== CÓMO FUNCIONA — movida arriba del hero de placa (2026-09-07).
-          marginTop:-140 hereda el mismo ajuste que "entrada" usaba antes para
-          pegarse al hero de venta: shopHero-inner centra su contenido dentro
-          de un contenedor fijo a 100vh, así que sobra espacio visual debajo
-          del texto/keychain aunque la caja del section termine ahí. Sin este
-          jalón hacia arriba, lo que sigue queda flotando lejos del contenido
-          visible de la sección 1 (no de la sección 1 en sí — esa no se toca). ===== */}
-      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10, marginTop: -200 }}>
+          El hero de venta deja espacio libre debajo del texto/llavero en pantallas altas;
+          --pull (definido en el <style> de arriba) jala esta sección hacia arriba solo esa
+          holgura real (0 en pantallas bajas, hasta 200px en altas) y vale 0 en <=860px, donde
+          el hero es un flujo normal. Los margenes negativos ya no son valores fijos. ===== */}
+      <div data-r="comoWrap" style={{ position: 'relative', zIndex: 10 }}>
         {/* Scroll-down arrow */}
         <div
           data-r="scrollArrow"
           onClick={() => document.getElementById('h-como')?.scrollIntoView({ behavior: 'smooth' })}
-          style={{ display: 'flex', justifyContent: 'center', marginTop: -60, cursor: 'pointer' }}
+          style={{ display: 'flex', justifyContent: 'center', cursor: 'pointer' }}
         >
           <div style={{ animation: 'scrollBounce 1.8s ease-in-out infinite' }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 8px rgba(245,197,24,0.4))' }}>
@@ -482,7 +503,7 @@ export default function LandingPage() {
               <div style={{ fontSize: 11, letterSpacing: '.18em', textTransform: 'uppercase', color: tk.label, fontWeight: 700, marginBottom: 9 }}>
                 Lleva tu ficha en la Wallet
               </div>
-              <div data-r="storeRow" style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <div data-r="storeRow" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                 <a href="#" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 11, background: '#000', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', textDecoration: 'none' }}>
                   <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.9-1.4-.1-2.8.9-3.5.9-.7 0-1.9-.8-3-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6-.1 0-2.4-.9-2.4-3.6zM14.2 5.7c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-1 2.7 1 .1 2-.5 2.7-1.1z"/></svg>
                   <span style={{ textAlign: 'left', lineHeight: 1.05 }}><span style={{ display: 'block', fontSize: 9, color: '#c9c6ba' }}>Descárgala en</span><span style={{ display: 'block', fontSize: 15, fontWeight: 700 }}>App Store</span></span>
@@ -515,8 +536,8 @@ export default function LandingPage() {
         @keyframes bBell{0%,58%,100%{transform:rotate(0)}64%{transform:rotate(13deg)}70%{transform:rotate(-11deg)}76%{transform:rotate(8deg)}82%{transform:rotate(-5deg)}88%{transform:rotate(0)}}
         @keyframes bDot{0%,55%{transform:scale(0);opacity:0}64%{transform:scale(1.25);opacity:1}75%,100%{transform:scale(1);opacity:1}}
         [data-r="hBens"]:hover [data-r="hBens"] > div{border-color:rgba(245,197,24,0.42);transform:translateY(-4px)}
-        @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:1fr 1fr !important} }
-        @media(max-width:720px){ [data-r="hBens"]{grid-template-columns:1fr !important} }
+        @media(max-width:860px){ [data-r="hBens"]{grid-template-columns:repeat(2,minmax(0,1fr)) !important} }
+        @media(max-width:440px){ [data-r="storeRow"]{flex-direction:column !important;align-items:center !important} [data-r="storeRow"]>a{width:100% !important;max-width:260px !important;justify-content:center !important} }
         @media(prefers-reduced-motion:reduce){ [data-r="hBens"] [style*="animation"]{animation:none !important} [data-r="scrollArrow"]{animation:none !important} }
       `}</style>
 
@@ -651,25 +672,7 @@ export default function LandingPage() {
         city={city}
       />
 
-      {showWaFloat && (
-        <a
-          href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-            width: 52, height: 52, borderRadius: '50%',
-            background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(37,211,102,0.35)',
-            transition: 'opacity .3s, transform .3s',
-            opacity: showWaFloat ? 1 : 0,
-            transform: showWaFloat ? 'scale(1)' : 'scale(0.8)',
-            pointerEvents: showWaFloat ? 'auto' : 'none',
-          }}
-        >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
-        </a>
-      )}
+      <WhatsAppFloat watchId="h-productos" />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { useTheme } from '@/store/theme'
 import PostulacionForm from '@/components/taller/PostulacionForm'
 import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 import SiteFooter from '@/components/SiteFooter'
+import WhatsAppFloat, { WhatsAppIcon } from '@/components/WhatsAppFloat'
 import SiteBackdrop, { backdropPageBg } from '@/components/SiteBackdrop'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
@@ -219,7 +220,7 @@ export default function TallerPage() {
           [data-r="shopStepNum"]{width:40px !important;height:40px !important;font-size:20px !important}
           [data-r="shopPrecio"]{gap:14px !important}
           [data-r="shopPlanCard"]{padding:24px 18px !important}
-          [data-r="shopPlanPrice"]{font-size:36px !important}
+          [data-r="shopPlanPrice"]{font-size:30px !important}
           [data-r="shopTestimonials"]{gap:0 !important}
           [data-r="shopTestimonialCard"]{padding:18px !important}
           [data-r="shopFaqBtn"]{padding:16px 18px !important;font-size:15px !important}
@@ -230,17 +231,17 @@ export default function TallerPage() {
           [data-r="shopProblemCard"]{padding:20px !important}
           [data-r="shopProblemIcon"]{width:36px !important;height:36px !important;font-size:18px !important}
           [data-r="shopBenefitCard"]{padding:18px !important}
-          [data-r="shopIncludeItem"]{padding:'12px 14px' !important}
-          [data-r="shopBoxItem"]{padding:'14px 16px' !important}
-          [data-r="shopBoxItemTitle"]{fontSize:14px !important}
-          [data-r="shopBoxItemDesc"]{fontSize:12px !important}
+          [data-r="shopIncludeItem"]{padding:12px 14px !important}
+          [data-r="shopBoxItem"]{padding:14px 16px !important}
+          [data-r="shopBoxItemTitle"]{font-size:14px !important}
+          [data-r="shopBoxItemDesc"]{font-size:12px !important}
           [data-r="shopFooter"]{flex-direction:column !important;text-align:center !important}
           [data-r="shopFooterText"]{font-size:12px !important}
         }
         @media(max-width:380px){
           [data-r="shopHeroPhone"]{width:150px !important;height:290px !important}
           [data-r="shopHeroNfc"]{width:80px !important;height:68px !important}
-          [data-r="shopPlanPrice"]{font-size:30px !important}
+          [data-r="shopPlanPrice"]{font-size:28px !important}
           [data-r="shopScoreNum"]{font-size:24px !important}
         }
         .no-scrollbar::-webkit-scrollbar{display:none}
@@ -281,7 +282,7 @@ export default function TallerPage() {
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <a href="#registro" data-r="shopNavPostular" style={{ padding: '6px 12px', borderRadius: 9, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: 'transparent', color: MUTED, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Postular</a>
-          <Link href="/login" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
+          <Link href="/?login=business" style={{ padding: '6px 12px', borderRadius: 9, border: 'none', background: GOLD, color: '#111', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Iniciar sesión</Link>
           <button onClick={toggleTheme} title="Cambiar apariencia" aria-label="Cambiar modo claro u oscuro" style={{ position: 'relative', width: 56, height: 28, borderRadius: 999, border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,17,0.12)'}`, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '0 3px', transition: 'all .25s' }}>
             <span style={{ position: 'absolute', left: 7, fontSize: 10, opacity: isDark ? 0 : 1, transition: 'opacity .2s' }}>○</span>
             <span style={{ position: 'absolute', right: 6, color: '#111', opacity: isDark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
@@ -483,13 +484,13 @@ export default function TallerPage() {
           <div style={EYEBROW}>El problema</div>
           <h2 style={H2}>¿Te suena familiar en tu taller?</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(260px,100%),1fr))', gap: 16 }}>
           {PROBLEMS.map(p => (
             <div key={p.text} data-r="shopProblemCard" style={CARD_STYLE}>
               <div data-r="shopProblemIcon" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,176,32,0.12)', color: '#ffb020', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{p.icon}</svg>
               </div>
-              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, color: textColor }}>{p.text}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.4, color: textColor }}>{p.text}</div>
             </div>
           ))}
         </div>
@@ -501,11 +502,11 @@ export default function TallerPage() {
           <div style={EYEBROW}>Beneficios</div>
           <h2 style={H2}>Lo que gana tu taller</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(280px,100%),1fr))', gap: 16 }}>
           {BENEFITS.map(b => (
             <div key={b.title} data-r="shopBenefitCard" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', ...CARD_STYLE, padding: 26 }}>
               <span style={{ width: 34, height: 34, flex: '0 0 auto', borderRadius: 10, background: 'rgba(245,197,24,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{CHECK(GOLD, 18)}</span>
-              <div><div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 7 }}>{b.title}</div><div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{b.desc}</div></div>
+              <div><div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{b.title}</div><div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>{b.desc}</div></div>
             </div>
           ))}
         </div>
@@ -521,8 +522,8 @@ export default function TallerPage() {
           {STEPS.map(st => (
             <div key={st.n} data-r="shopStepCard" style={{ position: 'relative', padding: '30px 26px', borderRadius: 20, background: goldCardGradient, border: '1px solid rgba(245,197,24,0.2)' }}>
               <div data-r="shopStepNum" style={{ width: 52, height: 52, borderRadius: 15, background: GOLD, color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 26 }}>{st.n}</div>
-              <div style={{ fontSize: 19, fontWeight: 700, margin: '20px 0 9px' }}>{st.title}</div>
-              <div style={{ fontSize: 14.5, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, margin: '18px 0 8px' }}>{st.title}</div>
+              <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>{st.desc}</div>
             </div>
           ))}
         </div>
@@ -538,7 +539,7 @@ export default function TallerPage() {
             <div style={EYEBROW}>Panel de taller</div>
             <h2 style={H2}>Todo lo que incluye tu panel</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 11, maxWidth: 1040, margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(210px,100%),1fr))', gap: 11, maxWidth: 1040, margin: '0 auto' }}>
             {INCLUDES.map(inc => (
               <div key={inc} data-r="shopIncludeItem" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '15px 18px', borderRadius: 13, background: CARD, border: `1px solid ${BORDER}` }}>
                 {CHECK(GOLD, 16)}
@@ -582,16 +583,16 @@ export default function TallerPage() {
           <h2 style={H2}>Un plan simple para tu taller</h2>
           <p style={{ ...lead, marginTop: 8 }}>Postularte es gratis y empiezas con 7 días de prueba. Tus clientes conductores usan CarLink sin costo.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(280px,100%),1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
           {[
             { name: 'Taller aliado', price: '$79.900', period: '/mes', tag: 'Pruebalo ya!', border: 'rgba(245,197,24,0.4)', features: ['Clientes y fichas ilimitadas', 'Perfil público con reseñas', 'Certificados y facturación', 'Soporte prioritario'], cta: 'Postular mi taller', btnBg: GOLD, btnColor: '#111' },
             { name: 'Conductor', price: 'Gratis', period: '', tag: '', border: BORDER, features: ['Ficha técnica ilimitada', 'Historial y recordatorios', 'Descarga y Wallet', 'Galería y documentos'], cta: 'Crear mi ficha', btnBg: 'rgba(245,197,24,0.12)', btnColor: GOLD },
           ].map(pl => (
-            <div key={pl.name} style={{ padding: 28, borderRadius: 20, ...card(pl.border), position: 'relative' }}>
+            <div key={pl.name} data-r="shopPlanCard" style={{ padding: 28, borderRadius: 20, ...card(pl.border), position: 'relative' }}>
               {pl.tag && <span style={{ position: 'absolute', top: -11, right: 24, background: GOLD, color: '#111', fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{pl.tag}</span>}
               <div style={{ fontSize: 13, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.08em', color: MUTED }}>{pl.name}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '10px 0 18px' }}>
-                <span style={{ fontSize: 34, fontWeight: 400 }}>{pl.price}</span>
+                <span data-r="shopPlanPrice" style={{ fontSize: 34, fontWeight: 400 }}>{pl.price}</span>
                 {pl.period && <span style={{ fontSize: 13, fontWeight: 300, color: MUTED }}>{pl.period}</span>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 20 }}>
@@ -673,16 +674,16 @@ export default function TallerPage() {
 
       {/* ===== PREVIEW VEHÍCULOS EN VENTA ===== */}
       <section id="h-marketpreview" style={{ ...SECTION_MAX, padding: '0 clamp(20px,5vw,64px) 56px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16 }}>
           {MARKET_PREVIEW.map(mp => (
-            <div key={mp.model} style={{ borderRadius: 18, overflow: 'hidden', ...card() }}>
+            <div key={mp.model} style={{ flex: '0 1 330px', minWidth: 0, borderRadius: 18, overflow: 'hidden', ...card() }}>
               <div style={{ height: 140, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                 <img src={mp.img} alt={mp.model} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <span style={{ position: 'absolute', top: 9, right: 9, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, background: 'rgba(245,197,24,0.16)', border: `1px solid rgba(245,197,24,0.5)`, color: GOLD, fontSize: 10, fontWeight: 800 }}>Peritaje OK</span>
               </div>
               <div style={{ padding: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 700 }}>{mp.model}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, minWidth: 0 }}>{mp.model}</span>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: GOLD }}>{mp.price}</span>
                 </div>
                 <div style={{ fontSize: 11.5, color: MUTED, marginTop: 3 }}>{mp.km} · {mp.city}</div>
@@ -735,9 +736,9 @@ export default function TallerPage() {
             href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una pregunta sobre el llavero CarLink NFC')}`}
             target="_blank" rel="noopener noreferrer"
             onClick={() => analyticsApi.trackWhatsappClick('general_question', 'shop')}
-            style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#062b12', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
+            style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px', borderRadius: 999, background: '#25D366', color: '#fff', fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '.04em', textDecoration: 'none', boxShadow: '0 10px 26px rgba(37,211,102,0.25)' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></svg>
+            <WhatsAppIcon size={18} />
             Hablar por WhatsApp
           </a>
         </div>
@@ -745,6 +746,7 @@ export default function TallerPage() {
 
       {/* FOOTER (compartido con la home) */}
       <SiteFooter theme={isDark ? 'dark' : 'light'} onOpenPolicy={setPolicyTab} />
+      <WhatsAppFloat watchId="h-planes" />
       <PolicyModal isOpen={policyTab !== null} onClose={() => setPolicyTab(null)} tab={policyTab ?? 'privacy'} theme={isDark ? 'dark' : 'light'} plateText="" city="" />
       </div>
     </div>

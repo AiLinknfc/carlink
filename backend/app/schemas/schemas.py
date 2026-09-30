@@ -1077,6 +1077,9 @@ class ReviewCreate(BaseModel):
     # desde ResenasTab.tsx. Solo aplica a platform/product; se ignora si
     # target_type == "workshop" (ahí el detalle específico ya es el taller).
     context: str = ""
+    # Encuesta que origina la respuesta (surveys.key). Vacío = clientes antiguos: se asigna
+    # la encuesta por defecto de la categoría (ver routers/reviews.py).
+    survey_key: str = ""
 
 
 class ReviewOut(BaseModel):
@@ -1102,6 +1105,7 @@ class ReviewSubmitOut(BaseModel):
     rating: int
     comment: str
     context: str = ""
+    survey_key: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -1957,3 +1961,111 @@ class SupportTicketOut(BaseModel):
 
 class SupportTicketUpdate(BaseModel):
     status: str
+
+
+class SurveyOut(BaseModel):
+    """Encuesta activa que ve la app del cliente (GET /surveys/active)."""
+
+    key: str
+    title: str
+    hint: str
+    target_type: Literal["platform", "product", "workshop"]
+    trigger_key: str
+
+    model_config = {"from_attributes": True}
+
+
+class SurveyAdminOut(SurveyOut):
+    location: str
+    timing: str
+    is_active: bool
+    position: int
+    responses: int = 0
+    average: float = 0.0
+    # Embudo (analytics_events: survey_shown / survey_dismissed): cuántas veces se mostró, cuántas
+    # veces el cliente la cerró sin responder, y la última vez/ruta en que se vio.
+    shown: int = 0
+    dismissed: int = 0
+    last_shown_at: datetime | None = None
+    last_shown_path: str = ""
+
+
+class SurveyCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=140)
+    hint: str = Field(default="", max_length=300)
+    trigger_key: str = Field(min_length=1, max_length=60)
+    target_type: Literal["platform", "product", "workshop"]
+
+
+class SurveyUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=140)
+    hint: str | None = Field(default=None, max_length=300)
+    is_active: bool | None = None
+
+
+# =========== Seguridad del vehículo (migración 065) ===========
+SafetyKind = Literal["extintor", "botiquin", "kit_carretera", "otro"]
+
+
+class SafetyItemBase(BaseModel):
+    kind: SafetyKind
+    name: str = Field(default="", max_length=120)
+    purchase_date: date | None = None
+    expiry_date: date | None = None
+    recharge_date: date | None = None
+    review_date: date | None = None
+    restock_date: date | None = None
+    missing_items: list[str] = Field(default_factory=list, max_length=40)
+    checklist: dict[str, bool] = Field(default_factory=dict)
+    details: dict[str, str] = Field(default_factory=dict)
+    notes: str = Field(default="", max_length=1000)
+    file_url: str = ""
+
+    @field_validator("missing_items")
+    @classmethod
+    def _clean_missing(cls, v: list[str]) -> list[str]:
+        return [x.strip()[:80] for x in v if x and x.strip()]
+
+
+class SafetyItemCreate(SafetyItemBase):
+    vehicle_id: UUID
+
+
+class SafetyItemUpdate(BaseModel):
+    kind: SafetyKind | None = None
+    name: str | None = Field(default=None, max_length=120)
+    purchase_date: date | None = None
+    expiry_date: date | None = None
+    recharge_date: date | None = None
+    review_date: date | None = None
+    restock_date: date | None = None
+    missing_items: list[str] | None = None
+    checklist: dict[str, bool] | None = None
+    details: dict[str, str] | None = None
+    notes: str | None = Field(default=None, max_length=1000)
+    file_url: str | None = None
+
+
+class SafetyItemOut(SafetyItemBase):
+    id: UUID
+    vehicle_id: UUID
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SafetyScanResult(BaseModel):
+    """Lectura OCR de una etiqueta/foto de elemento de seguridad. Es ayuda de captura: el usuario
+    confirma cada campo antes de guardar."""
+
+    kind: str | None = None
+    name: str | None = None
+    purchase_date: str | None = None
+    expiry_date: str | None = None
+    recharge_date: str | None = None
+    review_date: str | None = None
+    brand: str | None = None
+    capacity: str | None = None
+    agent: str | None = None
+    missing_items: list[str] = Field(default_factory=list)
+    raw_text: str = ""

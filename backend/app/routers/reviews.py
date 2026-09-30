@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
-from app.models.models import Profile, Review, Workshop, WorkshopReview
+from app.models.models import Profile, Review, Survey, Workshop, WorkshopReview
 from app.schemas.schemas import (
     AdminReviewOut,
     ReviewCreate,
@@ -20,6 +20,9 @@ from app.schemas.schemas import (
 from app.services.reviews import recalculate_workshop_rating
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
+
+# Encuesta a la que se atribuye una respuesta cuando el cliente no manda survey_key.
+DEFAULT_SURVEY_BY_TARGET = {"platform": "app_satisfaction", "product": "keychain_setup", "workshop": "workshop_service"}
 admin_router = APIRouter(prefix="/admin/reviews", tags=["admin-reviews"])
 
 
@@ -86,21 +89,29 @@ async def submit_review(
             updated_at=review.created_at,
         )
 
+    # Clientes antiguos no mandan survey_key: se usa la encuesta por defecto de la categoría.
+    survey_key = body.survey_key or DEFAULT_SURVEY_BY_TARGET[body.target_type]
+    survey = await db.get(Survey, survey_key)
+    if survey is not None and survey.target_type != body.target_type:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="survey_target_mismatch")
+    # El evento que se muestra en Admin sale de la encuesta si el cliente no lo envio.
+    context = body.context or (survey.title if survey is not None else "")
+
     existing = (
         await db.execute(
-            select(Review).where(Review.user_id == UUID(user_id), Review.target_type == body.target_type)
+            select(Review).where(Review.user_id == UUID(user_id), Review.survey_key == survey_key)
         )
     ).scalar_one_or_none()
 
     if existing:
         existing.rating = body.rating
         existing.comment = body.comment
-        existing.context = body.context
+        existing.context = context
         review = existing
     else:
         review = Review(
             user_id=UUID(user_id), target_type=body.target_type, rating=body.rating,
-            comment=body.comment, context=body.context,
+            comment=body.comment, context=context, survey_key=survey_key,
         )
         db.add(review)
 
@@ -114,6 +125,7 @@ async def submit_review(
         rating=review.rating,
         comment=review.comment,
         context=review.context,
+        survey_key=review.survey_key,
         created_at=review.created_at,
         updated_at=review.updated_at,
     )
@@ -144,7 +156,7 @@ async def list_reviews(
         return [
             ReviewSubmitOut(
                 id=r.id, target_type=r.target_type, workshop_id=None,
-                rating=r.rating, comment=r.comment, context=r.context,
+                rating=r.rating, comment=r.comment, context=r.context, survey_key=r.survey_key,
                 created_at=r.created_at, updated_at=r.updated_at,
             )
             for r in mine_reviews

@@ -21,6 +21,7 @@ import {
   workshopReviewsApi,
   reviewsApi,
   adminReviewsApi,
+  safetyApi,
   nfcApi,
   uploadApi,
   profileApi,
@@ -53,6 +54,7 @@ import type {
   AdminReview,
   AdminReviewSummary,
   ReviewTargetType,
+  SafetyItem,
 } from './types'
 
 export function useVehicle(vehicleId: string | undefined) {
@@ -106,6 +108,10 @@ export function useMaintenance(vehicleId: string | undefined, refreshKey?: numbe
       setLoading(false)
     }
   }, [vehicleId, refreshKey])
+
+  // Al cambiar de vehiculo se descartan los registros del anterior de inmediato (no se mezclan
+  // en pantalla mientras llegan los del nuevo).
+  useEffect(() => { setRecords([]); setLatest(null) }, [vehicleId])
 
   useEffect(() => {
     load()
@@ -322,6 +328,8 @@ export function useDocuments(vehicleId: string | undefined) {
       setLoading(false)
     }
   }, [vehicleId])
+
+  useEffect(() => { setDocuments([]) }, [vehicleId])
 
   useEffect(() => {
     load()
@@ -935,8 +943,8 @@ export function useWorkshopReviews() {
   return { reviews, loading, reload: load, addReview, respondReview }
 }
 
-/** "Mis calificaciones" — las 3 propias del usuario logueado (plataforma,
- * producto, taller si ya calificó alguno), para el estado de ResenasTab. */
+/** "Mis calificaciones" — las respuestas propias del usuario logueado (una por
+ * encuesta), para no volver a preguntar lo que ya respondió. */
 export function useMyReviews() {
   const [mine, setMine] = useState<ReviewSubmit[]>([])
   const [loading, setLoading] = useState(true)
@@ -960,13 +968,46 @@ export function useMyReviews() {
     return result
   }, [load])
 
-  const byTarget = useCallback(
-    (targetType: ReviewTargetType, workshopId?: string) =>
-      mine.find(r => r.target_type === targetType && (targetType !== 'workshop' || r.workshop_id === workshopId)),
+  // Encuestas de taller: una respuesta por taller; el resto, por survey_key.
+  const bySurvey = useCallback(
+    (surveyKey: string, targetType: ReviewTargetType, workshopId?: string) =>
+      mine.find(r => targetType === 'workshop'
+        ? r.target_type === 'workshop' && r.workshop_id === workshopId
+        : r.survey_key === surveyKey),
     [mine]
   )
 
-  return { mine, loading, reload: load, submitReview, byTarget }
+  return { mine, loading, reload: load, submitReview, bySurvey }
+}
+
+/** Elementos de seguridad del vehículo (extintor, botiquín, kit de carretera, otros). */
+export function useSafetyItems(vehicleId: string | undefined) {
+  const [items, setItems] = useState<SafetyItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    if (!vehicleId) { setLoading(false); return }
+    setLoading(true)
+    try {
+      setItems((await safetyApi.list(vehicleId)) || [])
+    } catch (e) {
+      console.error('Failed to load safety items:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [vehicleId])
+
+  useEffect(() => { setItems([]) }, [vehicleId])
+
+  useEffect(() => { load() }, [load])
+
+  const removeItem = useCallback(async (id: string) => {
+    const ok = await safetyApi.remove(id)
+    if (ok) await load()
+    return !!ok
+  }, [load])
+
+  return { items, loading, reload: load, removeItem }
 }
 
 /** Vista global de Admin — las 3 categorías juntas, filtrable. */

@@ -5,6 +5,7 @@ import { useTheme } from '@/store/theme'
 import { useAuth } from '@/store/auth'
 import { shopOrderApi } from '@/lib/api'
 import { useRatingPrompts } from '@/lib/useRatingPrompts'
+import { useSurveys } from '@/lib/surveys'
 import { RatingPromptModal } from '@/components/RatingPrompt'
 import type { ShopOrderDetail, ShopOrderPaymentStatus } from '@/lib/types'
 
@@ -33,6 +34,8 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
   const { shouldPrompt, dismiss, submitReview } = useRatingPrompts()
+  const { forTrigger } = useSurveys()
+  const deliveredSurvey = forTrigger('order_delivered')
   const [showDeliveredPrompt, setShowDeliveredPrompt] = useState(false)
 
   const bg = isDark ? 'rgba(14,14,14,0.95)' : 'rgba(255,255,255,0.97)'
@@ -48,10 +51,10 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
     setLoading(false)
     // Sin polling — se revisa cada vez que se abre "Mis pedidos", no en vivo
     // mientras la app está inactiva (ver plan del feature de prompts).
-    if ((res ?? []).some(o => o.fulfillment_status === 'delivered') && shouldPrompt('product')) {
+    if ((res ?? []).some(o => o.fulfillment_status === 'delivered') && shouldPrompt(deliveredSurvey)) {
       setShowDeliveredPrompt(true)
     }
-  }, [shouldPrompt])
+  }, [shouldPrompt, deliveredSurvey])
 
   // Un solo fetch al abrir — datos reales, ya no hay simulación local con
   // setInterval como antes.
@@ -206,13 +209,15 @@ export default function OrderTrackingModal({ isOpen, onClose, onBuyAnother }: { 
         ) : null}
       </div>
     </div>
-    {showDeliveredPrompt && (
+    {showDeliveredPrompt && deliveredSurvey && (
       <RatingPromptModal
-        title="¿Qué tal el llavero NFC?"
-        hint="Tu pedido ya fue entregado — contanos qué te pareció el producto."
-        targetType="product"
-        onSubmit={(rating, comment) => submitReview({ target_type: 'product', rating, comment, context: 'Proceso de compra' })}
-        onDismiss={() => { dismiss('product'); setShowDeliveredPrompt(false) }}
+        surveyKey={deliveredSurvey.key}
+        surveyTrigger={deliveredSurvey.trigger_key}
+        title={deliveredSurvey.title}
+        hint={deliveredSurvey.hint}
+        targetType={deliveredSurvey.target_type}
+        onSubmit={(rating, comment) => submitReview({ target_type: deliveredSurvey.target_type, rating, comment, survey_key: deliveredSurvey.key })}
+        onDismiss={() => { dismiss(deliveredSurvey); setShowDeliveredPrompt(false) }}
       />
     )}
     </>

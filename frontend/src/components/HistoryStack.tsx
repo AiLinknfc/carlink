@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
 
-/* Sticky-stack tuning: each card sticks a little lower + a little more
-   "in front" than the previous one, so scrolling reveals a fanned deck
-   of cards peeking out from behind one another. */
+/* Sticky-stack tuning. El primer registro (el mas reciente) queda arriba y AL FRENTE; al hacer
+   scroll, cada registro mas antiguo sube desde abajo y se va metiendo detras del anterior,
+   asomando STACK_PEEK px por debajo, como un mazo abanicado hacia abajo. */
 const STACK_BASE_TOP = 110
 const STACK_PEEK = 16
-const RECEDE_DISTANCE = 320
+const TUCK_DISTANCE = 260
 
 const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: string; sub: string }> = {
   Aceite:       { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' },
@@ -60,8 +60,10 @@ export default function HistoryStack({ records, onEdit }: Props) {
       const scrollY = window.scrollY
       cardRefs.current.forEach((el, i) => {
         if (!el) return
+        // El registro i "se mete detras" mientras sube hasta su posicion fija (TUCK_DISTANCE antes
+        // de pegarse): se achica y se oscurece. El primero (i = 0) nunca se mete: siempre al frente.
         const start = stuckStarts.current[i] ?? 0
-        const progress = Math.min(1, Math.max(0, (scrollY - start) / RECEDE_DISTANCE))
+        const progress = i === 0 ? 0 : Math.min(1, Math.max(0, (scrollY - (start - TUCK_DISTANCE)) / TUCK_DISTANCE))
         el.style.transform = `scale(${1 - progress * 0.05})`
         el.style.filter = `brightness(${1 - progress * 0.22})`
       })
@@ -90,9 +92,9 @@ export default function HistoryStack({ records, onEdit }: Props) {
             style={{
               position: 'sticky',
               top: STACK_BASE_TOP + i * STACK_PEEK,
-              zIndex: 10 + i,
+              zIndex: 10 + records.length - i,
               marginBottom: 26,
-              transformOrigin: 'top center',
+              transformOrigin: 'bottom center',
               transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), filter .25s',
               animation: `sectionIn .5s ${Math.min(i, 6) * 0.05}s both`,
             }}

@@ -311,6 +311,58 @@ contra la base real (cero residuo). **Falta**: `ADMIN_EMAIL` y `RESEND_API_KEY` 
 llegan correos, pero el ticket sí queda guardado y visible en Admin > Soporte); probar en navegador.
 El texto ya no promete "menos de 2 horas".
 
+## Participación de terceros: aliados e inversionistas (2026-09-25, borradores, sin firmar)
+
+Tres documentos en `docs/`: `LEGAL_01_MODELO_DE_PARTICIPACION.md` (asesoría: SAS primero, aliados sin capital,
+inversión solo con instrumentos que no ceden control, blindaje en 4 capas, costos y decisiones),
+`LEGAL_02_CONTRATO_ALIANZA_PARTNER.md` (contrato de alianza/distribución con licencia limitada de marca, tipo
+mini-franquicia, evita agencia comercial y relación laboral) y `LEGAL_03_CONTRATO_CUENTAS_EN_PARTICIPACION.md`
+(aporte de dinero a una operación concreta sin gestión; anexo con hoja de términos de mutuo convertible).
+**Son borradores, no concepto jurídico.** **Falta**: (1) decidir los puntos de la sección 12 del documento 01
+(costo unitario, nivel, territorio, cuota, comisión, si se aceptan inversionistas); (2) constituir CarLink S.A.S.
+y registrar la marca en la SIC antes de firmar; (3) revisión por abogado mercantil (preguntas listas en la
+sección 11); (4) piloto de 2 semanas con un aliado sin dinero usando el rol partner existente.
+
+## Sección "Seguridad" del vehículo (2026-09-25, en local, sin desplegar)
+
+Nueva pestaña **Seguridad** en el menú lateral del cliente (`components/tabs/SeguridadTab.tsx`): extintor
+(compra, vencimiento, recarga, marca/capacidad/agente), botiquín (revisión, reposición, elementos faltantes),
+kit de carretera (gato, llave de ruedas, triángulos/conos, chaleco, herramientas) y "otro elemento". Cada
+elemento muestra su estado (en orden / por vencer en 30 días / vencido / faltan N). Se registra a mano o
+escaneando/subiendo la foto de la etiqueta: `POST /api/ocr/safety` (Tesseract + DeepSeek, mismo patrón que la
+tarjeta de propiedad) prellena el formulario y el usuario confirma. Datos en `vehicle_safety_items`
+(migración `065`), CRUD en `/api/safety`.
+**`supabase/migrations/065_vehicle_safety_items.sql` ya está aplicada a la Supabase compartida**
+(verificado 2026-09-30 con consulta directa a `information_schema` contra la base real: tabla
+`vehicle_safety_items` existe con las 15 columnas de la migración, 0 filas) — el "falta aplicar"
+de la nota original era un pendiente fantasma, la migración se corrió pero nunca se tachó acá.
+**Falta**: (1) probar el escaneo con fotos reales de extintores/botiquines (la lectura de fechas
+depende de `DEEPSEEK_API_KEY` en Railway, que sigue sin estar) y en un celular; (2) decidir si los
+vencimientos deben alimentar los avisos/recordatorios de la app y el indicador de "Estado de tu
+vehículo" en Inicio; (3) el plan gratuito no está restringido en esta sección — decidir si debe
+estarlo.
+
+## Encuestas de satisfacción gestionables desde Admin (2026-09-25, en local, sin desplegar)
+
+Los prompts de calificación flotantes de la app del cliente salen de un catálogo (`surveys`, migración
+`064`, **ya aplicada a la Supabase compartida**, verificada con `TestClient` contra la base real: 6 encuestas
+sembradas, respuestas existentes rellenadas por `survey_key`, ciclo crear/editar/borrar sin residuo). Se
+gestionan en **Admin > Reseñas > Encuestas**: dónde y cuándo sale cada una, cuántas veces se mostró, cuántas
+se respondieron y cuántas el cliente cerró sin responder (eventos `survey_shown` / `survey_answered` /
+`survey_dismissed` en `analytics_events`, sin migración nueva), editar texto, pausar y crear encuestas nuevas
+sobre los momentos que la app ya dispara (`TRIGGERS` en `backend/app/routers/surveys.py` y
+`lib/surveys.ts`). La pestaña "Calificar" del menú del cliente se eliminó (su función pasó a Admin > Reseñas);
+los prompts flotantes siguen saliendo en los mismos lugares. Catálogo inicial (6): `app_satisfaction`
+(30 días o 3 servicios), `ease_of_use` (primer servicio), `keychain_setup` (tras activar el llavero),
+`keychain_found_notice` (aviso de llavero encontrado), `purchase_experience` (pedido entregado),
+`workshop_service` (servicio con taller aliado).
+**Falta**: (1) probar en navegador con un usuario real que cada prompt sale donde debe y que Admin muestra
+mostrada/cerrada/respondida; (2) un momento NUEVO para preguntar (ej. 7 días después de activar el llavero)
+requiere código: agregarlo a `TRIGGERS` (backend), `SurveyTrigger` (`lib/surveys.ts`) y dispararlo donde
+corresponda; (3) los eventos de la encuesta solo cuentan desde que se despliegue esto (antes no se medían).
+Además: el login de `/taller` ahora abre el modal de inicio de sesión de la landing (`/?login=business`);
+antes apuntaba a `/login`, que no existe.
+
 ## Nosotros, Trabaja con nosotros y Blog (2026-09-21, en local, sin desplegar)
 
 Las tres viven bajo `app/(public)/(company)/` con header y footer compartidos. Blog estático en

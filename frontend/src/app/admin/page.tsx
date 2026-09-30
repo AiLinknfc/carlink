@@ -3,6 +3,7 @@
 import AnalyticsPanel from '@/components/admin/AnalyticsPanel'
 import PostulacionesPanel from '@/components/admin/PostulacionesPanel'
 import SoportePanel from '@/components/admin/SoportePanel'
+import EncuestasPanel from '@/components/admin/EncuestasPanel'
 import dynamic from 'next/dynamic'
 
 // Recursos archivados de la landing (2026-09-20): chunk aparte, solo se descarga al abrir la pestaña.
@@ -154,6 +155,8 @@ export default function AdminPage() {
   const [reviewsTargetFilter, setReviewsTargetFilter] = useState<ReviewTargetType | 'all'>('all')
   const [reviewsMinRatingFilter, setReviewsMinRatingFilter] = useState<number>(0)
   const [reviewsSort, setReviewsSort] = useState<'recientes' | 'mejores' | 'peores'>('recientes')
+  // Reseñas tiene dos vistas: las respuestas recibidas y el catálogo de encuestas (dónde/cuándo salen).
+  const [reviewsView, setReviewsView] = useState<'respuestas' | 'encuestas'>('respuestas')
 
   const c = {
     bg: isDark ? '#0a0b0e' : '#f5f3ec',
@@ -1022,7 +1025,13 @@ export default function AdminPage() {
         {/* Reseñas — plataforma/producto/taller juntas, ver docs del plan de este feature */}
         {tab === 'reviews' && (
           <div>
-            {reviewsSummary && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              {([['respuestas', 'Respuestas'], ['encuestas', 'Encuestas']] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setReviewsView(k)} style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${c.border}`, background: reviewsView === k ? c.accent : 'transparent', color: reviewsView === k ? '#111' : c.muted, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>{l}</button>
+              ))}
+            </div>
+            {reviewsView === 'encuestas' && <EncuestasPanel c={c} />}
+            {reviewsView === 'respuestas' && reviewsSummary && (
               <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
                 <div style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: '16px 20px', textAlign: 'center', minWidth: 110 }}>
                   <div style={{ fontSize: 28, fontWeight: 700, color: c.accent }}>{reviewsSummary.total}</div>
@@ -1050,6 +1059,7 @@ export default function AdminPage() {
               </div>
             )}
 
+            {reviewsView === 'respuestas' && (<>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <select value={reviewsTargetFilter} onChange={e => setReviewsTargetFilter(e.target.value as ReviewTargetType | 'all')}
                 style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.card, color: c.text, fontSize: 12.5 }}>
@@ -1095,6 +1105,7 @@ export default function AdminPage() {
               ))}
               {reviews.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Sin reseñas todavía</div>}
             </div>
+            </>)}
           </div>
         )}
 

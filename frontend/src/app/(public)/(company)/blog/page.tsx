@@ -24,7 +24,7 @@ export default function BlogPage() {
       {posts.length === 0
         ? <p style={{ textAlign: 'center', color: 'var(--text-2)' }}>Pronto publicaremos las primeras entradas.</p>
         : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(290px,100%),1fr))', gap: 18 }}>
             {posts.map(p => <BlogCard key={p.slug} post={p} />)}
           </div>
         )}

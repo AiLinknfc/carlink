@@ -191,6 +191,8 @@ i supabase/migrations/060_analytics_events.sql
 i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/062_workshop_applications.sql
 \i supabase/migrations/063_support_tickets.sql
+\i supabase/migrations/064_surveys.sql
+\i supabase/migrations/065_vehicle_safety_items.sql
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

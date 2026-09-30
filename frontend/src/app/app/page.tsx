@@ -29,7 +29,9 @@ import HistorialTab from '@/components/tabs/HistorialTab'
 import PartesTab from '@/components/tabs/PartesTab'
 import TallerTab from '@/components/tabs/TallerTab'
 import WorkshopConfigTab from '@/components/tabs/WorkshopConfigTab'
-import ResenasTab from '@/components/tabs/ResenasTab'
+import { useSurveys } from '@/lib/surveys'
+import SeguridadTab from '@/components/tabs/SeguridadTab'
+import type { Survey } from '@/lib/types'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
 import OrderTrackingModal from '@/components/OrderTrackingModal'
@@ -130,6 +132,13 @@ export default function AppPage() {
   const [brandPickerOpen, setBrandPickerOpen] = useState(false)
   // Sección abierta del panel de perfil (acordeón): datos personales, del vehículo o gestión.
   const [profileSection, setProfileSection] = useState<'personal' | 'vehiculo' | 'gestion' | null>('personal')
+  // Desde el indicador "Perfil" de Inicio: abre Mi perfil con las demas secciones plegadas y solo
+  // "Datos del vehiculo" (donde esta la verificacion) desplegada, y baja hasta el bloque de verificar.
+  const openVerification = () => {
+    setProfileSection('vehiculo')
+    setShowProfile(true)
+    window.setTimeout(() => document.querySelector('[data-verify-block]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 280)
+  }
   const [editModel, setEditModel] = useState('')
   const [editTipo, setEditTipo] = useState('Auto')
   const [editAnio, setEditAnio] = useState(2026)
@@ -183,13 +192,10 @@ export default function AppPage() {
   // menú suelto) — ver docs del plan de este feature. Supresión unificada por
   // target (ya calificado o descartado), un solo prompt a la vez.
   const { shouldPrompt: shouldPromptRating, dismiss: dismissRatingPrompt, submitReview: submitRatingPrompt } = useRatingPrompts()
-  const [activePrompt, setActivePrompt] = useState<{
-    targetType: 'platform' | 'product' | 'workshop'; workshopId?: string; workshopName?: string; title: string; hint: string
-    /* Etiqueta del evento que disparó el prompt, mostrada en Admin junto a la
-       categoría (ej. "Producto · Activación de llavero") — vacía en la
-       calificación general de ResenasTab.tsx. */
-    context: string
-  } | null>(null)
+  // Textos, categoría y estado activo de cada encuesta salen del catálogo que se gestiona en
+  // Admin > Encuestas (lib/surveys.ts); aquí solo se decide EN QUÉ MOMENTO se dispara cada una.
+  const { forTrigger: surveyFor } = useSurveys()
+  const [activePrompt, setActivePrompt] = useState<{ survey: Survey; workshopId?: string; workshopName?: string } | null>(null)
 
   // Derived: is the ficha actually publishable? True only if DB says nfc_active
   // AND we have loaded tokens and at least one is active. This prevents the
@@ -442,6 +448,9 @@ export default function AppPage() {
   // un token nuevo. El botón "Llavero NFC" del topbar y el estado
   // "Activo"/"Sin activar" de Inicio quedaban con el dato viejo hasta
   // recargar la página (bug real reportado por el usuario).
+  // Al cambiar de vehiculo se limpian los llaveros del anterior antes de traer los del nuevo.
+  useEffect(() => { setNfcTokens([]) }, [vehicle?.id])
+
   useEffect(() => {
     if (!user || !vehicle?.id) return
     setTokensLoading(true)
@@ -469,34 +478,23 @@ export default function AppPage() {
     // "Contacto exitoso": en realidad es que el dueño abrió el aviso de que
     // alguien encontró su vehículo (no hay un estado "contactado" todavía) —
     // igual es el momento de mayor confianza en la plataforma que existe hoy.
-    if (!activePrompt && shouldPromptRating('platform')) {
-      setActivePrompt({
-        targetType: 'platform',
-        title: '¿Cómo te fue con CarLink?',
-        hint: 'Alguien te ayudó a recuperar el contacto con tu vehículo — contanos qué tal tu experiencia con la plataforma.',
-        context: 'Aviso de llavero encontrado',
-      })
-    }
+    const survey = surveyFor('found_notice_opened')
+    if (!activePrompt && survey && shouldPromptRating(survey)) setActivePrompt({ survey })
   }
 
-  // Milestone de uso: 30 días desde el registro, o ya tiene vehículo + un
-  // servicio registrado (proxy de "onboarding completo" con datos que ya
-  // están en scope en esta pantalla, sin fetch nuevo — nfcTokens no sirve acá
-  // porque solo se carga al abrir el panel NFC, no al entrar a /app).
+  // Milestone de uso: 30 días desde el registro, o ya tiene vehículo + 3 servicios
+  // registrados (uso real sostenido, con datos que ya están en scope en esta pantalla, sin
+  // fetch nuevo — nfcTokens no sirve acá porque solo se carga al abrir el panel NFC). Son 3 y
+  // no 1 para no chocar con la encuesta del primer servicio (first_service_registered).
   useEffect(() => {
     if (!profile?.created_at || vehicleLoading || activePrompt) return
+    const survey = surveyFor('usage_milestone')
+    if (!survey) return
     const daysSinceSignup = (Date.now() - new Date(profile.created_at).getTime()) / 86400000
-    const onboardingComplete = vehicles.length > 0 && maintenanceRecords.length > 0
-    if ((daysSinceSignup >= 30 || onboardingComplete) && shouldPromptRating('platform')) {
-      setActivePrompt({
-        targetType: 'platform',
-        title: '¿Qué tal tu experiencia con CarLink?',
-        hint: 'Ya llevás un tiempo usando la app — tu opinión nos ayuda a mejorarla.',
-        context: 'Milestone de uso',
-      })
-    }
+    const sustainedUse = vehicles.length > 0 && maintenanceRecords.length >= 3
+    if ((daysSinceSignup >= 30 || sustainedUse) && shouldPromptRating(survey)) setActivePrompt({ survey })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating])
+  }, [profile?.created_at, vehicleLoading, vehicles.length, maintenanceRecords.length, activePrompt, shouldPromptRating, surveyFor])
 
   const openPublicar = useCallback(async () => {
     if (!vehicle) return
@@ -552,14 +550,8 @@ export default function AppPage() {
           setTimeout(() => { window.location.assign(publicUrl) }, 1200)
         }
       } catch {}
-      if (!activePrompt && shouldPromptRating('product')) {
-        setActivePrompt({
-          targetType: 'product',
-          title: '¿Qué tal el llavero NFC?',
-          hint: 'Acabás de activarlo — contanos qué te pareció el producto.',
-          context: 'Activación de llavero',
-        })
-      }
+      const survey = surveyFor('keychain_activated')
+      if (!activePrompt && survey && shouldPromptRating(survey)) setActivePrompt({ survey })
     } else {
       flashApp(error || 'No se pudo activar el llavero.')
     }
@@ -648,19 +640,18 @@ export default function AppPage() {
 
   const onSaved = useCallback((newWorkshop?: { workshopId: string; workshopName: string }) => {
     setRefreshKey(k => k + 1)
-    if (newWorkshop && !activePrompt && shouldPromptRating('workshop', newWorkshop.workshopId)) {
-      setActivePrompt({
-        targetType: 'workshop',
-        workshopId: newWorkshop.workshopId,
-        workshopName: newWorkshop.workshopName,
-        title: `¿Cómo te fue en ${newWorkshop.workshopName}?`,
-        hint: 'Acabás de registrar un servicio con este taller — contanos qué tal la atención.',
-        // No aplica para workshop — el detalle específico ya es el nombre
-        // del taller (workshopName), no un context de reviews.
-        context: '',
-      })
+    if (activePrompt) return
+    const workshopSurvey = surveyFor('workshop_service_registered')
+    if (newWorkshop && workshopSurvey && shouldPromptRating(workshopSurvey, newWorkshop.workshopId)) {
+      setActivePrompt({ survey: workshopSurvey, workshopId: newWorkshop.workshopId, workshopName: newWorkshop.workshopName })
+      return
     }
-  }, [activePrompt, shouldPromptRating])
+    // Primer servicio del usuario (aún no había ninguno cargado): mide qué tan fácil fue.
+    const firstServiceSurvey = surveyFor('first_service_registered')
+    if (maintenanceRecords.length === 0 && firstServiceSurvey && shouldPromptRating(firstServiceSurvey)) {
+      setActivePrompt({ survey: firstServiceSurvey })
+    }
+  }, [activePrompt, shouldPromptRating, surveyFor, maintenanceRecords.length])
 
   useEffect(() => {
     if (loading) return
@@ -682,11 +673,14 @@ export default function AppPage() {
     vehicleApi.keychainAvailability().then(r => setKeychainAvailable(r?.available ?? 0))
   }, [user, loading, router])
 
-  const switchVehicle = useCallback((id: string) => {
+  // Desde el selector de placa de Inicio (stay) se queda en la misma pantalla y solo cambia el
+  // vehiculo activo (el estado, los servicios y los documentos se recargan por su id); desde el
+  // menu lateral sigue llevando a la ficha del vehiculo elegido.
+  const switchVehicle = useCallback((id: string, opts?: { stay?: boolean }) => {
     const found = vehicles.find(v => v.id === id)
     if (!found) return
     setVehicle(found)
-    setActiveTab('ficha')
+    if (!opts?.stay) setActiveTab('ficha')
     if (typeof window !== 'undefined') localStorage.setItem('carlink_active_vehicle_id', id)
   }, [vehicles])
 
@@ -933,6 +927,10 @@ export default function AppPage() {
            en el prop `inert` de Sidebar.tsx. Estos botones (ej. "Comprar
            llavero NFC") comparten z-index con CartModal, así que sin esto
            quedaban alcanzables por teclado detrás del overlay del wizard. */}
+        <div className="mobile-topbar-logo" aria-hidden="true" style={{ color: rootTextColor }}>
+          <CarLinkLogo size={33} />
+          <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
+        </div>
         <div className="topbar-actions" data-tour="topbar-actions" inert={showOnboarding || undefined} style={{ position: 'absolute', top: 14, right: 'clamp(24px,4vw,56px)', zIndex: 18, display: 'flex', gap: 10, alignItems: 'center' }}>
           <button onClick={toggleTheme} title="Cambiar apariencia" className="topbar-theme"
             style={topBtn()}
@@ -943,14 +941,14 @@ export default function AppPage() {
               : <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 14.9A9 9 0 1 1 9.1 3.3a7.2 7.2 0 0 0 11.6 11.6z"/></svg>}
           </button>
 
-          <button onClick={() => setShowQuickRegister(true)} title="Escanear documento"
+          <button onClick={() => setShowQuickRegister(true)} title="Escanear documento" className="topbar-scan"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
           </button>
 
-          <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC"
+          <button onClick={() => setShowNfc(f => !f)} title="Llavero NFC" className="topbar-nfc"
             /* Único con estado activo: es un interruptor, no una acción. */
             style={{ ...topBtn(), ...(showNfc ? { border: '1px solid #F5C518', background: 'rgba(245,197,24,0.2)', color: theme === 'light' ? '#17171a' : '#fff' } : null) }}
             onMouseEnter={e => { if (!showNfc) { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' } }}
@@ -962,7 +960,7 @@ export default function AppPage() {
           </button>
 
           {foundRequests.filter(r => r.status === 'pending').length > 0 && (
-            <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados"
+            <button onClick={() => setShowFoundPanel(true)} title="Llaveros encontrados" className="topbar-found"
               style={topBtn('#ff6b6b')}
               onMouseEnter={e => topBtnHover(e, '#ff6b6b')}
               onMouseLeave={e => topBtnLeave(e, '#ff6b6b')}>
@@ -972,7 +970,7 @@ export default function AppPage() {
           )}
 
           {isBusiness && subValid && (
-          <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS"
+          <button onClick={() => setShowPqrs(true)} title="Bandeja PQRS" className="topbar-pqrs"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>
@@ -983,7 +981,7 @@ export default function AppPage() {
           </button>
           )}
 
-          <button onClick={() => setShowNotifications(true)} title="Notificaciones"
+          <button onClick={() => setShowNotifications(true)} title="Notificaciones" className="topbar-notif"
             style={topBtn()}
             onMouseEnter={topBtnHover}
             onMouseLeave={topBtnLeave}>
@@ -1000,15 +998,6 @@ export default function AppPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
           </button>
 
-          {/* "Mis pedidos" — único lugar donde se abre OrderTrackingModal ahora
-              (antes se abría solo al cerrar el carrito, sin importar el motivo). */}
-          <button onClick={() => setShowOrderTracking(true)} title="Mis pedidos" className="topbar-cart"
-            style={topBtn()}
-            onMouseEnter={e => { e.currentTarget.style.background = '#F5C518'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = profileBtnBg; e.currentTarget.style.color = '#F5C518' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>
-          </button>
-
           <button onClick={() => setShowProfile(true)} className="topbar-profile"
             style={{ display: 'flex', alignItems: 'center', gap: 9, height: 42, padding: '0 14px 0 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: profileBtnBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
             <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>{initial}</span>
@@ -1018,7 +1007,7 @@ export default function AppPage() {
         </div>
 
         <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
-          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
+          {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} vehicles={vehicles} onSwitchVehicle={id => switchVehicle(id, { stay: true })} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
            activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
            activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
@@ -1026,10 +1015,10 @@ export default function AppPage() {
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
            activeTab === 'certificados' ? <CertificadosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
            activeTab === 'documentos' ? <DocumentosTab vehicleId={vehicle?.id} refreshKey={refreshKey} /> :
+           activeTab === 'seguridad' ? <SeguridadTab vehicleId={vehicle?.id} /> :
            activeTab === 'taller' ? (subValid ? <TallerTab vehicleId={vehicle?.id} /> : <SubscriptionExpiredCard theme={theme} />) :
            activeTab === 'config' ? (subValid ? <WorkshopConfigTab theme={theme} /> : <SubscriptionExpiredCard theme={theme} />) :
-           activeTab === 'resenas' ? <ResenasTab /> :
-           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
+           <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} vehicles={vehicles} onSwitchVehicle={id => switchVehicle(id, { stay: true })} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} />}
         </div>
 
         {/* Bienvenida */}
@@ -1100,13 +1089,15 @@ export default function AppPage() {
       {/* Prompt de calificación contextual — uno a la vez, no bloquea nada */}
         {activePrompt && (
           <RatingPromptBanner
-            title={activePrompt.title}
-            hint={activePrompt.hint}
-            targetType={activePrompt.targetType}
+            surveyKey={activePrompt.survey.key}
+            surveyTrigger={activePrompt.survey.trigger_key}
+            title={activePrompt.workshopName ? activePrompt.survey.title.replace(/tu taller/i, activePrompt.workshopName) : activePrompt.survey.title}
+            hint={activePrompt.survey.hint}
+            targetType={activePrompt.survey.target_type}
             workshopId={activePrompt.workshopId}
             workshopName={activePrompt.workshopName}
-            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.targetType, rating, comment, workshop_id: activePrompt.workshopId, context: activePrompt.context })}
-            onDismiss={() => { dismissRatingPrompt(activePrompt.targetType, activePrompt.workshopId); setActivePrompt(null) }}
+            onSubmit={(rating, comment) => submitRatingPrompt({ target_type: activePrompt.survey.target_type, rating, comment, workshop_id: activePrompt.workshopId, survey_key: activePrompt.survey.key })}
+            onDismiss={() => { dismissRatingPrompt(activePrompt.survey, activePrompt.workshopId); setActivePrompt(null) }}
           />
         )}
 
@@ -1289,7 +1280,7 @@ export default function AppPage() {
                  transferir/vender TODOS los vehículos de la cuenta, no sólo
                  el que se revisó (2026-09-19, bug real encontrado por el
                  usuario). */}
-              <div style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
+              <div data-verify-block style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
                   {isVerified ? 'Vehículo verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Vehículo sin verificar'}
                 </div>
@@ -1357,13 +1348,17 @@ export default function AppPage() {
               </ProfileAccordion>
 
 
-              {/* Gestión: ajustes, ayuda y reentrada al tutorial guiado
+              {/* Gestión: mis pedidos, ajustes, ayuda y reentrada al tutorial guiado
                  (2026-09-18) — para que saltarlo no sea un callejón sin salida. */}
               <ProfileAccordion title="Gestión" open={profileSection === 'gestion'} onToggle={() => setProfileSection(profileSection === 'gestion' ? null : 'gestion')}>
                 {(() => {
                   const rowStyle: React.CSSProperties = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--input-border)', background: 'transparent', color: 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', textAlign: 'left' }
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <button type="button" onClick={() => { setShowProfile(false); setShowOrderTracking(true) }} style={rowStyle}>
+                        <span>Mis pedidos</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                      </button>
                       <button type="button" onClick={toggleTheme} style={rowStyle}>
                         <span>Ajustes · Apariencia</span>
                         <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{tDark ? 'Oscuro' : 'Claro'}</span>

@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useMyReviews } from './hooks'
-import type { ReviewTargetType } from './types'
+import type { Survey } from './types'
 
-const STORAGE_KEY = 'carlink:reviewPromptDismissed'
+const STORAGE_KEY = 'carlink:surveyPromptDismissed'
 
-function dismissedKey(targetType: ReviewTargetType, workshopId?: string): string {
-  return targetType === 'workshop' ? `workshop:${workshopId}` : targetType
+function dismissedKey(survey: Survey, workshopId?: string): string {
+  return survey.target_type === 'workshop' ? `${survey.key}:${workshopId}` : survey.key
 }
 
 function readDismissed(): Set<string> {
@@ -24,29 +24,25 @@ function writeDismissed(set: Set<string>) {
   } catch { /* localStorage no disponible (privado/incognito) — no bloquea nada */ }
 }
 
-/** Supresión unificada de los prompts de calificación contextuales — por
- * target (plataforma/producto son globales, un taller por id), no por evento:
- * cualquiera de los eventos que dispare 'platform' queda cubierto en cuanto
- * uno de ellos se calificó o se descartó, sin importar cuál haya sido. Dos
- * señales, ninguna nueva en el backend: ya calificado (GET /reviews?mine=true,
- * vía useMyReviews) o descartado ("Después", localStorage — solo evita que
- * insista en esta sesión/dispositivo, no hace falta persistirlo server-side
- * para un v1 no intrusivo). */
+/** Supresión de los prompts flotantes de encuesta — por encuesta (una de taller, por taller),
+ * no por evento. Dos señales, ninguna nueva en el backend: ya respondida (GET /reviews?mine=true,
+ * vía useMyReviews) o descartada ("Después", localStorage — solo evita que insista en este
+ * dispositivo). El catálogo de encuestas y su estado activo viene de Admin (lib/surveys.ts). */
 export function useRatingPrompts() {
-  const { mine, loading, byTarget, submitReview } = useMyReviews()
+  const { mine, loading, bySurvey, submitReview } = useMyReviews()
   const [dismissed, setDismissed] = useState<Set<string>>(() => readDismissed())
 
-  const shouldPrompt = useCallback((targetType: ReviewTargetType, workshopId?: string): boolean => {
-    if (loading) return false
-    if (targetType === 'workshop' && !workshopId) return false
-    if (byTarget(targetType, workshopId)) return false
-    return !dismissed.has(dismissedKey(targetType, workshopId))
-  }, [loading, byTarget, dismissed])
+  const shouldPrompt = useCallback((survey: Survey | undefined, workshopId?: string): boolean => {
+    if (!survey || loading) return false
+    if (survey.target_type === 'workshop' && !workshopId) return false
+    if (bySurvey(survey.key, survey.target_type, workshopId)) return false
+    return !dismissed.has(dismissedKey(survey, workshopId))
+  }, [loading, bySurvey, dismissed])
 
-  const dismiss = useCallback((targetType: ReviewTargetType, workshopId?: string) => {
+  const dismiss = useCallback((survey: Survey, workshopId?: string) => {
     setDismissed(prev => {
       const next = new Set(prev)
-      next.add(dismissedKey(targetType, workshopId))
+      next.add(dismissedKey(survey, workshopId))
       writeDismissed(next)
       return next
     })
