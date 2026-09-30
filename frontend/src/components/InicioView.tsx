@@ -10,18 +10,26 @@ import SafetyIcon from '@/components/SafetyIcon'
 import { KIT_ITEMS } from '@/lib/safety'
 import type { SafetyItem, SafetyKind } from '@/lib/types'
 
+// Orden: los 5 por defecto primero (los que se ven en Inicio sin haberlos usado nunca), despues
+// los que solo aparecen una vez que ya se llamaron (ver DEFAULT_SERVICE_IDS abajo), "Otro" al final.
 const SERVICE_TYPES = [
   { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
   { id: 'Aire', label: 'Filtros', desc: 'Filtro de aire, cabina, combustible' },
+  { id: 'Bateria', label: 'Bateria', desc: 'Bateria y sistema electrico' },
+  { id: 'Llantas', label: 'Llantas', desc: 'Rotacion, alineacion, balanceo' },
+  { id: 'Suspension', label: 'Suspension', desc: 'Amortiguadores, bujes' },
   { id: 'Combustible', label: 'Combustible', desc: 'Sistema de combustible' },
   { id: 'Frenos', label: 'Frenos', desc: 'Pastillas, discos, liquido' },
   { id: 'Refrigerante', label: 'Refrigeracion', desc: 'Sistema de refrigeracion' },
-  { id: 'Llantas', label: 'Llantas', desc: 'Rotacion, alineacion, balanceo' },
-  { id: 'Suspension', label: 'Suspension', desc: 'Amortiguadores, bujes' },
-  { id: 'Bateria', label: 'Bateria', desc: 'Bateria y sistema electrico' },
   { id: 'Transmision', label: 'Transmision', desc: 'Caja, clutch, aceite de transmision' },
   { id: 'Otro', label: 'Otro', desc: 'Otro servicio de mantenimiento' },
 ]
+
+// Se ven siempre en Inicio, sin necesidad de haberlos usado. El resto (Combustible, Frenos,
+// Refrigerante, Transmision) solo aparece una vez que ya se registro un servicio de ese tipo, o se
+// abrio esa tarjeta al menos una vez (`explored`) — se van "descubriendo" y acumulando, pero siguen
+// accesibles siempre desde "Nuevo servicio" (acciones rapidas), que muestra todas las opciones.
+const DEFAULT_SERVICE_IDS = ['Aceite', 'Aire', 'Bateria', 'Llantas', 'Suspension']
 
 const STORAGE_KEY = 'carlink_explored_services'
 
@@ -91,13 +99,23 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   const { items: safetyItems, reload: reloadSafety } = useSafetyItems(vehicle?.id)
   const [safetyForm, setSafetyForm] = useState<{ kind: SafetyKind; item: SafetyItem | null; presetCheck?: string } | null>(null)
   const kit = safetyItems.find(i => i.kind === 'kit_carretera') ?? null
+  // Orden de piezas del kit para esta grilla (no reordena KIT_ITEMS en si — SafetyFormModal y
+  // SeguridadTab lo usan para su propio checklist y ese orden no cambia): triangulos/conos y
+  // chaleco van por defecto, el resto (gato, llave de ruedas, herramientas) solo aparece una vez
+  // marcado al menos una vez en el kit — ver DEFAULT_SAFETY_IDS abajo.
+  const KIT_KEYS_DISPLAY_ORDER = ['triangulos', 'chaleco', 'gato', 'llave_ruedas', 'herramientas']
+  const kitItemsOrdered = KIT_KEYS_DISPLAY_ORDER.map(key => KIT_ITEMS.find(k => k.key === key)).filter((k): k is { key: string; label: string } => !!k)
   const SAFETY_CARDS: { id: string; kind: SafetyKind; label: string; desc: string; presetCheck?: string; done: boolean }[] = [
     { id: 'extintor', kind: 'extintor', label: 'Extintor', desc: 'Compra, recarga y vencimiento', done: safetyItems.some(i => i.kind === 'extintor') },
     { id: 'botiquin', kind: 'botiquin', label: 'Botiquin', desc: 'Revision y elementos faltantes', done: safetyItems.some(i => i.kind === 'botiquin') },
     { id: 'kit', kind: 'kit_carretera', label: 'Kit de carretera', desc: 'Revisa que tiene tu kit', done: !!kit },
-    ...KIT_ITEMS.map(k => ({ id: k.key, kind: 'kit_carretera' as SafetyKind, label: k.label, desc: 'Marcalo en tu kit', presetCheck: k.key, done: !!kit?.checklist?.[k.key] })),
+    ...kitItemsOrdered.map(k => ({ id: k.key, kind: 'kit_carretera' as SafetyKind, label: k.label, desc: 'Marcalo en tu kit', presetCheck: k.key, done: !!kit?.checklist?.[k.key] })),
     { id: 'otro', kind: 'otro', label: 'Otro elemento', desc: 'Linterna, cables, etc.', done: safetyItems.some(i => i.kind === 'otro') },
   ]
+  // Se ven siempre; el resto de kitItemsOrdered (gato, llave_ruedas, herramientas) solo si ya
+  // estan marcados en el kit (`done`) — se "descubren" solos al revisarlos desde la tarjeta
+  // "Kit de carretera", que si esta visible desde el principio.
+  const DEFAULT_SAFETY_IDS = ['extintor', 'botiquin', 'kit', 'triangulos', 'chaleco']
 
   // Toque en un indicador: pequeno "empujon" animado y luego la accion (evita el salto seco).
   const [nudge, setNudge] = useState<string | null>(null)
@@ -274,7 +292,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar servicio</div>
         <div data-r="svcGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-          {SERVICE_TYPES.map(st => {
+          {SERVICE_TYPES.filter(st => DEFAULT_SERVICE_IDS.includes(st.id) || st.id === 'Otro' || explored[st.id] || maintenanceRecords?.some((r: any) => r.service_type === st.id)).map(st => {
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
             return (
@@ -311,7 +329,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Verificar elementos</div>
         <div data-r="safeGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-          {SAFETY_CARDS.map(c => {
+          {SAFETY_CARDS.filter(c => DEFAULT_SAFETY_IDS.includes(c.id) || c.id === 'otro' || c.done).map(c => {
             const existing = c.kind === 'kit_carretera' ? kit : null
             return (
               <button key={c.id} onClick={() => setSafetyForm({ kind: c.kind, item: existing, presetCheck: c.presetCheck })} style={{
