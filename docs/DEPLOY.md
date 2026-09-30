@@ -333,13 +333,24 @@ nuevo — el modelo de ramas no depende de eso).
 - Flujo: `feature/algo` → PR a `develop` (CI en verde) → merge → cuando `develop` tiene algo
   listo para producción → PR de `develop` a `master` (CI en verde) → merge → deploy automático.
 
-**Pendiente de configurar por el usuario** (requiere acceso admin al repo en GitHub — no se
-puede hacer desde un entorno de agente sin `gh` autenticado con esos permisos):
-1. Push de la rama `develop` a `origin` (con autorización fresca — no asumida por este doc).
-2. GitHub → Settings → Branches → Branch protection rules → agregar regla para `master`:
+**Ya en uso real (confirmado 2026-09-30, la nota de abajo estaba desactualizada — `docs/DEPLOY.md`
+no se había vuelto a tocar desde el 2026-09-09 en que se escribió el plan)**: la rama `develop`
+existe en `origin` y ya hubo PRs reales mergeados a `master` a través de ella (PR #8 desde
+`release/taller-soporte-legal-2026-09-21`, PR #9 desde `develop`). **Regla de trabajo, sin
+excepción**: el trabajo de una sesión de Claude Code nunca se pushea directo a `master` — siempre
+va a `develop` (o a una rama propia mergeada a `develop`) y de ahí un PR a `master`, que el usuario
+aprueba/mergea desde GitHub. Esto aplica incluso si local `master` tiene commits hechos ahí
+directamente (pasa cuando se trabajó una sesión larga sin acordarse de ramificar): en ese caso, el
+camino es crear/actualizar `develop` local desde `origin/develop`, hacerle `git merge master` (debería
+quedar limpio si nadie tocó `develop` en paralelo) y pushear *eso*, dejando `master` local intacto
+sin push. No hace falta preguntar cuál de los dos flujos usar — siempre es este.
+
+Sigue pendiente, si el usuario quiere reforzarlo a nivel de GitHub (no bloquea el punto de arriba,
+que es una regla de proceso, no de permisos):
+1. GitHub → Settings → Branches → Branch protection rules → agregar regla para `master`:
    exigir PR antes de merge, exigir que el check de CI (`.github/workflows/ci.yml`) pase, y
    opcionalmente exigir 1 aprobación.
-3. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
+2. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
    apunten ahí en vez de a `master`.
 
 ## Lecciones del despliegue de la reactivación NFC (2026-07-27)
