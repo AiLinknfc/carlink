@@ -79,6 +79,7 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
     if (r.capacity) { setCapacity(r.capacity); found.push('capacidad') }
     if (r.agent) { setAgent(r.agent); found.push('agente') }
     if (r.missing_items?.length) { setMissing(prev => Array.from(new Set([...prev, ...r.missing_items]))); found.push('faltantes') }
+    if (r.kit_item) { setChecklist(c => ({ ...c, [r.kit_item as string]: true })); found.push(KIT_ITEMS.find(k => k.key === r.kit_item)?.label ?? r.kit_item) }
     setScanMsg(found.length
       ? `Leímos: ${found.join(', ')}. Revisa que estén bien antes de guardar.`
       : 'No encontramos datos claros en la imagen. Completa los datos a mano; la foto se guarda igual.')

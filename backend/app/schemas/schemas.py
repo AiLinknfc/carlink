@@ -2068,4 +2068,7 @@ class SafetyScanResult(BaseModel):
     capacity: str | None = None
     agent: str | None = None
     missing_items: list[str] = Field(default_factory=list)
+    # Si kind == "kit_carretera": cual pieza especifica muestra la foto (gato, llave_ruedas,
+    # triangulos, chaleco, herramientas), o null si no se puede saber.
+    kit_item: str | None = None
     raw_text: str = ""

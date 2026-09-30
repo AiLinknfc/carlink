@@ -102,9 +102,9 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   const [safetyForm, setSafetyForm] = useState<{ kind: SafetyKind; item: SafetyItem | null; presetCheck?: string } | null>(null)
   const kit = safetyItems.find(i => i.kind === 'kit_carretera') ?? null
   // Orden de piezas del kit para esta grilla (no reordena KIT_ITEMS en si — SafetyFormModal y
-  // SeguridadTab lo usan para su propio checklist y ese orden no cambia): triangulos/conos y
-  // chaleco van por defecto, el resto (gato, llave de ruedas, herramientas) solo aparece una vez
-  // marcado al menos una vez en el kit — ver DEFAULT_SAFETY_IDS abajo.
+  // SeguridadTab lo usan para su propio checklist y ese orden no cambia). Ninguna pieza del kit se
+  // ve por defecto — todas aparecen recien cuando ya estan marcadas en el kit (ver
+  // DEFAULT_SAFETY_IDS abajo), consistente entre las 5: antes triangulos/chaleco eran la excepcion.
   const KIT_KEYS_DISPLAY_ORDER = ['triangulos', 'chaleco', 'gato', 'llave_ruedas', 'herramientas']
   const kitItemsOrdered = KIT_KEYS_DISPLAY_ORDER.map(key => KIT_ITEMS.find(k => k.key === key)).filter((k): k is { key: string; label: string } => !!k)
   const SAFETY_CARDS: { id: string; kind: SafetyKind; label: string; desc: string; presetCheck?: string; done: boolean }[] = [
@@ -114,10 +114,10 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     ...kitItemsOrdered.map(k => ({ id: k.key, kind: 'kit_carretera' as SafetyKind, label: k.label, desc: 'Marcalo en tu kit', presetCheck: k.key, done: !!kit?.checklist?.[k.key] })),
     { id: 'otro', kind: 'otro', label: 'Otro elemento', desc: 'Linterna, cables, etc.', done: safetyItems.some(i => i.kind === 'otro') },
   ]
-  // Se ven siempre; el resto de kitItemsOrdered (gato, llave_ruedas, herramientas) solo si ya
-  // estan marcados en el kit (`done`) — se "descubren" solos al revisarlos desde la tarjeta
-  // "Kit de carretera", que si esta visible desde el principio.
-  const DEFAULT_SAFETY_IDS = ['extintor', 'botiquin', 'kit', 'triangulos', 'chaleco']
+  // Las 5 piezas de kitItemsOrdered solo aparecen una vez marcadas en el kit (`done`) — se
+  // "descubren" solas al revisarlas desde la tarjeta "Kit de carretera", que si esta visible desde
+  // el principio.
+  const DEFAULT_SAFETY_IDS = ['extintor', 'botiquin', 'kit']
 
   // Toque en un indicador: pequeno "empujon" animado y luego la accion (evita el salto seco).
   const [nudge, setNudge] = useState<string | null>(null)
