@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy import select
 
-from app.models.models import MaintenanceRecord, Vehicle
+from app.models.models import MaintenanceRecord, Part, Vehicle
 
 
 def _fake_vehicle(id: str, owner_id: str) -> MagicMock:
@@ -307,3 +307,77 @@ async def test_create_maintenance_minimal_fields(client, mock_db, fake_user_id, 
     }
     resp = await client.post("/api/maintenance", json=body)
     assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_create_maintenance_creates_replaced_part(client, mock_db, fake_user_id, fake_vehicle_id):
+    """POST con replaced_parts crea la pieza en la misma transaccion (2026-09-30: antes esto era
+    una segunda llamada aparte desde el frontend que se podia perder)."""
+    mock_vehicle = _fake_vehicle(fake_vehicle_id, fake_user_id)
+    vehicle_result = MagicMock()
+    vehicle_result.scalar_one_or_none.return_value = mock_vehicle
+    no_existing_part = MagicMock()
+    no_existing_part.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(side_effect=[vehicle_result, no_existing_part])
+    mock_db.flush = AsyncMock()
+
+    async def _refresh(record):
+        record.id = uuid.uuid4()
+        record.date = date.today()
+        record.created_at = datetime.now(timezone.utc)
+
+    mock_db.refresh = AsyncMock(side_effect=_refresh)
+
+    body = {
+        "vehicle_id": fake_vehicle_id,
+        "service_type": "Aceite",
+        "description": "Cambio de pastillas",
+        "mileage": 52000,
+        "replaced_parts": [{"name": "Pastillas de freno", "category": "Frenos", "lifespan_mileage": 20000}],
+    }
+    resp = await client.post("/api/maintenance", json=body)
+    assert resp.status_code == 201
+    assert mock_db.add.call_count == 2
+    added_part = next(c.args[0] for c in mock_db.add.call_args_list if isinstance(c.args[0], Part))
+    assert added_part.name == "Pastillas de freno"
+    assert added_part.category == "Frenos"
+    assert added_part.mileage_installed == 52000
+    assert added_part.lifespan_mileage == 20000
+    assert added_part.status == "ok"
+
+
+@pytest.mark.asyncio
+async def test_create_maintenance_updates_existing_replaced_part(client, mock_db, fake_user_id, fake_vehicle_id):
+    """Si ya existe una pieza con ese nombre en el vehiculo, se actualiza en vez de duplicarla."""
+    mock_vehicle = _fake_vehicle(fake_vehicle_id, fake_user_id)
+    vehicle_result = MagicMock()
+    vehicle_result.scalar_one_or_none.return_value = mock_vehicle
+    existing_part = MagicMock(spec=Part)
+    existing_part.mileage_installed = 30000
+    existing_part.lifespan_mileage = 15000
+    existing_part.status = "worn"
+    existing_part_result = MagicMock()
+    existing_part_result.scalar_one_or_none.return_value = existing_part
+    mock_db.execute = AsyncMock(side_effect=[vehicle_result, existing_part_result])
+    mock_db.flush = AsyncMock()
+
+    async def _refresh(record):
+        record.id = uuid.uuid4()
+        record.date = date.today()
+        record.created_at = datetime.now(timezone.utc)
+
+    mock_db.refresh = AsyncMock(side_effect=_refresh)
+
+    body = {
+        "vehicle_id": fake_vehicle_id,
+        "service_type": "Aceite",
+        "description": "Cambio de pastillas",
+        "mileage": 52000,
+        "replaced_parts": [{"name": "Pastillas de freno", "category": "Frenos", "lifespan_mileage": 20000}],
+    }
+    resp = await client.post("/api/maintenance", json=body)
+    assert resp.status_code == 201
+    mock_db.add.assert_called_once()  # solo el MaintenanceRecord — la pieza se actualiza, no se crea
+    assert existing_part.mileage_installed == 52000
+    assert existing_part.lifespan_mileage == 20000
+    assert existing_part.status == "ok"

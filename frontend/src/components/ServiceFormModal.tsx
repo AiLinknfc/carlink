@@ -453,6 +453,36 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     setSaving(true); setError('')
 
     const desc = buildDescription(serviceType, extra)
+
+    // Piezas que este servicio renueva: las fijas del tipo de servicio, más las que el usuario
+    // marcó explícitamente como reemplazadas. Un diagnóstico ("Requiere cambio") no renueva nada:
+    // la pieza sigue siendo la vieja. Antes esto disparaba dos llamadas aparte a /api/parts DESPUÉS
+    // de guardar el servicio — si el usuario cerraba la pestaña o fallaba la red justo ahí, el
+    // servicio quedaba guardado pero la pieza nunca se sincronizaba (encontrado 2026-09-30 con
+    // datos reales: Frenos/Llantas en el historial sin su pieza en Control de Partes). Ahora viaja
+    // en el mismo body y el backend la sincroniza en la misma transacción (ver maintenance.py).
+    const stDef = SERVICE_TYPES.find(st => st.id === serviceType) as any
+    const replacedNames: string[] = [
+      ...(stDef?.partNames || []),
+      ...((stDef?.replacements || []) as { key: string; part: string }[])
+        .filter(r => ACTION_VALUES.has(extra[r.key]))
+        .map(r => r.part),
+    ]
+    let lifeKm: number | null = null
+    let lifeMonths: number | null = null
+    if (serviceType === 'Aceite') {
+      const rule = getLubricantRule(extra.lubricant_type)
+      if (rule) { lifeKm = rule.lifespanKm; lifeMonths = rule.lifespanMonths }
+    }
+    const replacedParts = stDef ? replacedNames.map(partName => ({
+      name: partName,
+      category: stDef.partCategory || 'Otros',
+      lifespan_mileage: (serviceType === 'Aceite' && lifeKm != null)
+        ? lifeKm
+        : (PART_LIFESPAN_KM[partName] ?? DEFAULT_LIFESPAN_KM[serviceType] ?? null),
+      notes: lifeMonths ? `Vida útil: ${lifeMonths} meses` : '',
+    })) : []
+
     const body: Record<string, any> = {
       vehicle_id: vehicleId,
       service_type: serviceType,
@@ -466,6 +496,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
       lubricant_type: extra.lubricant_type || '',
       lubricant_product: extra.lubricant_product || '',
       next_service_mileage: extra.next_service_mileage ? parseInt(extra.next_service_mileage) : null,
+      replaced_parts: replacedParts,
     }
 
     try {
@@ -483,72 +514,6 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(await res.text())
-
-      // Auto-create/update Part records — use lubricant rules for Aceite
-      {
-        const stDef = SERVICE_TYPES.find(st => st.id === serviceType) as any
-        /* Piezas a renovar: las fijas del tipo de servicio, más las que el
-           usuario marcó explícitamente como reemplazadas. Un diagnóstico
-           ("Requiere cambio") no renueva nada: la pieza sigue siendo la vieja. */
-        const replacedNames: string[] = [
-          ...(stDef?.partNames || []),
-          ...((stDef?.replacements || []) as { key: string; part: string }[])
-            .filter(r => ACTION_VALUES.has(extra[r.key]))
-            .map(r => r.part),
-        ]
-        if (stDef && replacedNames.length > 0) {
-          const milVal = parseInt(mileage)
-          let lifeKm: number | null = null
-          let lifeMonths: number | null = null
-          if (serviceType === 'Aceite') {
-            const rule = getLubricantRule(extra.lubricant_type)
-            if (rule) { lifeKm = rule.lifespanKm; lifeMonths = rule.lifespanMonths }
-          }
-          for (const partName of replacedNames) {
-            /* El aceite manda su regla de lubricante; el resto toma la vida útil
-               de la pieza, y sólo si no la hay cae al valor del tipo de servicio.
-               Antes quedaba en null y la pieza nacía sin predicción. */
-            const partLife = (serviceType === 'Aceite' && lifeKm != null)
-              ? lifeKm
-              : (PART_LIFESPAN_KM[partName] ?? DEFAULT_LIFESPAN_KM[serviceType] ?? null)
-            try {
-              const existing = await fetch(`/api/parts/vehicle/${vehicleId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              }).then(r => r.ok ? r.json() : []).then((parts: any[]) =>
-                parts.find((p: any) => p.name === partName)
-              )
-              if (existing) {
-                /* Sólo los campos que cambian: lifespan_mileage sólo si lo
-                   sabemos, para no borrar el que ya tuviera la pieza.
-                   updated_at lo maneja el servidor. */
-                const patch: Record<string, unknown> = { mileage_installed: milVal, status: 'ok' }
-                if (partLife != null) patch.lifespan_mileage = partLife
-                const r = await fetch(`/api/parts/${existing.id}`, {
-                  method: 'PUT',
-                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify(patch),
-                })
-                if (!r.ok) console.warn('No se pudo actualizar la pieza', partName, await r.text())
-              } else {
-                await fetch('/api/parts', {
-                  method: 'POST',
-                  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    vehicle_id: vehicleId,
-                    name: partName,
-                    category: stDef.partCategory || 'Otros',
-                    brand: '',
-                    status: 'ok',
-                    mileage_installed: milVal,
-                    lifespan_mileage: partLife,
-                    notes: lifeMonths ? `Vida útil: ${lifeMonths} meses` : '',
-                  }),
-                })
-              }
-            } catch (e) { console.warn('Fallo al sincronizar la pieza', partName, e) }
-          }
-        }
-      }
 
       // Prompt de calificación de taller solo en alta nueva (no en ediciones,
       // para no volver a preguntar cada vez que se retoca el mismo registro).
