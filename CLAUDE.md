@@ -24,7 +24,13 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
 ## Reglas duras (no pedir confirmación, ya están decididas)
 
 1. **Nunca hacer `git push` sin autorización explícita y fresca del usuario en la sesión actual.**
-   Autorización de una sesión anterior no cuenta. Commits locales sí están bien.
+   Autorización de una sesión anterior no cuenta. Commits locales sí están bien. **Con
+   autorización, el push nunca va directo a `master`** — siempre a `develop` (crear/actualizar
+   `develop` local desde `origin/develop`, `git merge master` ahí, push) y de ahí abrir el PR hacia
+   `master` (link de compare, `gh` no está autenticado en este entorno) para que el usuario lo
+   apruebe/mergee desde GitHub. Esto aplica aunque el trabajo se haya hecho en local `master` por
+   costumbre — no preguntar cuál flujo usar, es siempre este (ver `docs/DEPLOY.md` → "Modelo de
+   ramas").
 2. **Nunca usar emojis en la interfaz de la app** (componentes de `frontend/src`, texto generado
    que se muestre al usuario). Sí está bien usarlos en `docs/*.md` como notación de estado
    (✅/❌/🔴 en tablas/checklists). Detalle completo en `docs/DESIGN_GUIDELINES.md`.
