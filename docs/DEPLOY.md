@@ -353,6 +353,26 @@ que es una regla de proceso, no de permisos):
 2. Opcional: cambiar la rama por defecto del repo a `develop`, para que nuevos clones/PRs
    apunten ahí en vez de a `master`.
 
+### Cómo hacer una feature branch y mergearla, todo desde GitHub (sin terminal)
+
+1. **Crear la rama**: en local, `git checkout develop && git pull && git checkout -b feature/lo-que-sea` (una sesión de Claude Code la crea así). También se puede crear directo en github.com desde el dropdown de ramas de la página del repo.
+2. **Trabajar y pushear**: `git push -u origin feature/lo-que-sea`.
+3. **Abrir el PR hacia `develop`** — en el navegador: `https://github.com/AiLinknfc/carlink/compare/develop...feature/lo-que-sea?expand=1` (cambiar el nombre de la rama en la URL). GitHub también ofrece un botón amarillo "Compare & pull request" apenas se pushea una rama nueva.
+4. **Mergear**: revisar el diff, botón verde **"Merge pull request"** (se usa merge commit normal, no squash — así se ha hecho en los PRs #8/#9 ya mergeados, mantener el mismo estilo). Justo después aparece un botón **"Delete branch"** — usarlo ahí mismo para no dejar la rama vieja dando vueltas.
+5. **Cuando `develop` tiene algo listo para producción**, mismo mecanismo hacia `master`: `https://github.com/AiLinknfc/carlink/compare/master...develop?expand=1`.
+6. Local, después de cualquier merge en GitHub: `git checkout develop && git pull` (o `master`) para que el local quede al día, y borrar la rama local ya mergeada con `git branch -d feature/lo-que-sea`.
+
+**Para que las ramas viejas no se acumulen sin acordarse de borrarlas a mano**: GitHub → Settings →
+General → sección "Pull Requests" → activar **"Automatically delete head branches"**. Con eso, el
+botón "Delete branch" del paso 4 pasa a ser automático en cada merge — la única forma de terminar
+con ramas sueltas en el remoto es dejar alguna sin mergear a medias.
+
+**Limpieza de ramas viejas del remoto**: página `https://github.com/AiLinknfc/carlink/branches` —
+ícono de basurero junto a cada rama que no sea `master`/`develop`. Verificado 2026-09-30 que
+`feature/plan-gratuito-wizard` y `release/taller-soporte-legal-2026-09-21` ya están 100% mergeadas
+tanto en `master` como en `develop` (`git merge-base --is-ancestor`) — se pueden borrar sin perder
+nada.
+
 ## Lecciones del despliegue de la reactivación NFC (2026-07-27)
 
 **Redeploys de Railway pueden tardar varios minutos y "Redeploy" en la fila equivocada revive un deployment viejo.** En esta sesión, un fix ya correcto tardó ~40 minutos en verse reflejado en producción porque:
