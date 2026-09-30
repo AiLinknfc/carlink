@@ -38,24 +38,12 @@ const STACK_DOTS_GAP = 14 + GAP_UNIT / 2
 // realmente recorre las N tarjetas.
 const DEAD_ZONE = 0.1
 
-// Paleta de CarLink (docs/DESIGN_GUIDELINES.md): dorado #F5C518 como acento principal, mas los 3
-// semanticos (#2ecc71 verde, #ff8a3d naranja, #ff4d6a rojo) y grises neutros — nunca colores fuera
-// de esa paleta (antes habia teal/azul/violeta, ninguno de la marca). La variedad entre tarjetas
-// sale de variar tono/temperatura dentro de esa misma paleta, no de agregar colores nuevos.
-const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: string; sub: string }> = {
-  Aceite:       { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' },
-  Aire:         { bg: 'linear-gradient(135deg,#3a1f06 0%,#6b3f0c 45%,#231303 100%)', accent: '#ffb020', text: '#fff3dc', sub: '#dcb98a' },
-  Combustible:  { bg: 'linear-gradient(135deg,#06261a 0%,#0c4a32 45%,#03160f 100%)', accent: '#2ecc71', text: '#e9fbf1', sub: '#8fdbb3' },
-  Frenos:       { bg: 'linear-gradient(135deg,#2a0612 0%,#5c0c22 45%,#170309 100%)', accent: '#ff4d6a', text: '#fdeaef', sub: '#d88aa0' },
-  Refrigerante: { bg: 'linear-gradient(135deg,#2a1604 0%,#5c2e08 45%,#170b02 100%)', accent: '#ff8a3d', text: '#fdf0e6', sub: '#d8ac8a' },
-  Llantas:      { bg: 'linear-gradient(135deg,#161616 0%,#2e2e2e 45%,#0a0a0a 100%)', accent: '#c9b96a', text: '#f2f2f2', sub: '#a8a89a' },
-  'Suspensión': { bg: 'linear-gradient(135deg,#2a1a06 0%,#5c380c 45%,#170d03 100%)', accent: '#d4923d', text: '#fbeedc', sub: '#d4b28a' },
-  'Batería':    { bg: 'linear-gradient(135deg,#262006 0%,#4a3e0c 45%,#161203 100%)', accent: '#ffd84d', text: '#fdf6dc', sub: '#dcc98a' },
-  'Transmisión':{ bg: 'linear-gradient(135deg,#0e0e0e 0%,#2c2c2c 45%,#080808 100%)', accent: '#9a9a9a', text: '#f0f0f0', sub: '#aeb0b4' },
-  Otro:         { bg: 'linear-gradient(135deg,#1c1708 0%,#3a2f0c 45%,#0d0d0d 100%)', accent: '#F5C518', text: '#f5f0d8', sub: '#c0b080' },
-}
-function getTheme(type?: string) {
-  return SERVICE_CARD_THEME[type || ''] || SERVICE_CARD_THEME.Otro
+// El mismo dorado de los botones de toda la app (#F5C518, docs/DESIGN_GUIDELINES.md → Primary
+// Accent) para las 10 tarjetas — el usuario probo la variante de un color distinto por tipo de
+// servicio y prefirio que todas compartan el mismo dorado de marca, sin diferenciarse por color.
+const CARD_THEME = { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' }
+function getTheme() {
+  return CARD_THEME
 }
 interface Props {
   records: any[]
@@ -263,7 +251,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: STACK_DOTS_GAP, maxWidth: '100%' }}>
           <div style={{ position: 'relative', width: 'min(92vw, 480px)', maxWidth: '100%', transformStyle: 'preserve-3d' }}>
             {records.map((r, i) => {
-              const theme = getTheme(r.service_type)
+              const theme = getTheme()
               return (
                 <div key={r.id || i}
                   ref={el => { cardRefs.current[i] = el }}
@@ -273,7 +261,7 @@ export default function HistoryStack({ records, onEdit }: Props) {
               )
             })}
             {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
-            <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
+            <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme()} /></div>
             {/* Espacio invisible que representa cuanto se corre hacia abajo el mazo detras de la
                 tarjeta activa (ver STACK_RECEDE_PX en paint: translateY llega hasta ~170px antes
                 de desvanecerse) — sin esto el centrado solo contaba el alto de UNA tarjeta, dejaba
