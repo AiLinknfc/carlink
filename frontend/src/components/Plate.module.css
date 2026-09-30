@@ -14,11 +14,17 @@
   transition: transform .3s cubic-bezier(0.22,1,0.36,1), box-shadow .4s;
   will-change: transform;
   flex-shrink: 0;
+  /* Sin esto, Safari/Chrome moviles "ayudan" agrandando el texto mas chico
+     (label/city) mas de lo que agrandan el numero en pantallas angostas,
+     rompiendo la proporcion que el cqw de Plate3D calcula a proposito —
+     con esto el tamano real es siempre el que se calculo, nunca uno "boosteado". */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 .plate:hover {
   transform: perspective(800px) rotateY(-6deg) rotateX(2deg);
 }
-.plate-label { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; flex-shrink: 0; line-height: 1.2; margin-top: 1px; }
-.plate-number { font-family: var(--font-display); letter-spacing: .03em; line-height: 1; text-align: center; text-shadow: 0 2px 0 rgba(255,255,255,.28); flex-shrink: 0; }
-.plate-city { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; text-transform: uppercase; flex-shrink: 0; line-height: 1.2; margin-top: 1px; }
+.plate-label { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; flex-shrink: 0; line-height: 1.2; margin-top: 1px; text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+.plate-number { font-family: var(--font-display); letter-spacing: .03em; line-height: 1; text-align: center; text-shadow: 0 2px 0 rgba(255,255,255,.28); flex-shrink: 0; text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+.plate-city { text-align: center; font-weight: 800; letter-spacing: .32em; padding: 0; text-indent: .32em; text-transform: uppercase; flex-shrink: 0; line-height: 1.2; margin-top: 1px; text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
 .plate-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.6) 48%, transparent 66%); animation: shineSweep 6s ease-in-out infinite; pointer-events: none; }

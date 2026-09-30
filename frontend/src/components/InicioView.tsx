@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ServiceTypeIcon } from '@/lib/icons_new'
 import Plate3D from '@/components/Plate3D'
 import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
@@ -53,6 +54,9 @@ interface Props {
   onNavigate?: (tab: string) => void
   /** Abre "Mi perfil" con solo la verificacion del vehiculo desplegada. */
   onOpenVerification?: () => void
+  /** Acciones rapidas: agregar vehiculo (ya trae su propia regla de llavero disponible) y ver la ficha publica. */
+  onAddVehicle?: () => void
+  onOpenPublicar?: () => void
   theme: 'light' | 'dark'
   vehicle?: any
   documents?: any[]
@@ -66,7 +70,7 @@ interface Props {
   freeServiceId?: string
 }
 
-export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId, vehicles, onSwitchVehicle }: Props) {
+export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, onAddVehicle, onOpenPublicar, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId, vehicles, onSwitchVehicle }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
 
@@ -78,6 +82,17 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
     setExplored(prev => ({ ...prev, [id]: true }))
     onAddService(id)
   }, [onAddService, freeServiceId])
+
+  // "Otro" en Registrar servicio: si todavia quedan tipos conocidos sin mostrar (Combustible,
+  // Frenos, etc. — los que DEFAULT_SERVICE_IDS oculta hasta que se usan), primero ofrece elegir
+  // uno de esos en vez de abrir directo el formulario libre de "Otro".
+  const [showOtherMenu, setShowOtherMenu] = useState(false)
+  const hiddenServiceTypes = SERVICE_TYPES.filter(st =>
+    st.id !== 'Otro' && !DEFAULT_SERVICE_IDS.includes(st.id) && !maintenanceRecords?.some((r: any) => r.service_type === st.id))
+  const handleOtroClick = useCallback(() => {
+    if (hiddenServiceTypes.length > 0) setShowOtherMenu(true)
+    else handleCardClick('Otro')
+  }, [hiddenServiceTypes.length, handleCardClick])
 
   const cardBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
   const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(17,17,17,0.08)'
@@ -204,6 +219,15 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <div data-tour="inicio-quick-actions" style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Acciones rapidas</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={onAddVehicle} style={quickActionStyle}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.transform = 'none' }}>
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2v-1.5L5 9h14l2 4.5V15a2 2 0 0 1-2 2M5 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M17 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/><line x1="13" y1="5" x2="13" y2="8"/><line x1="11.5" y1="6.5" x2="14.5" y2="6.5"/></svg>
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Registrar vehiculo</span>
+          </button>
+
           <button onClick={() => onAddService()} style={quickActionStyle}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.transform = 'none' }}>
@@ -222,31 +246,25 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Escanear doc</span>
           </button>
 
-          <button onClick={onOpenNfc} style={quickActionStyle}
+          <button onClick={onOpenPublicar} style={quickActionStyle}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.transform = 'none' }}>
             <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6M8.5 12a3.5 3.5 0 0 1 3.5-3.5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Llavero NFC</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary }}>Ver ficha publica</span>
           </button>
 
-          <button onClick={() => onNavigate?.('certificados')} style={quickActionStyle}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.transform = 'none' }}>
-            <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+          {/* Asistente de voz: preparado en la interfaz, deshabilitado hasta construir el
+              backend (ver docs/PENDIENTES.md → agente conversacional) — sera exclusivo de
+              cuentas Pro. */}
+          <button disabled title="Proximamente para cuentas Pro" aria-label="Asistente de voz — proximamente para cuentas Pro"
+            style={{ ...quickActionStyle, cursor: 'not-allowed', opacity: 0.5, position: 'relative' }}>
+            <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 800, letterSpacing: '.04em', color: '#111', background: '#F5C518', padding: '2px 5px', borderRadius: 999 }}>PRO</span>
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: textMuted }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Facturas</span>
-          </button>
-
-          <button onClick={() => onNavigate?.('documentos')} style={quickActionStyle}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,197,24,0.35)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.transform = 'none' }}>
-            <span style={{ width: 36, height: 36, borderRadius: 10, background: accentDim, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F5C518' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
-            </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: textPrimary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Documentos</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: textMuted }}>Hablar con IA</span>
           </button>
         </div>
       </div>
@@ -298,7 +316,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
             return (
-              <button key={st.id} onClick={() => handleCardClick(st.id)} style={{
+              <button key={st.id} onClick={() => (st.id === 'Otro' ? handleOtroClick() : handleCardClick(st.id))} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6,
                 padding: '14px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
                 background: isExplored ? cardExploredBg : cardBg,
@@ -361,6 +379,31 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       {safetyForm && vehicle?.id && (
         <SafetyFormModal vehicleId={vehicle.id} item={safetyForm.item} defaultKind={safetyForm.kind} presetCheck={safetyForm.presetCheck}
           onClose={() => setSafetyForm(null)} onSaved={reloadSafety} />
+      )}
+
+      {showOtherMenu && createPortal(
+        <div onClick={() => setShowOtherMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(4,4,4,0.72)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxWidth: '94vw', maxHeight: '80vh', overflowY: 'auto', background: isDark ? '#141414' : '#fff', border: `1px solid ${cardBorder}`, borderRadius: 20, padding: 20, boxShadow: '0 30px 80px rgba(0,0,0,.5)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, color: textPrimary, marginBottom: 2 }}>¿Cuál servicio?</div>
+            <div style={{ fontSize: 12, color: textMuted, marginBottom: 14 }}>Elige uno de la lista, o registra algo distinto.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {hiddenServiceTypes.map(st => (
+                <button key={st.id} onClick={() => { setShowOtherMenu(false); handleCardClick(st.id) }} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: `1px solid ${cardBorder}`, background: cardBg, color: textPrimary, fontSize: 13.5, fontWeight: 600,
+                }}>
+                  <span style={{ color: textMuted, flex: '0 0 auto' }}><ServiceTypeIcon type={st.id} size={22} /></span>
+                  {st.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setShowOtherMenu(false); handleCardClick('Otro') }} style={{
+              width: '100%', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'center',
+              border: '1px dashed rgba(245,197,24,0.4)', background: 'transparent', color: '#F5C518', fontSize: 13, fontWeight: 700,
+            }}>Registrar algo distinto</button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )
