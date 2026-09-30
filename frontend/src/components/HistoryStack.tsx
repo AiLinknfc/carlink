@@ -20,10 +20,10 @@ import { ServiceTypeIcon } from '@/lib/icons_new'
 const PER_CARD_VH = 22
 const MAX_EXTRA_VH = 220
 const CARD_MIN_H = 280
-// El indicador de puntos vive fijo en bottom:36 (ver mas abajo) con ~34px de alto — este es el
-// espacio minimo que se le deja libre debajo de las tarjetas para que nunca lo toquen, incluso en
-// pantallas bajas donde 15vh sería menos que eso.
-const DOTS_CLEARANCE = 110
+// El grupo (tarjetas + puntos) va pegado arriba del stage, sin margen — lo mas cerca posible del
+// texto de la cabecera de HistorialTab que queda justo encima. El gap entre tarjetas y puntos es
+// chico a proposito: el indicador va pegado a la ultima tarjeta, no separado.
+const STACK_DOTS_GAP = 14
 // Primer tramo del scroll (fraccion del track) donde las tarjetas todavia no se mueven — le da al
 // usuario un momento para "entrar" a la seccion antes de que el apilado arranque, en vez de que
 // se mueva de entrada apenas se pega el stage. El resto del track (1 - DEAD_ZONE) es lo que
@@ -243,31 +243,34 @@ export default function HistoryStack({ records, onEdit }: Props) {
   return (
     <div ref={trackRef} style={{ position: 'relative', height: `calc(100vh + ${extraVh}vh)` }}>
       <style>{`@media(prefers-reduced-motion:reduce){ .hist-stage *{transition:none !important} }`}</style>
-      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: `0 16px max(${DOTS_CLEARANCE}px, 15vh)` }}>
-        {/* El indicador de puntos queda FIJO (posicion propia, no se mueve) — las tarjetas se
-            centran por separado en el espacio que queda arriba de el (el padding inferior del
-            stage empuja el centrado hacia arriba lo suficiente para no tocarlo). */}
-        <div style={{ position: 'relative', width: 'min(92vw, 480px)', maxWidth: '100%', transformStyle: 'preserve-3d' }}>
-          {records.map((r, i) => {
-            const theme = getTheme(r.service_type)
-            return (
-              <div key={r.id || i}
-                ref={el => { cardRefs.current[i] = el }}
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', willChange: 'transform', transformOrigin: 'bottom center', transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), opacity .25s' }}>
-                <CardFace r={r} theme={theme} onEdit={onEdit} shineRef={el => { shineRefs.current[i] = el }} />
-              </div>
-            )
-          })}
-          {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
-          <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
-        </div>
+      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden', perspective: 1500, padding: '0 16px' }}>
+        {/* Tarjetas + puntos son UN solo bloque, pegado arriba del stage (sin margen/top) — lo mas
+            cerca posible del texto de la cabecera de HistorialTab, que queda justo encima en el
+            documento. El indicador de puntos no se separa a su propia posicion (eso fue lo que lo
+            "movio" antes) y queda pegado a la ultima tarjeta con un gap chico. */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: STACK_DOTS_GAP, maxWidth: '100%' }}>
+          <div style={{ position: 'relative', width: 'min(92vw, 480px)', maxWidth: '100%', transformStyle: 'preserve-3d' }}>
+            {records.map((r, i) => {
+              const theme = getTheme(r.service_type)
+              return (
+                <div key={r.id || i}
+                  ref={el => { cardRefs.current[i] = el }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', willChange: 'transform', transformOrigin: 'bottom center', transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), opacity .25s' }}>
+                  <CardFace r={r} theme={theme} onEdit={onEdit} shineRef={el => { shineRefs.current[i] = el }} />
+                </div>
+              )
+            })}
+            {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
+            <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
+          </div>
 
-        <div style={{ position: 'absolute', left: '50%', bottom: 36, transform: 'translateX(-50%)', zIndex: 400, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
-          <span ref={counterRef} style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text-3)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {records.map((r, i) => (
-              <span key={r.id || i} ref={el => { dotRefs.current[i] = el }} style={{ width: 7, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.22)', transition: 'width .4s cubic-bezier(.2,.8,.2,1), background .4s' }} />
-            ))}
+          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
+            <span ref={counterRef} style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text-3)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {records.map((r, i) => (
+                <span key={r.id || i} ref={el => { dotRefs.current[i] = el }} style={{ width: 7, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.22)', transition: 'width .4s cubic-bezier(.2,.8,.2,1), background .4s' }} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
