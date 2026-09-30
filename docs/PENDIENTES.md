@@ -270,6 +270,36 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
 
+## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
+
+Chat de texto (sin voz por ahora — decisión tomada: empezar sin micrófono funcional, botón
+deshabilitado/"Próximamente"; Web Speech API falla en buena parte de iPhone, y transcripción en
+backend requiere agregar un proveedor y costo nuevos) en Inicio que permite: (1) pedir con texto
+"quiero registrar un aceite" → el agente pide una foto → OCR la estructura → abre `ServiceFormModal`
+prellenado, el usuario confirma y guarda; (2) escanear una foto sin elegir módulo primero (ej. un
+extintor) → el backend detecta de qué se trata → abre el módulo correspondiente (hoy pensado para
+Aceite y Extintor, escalable después a los demás tipos de servicio y documentos) prellenado para
+confirmar. Una vez guardado, la tarjeta del módulo queda "explorada"/"activa" con el mismo
+comportamiento visual que ya tienen "Registrar servicio" (`markExplored`, localStorage) y
+"Verificar elementos" (`c.done`, deriva de que exista el registro real) — no hace falta lógica
+nueva para eso, sale solo del guardado.
+
+**Piezas nuevas necesarias (backend)**: `POST /api/assistant/chat` (clasificador de intención de un
+solo turno vía DeepSeek, mismo patrón que `ai_diagnostics.py`/`ocr.py` — no un framework de agentes
+con herramientas); `structure_service_receipt_data` en `ocr.py` para recibos de servicio (el
+kilometraje casi nunca viene en la foto y `maintenance_records.mileage` es obligatorio, así que el
+flujo siempre termina pidiéndoselo al usuario, con o sin OCR); `POST /api/ocr/classify` para el
+flujo de foto-primero (reutiliza el Tesseract que ya existe, solo un prompt nuevo). **Piezas nuevas
+(frontend)**: componente `AssistantChat` en Inicio (conversación solo en memoria por ahora, sin
+tabla nueva); botón "Escanear y registrar" separado del "Escanear documento" que ya existe
+(ese es solo para certificados/SOAT/RTM); cableado de la foto capturada (reutiliza `CameraCapture`,
+que ya existe) hacia el modal correspondiente, siempre con confirmación del usuario antes de
+guardar — nunca auto-guardar, mismo criterio que tarjeta de propiedad y seguridad hoy.
+
+**Decisiones de negocio a confirmar cuando se empiece**: si el agente debe respetar el candado de
+plan gratuito igual que el registro manual de Aceite (recomendado: sí); Seguridad hoy no tiene ese
+candado (pendiente ya conocido más abajo), así que el flujo de extintor heredaría ese mismo estado.
+
 ## En curso: WhatsApp automático + analítica (2026-09-20)
 
 - **Analítica first-party — construida localmente, sin commit ni push.** Migración `060_analytics_events.sql`
