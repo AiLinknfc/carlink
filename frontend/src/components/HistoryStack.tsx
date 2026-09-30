@@ -3,21 +3,22 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
 
-/* Sticky-stack tuning. El primer registro (el mas reciente) queda arriba y AL FRENTE; al hacer
-   scroll, cada registro mas antiguo sube desde abajo y se va metiendo detras del anterior,
-   asomando STACK_PEEK px por debajo, como un mazo abanicado hacia abajo.
+/* Stack de historial, estilo/efectos adaptados 1:1 de una referencia de "wallet" de tarjetas
+   apiladas (stage fijo de pantalla completa, una tarjeta activa al frente, el resto se acomoda
+   detras en profundidad 3D segun el scroll) — el CONTENIDO de cada card es exactamente el mismo
+   de siempre, solo cambia como se ve/anima.
 
-   Estilo y efectos adaptados de una referencia de "wallet" de tarjetas apiladas (profundidad 3D,
-   brillo que recorre la tarjeta, sombra que crece con la profundidad) — el CONTENIDO de cada card
-   es exactamente el mismo de antes, solo cambia como se ve/anima. Se mantiene el mecanismo de
-   `position:sticky` por tarjeta (no el de la referencia, un "stage" fijo con un track de scroll
-   alto calculado para N tarjetas fijas) porque ese no escala: con un historial largo (años de
-   servicios) un track de ~90vh por tarjeta volveria la pagina absurdamente larga. El look 3D se
-   logra con rotateX + scale + brillo sobre el mecanismo ya probado, que funciona igual con 3 o con
-   300 registros. */
-const STACK_BASE_TOP = 110
-const STACK_PEEK = 16
-const TUCK_DISTANCE = 260
+   Diferencia clave con la referencia (que asume una cantidad fija de tarjetas, ej. 6): el scroll
+   total no crece sin limite con el numero de registros. La referencia usa `height:560vh` para 6
+   tarjetas (~93vh cada una) — con un historial real de decenas de registros eso volveria la
+   pagina absurdamente larga. Ac imagenes, TRACK_EXTRA_VH tiene un techo (MAX_EXTRA_VH): pasado
+   ese punto, agregar mas registros los hace "acumularse" en el mazo (mas profundidad visible
+   detras de la tarjeta activa) en vez de alargar el scroll — por eso nunca hace falta scrollear
+   mas de un tramo acotado sin importar cuantos servicios tenga el vehiculo. */
+const STAGE_TOP = 96
+const PER_CARD_VH = 46
+const MAX_EXTRA_VH = 420
+const CARD_MIN_H = 300
 
 const SERVICE_CARD_THEME: Record<string, { bg: string; accent: string; text: string; sub: string }> = {
   Aceite:       { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' },
@@ -39,195 +40,220 @@ interface Props {
   onEdit?: (r: any) => void
 }
 
-export default function HistoryStack({ records, onEdit }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
-  const faceRefs = useRef<(HTMLDivElement | null)[]>([])
-  const stuckStarts = useRef<number[]>([])
+function CardFace({ r, theme, onEdit, shineRef }: { r: any; theme: { bg: string; accent: string; text: string; sub: string }; onEdit?: (r: any) => void; shineRef?: (el: HTMLDivElement | null) => void }) {
+  return (
+    <div style={{
+      position: 'relative', borderRadius: 24, overflow: 'hidden',
+      padding: '22px 26px', minHeight: CARD_MIN_H,
+      background: theme.bg,
+      border: `1px solid ${theme.accent}55`,
+      color: theme.text,
+    }}>
+      {/* glossy shine sweep — su posicion la controla el scroll (solo mientras es la tarjeta activa) */}
+      <div ref={shineRef} style={{
+        position: 'absolute', top: '-60%', left: '-20%', width: '55%', height: '260%',
+        background: 'linear-gradient(115deg,transparent 32%,rgba(255,255,255,.30) 48%,rgba(255,255,255,.06) 52%,transparent 68%)',
+        backgroundSize: '250% 100%', backgroundPosition: '150% 0',
+        transform: 'skewX(-18deg)', pointerEvents: 'none',
+      }} />
 
-  const measure = useCallback(() => {
-    const container = containerRef.current
-    if (!container) return
-    const containerDocTop = container.getBoundingClientRect().top + window.scrollY
-    stuckStarts.current = cardRefs.current.map((el, i) => {
-      if (!el) return 0
-      const naturalTop = containerDocTop + el.offsetTop
-      const stickyTop = STACK_BASE_TOP + i * STACK_PEEK
-      return naturalTop - stickyTop
+      {/* header: chip + service name + date + edit */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          <span style={{
+            width: 46, height: 34, borderRadius: 7, flex: '0 0 auto',
+            background: 'linear-gradient(135deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05))',
+            border: `1px solid ${theme.accent}88`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.accent,
+          }}><ServiceTypeIcon type={r.service_type} size={18} /></span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: theme.accent, fontWeight: 800 }}>CarLink Service Record</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+          <span style={{ fontSize: 12, color: theme.sub, fontWeight: 600, whiteSpace: 'nowrap' }}>
+            {r.date ? new Date(r.date).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+          </span>
+          {/* Registrado solo por un taller (docs/PLAN_FACTURACION_AUTOMATICA.md
+              Paso 3) — nunca editable, ni siquiera por el dueño del vehículo. */}
+          {r.workshop_id ? (
+            <span title="Registrado por el taller — no editable" style={{
+              fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999,
+              background: 'rgba(255,255,255,0.1)', color: theme.sub, whiteSpace: 'nowrap',
+            }}>Del taller</span>
+          ) : onEdit && (
+            <button onClick={() => onEdit(r)} title="Editar" style={{
+              width: 30, height: 30, borderRadius: 8, border: `1px solid ${theme.accent}55`,
+              background: 'rgba(255,255,255,0.06)', color: theme.text, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+          )}
+        </div>
+      </div>
+
+      {/* "card number" styled mileage — the embossed-digits look */}
+      <div style={{ margin: '22px 0 6px', position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Kilometraje actual</div>
+          <div style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 27, color: theme.text, marginTop: 4 }}>
+            {r.mileage != null ? r.mileage.toLocaleString() : '——————'} <span style={{ fontSize: 13, opacity: .7 }}>KM</span>
+          </div>
+        </div>
+        {r.next_service_mileage != null && (
+          <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
+            <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Próximo servicio</div>
+            <div style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: theme.accent, marginTop: 2 }}>
+              {r.next_service_mileage.toLocaleString()} <span style={{ fontSize: 11, opacity: .7 }}>KM</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {r.description && (
+        <div style={{ fontSize: 13, color: theme.sub, marginTop: 6, maxWidth: '70%', position: 'relative' }}>{r.description}</div>
+      )}
+
+      {/* footer: workshop / cost / lubricant + brand mark */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 20, flexWrap: 'wrap', gap: 12, position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Taller</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.workshop || 'No registrado'}</div>
+          </div>
+          {r.cost > 0 && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Costo</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>${Number(r.cost).toLocaleString()}</div>
+            </div>
+          )}
+          {r.lubricant_brand && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Lubricante</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.lubricant_brand}{r.lubricant_type ? ` · ${r.lubricant_type}` : ''}</div>
+            </div>
+          )}
+          {r.next_service_mileage != null && r.mileage != null && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Vida útil</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: theme.accent, marginTop: 2 }}>{(r.next_service_mileage - r.mileage).toLocaleString()} km</div>
+            </div>
+          )}
+        </div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, color: theme.accent, letterSpacing: '.03em', opacity: .85, flex: '0 0 auto' }}>CarLink</div>
+      </div>
+    </div>
+  )
+}
+
+export default function HistoryStack({ records, onEdit }: Props) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const shineRefs = useRef<(HTMLDivElement | null)[]>([])
+  const dotRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const counterRef = useRef<HTMLSpanElement>(null)
+
+  const N = records.length
+  const extraVh = Math.min(MAX_EXTRA_VH, Math.max(0, (N - 1) * PER_CARD_VH))
+
+  const paint = useCallback((force: boolean) => {
+    const track = trackRef.current
+    if (!track || N === 0) return
+    const trackDocTop = track.getBoundingClientRect().top + window.scrollY
+    const span = track.offsetHeight - window.innerHeight
+    const progress = span > 0 ? Math.min(1, Math.max(0, (window.scrollY - trackDocTop) / span)) : 0
+    const scrollPos = progress * (N - 1)
+    const frac = scrollPos - Math.floor(scrollPos)
+    const activeIdx = Math.min(N - 1, Math.round(scrollPos))
+
+    cardRefs.current.forEach((el, i) => {
+      if (!el) return
+      const rel = i - scrollPos
+      let transform: string, opacity: number, zIndex: number
+      if (rel < -0.45) {
+        // Ya paso hace rato: se despega hacia la camara y se desvanece (deja de "acumularse").
+        const t = Math.min(1, (-rel - 0.45) / 0.6)
+        transform = `translateY(${-170 - t * 220}px) translateZ(90px) rotateX(${-15 * t}deg) scale(${1 - t * 0.1})`
+        opacity = Math.max(0, 1 - t)
+        zIndex = 300
+      } else {
+        // Activa (rel≈0) o todavia por venir (rel>0): se acomoda detras, mas profundidad cuanto
+        // mas lejos en el mazo — esto es lo que "acumula" sin alargar el scroll: con mas registros
+        // simplemente hay mas capas visibles detras, no mas distancia para llegar a la activa.
+        const cl = Math.max(-0.45, rel)
+        const lift = rel < 0 ? -rel * 60 : 0
+        transform = `translateY(${cl * 30 - lift}px) translateZ(${-cl * 46}px) rotateX(${4 + cl * 2.2}deg) scale(${1 - cl * 0.05})`
+        opacity = cl > 5.5 ? Math.max(0, 1 - (cl - 5.5)) : 1
+        zIndex = Math.round(200 - cl * 10)
+      }
+      el.style.transform = transform
+      el.style.opacity = String(opacity)
+      el.style.zIndex = String(zIndex)
+      const face = el.firstElementChild as HTMLElement | null
+      if (face) {
+        const sd = Math.max(0, rel)
+        face.style.boxShadow = `0 ${18 + sd * 8}px ${44 + sd * 14}px rgba(0,0,0,${Math.max(0.16, 0.56 - Math.min(0.4, sd * 0.06))}), inset 0 1px 0 rgba(255,255,255,.14)`
+      }
+      const shine = shineRefs.current[i]
+      if (shine) shine.style.backgroundPosition = (activeIdx === i ? (frac * 200 - 40) : 150) + '% 0'
     })
-  }, [])
+
+    dotRefs.current.forEach((el, i) => {
+      if (!el) return
+      const on = i === activeIdx
+      el.style.width = on ? '22px' : '7px'
+      el.style.background = on ? 'linear-gradient(90deg,#fff6dc,#F5C518)' : 'rgba(255,255,255,0.22)'
+    })
+    if (counterRef.current) counterRef.current.textContent = String(activeIdx + 1).padStart(2, '0') + '/' + String(N).padStart(2, '0')
+    void force
+  }, [N])
+
+  const measure = useCallback(() => { paint(true) }, [paint])
 
   useLayoutEffect(() => {
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [measure, records.length])
+  }, [measure])
 
   useEffect(() => {
     let raf = 0
-    function apply() {
-      raf = 0
-      const scrollY = window.scrollY
-      cardRefs.current.forEach((el, i) => {
-        if (!el) return
-        // El registro i "se mete detras" mientras sube hasta su posicion fija (TUCK_DISTANCE antes
-        // de pegarse): se achica, se inclina en perspectiva y se oscurece. El primero (i = 0) nunca
-        // se mete: siempre al frente, plano.
-        const start = stuckStarts.current[i] ?? 0
-        const progress = i === 0 ? 0 : Math.min(1, Math.max(0, (scrollY - (start - TUCK_DISTANCE)) / TUCK_DISTANCE))
-        el.style.transform = `scale(${1 - progress * 0.05}) rotateX(${progress * 9}deg)`
-        el.style.filter = `brightness(${1 - progress * 0.22})`
-        const face = faceRefs.current[i]
-        if (face) {
-          face.style.boxShadow = `0 ${18 + i + progress * 10}px ${50 + i * 2 + progress * 16}px rgba(0,0,0,${Math.min(0.68, 0.5 + progress * 0.16)}), inset 0 1px 0 var(--border)`
-        }
-      })
-    }
-    function onScroll() {
-      if (!raf) raf = requestAnimationFrame(apply)
-    }
-    apply()
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; paint(false) }) }
+    paint(true)
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
-  }, [records.length])
+    return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
+  }, [paint])
 
-  if (!records.length) return null
+  if (!N) return null
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', paddingBottom: '30vh', perspective: 1400 }}>
-      <style>{`
-        @keyframes historyShine { 0%{background-position:160% 0} 55%{background-position:-60% 0} 100%{background-position:-60% 0} }
-        .hist-shine { background-image: linear-gradient(115deg,transparent 32%,rgba(255,255,255,.28) 48%,rgba(255,255,255,.06) 52%,transparent 68%); background-size: 250% 100%; animation: historyShine 6.5s ease-in-out infinite; }
-        @media(prefers-reduced-motion:reduce){ .hist-shine{ animation: none !important } }
-      `}</style>
-      {records.map((r, i) => {
-        const theme = getTheme(r.service_type)
-        return (
-          <div
-            key={r.id || i}
-            ref={el => { cardRefs.current[i] = el }}
-            style={{
-              position: 'sticky',
-              top: STACK_BASE_TOP + i * STACK_PEEK,
-              zIndex: 10 + records.length - i,
-              marginBottom: 26,
-              transformOrigin: 'bottom center',
-              transformStyle: 'preserve-3d',
-              transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), filter .25s',
-              animation: `sectionIn .5s ${Math.min(i, 6) * 0.05}s both`,
-            }}
-          >
-            <div
-              ref={el => { faceRefs.current[i] = el }}
-              style={{
-                position: 'relative', borderRadius: 24, overflow: 'hidden',
-                padding: '22px 26px', minHeight: 190,
-                background: theme.bg,
-                border: `1px solid ${theme.accent}55`,
-                boxShadow: `0 ${18 + i}px ${50 + i * 2}px rgba(0,0,0,0.5), inset 0 1px 0 var(--border)`,
-                transition: 'box-shadow .25s',
-              }}>
-              {/* glossy shine sweep, recorre la tarjeta sola (mismo patron que Plate3D/.plate-shine) */}
-              <div
-                className="hist-shine"
-                style={{
-                  position: 'absolute', top: '-60%', left: '-20%', width: '55%', height: '260%',
-                  transform: 'skewX(-18deg)', pointerEvents: 'none',
-                  animationDelay: `${(i % 5) * 0.7}s`,
-                }} />
-
-              {/* header: chip + service name + date + edit */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-                  <span style={{
-                    width: 46, height: 34, borderRadius: 7, flex: '0 0 auto',
-                    background: 'linear-gradient(135deg,rgba(255,255,255,0.35),rgba(255,255,255,0.05))',
-                    border: `1px solid ${theme.accent}88`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.accent,
-                  }}><ServiceTypeIcon type={r.service_type} size={18} /></span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 10, letterSpacing: '.2em', textTransform: 'uppercase', color: theme.accent, fontWeight: 800 }}>CarLink Service Record</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, letterSpacing: '.01em', color: theme.text, marginTop: 2 }}>{r.service_type}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
-                  <span style={{ fontSize: 12, color: theme.sub, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {r.date ? new Date(r.date).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                  </span>
-                  {/* Registrado solo por un taller (docs/PLAN_FACTURACION_AUTOMATICA.md
-                      Paso 3) — nunca editable, ni siquiera por el dueño del vehículo. */}
-                  {r.workshop_id ? (
-                    <span title="Registrado por el taller — no editable" style={{
-                      fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999,
-                      background: 'rgba(255,255,255,0.1)', color: theme.sub, whiteSpace: 'nowrap',
-                    }}>Del taller</span>
-                  ) : onEdit && (
-                    <button onClick={() => onEdit(r)} title="Editar" style={{
-                      width: 30, height: 30, borderRadius: 8, border: `1px solid ${theme.accent}55`,
-                      background: 'rgba(255,255,255,0.06)', color: theme.text, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
-                  )}
-                </div>
+    <div ref={trackRef} style={{ position: 'relative', height: `calc(100vh + ${extraVh}vh)` }}>
+      <style>{`@media(prefers-reduced-motion:reduce){ .hist-stage *{transition:none !important} }`}</style>
+      <div className="hist-stage" style={{ position: 'sticky', top: 0, height: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflow: 'hidden', perspective: 1500 }}>
+        <div style={{ position: 'relative', width: 'min(92vw, 480px)', marginTop: STAGE_TOP, transformStyle: 'preserve-3d' }}>
+          {records.map((r, i) => {
+            const theme = getTheme(r.service_type)
+            return (
+              <div key={r.id || i}
+                ref={el => { cardRefs.current[i] = el }}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', willChange: 'transform', transformOrigin: 'bottom center', transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), opacity .25s' }}>
+                <CardFace r={r} theme={theme} onEdit={onEdit} shineRef={el => { shineRefs.current[i] = el }} />
               </div>
+            )
+          })}
+          {/* Referencia invisible que le da su alto real al contenedor relativo (el mas nuevo, i=0). */}
+          <div style={{ visibility: 'hidden', pointerEvents: 'none' }}><CardFace r={records[0]} theme={getTheme(records[0]?.service_type)} /></div>
+        </div>
 
-              {/* "card number" styled mileage — the embossed-digits look */}
-              <div style={{ margin: '22px 0 6px', position: 'relative', display: 'flex', alignItems: 'flex-end', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Kilometraje actual</div>
-                  <div style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 27, color: theme.text, marginTop: 4 }}>
-                    {r.mileage != null ? r.mileage.toLocaleString() : '——————'} <span style={{ fontSize: 13, opacity: .7 }}>KM</span>
-                  </div>
-                </div>
-                {r.next_service_mileage != null && (
-                  <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
-                    <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Próximo servicio</div>
-                    <div style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: theme.accent, marginTop: 2 }}>
-                      {r.next_service_mileage.toLocaleString()} <span style={{ fontSize: 11, opacity: .7 }}>KM</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {r.description && (
-                <div style={{ fontSize: 13, color: theme.sub, marginTop: 6, maxWidth: '70%', position: 'relative' }}>{r.description}</div>
-              )}
-
-              {/* footer: workshop / cost / lubricant + brand mark */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 20, flexWrap: 'wrap', gap: 12, position: 'relative' }}>
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Taller</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.workshop || 'No registrado'}</div>
-                  </div>
-                  {r.cost > 0 && (
-                    <div>
-                      <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Costo</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>${Number(r.cost).toLocaleString()}</div>
-                    </div>
-                  )}
-                  {r.lubricant_brand && (
-                    <div>
-                      <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Lubricante</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.lubricant_brand}{r.lubricant_type ? ` · ${r.lubricant_type}` : ''}</div>
-                    </div>
-                  )}
-                  {r.next_service_mileage != null && r.mileage != null && (
-                    <div>
-                      <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Vida útil</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: theme.accent, marginTop: 2 }}>{(r.next_service_mileage - r.mileage).toLocaleString()} km</div>
-                    </div>
-                  )}
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, color: theme.accent, letterSpacing: '.03em', opacity: .85, flex: '0 0 auto' }}>CarLink</div>
-              </div>
-            </div>
+        <div style={{ position: 'absolute', left: '50%', bottom: 36, transform: 'translateX(-50%)', zIndex: 400, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px 8px 12px', borderRadius: 999, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', backdropFilter: 'blur(16px)' }}>
+          <span ref={counterRef} style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text-3)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {records.map((r, i) => (
+              <span key={r.id || i} ref={el => { dotRefs.current[i] = el }} style={{ width: 7, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.22)', transition: 'width .4s cubic-bezier(.2,.8,.2,1), background .4s' }} />
+            ))}
           </div>
-        )
-      })}
+        </div>
+      </div>
     </div>
   )
 }
