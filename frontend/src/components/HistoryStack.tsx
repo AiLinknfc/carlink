@@ -38,10 +38,12 @@ const STACK_DOTS_GAP = 14 + GAP_UNIT / 2
 // realmente recorre las N tarjetas.
 const DEAD_ZONE = 0.1
 
-// El mismo dorado de los botones de toda la app (#F5C518, docs/DESIGN_GUIDELINES.md → Primary
-// Accent) para las 10 tarjetas — el usuario probo la variante de un color distinto por tipo de
-// servicio y prefirio que todas compartan el mismo dorado de marca, sin diferenciarse por color.
-const CARD_THEME = { bg: 'linear-gradient(135deg,#3a2a06 0%,#6b4b0c 45%,#231903 100%)', accent: '#F5C518', text: '#fff6dc', sub: '#d8c98a' }
+// El degradado oscuro con acento dorado se leia como bronce/dorado oscuro, no como el amarillo
+// real de la marca. Ahora es el mismo #F5C518 PLANO (sin degradado) que usa el boton "Guardar
+// cambios" y el resto de botones primarios de la app — con texto negro (#111), igual que esos
+// botones, porque un amarillo tan claro no deja otra opcion para el contraste. El efecto de
+// brillo/3D se mantiene igual, solo cambia el color de base.
+const CARD_THEME = { bg: '#F5C518', accent: '#111', text: '#111', sub: 'rgba(17,17,17,0.65)' }
 function getTheme() {
   return CARD_THEME
 }
