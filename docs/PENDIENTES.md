@@ -332,11 +332,15 @@ elemento muestra su estado (en orden / por vencer en 30 días / vencido / faltan
 escaneando/subiendo la foto de la etiqueta: `POST /api/ocr/safety` (Tesseract + DeepSeek, mismo patrón que la
 tarjeta de propiedad) prellena el formulario y el usuario confirma. Datos en `vehicle_safety_items`
 (migración `065`), CRUD en `/api/safety`.
-**Falta**: (1) aplicar `supabase/migrations/065_vehicle_safety_items.sql` a la Supabase compartida **antes**
-de desplegar el backend; (2) probar el escaneo con fotos reales de extintores/botiquines (la lectura de fechas
-depende de `DEEPSEEK_API_KEY` en Railway, que sigue sin estar) y en un celular; (3) decidir si los vencimientos
-deben alimentar los avisos/recordatorios de la app y el indicador de "Estado de tu vehículo" en Inicio;
-(4) el plan gratuito no está restringido en esta sección — decidir si debe estarlo.
+**`supabase/migrations/065_vehicle_safety_items.sql` ya está aplicada a la Supabase compartida**
+(verificado 2026-09-30 con consulta directa a `information_schema` contra la base real: tabla
+`vehicle_safety_items` existe con las 15 columnas de la migración, 0 filas) — el "falta aplicar"
+de la nota original era un pendiente fantasma, la migración se corrió pero nunca se tachó acá.
+**Falta**: (1) probar el escaneo con fotos reales de extintores/botiquines (la lectura de fechas
+depende de `DEEPSEEK_API_KEY` en Railway, que sigue sin estar) y en un celular; (2) decidir si los
+vencimientos deben alimentar los avisos/recordatorios de la app y el indicador de "Estado de tu
+vehículo" en Inicio; (3) el plan gratuito no está restringido en esta sección — decidir si debe
+estarlo.
 
 ## Encuestas de satisfacción gestionables desde Admin (2026-09-25, en local, sin desplegar)
 
