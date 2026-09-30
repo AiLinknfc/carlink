@@ -5,7 +5,16 @@ import { ServiceTypeIcon } from '@/lib/icons_new'
 
 /* Sticky-stack tuning. El primer registro (el mas reciente) queda arriba y AL FRENTE; al hacer
    scroll, cada registro mas antiguo sube desde abajo y se va metiendo detras del anterior,
-   asomando STACK_PEEK px por debajo, como un mazo abanicado hacia abajo. */
+   asomando STACK_PEEK px por debajo, como un mazo abanicado hacia abajo.
+
+   Estilo y efectos adaptados de una referencia de "wallet" de tarjetas apiladas (profundidad 3D,
+   brillo que recorre la tarjeta, sombra que crece con la profundidad) — el CONTENIDO de cada card
+   es exactamente el mismo de antes, solo cambia como se ve/anima. Se mantiene el mecanismo de
+   `position:sticky` por tarjeta (no el de la referencia, un "stage" fijo con un track de scroll
+   alto calculado para N tarjetas fijas) porque ese no escala: con un historial largo (años de
+   servicios) un track de ~90vh por tarjeta volveria la pagina absurdamente larga. El look 3D se
+   logra con rotateX + scale + brillo sobre el mecanismo ya probado, que funciona igual con 3 o con
+   300 registros. */
 const STACK_BASE_TOP = 110
 const STACK_PEEK = 16
 const TUCK_DISTANCE = 260
@@ -33,6 +42,7 @@ interface Props {
 export default function HistoryStack({ records, onEdit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const faceRefs = useRef<(HTMLDivElement | null)[]>([])
   const stuckStarts = useRef<number[]>([])
 
   const measure = useCallback(() => {
@@ -61,11 +71,16 @@ export default function HistoryStack({ records, onEdit }: Props) {
       cardRefs.current.forEach((el, i) => {
         if (!el) return
         // El registro i "se mete detras" mientras sube hasta su posicion fija (TUCK_DISTANCE antes
-        // de pegarse): se achica y se oscurece. El primero (i = 0) nunca se mete: siempre al frente.
+        // de pegarse): se achica, se inclina en perspectiva y se oscurece. El primero (i = 0) nunca
+        // se mete: siempre al frente, plano.
         const start = stuckStarts.current[i] ?? 0
         const progress = i === 0 ? 0 : Math.min(1, Math.max(0, (scrollY - (start - TUCK_DISTANCE)) / TUCK_DISTANCE))
-        el.style.transform = `scale(${1 - progress * 0.05})`
+        el.style.transform = `scale(${1 - progress * 0.05}) rotateX(${progress * 9}deg)`
         el.style.filter = `brightness(${1 - progress * 0.22})`
+        const face = faceRefs.current[i]
+        if (face) {
+          face.style.boxShadow = `0 ${18 + i + progress * 10}px ${50 + i * 2 + progress * 16}px rgba(0,0,0,${Math.min(0.68, 0.5 + progress * 0.16)}), inset 0 1px 0 var(--border)`
+        }
       })
     }
     function onScroll() {
@@ -82,7 +97,12 @@ export default function HistoryStack({ records, onEdit }: Props) {
   if (!records.length) return null
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', paddingBottom: '30vh' }}>
+    <div ref={containerRef} style={{ position: 'relative', paddingBottom: '30vh', perspective: 1400 }}>
+      <style>{`
+        @keyframes historyShine { 0%{background-position:160% 0} 55%{background-position:-60% 0} 100%{background-position:-60% 0} }
+        .hist-shine { background-image: linear-gradient(115deg,transparent 32%,rgba(255,255,255,.28) 48%,rgba(255,255,255,.06) 52%,transparent 68%); background-size: 250% 100%; animation: historyShine 6.5s ease-in-out infinite; }
+        @media(prefers-reduced-motion:reduce){ .hist-shine{ animation: none !important } }
+      `}</style>
       {records.map((r, i) => {
         const theme = getTheme(r.service_type)
         return (
@@ -95,23 +115,29 @@ export default function HistoryStack({ records, onEdit }: Props) {
               zIndex: 10 + records.length - i,
               marginBottom: 26,
               transformOrigin: 'bottom center',
+              transformStyle: 'preserve-3d',
               transition: 'transform .25s cubic-bezier(0.22,1,0.36,1), filter .25s',
               animation: `sectionIn .5s ${Math.min(i, 6) * 0.05}s both`,
             }}
           >
-            <div style={{
-              position: 'relative', borderRadius: 24, overflow: 'hidden',
-              padding: '22px 26px', minHeight: 190,
-              background: theme.bg,
-              border: `1px solid ${theme.accent}55`,
-              boxShadow: `0 ${18 + i}px ${50 + i * 2}px rgba(0,0,0,0.5), inset 0 1px 0 var(--border)`,
-            }}>
-              {/* glossy shine sweep, like a real card catching light */}
-              <div style={{
-                position: 'absolute', top: '-60%', left: '-20%', width: '55%', height: '260%',
-                background: 'linear-gradient(115deg,transparent 30%,rgba(255,255,255,0.10) 48%,transparent 66%)',
-                transform: 'skewX(-18deg)', pointerEvents: 'none',
-              }} />
+            <div
+              ref={el => { faceRefs.current[i] = el }}
+              style={{
+                position: 'relative', borderRadius: 24, overflow: 'hidden',
+                padding: '22px 26px', minHeight: 190,
+                background: theme.bg,
+                border: `1px solid ${theme.accent}55`,
+                boxShadow: `0 ${18 + i}px ${50 + i * 2}px rgba(0,0,0,0.5), inset 0 1px 0 var(--border)`,
+                transition: 'box-shadow .25s',
+              }}>
+              {/* glossy shine sweep, recorre la tarjeta sola (mismo patron que Plate3D/.plate-shine) */}
+              <div
+                className="hist-shine"
+                style={{
+                  position: 'absolute', top: '-60%', left: '-20%', width: '55%', height: '260%',
+                  transform: 'skewX(-18deg)', pointerEvents: 'none',
+                  animationDelay: `${(i % 5) * 0.7}s`,
+                }} />
 
               {/* header: chip + service name + date + edit */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
