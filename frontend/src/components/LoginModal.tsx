@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { track } from '@/lib/analytics'
+import { fbqTrack } from '@/lib/metaPixel'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/store/auth'
@@ -126,6 +127,10 @@ export default function LoginModal({ isOpen, onClose, onOpenPolicy, theme, initi
       setIsSubmitting(false)
       return
     }
+
+    // Registro con correo exitoso (con o sin confirmación pendiente). El registro con Google
+    // redirige fuera del sitio y no se puede medir desde acá.
+    if (mode === 'signup') fbqTrack('CompleteRegistration', { status: true })
 
     if (mode === 'signup' && 'needsConfirmation' in result && result.needsConfirmation) {
       setStep('confirm')
