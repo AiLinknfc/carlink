@@ -9,8 +9,8 @@
 
 import { SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP_DISPLAY } from './checkout'
 
-export const LEGAL_VERSION = '2.2'
-export const LEGAL_UPDATED = '21 de septiembre de 2026'
+export const LEGAL_VERSION = '2.3'
+export const LEGAL_UPDATED = '1 de octubre de 2026'
 export const LEGAL_EMAIL = 'business@carlink.com.co'
 export const LEGAL_ADDRESS = 'Cl. 87 #20-42, Bogotá D.C., Colombia'
 
@@ -70,7 +70,8 @@ const PRIVACY: LegalDoc = {
         'Postulaciones de empleo (Trabaja con nosotros): nombre, correo, WhatsApp, área de interés, mensaje y, si la adjuntas, tu hoja de vida.',
         'Contacto por llavero encontrado: el mensaje y los datos de contacto que deja quien encuentra un llavero, que enviamos al dueño por correo.',
         'Analítica propia: un identificador aleatorio de navegador y de sesión, páginas visitadas, tipo de dispositivo y origen de la visita (UTM). No guardamos tu IP en la analítica. Si tienes la sesión iniciada, el evento puede asociarse a tu cuenta.',
-        'Almacenamiento local del navegador: preferencias (tema claro/oscuro), carrito y avisos que descartaste. No usamos cookies de publicidad de terceros.',
+        'Publicidad (Meta Pixel): en las páginas públicas del sitio (inicio, tienda, talleres, blog) cargamos el pixel de Meta (Facebook e Instagram), que usa cookies y recibe la dirección de la página visitada y datos técnicos del navegador para medir y optimizar nuestras campañas. No se carga en tu cuenta, en el panel ni en las páginas de los llaveros. Puedes bloquearlo desde la configuración de tu navegador o desde tus preferencias de anuncios de Meta.',
+        'Almacenamiento local del navegador: preferencias (tema claro/oscuro), carrito y avisos que descartaste.',
       ],
       note: 'No solicitamos datos sensibles (salud, origen étnico, biometría, orientación política o sexual). Evita subir documentos que los contengan. Si subes fotos o documentos de otra persona, es tu responsabilidad contar con su autorización. El servicio es para mayores de 18 años.',
     },
