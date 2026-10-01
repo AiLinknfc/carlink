@@ -166,11 +166,9 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
     congelaría el event loop entero (no solo este request) si Hostinger
     tarda o no responde. run_in_threadpool lo saca a un hilo aparte."""
     codes = await _assign_activation_codes(order, db)
-    # Con cuenta CarLink (order.user_id): el código se ve en "Mis pedidos",
-    # el correo solo avisa que está listo — nunca lo incluye en texto
-    # plano. Compra de invitado (sin cuenta, order.user_id es null): no hay
-    # ningún otro canal donde mostrárselo, así que el correo sí lo incluye
-    # — es el único lugar al que el comprador tiene acceso.
+    # El correo incluye el código para todos los compradores (2026-10-01,
+    # pedido del dueño: canal redundante mientras WhatsApp no esté listo).
+    # Con cuenta, además se ve en "Mis pedidos".
     try:
         await run_in_threadpool(
             email.send_order_confirmed_email,
@@ -181,8 +179,8 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
             quantity=order.quantity,
             amount_in_cents=order.amount_in_cents,
             currency=order.currency,
-            activation_codes_ready_in_app=bool(codes) and order.user_id is not None,
-            guest_activation_codes=codes if (codes and order.user_id is None) else None,
+            activation_codes=codes or None,
+            has_account=order.user_id is not None,
         )
     except Exception as e:
         logger.error(f"send_order_confirmed_email failed for {order.reference}: {e}")
