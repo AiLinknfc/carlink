@@ -385,3 +385,17 @@ nada.
 **Variables `NEXT_PUBLIC_*` en Vercel se inyectan en tiempo de build, no en runtime.** Agregar o cambiar una y darle "Redeploy" sin desmarcar "Use existing Build Cache" puede dejar el valor viejo (o ninguno) compilado en el bundle del navegador. Verificar esto es posible sin acceso al dashboard: el HTML de cualquier página trae las rutas de sus chunks JS (`/_next/static/chunks/app/.../page-<hash>.js`); si el hash del chunk no cambió tras el redeploy, no hubo rebuild real.
 
 **El CLI de Railway (`railway login`) abre un callback OAuth en `127.0.0.1` de la máquina donde corre** — debe ejecutarlo el usuario en su propia terminal (o vía el prefijo `!` en Claude Code), nunca desde el entorno sandboxeado de un agente, que no tiene navegador real para completar el flujo.
+
+
+## Cron de limpieza de archivos huérfanos en R2 (2026-10-01)
+
+Servicio de Railway **aparte** del API (mismo repo, misma imagen), que corre cada domingo 08:00 UTC
+(03:00 Colombia) `python -m app.services.r2_cleanup --apply --include-existing-users` y termina.
+Lógica y salvaguardas (edad mínima, tope de 100 borrados, rutas ajenas intactas, aborto si la base
+devuelve vacío) en `backend/app/services/r2_cleanup.py`. Config en `railway.cron.json` (sin
+healthcheck y sin reinicios, a diferencia de `railway.json` del API).
+
+Alta: New → GitHub Repo (`AiLinknfc/carlink`) → Settings → "Config as code" → ruta
+`/railway.cron.json` → copiar las variables del API (`DATABASE_URL`, `R2_*`; no hacen falta más).
+Probar en seco desde cualquier máquina: `cd backend && python -m app.services.r2_cleanup`.
+Manual: `python scripts/cleanup_r2_orphans.py [--apply]`.
