@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { track } from '@/lib/analytics'
+import { fbqTrack } from '@/lib/metaPixel'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP, activationCodeWhatsappUrl } from '@/lib/checkout'
@@ -233,6 +234,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setPayError(null)
     setPaying(true)
     track('payment_start', { method: payMethod })
+    fbqTrack('InitiateCheckout', { value: total, currency: 'COP', num_items: qty })
     try {
       // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
       // calcula el backend (39.900 * cantidad), nunca se manda un precio
@@ -262,6 +264,8 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         const plateLine = skipPlateStep ? '• Placa: se vincula luego en la app' : `• Placa: ${fullPlate} (${plateCity})`
         const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n${plateLine}\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
         analyticsApi.trackWhatsappClick('cart_pay_whatsapp', 'cart')
+        // Contraentrega: el pago aún no ocurrió, es un lead, no una compra.
+        fbqTrack('Lead', { value: created.amount_in_cents / 100, currency: 'COP' }, `lead-${created.reference}`)
         window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank')
         setOrderId(created.reference)
         setStep('done')
@@ -282,6 +286,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       // vuelve a preguntarle a Wompi directamente con la llave privada.
       const confirmed = await withTimeout(apiPost<{ status: string }>(`/shop/orders/${created.reference}/confirm`, { transaction_id: transaction.id }), 15000, 'Confirmar el pago')
       if (confirmed?.status === 'approved') {
+        fbqTrack('Purchase', { value: created.amount_in_cents / 100, currency: 'COP', num_items: qty }, `purchase-${created.reference}`)
         setOrderId(created.reference)
         setStep('done')
       } else if (confirmed?.status === 'declined' || confirmed?.status === 'error') {
