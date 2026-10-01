@@ -327,6 +327,11 @@ kit de carretera u otro) y devuelves JSON con estas claves exactas:
   capacity        capacidad tal como aparece (ej. "10 lb", "5 kg"), o null
   agent           agente extintor (ej. "PQS ABC", "CO2", "Solkaflam", "Agua"), o null
   missing_items   lista de elementos que el texto indique como faltantes (solo si lo dice explícito), o []
+  kit_item        solo si kind es "kit_carretera": cuál pieza específica es — "gato", "llave_ruedas",
+                   "triangulos", "chaleco" o "herramientas" —, según lo que diga el texto (marca/nombre
+                   del producto, ej. "gato hidráulico", "chaleco reflectivo"); null si no se puede saber
+                   o si el texto no menciona nada reconocible (frecuente en estas piezas — el OCR suele
+                   no tener nada que leer, ya que no son etiquetas con datos como el extintor)
 
 Reglas:
 - Las fechas pueden venir como DD/MM/AAAA, MM-AAAA o "ENE 2027": conviértelas a ISO. Si solo hay mes y año,
@@ -342,6 +347,7 @@ async def structure_safety_data(raw_text: str) -> dict:
     fallback = {
         "kind": None, "name": None, "purchase_date": None, "expiry_date": None, "recharge_date": None,
         "review_date": None, "brand": None, "capacity": None, "agent": None, "missing_items": [],
+        "kit_item": None,
     }
 
     if not raw_text.strip():
@@ -374,6 +380,8 @@ async def structure_safety_data(raw_text: str) -> dict:
             result["missing_items"] = [str(x) for x in result["missing_items"] if x][:40]
             if result["kind"] not in ("extintor", "botiquin", "kit_carretera", "otro"):
                 result["kind"] = None
+            if result["kit_item"] not in ("gato", "llave_ruedas", "triangulos", "chaleco", "herramientas"):
+                result["kit_item"] = None
             return result
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
         logger.warning(f"DeepSeek safety structuring failed: {e}")

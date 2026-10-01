@@ -1237,5 +1237,7 @@ export interface SafetyScan {
   capacity: string | null;
   agent: string | null;
   missing_items: string[];
+  /** Solo si kind === 'kit_carretera': cual pieza especifica detecto la foto. */
+  kit_item: string | null;
   raw_text: string;
 }

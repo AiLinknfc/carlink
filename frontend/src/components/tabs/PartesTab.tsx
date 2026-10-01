@@ -149,14 +149,16 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                 alignItems: 'center',
                 padding: '16px 20px',
                 borderRadius: 16,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-1)',
+                // Mismo amarillo plano de marca (#F5C518) que los botones primarios y las tarjetas
+                // del historial de mantenimiento — texto negro, sin otra opcion de contraste.
+                background: '#F5C518',
+                border: '1px solid rgba(17,17,17,0.15)',
+                color: '#111',
                 cursor: isWorkshop ? 'pointer' : 'default',
                 transition: 'border-color .18s',
               }}
-              onMouseEnter={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(245,197,24,0.4)' }}
-              onMouseLeave={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'var(--border)' }}>
+              onMouseEnter={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(17,17,17,0.4)' }}
+              onMouseLeave={e => { if (isWorkshop) e.currentTarget.style.borderColor = 'rgba(17,17,17,0.15)' }}>
               {/* Nombre + indicador */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                 <span style={{
@@ -171,7 +173,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                   <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {part.name}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  <div style={{ fontSize: 11, color: 'rgba(17,17,17,0.65)' }}>
                     {part.brand || 'Sin marca'} · {part.part_number || '—'}
                   </div>
                 </div>
@@ -179,19 +181,19 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
 
               {/* Barra de progreso */}
               <div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-3)', marginBottom: 7, columnGap: 12, rowGap: 2 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', fontSize: 12, color: 'rgba(17,17,17,0.65)', marginBottom: 7, columnGap: 12, rowGap: 2 }}>
                   <span style={{ whiteSpace: 'nowrap' }}>
-                    Instalado: <b style={{ color: 'var(--text-1)', fontWeight: 600 }}>
+                    Instalado: <b style={{ color: '#111', fontWeight: 600 }}>
                       {part.mileage_installed ? `${part.mileage_installed.toLocaleString()} km` : '—'}
                     </b>
                   </span>
                   <span style={{ whiteSpace: 'nowrap' }}>
-                    Vida útil: <b style={{ color: 'var(--text-1)', fontWeight: 600 }}>
+                    Vida útil: <b style={{ color: '#111', fontWeight: 600 }}>
                       {part.lifespan_mileage ? `${part.lifespan_mileage.toLocaleString()} km` : '—'}
                     </b>
                   </span>
                 </div>
-                <div style={{ height: 8, borderRadius: 6, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                <div style={{ height: 8, borderRadius: 6, background: 'rgba(17,17,17,0.15)', overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
                     width: getLifePct(part),
@@ -212,7 +214,7 @@ export default function PartesTab({ vehicleId, accountType }: PartesTabProps) {
                   fontSize: 12,
                   fontWeight: 700,
                   color: statusColor(part.status),
-                  background: 'var(--surface-2)',
+                  background: 'rgba(17,17,17,0.08)',
                   border: `1px solid ${statusColor(part.status)}`,
                 }}>
                   {statusLabel(part.status)}

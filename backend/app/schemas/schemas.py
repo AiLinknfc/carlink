@@ -117,6 +117,18 @@ class VehicleOut(BaseModel):
 
 
 # =========== Maintenance ===========
+class ReplacedPartIn(BaseModel):
+    """Pieza que este servicio renueva — el formulario (ServiceFormModal.tsx) ya sabe cuales son
+    segun el tipo de servicio y que marco el usuario como reemplazado; esto solo le pasa esa
+    decision al backend para que la sincronizacion con `parts` quede atomica con el registro del
+    servicio, sin depender de una segunda llamada aparte desde el cliente (docs/PENDIENTES.md)."""
+
+    name: str
+    category: str = "Otros"
+    lifespan_mileage: int | None = None
+    notes: str = ""
+
+
 class MaintenanceCreate(BaseModel):
     vehicle_id: UUID
     service_type: str
@@ -130,6 +142,7 @@ class MaintenanceCreate(BaseModel):
     lubricant_type: str = ""
     lubricant_product: str = ""
     next_service_mileage: int | None = None
+    replaced_parts: list[ReplacedPartIn] = Field(default_factory=list)
 
 
 class MaintenanceOut(BaseModel):
@@ -2068,4 +2081,7 @@ class SafetyScanResult(BaseModel):
     capacity: str | None = None
     agent: str | None = None
     missing_items: list[str] = Field(default_factory=list)
+    # Si kind == "kit_carretera": cual pieza especifica muestra la foto (gato, llave_ruedas,
+    # triangulos, chaleco, herramientas), o null si no se puede saber.
+    kit_item: str | None = None
     raw_text: str = ""

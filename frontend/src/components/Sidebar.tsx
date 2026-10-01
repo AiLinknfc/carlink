@@ -75,8 +75,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { id: 'partes', label: 'Control de partes', icon: <><path d="M12 14l3.5-3.5"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></> },
   { id: 'galeria', label: 'Galería', icon: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></> },
   { id: 'certificados', label: 'Facturas', icon: <><path d="M5 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></> },
-  { id: 'documentos', label: 'Documentos', icon: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 15 12"/><line x1="12" y1="9" x2="12" y2="15"/></> },
-  { id: 'seguridad', label: 'Seguridad', icon: <><path d="M10.5 4h3l4 13h-11z"/><path d="M9.2 9.5h5.6M7.9 13.7h8.2"/><rect x="3.5" y="17" width="17" height="3.5" rx="1"/></> },
+  { id: 'documentos', label: 'Documentos', icon: <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/> },
+  { id: 'seguridad', label: 'Seguridad', icon: <><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></> },
 ]
 
 const TALLER_NAV_ITEMS: NavItem[] = [

@@ -55,5 +55,5 @@ async def test_otro_requires_a_name(client, mock_db, owned_vehicle):
 async def test_ocr_safety_returns_nulls_without_api_key(monkeypatch):
     monkeypatch.setattr(ocr_service.settings, "deepseek_api_key", "")
     out = await ocr_service.structure_safety_data("EXTINTOR 10 LB PQS ABC VENCE 03/2027")
-    assert out["kind"] is None and out["missing_items"] == []
+    assert out["kind"] is None and out["missing_items"] == [] and out["kit_item"] is None
     assert SafetyScanResult(**out, raw_text="x").expiry_date is None
