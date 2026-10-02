@@ -400,3 +400,14 @@ Alta: New → GitHub Repo (`AiLinknfc/carlink`) → Settings → "Config as code
 `/railway.cron.json` → copiar las variables del API (`DATABASE_URL`, `R2_*`; no hacen falta más).
 Probar en seco desde cualquier máquina: `cd backend && python -m app.services.r2_cleanup`.
 Manual: `python scripts/cleanup_r2_orphans.py [--apply]`.
+
+
+## Backend local sin conexión a la base: `OSError: [Errno 101] Network is unreachable` (2026-10-02)
+
+La conexión directa de Supabase (`db.<ref>.supabase.co:5432`) **solo tiene IPv6**. Una red sin IPv6 (típicamente el
+hotspot de un celular, o algunos Wi-Fi) no la alcanza y el backend local falla al abrir cualquier conexión.
+Diagnóstico: `getaddrinfo` sin registro IPv4 + `ip -6 route` sin ruta global. Solución: usar el pooler de Supabase,
+que sí es IPv4 e IPv6. En `backend/.env` (no se versiona), `DATABASE_URL` con
+`postgresql+asyncpg://postgres.<ref>:<clave>@aws-1-us-east-2.pooler.supabase.com:6543/postgres` (usuario `postgres.<ref>`,
+puerto 6543 = modo transacción; `database.py` ya usa `statement_cache_size=0`, requisito de ese modo). Reiniciar uvicorn
+después: `--reload` no relee `.env`. Railway (producción) tiene IPv6 y no necesita el cambio.
