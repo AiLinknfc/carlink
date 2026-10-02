@@ -68,14 +68,6 @@ const PLATE_BG: Record<string, { bg: string; ink: string; label: string }> = {
   clasico:     { bg: 'linear-gradient(90deg,#2e4a75 0%,#2e4a75 22%,#e8e0d0 22%,#e8e0d0 78%,#2e4a75 78%,#2e4a75 100%)', ink: '#111116', label: '#2e4a75' },
 }
 
-// Wompi ya ofrece tarjeta, Nequi, PSE y botón Bancolombia dentro de su propio
-// widget — tener 3 radios separados para eso era la maqueta (ninguno cambiaba
-// el cobro real). Queda un solo método real + el respaldo manual de WhatsApp.
-const PAYMENT_METHODS = [
-  { id: 'wompi', name: 'Tarjeta, Nequi, PSE o Bancolombia', icon: 'CreditCard' as const },
-  { id: 'whatsapp', name: 'Coordinar pago por WhatsApp', icon: 'MessageCircle' as const },
-]
-
 export default function CartModal({ isOpen, onClose, theme, plateText: initialPlateText, plateType: initialPlateType, city: initialCity, skipPlateStep = false }: Props) {
   const isDark = theme === 'dark'
   const bg = isDark ? 'rgba(14,14,14,0.98)' : 'rgba(255,255,255,0.99)'
@@ -114,7 +106,6 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const [whatsappOptIn, setWhatsappOptIn] = useState(false)
   const [address, setAddress] = useState('')
   const [shipCity, setShipCity] = useState('')
-  const [payMethod, setPayMethod] = useState('wompi')
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
   const [touched, setTouched] = useState({ letters: false, numbers: false, city: false })
@@ -152,7 +143,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   // La mini placa nunca debe verse vacía: si aún no hay letras ni números, mostramos el
   // ejemplo del tipo seleccionado; en cuanto la persona escribe algo, se ve lo escrito.
   const previewPlate = (plateLetters || plateNumbers) ? fullPlate : platePlaceholder
-  const productPrice = 29900
+  const productPrice = 39900
   const total = productPrice * qty
 
   const isTypeOk = typeConfirmed && selectedType !== ''
@@ -233,7 +224,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     if (!canPay || paying) return
     setPayError(null)
     setPaying(true)
-    track('payment_start', { method: payMethod })
+    track('payment_start', { method: 'wompi' })
     fbqTrack('InitiateCheckout', { value: total, currency: 'COP', num_items: qty })
     try {
       // La orden se crea en el backend ANTES de cobrar — el monto siempre lo
@@ -255,22 +246,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         // Distingue contraentrega de Wompi desde la creación — sin esto el
         // pedido no tenía forma de salir de 'pending' si el cliente pagaba
         // contraentrega (ver docs/DEPLOY.md, nota sobre la migración 046).
-        payment_method: payMethod === 'whatsapp' ? 'cod' : 'wompi',
+        payment_method: 'wompi',
         whatsapp_opt_in: whatsappOptIn,
       }), 12000, 'Crear la orden')
       if (!created) throw new Error('No se pudo crear la orden')
-
-      if (payMethod === 'whatsapp') {
-        const plateLine = skipPlateStep ? '• Placa: se vincula luego en la app' : `• Placa: ${fullPlate} (${plateCity})`
-        const msg = `¡Hola CarLink! Quiero pagar mi llavero NFC\n• Pedido: ${created.reference}\n${plateLine}\n• Cantidad: ${qty}\n• Total: ${COP(total)}\n• Nombre: ${name.trim()}\n• Envío: ${address.trim()}, ${shipCity.trim()}\n• Contacto: +57 ${phone} · ${email.trim()}`
-        analyticsApi.trackWhatsappClick('cart_pay_whatsapp', 'cart')
-        // Contraentrega: el pago aún no ocurrió, es un lead, no una compra.
-        fbqTrack('Lead', { value: created.amount_in_cents / 100, currency: 'COP' }, `lead-${created.reference}`)
-        window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank')
-        setOrderId(created.reference)
-        setStep('done')
-        return
-      }
 
       const transaction = await openWompiCheckout({
         reference: created.reference,
@@ -290,13 +269,13 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         setOrderId(created.reference)
         setStep('done')
       } else if (confirmed?.status === 'declined' || confirmed?.status === 'error') {
-        setPayError('El pago no se pudo procesar. Puedes intentar de nuevo o coordinar por WhatsApp.')
+        setPayError('El pago no se pudo procesar. Puedes intentar de nuevo o escribirnos por WhatsApp.')
       } else {
         setPayError(`Estamos confirmando tu pago. Si no se actualiza en unos minutos, escríbenos con tu referencia ${created.reference}.`)
       }
     } catch (e) {
       const detail = e instanceof Error ? e.message : ''
-      setPayError(`No pudimos conectar con la pasarela de pagos${detail ? ` (${detail})` : ''}. Intenta de nuevo o paga por WhatsApp.`)
+      setPayError(`No pudimos conectar con la pasarela de pagos${detail ? ` (${detail})` : ''}. Intenta de nuevo o escríbenos por WhatsApp.`)
     } finally {
       setPaying(false)
     }
@@ -313,7 +292,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
     setPlateExists(false)
     setQty(1)
     setName(''); setEmail(''); setPhone(''); setAddress(''); setShipCity(''); setNotes('')
-    setOrderId(''); setPayMethod('wompi'); setCityOpen(false)
+    setOrderId(''); setCityOpen(false)
     setShipCityOpen(false); setShipCitySelected(false); setShipCityFreeform(false)
     setPaying(false); setPayError(null)
     setTouched({ letters: false, numbers: false, city: false })
@@ -373,10 +352,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     </div>
                   </motion.div>
                   <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
-                    {payMethod === 'whatsapp' ? 'Pedido registrado' : 'Pago confirmado'}
+                    Pago confirmado
                   </div>
                   <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>
-                    {payMethod === 'whatsapp' ? 'Te contactamos por WhatsApp para coordinar el pago' : 'Tu llavero viene en curso'}
+                    Tu llavero viene en curso
                   </div>
                   <div style={{
                     display: 'inline-block', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
@@ -410,13 +389,19 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       </div>
                     </div>
                   </div>
-                  {payMethod !== 'whatsapp' && orderId && (
-                    <a href={activationCodeWhatsappUrl(orderId)} target="_blank" rel="noopener noreferrer"
-                      onClick={() => track('activation_code_whatsapp_click')}
-                      style={{ display: 'block', textAlign: 'center', padding: 12, borderRadius: 10, background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', marginBottom: 8 }}>
-                      Recibir mi código de activación por WhatsApp
-                    </a>
-                  )}
+                  <div style={{ fontSize: 12, color: muted, textAlign: 'center', marginBottom: 14, lineHeight: 1.5 }}>
+                    Te enviamos la confirmación de tu pedido y tu código de activación a <strong style={{ color: text }}>{email.trim()}</strong>.
+                    {orderId && (
+                      <>
+                        {' '}¿No te llegó?{' '}
+                        <a href={activationCodeWhatsappUrl(orderId)} target="_blank" rel="noopener noreferrer"
+                          onClick={() => track('activation_code_whatsapp_click')}
+                          style={{ color: muted, textDecoration: 'underline' }}>
+                          Escríbenos por WhatsApp
+                        </a>
+                      </>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => { reset(); onClose() }} style={{ flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cerrar</button>
                     <button onClick={reset} style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: 'rgba(245,197,24,0.12)', color: GOLD, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Comprar otro</button>
@@ -664,7 +649,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     {!skipPlateStep && (
                       <button onClick={() => setStep('customize')} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Atrás</button>
                     )}
-                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: skipPlateStep ? undefined : 2, width: skipPlateStep ? '100%' : undefined, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Al pago</button>
+                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: skipPlateStep ? undefined : 2, width: skipPlateStep ? '100%' : undefined, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Ir al pago</button>
                   </div>
                 </div>
               ) : (
@@ -698,13 +683,10 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
 
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '.08em' }}>Método de pago</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {PAYMENT_METHODS.map(pm => (
-                      <button key={pm.id} onClick={() => setPayMethod(pm.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontSize: 13, fontWeight: 600, background: payMethod === pm.id ? 'rgba(245,197,24,0.12)' : cardBg, border: `1.5px solid ${payMethod === pm.id ? GOLD : subtle}`, color: payMethod === pm.id ? text : muted, transition: 'all .12s' }}>
-                        <span style={{ display: 'flex', color: payMethod === pm.id ? GOLD : muted }}><Icon type={pm.icon} size={18} strokeWidth={1.8} /></span>
-                        <span style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${payMethod === pm.id ? GOLD : '#6f6a5f'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>{payMethod === pm.id && <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />}</span>
-                        {pm.name}
-                      </button>
-                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: 'rgba(245,197,24,0.12)', border: `1.5px solid ${GOLD}`, color: text }}>
+                      <span style={{ display: 'flex', color: GOLD }}><Icon type="CreditCard" size={18} strokeWidth={1.8} /></span>
+                      Tarjeta, Nequi, PSE o Bancolombia
+                    </div>
                   </div>
 
                   {payError && (
@@ -716,7 +698,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setStep('shipping')} disabled={paying} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: paying ? 'not-allowed' : 'pointer', opacity: paying ? 0.6 : 1 }}>Atrás</button>
                     <button onClick={handlePay} disabled={!canPay || paying} style={{ flex: 2, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: (canPay && !paying) ? 'pointer' : 'not-allowed', opacity: (canPay && !paying) ? 1 : 0.5 }}>
-                      {paying ? 'Procesando...' : payMethod === 'whatsapp' ? `Continuar por WhatsApp` : `Pagar ${COP(total)}`}
+                      {paying ? 'Procesando...' : `Pagar ${COP(total)}`}
                     </button>
                   </div>
                 </div>

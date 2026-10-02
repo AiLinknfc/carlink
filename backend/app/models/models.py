@@ -459,6 +459,24 @@ class NfcTokenWhitelist(Base):
     # went out (migration 054). Feeds the "activated before distributed"
     # alert in activate_nfc_token — detection, not a barrier.
     distributed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Canal de venta (migración 067): llavero reservado para un experimento de
+    # venta (Shopify, Mercado Libre...). Excluyente con partner; nunca entra al
+    # inventario de la web. NULL = web o partner, como siempre.
+    channel_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_channels.id", ondelete="SET NULL"), nullable=True)
+
+
+class SalesChannel(Base):
+    """Canal de venta: un experimento para medir cómo se comportan los
+    llaveros vendidos por otra vía (Shopify, Mercado Libre...). NO es un
+    partner (aliado que vende productos de CarLink) — ver migración 067."""
+    __tablename__ = "sales_channels"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, unique=True)
+    kind: Mapped[str] = mapped_column(Text, default="otro")  # marketplace | tienda_propia | otro
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(Text, default="active")  # active | closed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Partner(Base):

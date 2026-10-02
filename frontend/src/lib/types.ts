@@ -1254,3 +1254,38 @@ export interface SafetyScan {
   kit_item: string | null;
   raw_text: string;
 }
+
+// ── Canales de venta (migración 067) — experimentos de venta, NO partners ──
+export type ChannelKind = 'marketplace' | 'tienda_propia' | 'otro'
+
+export interface SalesChannel {
+  id: string
+  name: string
+  kind: ChannelKind
+  notes: string
+  status: 'active' | 'closed'
+  created_at: string
+  total: number
+  distributed: number
+  activated: number
+}
+
+export interface ChannelProvisionedItem {
+  id: string
+  tag_uid: string
+  activation_code: string
+  token_url: string
+  qr_url: string
+}
+
+export interface ChannelKeychain {
+  id: string
+  tag_uid: string
+  label: string
+  status: string
+  activation_code: string | null
+  qr_url: string | null
+  distributed_at: string | null
+  claimed_at: string | null
+  created_at: string
+}

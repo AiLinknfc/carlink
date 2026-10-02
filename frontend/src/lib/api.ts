@@ -27,6 +27,7 @@ import type {
   NfcTokenAdmin, NfcAccessLog, NfcAlert, AdminNotification, AdminNotificationFilters, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats, AnalyticsSummary,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
+  SalesChannel, ChannelKind, ChannelProvisionedItem, ChannelKeychain,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
   VehicleExpense, ExpenseCreate, ExpenseUpdate, FuelSummary,
   ReviewCreate, ReviewSubmit, Review, ReviewSummary, ReviewTargetType, AdminReview, AdminReviewSummary, Survey, AdminSurvey, SurveyTriggerInfo, SafetyItem, SafetyItemInput,
@@ -270,6 +271,19 @@ export const reviewsApi = {
 }
 
 // Catálogo de encuestas (migración 064): la app del cliente lee las activas; Admin las gestiona.
+// Canales de venta (experimentos: Shopify, Mercado Libre...) — admin. No son partners.
+export const channelsApi = {
+  list: () => request<SalesChannel[]>('GET', '/admin/nfc/channels'),
+  create: (data: { name: string; kind: ChannelKind; notes?: string }) => request<SalesChannel>('POST', '/admin/nfc/channels', data),
+  update: (id: string, data: { name?: string; notes?: string; status?: 'active' | 'closed' }) =>
+    request<SalesChannel>('PATCH', `/admin/nfc/channels/${id}`, data),
+  provision: (id: string, quantity: number, note: string) =>
+    request<ChannelProvisionedItem[]>('POST', `/admin/nfc/channels/${id}/keychains`, { quantity, note }),
+  keychains: (id: string) => request<ChannelKeychain[]>('GET', `/admin/nfc/channels/${id}/keychains`),
+  markDistributed: (id: string, keychainIds?: string[]) =>
+    request<{ count: number }>('POST', `/admin/nfc/channels/${id}/mark-distributed`, { keychain_ids: keychainIds ?? null }),
+}
+
 export const surveysApi = {
   active: () => request<Survey[]>('GET', '/surveys/active'),
   adminList: () => request<AdminSurvey[]>('GET', '/admin/surveys'),

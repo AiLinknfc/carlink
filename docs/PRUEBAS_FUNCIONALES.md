@@ -127,6 +127,10 @@ Cubre: `frontend/src/components/CartModal.tsx`, `backend/app/routers/vehicles.py
 | 4.2 | **[hallazgo conocido, `docs/PENDIENTES.md` #12f]** Comprar el primer llavero desde adentro de la app | Con un vehículo ya registrado gratis (sin llavero), abrir el carrito desde el topbar o desde el CTA "sin cupo" de la Ficha | Hoy bloquea "Continuar" con "Ya tienes esta placa registrada... contáctanos" — **falla a propósito, no es una regresión nueva** hasta que se arregle `plate-check` para distinguir "tuya sin llavero" de "tuya con llavero" |
 | 4.3 | Placa de otra cuenta sí bloquea | Escribir la placa de un vehículo de otra cuenta | Bloquea con "Verifica tu cuenta", correcto — este caso sí debe seguir fallando siempre (es la protección real) |
 
+**Automatizadas (2026-10-02)**: `cd frontend && npm test` corre `src/components/__tests__/CartModal.test.tsx`
+(validación de envío, total $39.900, creación de orden sin mandar precio, Wompi aprobado/rechazado/error).
+No reemplaza la prueba manual con el widget real de Wompi.
+
 ---
 
 ## Suite 5 — Plan gratuito, tarjeta de propiedad y toggles (post-deploy 2026-09-18)

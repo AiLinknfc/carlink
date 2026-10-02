@@ -342,6 +342,36 @@ def send_order_shipped_email(
     return _send_email(customer_email, subject, html, log_label=f"order-shipped email ({reference})")
 
 
+def send_order_delivered_email(
+    customer_email: str,
+    customer_name: str,
+    reference: str,
+    plate_text: str = "",
+) -> bool:
+    """Al cliente, cuando el pedido pasa a 'entregado'
+    (PATCH /shop/orders/{reference}/fulfillment, una sola vez por pedido).
+    Cierra el recorrido Pagado -> Enviado -> Entregado y le recuerda el
+    siguiente paso: activar el llavero con el código que ya recibió."""
+    subject = "CarLink — Tu llavero NFC fue entregado"
+    plate_line = f" (placa {_esc(plate_text)})" if plate_text else ""
+    body = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡{_esc(customer_name)}, tu llavero ya llegó!</h2>
+        <p style="font-size: 14px; color: #555; margin: 0 0 16px;">
+          Marcamos como entregado el pedido <strong>{_esc(reference)}</strong>{plate_line}.
+        </p>
+        <div style="text-align: center; margin-bottom: 16px;">{_stage_line(3)}</div>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.7;">
+          <strong>Para activarlo:</strong> entra a CarLink, abre <strong>Llavero NFC</strong> e ingresa el código
+          de activación que te enviamos en el correo de confirmación del pago.
+        </div>
+        <p style="font-size: 13px; color: #666; margin: 16px 0 0;">
+          Si no recibiste tu llavero o tienes algún problema para activarlo, respóndenos por WhatsApp y lo resolvemos.
+        </p>
+    """
+    html = _email_shell(body)
+    return _send_email(customer_email, subject, html, log_label=f"order-delivered email ({reference})")
+
+
 def send_order_admin_notification_email(
     reference: str,
     plate_text: str,

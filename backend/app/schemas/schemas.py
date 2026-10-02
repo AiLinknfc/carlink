@@ -2085,3 +2085,62 @@ class AdminNotificationOut(BaseModel):
 class AdminNotificationUpdate(BaseModel):
     seen: bool | None = None
     resolved: bool | None = None
+
+
+# ── Canales de venta (migración 067) ──
+# Un canal es un experimento de venta (Shopify, Mercado Libre...), NO un partner.
+
+class ChannelCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    kind: Literal["marketplace", "tienda_propia", "otro"] = "otro"
+    notes: str = Field(default="", max_length=1000)
+
+
+class ChannelUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=80)
+    notes: str | None = Field(default=None, max_length=1000)
+    status: Literal["active", "closed"] | None = None
+
+
+class ChannelOut(BaseModel):
+    id: UUID
+    name: str
+    kind: str
+    notes: str
+    status: str
+    created_at: datetime
+    total: int = 0
+    distributed: int = 0
+    activated: int = 0
+
+
+class ChannelProvisionRequest(BaseModel):
+    quantity: int
+    note: str = Field(default="", max_length=200)
+
+
+class ChannelProvisionedItem(BaseModel):
+    """Se devuelve UNA vez al provisionar: token_url es lo que se graba en el
+    chip y no se puede reconstruir después. El código de activación sí se
+    puede volver a ver en el listado del canal (admin)."""
+    id: UUID
+    tag_uid: str
+    activation_code: str
+    token_url: str
+    qr_url: str
+
+
+class ChannelKeychainOut(BaseModel):
+    id: UUID
+    tag_uid: str
+    label: str
+    status: str
+    activation_code: str | None = None
+    qr_url: str | None = None
+    distributed_at: datetime | None = None
+    claimed_at: datetime | None = None
+    created_at: datetime
+
+
+class ChannelMarkDistributed(BaseModel):
+    keychain_ids: list[UUID] | None = None  # None = todos los pendientes del canal

@@ -326,6 +326,56 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
 
+## Inventario de llaveros y entrega del código de activación (2026-10-02) — por validar
+
+Contexto: el pedido web reserva un llavero del inventario propio (disponible, con código digital,
+**sin partner**) y manda el código por correo (`_assign_activation_codes` en
+`backend/app/routers/shop_orders.py`). Si no hay stock aprueba igual y el pedido sale sin código.
+Hecho hoy (local, sin desplegar): alerta de stock bajo/agotado al admin (campana + correo,
+umbral `LOW_WEB_STOCK_THRESHOLD`, una vez cada 12 h) y verificación del correo de confirmación con el
+código contra Resend real (sandbox de Wompi).
+
+- [ ] **Validar de punta a punta el flujo de vender un llavero por cualquier plataforma de
+      e-commerce** (Mercado Libre, etc.): el chip llega sin pasar por el checkout web, el comprador
+      se registra y solo puede activar con el código impreso en el empaque (`POST /nfc/activate`).
+      Probar: activar desde el paso a paso y desde el botón "Llavero NFC"; qué ve quien toca un chip
+      sin activar; qué hace soporte si perdió el código.
+- [ ] **Canales de venta (Shopify, Mercado Libre...) — decidido 2026-10-02**: concepto separado de los
+      partners (partner = aliado que vende productos de CarLink; canal = experimento para medir cómo se
+      comportan los llaveros).
+      - [x] Fase 1: migración `067_sales_channels.sql` **aplicada y verificada** (tabla, `channel_id`,
+            CHECK excluyente con partner, RLS) + `WEB_STOCK_WHERE` para que un llavero de canal NUNCA se
+            venda por la web.
+      - [x] Fase 2 (local, sin desplegar): pestaña "Canales" en Admin (`CanalesPanel.tsx`), endpoints
+            `/admin/nfc/channels` (crear, editar/cerrar, generar llaveros, lote con código y QR, marcar
+            enviados, CSV). Verificado contra la base real (canal de prueba creado y borrado) y con
+            55 tests de frontend / 170 de backend. **Falta revisión visual en el navegador.**
+      - [ ] Fase 3: reporte por canal más completo (días envío -> activación, comparación entre canales).
+      - [ ] Pendiente de decidir: que activar un llavero de canal antes de marcarlo "enviado" genere la
+            misma alerta `activated_before_distributed` que ya existe para partners (hoy solo aplica a
+            partners; tocar `POST /nfc/activate` es crítico, hacerlo aparte y con cuidado).
+- [ ] **Código impreso por llavero como parte de una campaña** (se resuelve con los canales, arriba) (el admin controla a qué plataforma
+      envía cada llavero y puede ver/imprimir su código). Definir primero cómo se asocia
+      llavero -> plataforma/campaña sin tocar partners ni el modelo de activación.
+- [ ] **Caso "códigos mientras llegan los chips importados" — hacerlo con mucho cuidado.** Riesgo
+      operativo: asignar mal el chip físico a una fila. No construir sin diseñar antes la
+      verificación (leer el UID del chip al grabarlo y comparar contra la fila antes de marcarla como
+      lista; una fila "reservada, sin chip" nunca debe entrar al inventario vendible).
+- [ ] **Qué hacer sin stock**: hoy se vende igual; decidir entre dejarlo con alerta (actual) o
+      bloquear/"agotado" en el carrito.
+- [ ] **Backend local y correo**: `services/email.py` lee `os.getenv`, así que `uvicorn` local debe
+      arrancar con `--env-file .env` o no sale ningún correo (en Railway no pasa).
+- [ ] Rotar la llave de Resend (`RESEND_API_KEY`) — se pegó en un chat el 2026-10-02.
+- [x] **Correo "llavero entregado" (2026-10-02, local)**: `send_order_delivered_email` se manda UNA vez al pasar
+      el pedido a `delivered` en `PATCH /shop/orders/{ref}/fulfillment` (re-marcarlo no reenvía; un fallo de
+      correo no rompe el cambio de estado). Antes no existía:: solo hay "enviado" (`send_order_shipped_email`, al marcar
+      `shipped`). Marcar `delivered` en `PATCH /shop/orders/{ref}/fulfillment` solo cambia el estado, no
+      manda nada. Agregar `send_order_delivered_email` (mismo patrón, best-effort) si se quiere.
+- [ ] **Centralizar el correo del negocio**: hoy `ADMIN_EMAIL` apunta a `business@carlink.com.co`
+      (bandeja de Hostinger que no se usa); las alertas de venta y de stock llegan ahí. Reenviarlo a Gmail
+      (reenvío en Hostinger) o cambiar `ADMIN_EMAIL` en Railway a una bandeja que sí se lea.
+- [x] Llavero de prueba `TEST-STOCK-WEB-1` y pedidos de prueba borrados de la base compartida (2026-10-02).
+
 ## Notificaciones del administrador (2026-10-01, en local, sin desplegar)
 
 Buzón `admin_notifications` (migración `066`, **ya aplicada** en la Supabase real) + `nfc_alerts.seen_at`.
@@ -673,15 +723,10 @@ desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirma
      (que vive enteramente en `/nfc/activate`, sin tocar); se pierde solo una advertencia temprana
      de "placa duplicada" en un checkout que hoy tampoco era 100% autoritativo.
 
-   **Hallazgo aparte, no relacionado con este pedido, encontrado verificando el checkout en vivo**:
-   `PRODUCT_PRICE_COP` en `backend/app/routers/shop_orders.py` vale **$49.900**, pero el frontend
-   (`CartModal.tsx::productPrice`, y el precio mostrado en `LandingSections.tsx`) muestra
-   **$29.900** para el mismo llavero individual — el backend es quien manda de verdad (comentario
-   ya existente en el propio código lo dice), así que **hoy se le está cobrando a cada comprador
-   $49.900 en vez de los $29.900 que ve en pantalla**. Confirmado con una orden de prueba real
-   (`amount_in_cents: 4990000` = $49.900). No se tocó — es una discrepancia de precio real con
-   plata de por medio, hay que confirmar con el usuario cuál de los dos números es el correcto
-   antes de cambiar cualquiera.
+   **Resuelto (2026-10-02)**: el llavero individual (envío incluido) vale **$39.900** en landing,
+   carrito (`CartModal.tsx::productPrice`) y backend (`PRODUCT_PRICE_COP` en `shop_orders.py`);
+   antes el backend cobraba $49.900 y el carrito mostraba $29.900. Los productos `fob-std` de
+   `shop.ts`/`checkout.ts` ($49.900) son otro llavero y se ajustan después.
 7. **Verificado (2026-09-11): el contacto (correo o WhatsApp) que deja alguien al pedir la Guía de
    Mantenimiento queda registrado siempre**, sea cual sea el tipo — confirmado con un envío real
    contra `POST /api/waitlist` (`source=shop_guia_mantenimiento`) y consulta directa a la tabla
