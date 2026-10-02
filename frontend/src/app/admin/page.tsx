@@ -13,7 +13,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { adminApi, adminProvisionWhitelist, adminReviewsApi, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult, AdminReview, AdminReviewSummary, ReviewTargetType } from '@/lib/types'
+import { useAdminNotifications, NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
+import type { AdminNotification, NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult, AdminReview, AdminReviewSummary, ReviewTargetType } from '@/lib/types'
 import { RatingStars } from '@/lib/icons_new'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
@@ -77,7 +78,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte' | 'notificaciones'>('dashboard')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [alerts, setAlerts] = useState<NfcAlert[]>([])
@@ -94,6 +95,17 @@ export default function AdminPage() {
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const [qrLabel, setQrLabel] = useState('')
   const jobsRef = useRef<HTMLDivElement>(null)
+  const isAdminUser = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
+  const { unseen: unseenCount, pending: pendingNotifCount, latest: latestNotifs, refresh: refreshBell } = useAdminNotifications(isAdminUser)
+  // Pestaña "Notificaciones" (historial completo con filtros)
+  const [notifs, setNotifs] = useState<AdminNotification[]>([])
+  const [notifState, setNotifState] = useState<'all' | 'unseen' | 'pending' | 'resolved'>('all')
+  const [notifKind, setNotifKind] = useState('')
+  const [notifFrom, setNotifFrom] = useState('')
+  const [notifTo, setNotifTo] = useState('')
+  // Filtro de fecha de la pestaña "Alertas" (NFC)
+  const [alertFrom, setAlertFrom] = useState('')
+  const [alertTo, setAlertTo] = useState('')
 
   const [provisionModal, setProvisionModal] = useState(false)
   const [provisionUid, setProvisionUid] = useState('')
@@ -174,9 +186,15 @@ export default function AdminPage() {
   }, [user, profile, loading, router])
 
   useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t) setTab(t as typeof tab)
+  }, [])
+
+  useEffect(() => {
     if (tab === 'dashboard') loadStats()
     else if (tab === 'tokens') loadTokens()
     else if (tab === 'alerts') loadAlerts()
+    else if (tab === 'notificaciones') loadNotifs()
     else if (tab === 'whitelist') loadWhitelist()
     else if (tab === 'inventory') loadInventory()
     else if (tab === 'limits') loadLimits()
@@ -216,11 +234,34 @@ export default function AdminPage() {
     if (t) setTokens(t)
     setLoading2(false)
   }
-  async function loadAlerts() {
+  async function loadAlerts(from = alertFrom, to = alertTo) {
     setLoading2(true)
-    const a = await adminApi.listAlerts()
+    const a = await adminApi.listAlerts({ date_from: from || undefined, date_to: to || undefined, limit: 200 })
     if (a) setAlerts(a)
     setLoading2(false)
+  }
+  async function loadNotifs(over: { state?: typeof notifState; kind?: string; from?: string; to?: string } = {}) {
+    setLoading2(true)
+    const n = await adminApi.listNotifications({
+      state: over.state ?? notifState, kind: (over.kind ?? notifKind) || undefined,
+      date_from: (over.from ?? notifFrom) || undefined, date_to: (over.to ?? notifTo) || undefined, limit: 200,
+    })
+    if (n) setNotifs(n)
+    setLoading2(false)
+  }
+  async function updateNotif(id: string, data: { seen?: boolean; resolved?: boolean }) {
+    await adminApi.updateNotification(id, data)
+    void refreshBell()
+    if (tab === 'notificaciones') void loadNotifs()
+  }
+  async function markAllSeen() {
+    await adminApi.markAllNotificationsSeen()
+    void refreshBell()
+    if (tab === 'notificaciones') void loadNotifs()
+  }
+  async function handleSeenAlert(id: string) {
+    await adminApi.markAlertSeen(id)
+    loadAlerts()
   }
   async function loadWhitelist() {
     setLoading2(true)
@@ -496,6 +537,7 @@ export default function AdminPage() {
   const tabs = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'tokens', label: 'Tokens' },
+    { key: 'notificaciones', label: `Notificaciones${pendingNotifCount > 0 ? ` (${pendingNotifCount})` : ''}` },
     { key: 'alerts', label: `Alertas${stats && stats.unresolved_alerts > 0 ? ` (${stats.unresolved_alerts})` : ''}` },
     { key: 'whitelist', label: 'Whitelist' },
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
@@ -529,16 +571,36 @@ export default function AdminPage() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
-              {jobApplications.filter(j => j.status === 'new').length > 0 && (
+              {unseenCount > 0 && (
                 <span style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: '#ff4d6a', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                  {jobApplications.filter(j => j.status === 'new').length}
+                  {unseenCount}
                 </span>
               )}
             </button>
 
             {showJobsDropdown && (
               <div style={{ position: 'absolute', top: '100%', right: 0, width: 340, maxHeight: 400, overflowY: 'auto', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.24)', zIndex: 50, marginTop: 8 }}>
-                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, fontSize: 13, fontWeight: 700, color: c.accent }}>Postulaciones</div>
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: c.accent }}>Notificaciones{unseenCount > 0 ? ` (${unseenCount} sin ver)` : ''}</span>
+                  <span style={{ display: 'flex', gap: 10 }}>
+                    {unseenCount > 0 && <button onClick={markAllSeen} style={{ background: 'none', border: 'none', color: c.muted, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>Marcar vistas</button>}
+                    <button onClick={() => { setTab('notificaciones'); setShowJobsDropdown(false) }} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>Ver todas</button>
+                  </span>
+                </div>
+                {latestNotifs.length === 0 && (
+                  <div style={{ padding: 16, textAlign: 'center', color: c.muted, fontSize: 13 }}>Sin pendientes</div>
+                )}
+                {latestNotifs.map(n => (
+                  <div key={n.id} onClick={() => { if (!n.seen_at) void updateNotif(n.id, { seen: true }); if (n.link) { const t = new URLSearchParams(n.link.split('?')[1] || '').get('tab'); if (t) { setTab(t as typeof tab); setShowJobsDropdown(false) } } }}
+                    style={{ padding: '10px 14px', borderBottom: `1px solid ${c.border}`, cursor: 'pointer', background: !n.seen_at ? 'rgba(245,197,24,0.07)' : 'transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: !n.seen_at ? 700 : 500 }}>{n.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: n.severity === 'critical' ? '#ff4d6a' : n.severity === 'warning' ? '#ff8a3d' : c.muted }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(n.created_at).toLocaleString('es-CO')}</div>
+                  </div>
+                ))}
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, borderTop: `1px solid ${c.border}`, fontSize: 13, fontWeight: 700, color: c.accent }}>Postulaciones de empleo</div>
                 {jobApplications.length === 0 && (
                   <div style={{ padding: 20, textAlign: 'center', color: c.muted, fontSize: 13 }}>No hay postulaciones aún</div>
                 )}
@@ -657,23 +719,86 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Notificaciones (historial con filtros) */}
+        {tab === 'notificaciones' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Estado
+                <select value={notifState} onChange={e => { const v = e.target.value as typeof notifState; setNotifState(v); void loadNotifs({ state: v }) }} style={FILTER_STYLE}>
+                  <option value="all">Todas</option><option value="unseen">Sin ver</option><option value="pending">Pendientes</option><option value="resolved">Resueltas</option>
+                </select>
+              </label>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Tipo
+                <select value={notifKind} onChange={e => { setNotifKind(e.target.value); void loadNotifs({ kind: e.target.value }) }} style={FILTER_STYLE}>
+                  <option value="">Todos</option>
+                  {Object.entries(NOTIFICATION_KIND_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Desde
+                <input type="date" value={notifFrom} onChange={e => { setNotifFrom(e.target.value); void loadNotifs({ from: e.target.value }) }} style={FILTER_STYLE} />
+              </label>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Hasta
+                <input type="date" value={notifTo} onChange={e => { setNotifTo(e.target.value); void loadNotifs({ to: e.target.value }) }} style={FILTER_STYLE} />
+              </label>
+              {(notifFrom || notifTo || notifKind || notifState !== 'all') && (
+                <button onClick={() => { setNotifFrom(''); setNotifTo(''); setNotifKind(''); setNotifState('all'); void loadNotifs({ state: 'all', kind: '', from: '', to: '' }) }} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Limpiar filtros</button>
+              )}
+              {unseenCount > 0 && <button onClick={markAllSeen} style={accentBtnStyle}>Marcar todas como vistas ({unseenCount})</button>}
+            </div>
+            {notifs.map(n => (
+              <div key={n.id} style={{ background: c.card, border: `1px solid ${!n.seen_at ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, opacity: n.resolved_at ? 0.6 : 1 }}>
+                <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    <span style={{ color: n.severity === 'critical' ? '#ff4d6a' : n.severity === 'warning' ? '#ff8a3d' : c.accent }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind}</span>
+                    {' · '}{n.title}
+                    {!n.seen_at && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.18)', color: c.accent }}>NUEVA</span>}
+                  </div>
+                  {n.body && <div style={{ fontSize: 12, color: c.muted, marginTop: 4, whiteSpace: 'pre-line' }}>{n.body}</div>}
+                  <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(n.created_at).toLocaleString('es-CO')}{n.resolved_at ? ` · atendida ${new Date(n.resolved_at).toLocaleString('es-CO')}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {n.link && (() => { const t = new URLSearchParams(n.link.split('?')[1] || '').get('tab'); return t ? <button onClick={() => { if (!n.seen_at) void updateNotif(n.id, { seen: true }); setTab(t as typeof tab) }} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Abrir</button> : null })()}
+                  {!n.seen_at && <button onClick={() => updateNotif(n.id, { seen: true })} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Marcar vista</button>}
+                  {!n.resolved_at
+                    ? <button onClick={() => updateNotif(n.id, { resolved: true })} style={accentBtnStyle}>Resolver</button>
+                    : <button onClick={() => updateNotif(n.id, { resolved: false })} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Reabrir</button>}
+                </div>
+              </div>
+            ))}
+            {notifs.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay notificaciones con estos filtros</div>}
+          </div>
+        )}
+
         {/* Alerts */}
         {tab === 'alerts' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Desde
+                <input type="date" value={alertFrom} onChange={e => { setAlertFrom(e.target.value); void loadAlerts(e.target.value, alertTo) }} style={FILTER_STYLE} />
+              </label>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Hasta
+                <input type="date" value={alertTo} onChange={e => { setAlertTo(e.target.value); void loadAlerts(alertFrom, e.target.value) }} style={FILTER_STYLE} />
+              </label>
+              {(alertFrom || alertTo) && <button onClick={() => { setAlertFrom(''); setAlertTo(''); void loadAlerts('', '') }} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Limpiar fechas</button>}
+            </div>
             {alerts.map(a => (
-              <div key={a.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div key={a.id} style={{ background: c.card, border: `1px solid ${!a.seen_at && !a.resolved ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>
                     <span style={{ color: a.severity === 'critical' ? '#ff4d6a' : a.severity === 'warning' ? '#ff8a3d' : c.accent }}>
                       {a.severity.toUpperCase()}
                     </span>
                     {' · '}{a.alert_type.replace(/_/g, ' ')}
+                    {!a.seen_at && !a.resolved && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.18)', color: c.accent }}>NUEVA</span>}
                   </div>
                   <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{a.message}</div>
-                  <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(a.created_at).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(a.created_at).toLocaleString('es-CO')}</div>
                 </div>
                 {!a.resolved && (
-                  <button onClick={() => handleResolveAlert(a.id)} style={accentBtnStyle}>Resolver</button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!a.seen_at && <button onClick={() => handleSeenAlert(a.id)} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Marcar vista</button>}
+                    <button onClick={() => handleResolveAlert(a.id)} style={accentBtnStyle}>Resolver</button>
+                  </div>
                 )}
                 {a.resolved && <span style={{ fontSize: 12, color: '#2ecc71' }}>Resuelta</span>}
               </div>
@@ -1324,5 +1449,6 @@ export default function AdminPage() {
 
 const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 12px', fontWeight: 600, fontSize: 12, color: '#999' }
 const tdStyle: React.CSSProperties = { padding: '10px 12px' }
+const FILTER_STYLE: React.CSSProperties = { background: 'transparent', color: 'inherit', border: '1px solid rgba(128,128,128,0.4)', borderRadius: 8, padding: '7px 10px', fontSize: 13 }
 const accentBtnStyle: React.CSSProperties = { background: '#F5C518', color: '#111', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
 const dangerBtnStyle: React.CSSProperties = { background: 'transparent', color: '#ff4d6a', border: '1px solid #ff4d6a', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }

@@ -1397,6 +1397,7 @@ class NfcAlertOut(BaseModel):
     message: str | None = None
     resolved: bool
     resolved_at: datetime | None = None
+    seen_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -2085,3 +2086,23 @@ class SafetyScanResult(BaseModel):
     # triangulos, chaleco, herramientas), o null si no se puede saber.
     kit_item: str | None = None
     raw_text: str = ""
+
+
+class AdminNotificationOut(BaseModel):
+    id: UUID
+    kind: str
+    severity: str
+    title: str
+    body: str
+    ref: str
+    link: str
+    seen_at: datetime | None = None
+    resolved_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminNotificationUpdate(BaseModel):
+    seen: bool | None = None
+    resolved: bool | None = None

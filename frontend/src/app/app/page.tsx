@@ -35,6 +35,7 @@ import type { Survey } from '@/lib/types'
 import PqrsInbox, { usePqrsCount } from '@/components/PqrsInbox'
 import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
 import OrderTrackingModal from '@/components/OrderTrackingModal'
+import { useAdminNotifications, NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
 import CartModal from '@/components/CartModal'
 import OnboardingWizard, { isOnboardingDone } from '@/components/onboarding/OnboardingWizard'
 import GuidedTour, { isTourDone, markTourDone, type TourStep } from '@/components/onboarding/GuidedTour'
@@ -93,6 +94,8 @@ export default function AppPage() {
      conductor radica sus PQRS desde el asistente de la landing. */
   const isBusiness = isBusinessAccount(profile?.account_type)
   const isAdmin = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
+  /* La campana también avisa al administrador de lo que llega al negocio (ventas, soporte...). */
+  const { unseen: adminUnseen, latest: adminLatest } = useAdminNotifications(isAdmin)
 
   // Redirigir cuentas de negocio a su panel dedicado
   useEffect(() => {
@@ -229,6 +232,7 @@ export default function AppPage() {
     /* Sin bandeja PQRS no debe sumar al contador: el conductor vería un
        pendiente que no puede abrir desde ningún lado. */
     + (isBusiness ? pqrsNew : 0)
+    + (isAdmin ? adminUnseen : 0)
 
   /* La tarjeta de propiedad que se sube para verificar es el mismo documento que
      pide la sección de Documentos: se registra allí para no pedirla dos veces. */
@@ -1812,6 +1816,22 @@ export default function AppPage() {
             </div>
 
             <div style={{ overflowY: 'auto', maxHeight: 'calc(80vh - 60px)', padding: '12px 14px' }}>
+              {/* Administración: lo que llegó al negocio y aún no se ha visto/atendido */}
+              {isAdmin && adminLatest.length > 0 && (
+                <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.28)', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>Administración{adminUnseen > 0 ? ` · ${adminUnseen} sin ver` : ''}</span>
+                    <a href="/admin?tab=notificaciones" style={{ fontSize: 11, color: '#F5C518', textDecoration: 'underline' }}>Ver todas</a>
+                  </div>
+                  {adminLatest.slice(0, 5).map(n => (
+                    <a key={n.id} href={n.link || '/admin?tab=notificaciones'} style={{ display: 'block', padding: '6px 0', textDecoration: 'none', borderTop: '1px solid rgba(245,197,24,0.15)' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: n.seen_at ? 500 : 700, color: 'var(--text-1)' }}>{n.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind} · {new Date(n.created_at).toLocaleString('es-CO')}</div>
+                    </a>
+                  ))}
+                </div>
+              )}
+
               {/* Alarma: Aceite */}
               {oilKmRemaining != null && oilKmRemaining <= 0 && (
                 <div style={{ padding: '12px 14px', borderRadius: 13, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)', marginBottom: 8 }}>
@@ -1854,7 +1874,7 @@ export default function AppPage() {
               )}
 
               {/* Empty state */}
-              {!oilKmRemaining && maintenanceRecords.length === 0 && (
+              {!oilKmRemaining && maintenanceRecords.length === 0 && !(isAdmin && adminLatest.length > 0) && (
                 <div style={{ textAlign: 'center', padding: '24px 10px' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={theme === 'dark' ? '#4a463c' : '#8f8a7a'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                   <div style={{ fontSize: 13, fontWeight: 600, color: theme === 'dark' ? '#8f8a7a' : '#6f6a5f' }}>Sin notificaciones</div>

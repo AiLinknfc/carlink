@@ -193,6 +193,7 @@ i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/063_support_tickets.sql
 \i supabase/migrations/064_surveys.sql
 \i supabase/migrations/065_vehicle_safety_items.sql
+\i supabase/migrations/066_admin_notifications.sql
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

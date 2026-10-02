@@ -465,3 +465,27 @@ def send_support_ticket_ack_email(to_email: str, name: str, number: int) -> bool
         </p>
     """
     return _send_email(to_email, subject, _email_shell(body), log_label="support ticket ack email")
+
+
+def send_admin_alert_email(title: str, body: str = "", link: str = "", severity: str = "info") -> bool:
+    """Al admin (ADMIN_EMAIL): aviso inmediato de algo que requiere atención (ver
+    services/admin_notify.py). `link` es una ruta relativa de la app (ej. "/admin?tab=notificaciones")."""
+    if not ADMIN_EMAIL:
+        print("[email] ADMIN_EMAIL not configured — skipping admin alert email")
+        return False
+    tag = {"critical": "URGENTE", "warning": "Atención"}.get(severity, "Nuevo")
+    subject = f"CarLink — [{tag}] {title}"
+    button = (
+        f'<p style="margin: 16px 0 0;"><a href="{FRONTEND_URL}{_esc(link)}" style="display:inline-block;background:#F5C518;color:#111;'
+        f'font-weight:700;font-size:14px;padding:10px 18px;border-radius:10px;text-decoration:none;">Abrir en Admin</a></p>'
+        if link else ""
+    )
+    body_html = f"""
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">{_esc(title)}</h2>
+        <div style="background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #eee; font-size: 14px; color: #333; line-height: 1.7;">
+          {_esc(body).replace(chr(10), "<br>")}
+        </div>
+        {button}
+    """
+    html = _email_shell(body_html, footer_text="Llegó a tu campana de Admin como no vista hasta que la abras.")
+    return _send_email(ADMIN_EMAIL, subject, html, log_label=f"admin alert email ({title[:40]})")

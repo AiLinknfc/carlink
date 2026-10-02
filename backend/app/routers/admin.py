@@ -4,7 +4,7 @@ import hashlib
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -208,14 +208,44 @@ async def list_alerts(
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
     resolved: bool | None = None,
+    seen: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     limit: int = Query(50, ge=1, le=200),
 ):
+    """Historial de alertas NFC. `seen=false` = alertas nuevas aún sin abrir; date_from/date_to
+    son fechas calendario de Colombia (inclusivas)."""
+    from app.routers.admin_notifications import day_bounds
     stmt = select(NfcAlert)
     if resolved is not None:
         stmt = stmt.where(NfcAlert.resolved == resolved)
+    if seen is not None:
+        stmt = stmt.where(NfcAlert.seen_at.is_not(None) if seen else NfcAlert.seen_at.is_(None))
+    start, end = day_bounds(date_from, date_to)
+    if start:
+        stmt = stmt.where(NfcAlert.created_at >= start)
+    if end:
+        stmt = stmt.where(NfcAlert.created_at < end)
     stmt = stmt.order_by(NfcAlert.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.patch("/alerts/{alert_id}/seen", response_model=NfcAlertOut)
+async def mark_alert_seen(
+    alert_id: UUID,
+    admin: Annotated[str, Depends(get_current_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from datetime import datetime, timezone
+    alert = (await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))).scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    if alert.seen_at is None:
+        alert.seen_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(alert)
+    return alert
 
 
 @router.patch("/alerts/{alert_id}/resolve", response_model=NfcAlertOut)
@@ -232,6 +262,8 @@ async def resolve_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
     alert.resolved = body.resolved
     alert.resolved_at = datetime.now(timezone.utc) if body.resolved else None
+    if body.resolved and alert.seen_at is None:
+        alert.seen_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(alert)
     return alert

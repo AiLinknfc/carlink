@@ -24,6 +24,7 @@ from app.schemas.schemas import (
     ShopOrderStatsOut,
 )
 from app.services import email, whatsapp, wompi
+from app.services.admin_notify import notify_admin
 from app.services.crypto import decrypt_url
 
 logger = logging.getLogger("carlink")
@@ -166,6 +167,13 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
     congelaría el event loop entero (no solo este request) si Hostinger
     tarda o no responde. run_in_threadpool lo saca a un hilo aparte."""
     codes = await _assign_activation_codes(order, db)
+    # Campana del admin (el correo de venta ya lo manda send_order_admin_notification_email abajo).
+    await notify_admin(
+        db, kind="order_paid", severity="critical",
+        title=f"Venta: pedido {order.reference}",
+        body=f"{order.customer_name} · {order.customer_phone}\n{order.quantity} llavero(s) · placa {order.plate_text or 'sin placa'}\n{order.shipping_city}: despachar",
+        ref=order.reference, link="/admin?tab=orders",
+    )
     # El correo incluye el código para todos los compradores (2026-10-01,
     # pedido del dueño: canal redundante mientras WhatsApp no esté listo).
     # Con cuenta, además se ve en "Mis pedidos".
@@ -260,6 +268,13 @@ async def create_shop_order(
             )
         except Exception as e:
             logger.error(f"send_order_received_email failed for {order.reference}: {e}")
+        # Pedido contraentrega/WhatsApp: no hay pago que lo confirme, hay que contactar al cliente.
+        await notify_admin(
+            db, kind="order_cod", severity="warning",
+            title=f"Pedido contraentrega {order.reference}",
+            body=f"{order.customer_name} · {order.customer_phone}\n{order.quantity} llavero(s) · placa {order.plate_text or 'sin placa'}\n{order.shipping_city}",
+            ref=order.reference, link="/admin?tab=orders", send_email=True,
+        )
 
     signature = wompi.compute_integrity_signature(reference, amount_in_cents, "COP")
 

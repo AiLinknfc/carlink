@@ -28,6 +28,7 @@ from app.models.models import (
 )
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
+from app.services.alerts import notify_nfc_alert
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
 from app.services.nfc_provisioning import (
@@ -279,13 +280,15 @@ async def activate_nfc_token(
     # el partner deshonesto igual podría auto-activarse antes de repartir,
     # esto solo deja rastro para auditar después.
     if provisioned_by_partner_id and not distributed_at:
-        db.add(NfcAlert(
+        pre_alert = NfcAlert(
             token_id=nfc_token.id,
             alert_type="activated_before_distributed",
             severity="warning",
             message="Llavero de partner activado antes de que se marcara el lote como distribuido.",
-        ))
+        )
+        db.add(pre_alert)
         await db.flush()
+        await notify_nfc_alert(db, pre_alert)
 
     if token_url_encrypted:
         await db.execute(

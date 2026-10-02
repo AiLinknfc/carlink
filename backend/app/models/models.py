@@ -429,6 +429,8 @@ class NfcAlert(Base):
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # NULL = alerta nueva, sin ver (migración 066); distinto de "resuelta".
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -1014,3 +1016,20 @@ class SupportTicket(Base):
     status: Mapped[str] = mapped_column(Text, default="open")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AdminNotification(Base):
+    """Buzón de la campana del administrador (migración 066). seen_at NULL = sin ver;
+    resolved_at NULL = pendiente de atender."""
+    __tablename__ = "admin_notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(Text)
+    severity: Mapped[str] = mapped_column(Text, default="info")
+    title: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text, default="")
+    ref: Mapped[str] = mapped_column(Text, default="")
+    link: Mapped[str] = mapped_column(Text, default="")
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -19,6 +19,7 @@ from app.schemas.schemas import (
     SupportTicketUpdate,
 )
 from app.services import email
+from app.services.admin_notify import notify_admin
 from app.services.cache import get_redis
 from app.services.contact_validation import classify_contact
 
@@ -76,6 +77,10 @@ async def create_ticket(
     await db.flush()
     await db.refresh(ticket)
 
+    await notify_admin(
+        db, kind="support_ticket", severity="warning", title=f"Ticket de soporte C-{ticket.number}",
+        body=f"{ticket.name} ({ticket.type})\n{ticket.message[:300]}", ref=str(ticket.number), link="/admin?tab=soporte",
+    )
     # Best-effort: un fallo de correo nunca debe perder el ticket (ya quedó guardado).
     try:
         email.send_support_ticket_admin_email(ticket)

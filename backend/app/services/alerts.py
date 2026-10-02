@@ -7,6 +7,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import NfcAccessLog, NfcAlert
+from app.services.admin_notify import notify_admin
+
+
+async def notify_nfc_alert(db: AsyncSession, alert: NfcAlert) -> None:
+    """Campana del admin por una alerta de seguridad NFC; correo solo si es crítica. Una por token y
+    tipo cada 24 h aunque la alerta se repita en cada escaneo."""
+    await notify_admin(
+        db, kind="nfc_alert", severity=alert.severity,
+        title=f"Alerta NFC: {alert.alert_type.replace('_', ' ')}", body=alert.message or "",
+        ref=f"{alert.token_id}:{alert.alert_type}", link="/admin?tab=alerts",
+        send_email=alert.severity == "critical", dedupe_hours=24,
+    )
 
 
 async def check_and_create_alerts(
@@ -80,5 +92,7 @@ async def check_and_create_alerts(
 
     if alerts_created:
         await db.flush()
+        for a in alerts_created:
+            await notify_nfc_alert(db, a)
 
     return alerts_created

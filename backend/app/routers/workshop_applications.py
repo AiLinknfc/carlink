@@ -21,6 +21,7 @@ from app.schemas.schemas import (
     WorkshopApplicationUpdate,
 )
 from app.services import email
+from app.services.admin_notify import notify_admin
 from app.services.cache import get_redis
 from app.services.colombian_nit import is_valid_colombian_nit
 from app.services.contact_validation import classify_contact
@@ -158,6 +159,11 @@ async def create_application(
 
     # Best-effort: un fallo de correo nunca debe perder la postulación.
     try:
+        await notify_admin(
+            db, kind="workshop_application", severity="warning", title=f"Postulación de taller: {app_row.name}",
+            body=f"{app_row.business_type} · {app_row.city}\n{app_row.contact_name} · {app_row.phone}",
+            ref=str(app_row.id), link="/admin?tab=postulaciones",
+        )
         email.send_workshop_application_admin_email(app_row)
         email.send_workshop_application_ack_email(app_row.email, app_row.contact_name, app_row.name)
     except Exception:

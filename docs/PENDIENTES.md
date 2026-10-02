@@ -270,6 +270,20 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
 
+## Notificaciones del administrador (2026-10-01, en local, sin desplegar)
+
+Buzón `admin_notifications` (migración `066`, **ya aplicada** en la Supabase real) + `nfc_alerts.seen_at`.
+Cada evento que requiere atención crea una fila **sin ver** (`seen_at` NULL) hasta que el admin la abre; se
+resuelve aparte (`resolved_at`). Fuentes: venta pagada, pedido contraentrega, ticket de soporte, postulación
+de taller y de empleo, llavero encontrado, verificación de tarjeta pendiente y alertas NFC (una por token y
+tipo cada 24 h). Correo a `ADMIN_EMAIL`: los flujos que ya lo mandaban (venta, ticket, postulaciones) no lo
+duplican; los nuevos (contraentrega, verificación, alerta NFC crítica) sí. Campana de Admin y de la app
+(solo para el admin, consulta cada 60 s), pestaña Admin > Notificaciones con filtros de estado, tipo y fecha
+(día calendario de Colombia) y filtro de fecha en Admin > Alertas.
+**Falta**: desplegar (push autorizado); confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway; probar con un
+pedido real. Límites conocidos: la campana consulta por polling (no es push en tiempo real al celular); resolver
+una alerta NFC en la pestaña Alertas no resuelve su fila en Notificaciones.
+
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 
 Chat de texto (sin voz por ahora — decisión tomada: empezar sin micrófono funcional, botón
