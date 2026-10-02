@@ -7,6 +7,7 @@ import NotificationsPanel from '@/components/admin/NotificationsPanel'
 import BusinessMetrics from '@/components/admin/BusinessMetrics'
 import SoportePanel from '@/components/admin/SoportePanel'
 import EncuestasPanel from '@/components/admin/EncuestasPanel'
+import CanalesPanel from '@/components/admin/CanalesPanel'
 import dynamic from 'next/dynamic'
 
 // Recursos archivados de la landing (2026-09-20): chunk aparte, solo se descarga al abrir la pestaña.
@@ -81,7 +82,7 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'tokens' | 'whitelist' | 'inventory' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte' | 'notificaciones'>('analytics')
+  const [tab, setTab] = useState<'tokens' | 'whitelist' | 'inventory' | 'orders' | 'partners' | 'canales' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte' | 'notificaciones'>('analytics')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
   const [whitelist, setWhitelist] = useState<NfcWhitelistEntry[]>([])
@@ -514,6 +515,7 @@ export default function AdminPage() {
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
     { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
     { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
+    { key: 'canales', label: 'Canales' },
     { key: 'reviews', label: `Reseñas${reviewsSummary && reviewsSummary.total > 0 ? ` (${reviewsSummary.total})` : ''}` },
     { key: 'postulaciones', label: 'Postulaciones' },
     { key: 'soporte', label: 'Soporte' },
@@ -963,6 +965,8 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {tab === 'canales' && <CanalesPanel c={c} />}
 
         {/* Reseñas — plataforma/producto/taller juntas, ver docs del plan de este feature */}
         {tab === 'reviews' && (

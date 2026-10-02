@@ -342,12 +342,18 @@ código contra Resend real (sandbox de Wompi).
       sin activar; qué hace soporte si perdió el código.
 - [ ] **Canales de venta (Shopify, Mercado Libre...) — decidido 2026-10-02**: concepto separado de los
       partners (partner = aliado que vende productos de CarLink; canal = experimento para medir cómo se
-      comportan los llaveros). Fase 1 (código listo, sin aplicar): migración `067_sales_channels.sql`
-      (tabla `sales_channels` + `nfc_token_whitelist.channel_id`, excluyente con partner) y
-      `WEB_STOCK_WHERE` en `shop_orders.py` para que un llavero de canal NUNCA se venda por la web.
-      **Aplicar la 067 a la base ANTES de desplegar/usar el código** (el modelo ya lee `channel_id`).
-      Fase 2: sección "Canales" en Admin (crear canal, provisionar/asignar llaveros, lote con códigos y
-      QR). Fase 3: reporte por canal (asignados, enviados, activados, días envío→activación).
+      comportan los llaveros).
+      - [x] Fase 1: migración `067_sales_channels.sql` **aplicada y verificada** (tabla, `channel_id`,
+            CHECK excluyente con partner, RLS) + `WEB_STOCK_WHERE` para que un llavero de canal NUNCA se
+            venda por la web.
+      - [x] Fase 2 (local, sin desplegar): pestaña "Canales" en Admin (`CanalesPanel.tsx`), endpoints
+            `/admin/nfc/channels` (crear, editar/cerrar, generar llaveros, lote con código y QR, marcar
+            enviados, CSV). Verificado contra la base real (canal de prueba creado y borrado) y con
+            55 tests de frontend / 170 de backend. **Falta revisión visual en el navegador.**
+      - [ ] Fase 3: reporte por canal más completo (días envío -> activación, comparación entre canales).
+      - [ ] Pendiente de decidir: que activar un llavero de canal antes de marcarlo "enviado" genere la
+            misma alerta `activated_before_distributed` que ya existe para partners (hoy solo aplica a
+            partners; tocar `POST /nfc/activate` es crítico, hacerlo aparte y con cuidado).
 - [ ] **Código impreso por llavero como parte de una campaña** (se resuelve con los canales, arriba) (el admin controla a qué plataforma
       envía cada llavero y puede ver/imprimir su código). Definir primero cómo se asocia
       llavero -> plataforma/campaña sin tocar partners ni el modelo de activación.
@@ -360,7 +366,9 @@ código contra Resend real (sandbox de Wompi).
 - [ ] **Backend local y correo**: `services/email.py` lee `os.getenv`, así que `uvicorn` local debe
       arrancar con `--env-file .env` o no sale ningún correo (en Railway no pasa).
 - [ ] Rotar la llave de Resend (`RESEND_API_KEY`) — se pegó en un chat el 2026-10-02.
-- [ ] **Correo "llavero entregado" no existe**: solo hay "enviado" (`send_order_shipped_email`, al marcar
+- [x] **Correo "llavero entregado" (2026-10-02, local)**: `send_order_delivered_email` se manda UNA vez al pasar
+      el pedido a `delivered` en `PATCH /shop/orders/{ref}/fulfillment` (re-marcarlo no reenvía; un fallo de
+      correo no rompe el cambio de estado). Antes no existía:: solo hay "enviado" (`send_order_shipped_email`, al marcar
       `shipped`). Marcar `delivered` en `PATCH /shop/orders/{ref}/fulfillment` solo cambia el estado, no
       manda nada. Agregar `send_order_delivered_email` (mismo patrón, best-effort) si se quiere.
 - [ ] **Centralizar el correo del negocio**: hoy `ADMIN_EMAIL` apunta a `business@carlink.com.co`

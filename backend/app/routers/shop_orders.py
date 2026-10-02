@@ -505,7 +505,21 @@ async def update_shop_order_fulfillment(
         except Exception as e:
             logger.error(f"send_order_shipped_email failed for {order.reference}: {e}")
     elif body.status == "delivered":
+        # Correo solo en la transición real a "entregado" (si el admin vuelve a
+        # marcarlo, no se le manda otro al cliente).
+        first_time = order.delivered_at is None
         order.delivered_at = now
+        if first_time:
+            try:
+                await run_in_threadpool(
+                    email.send_order_delivered_email,
+                    customer_email=order.customer_email,
+                    customer_name=order.customer_name,
+                    reference=order.reference,
+                    plate_text=order.plate_text,
+                )
+            except Exception as e:
+                logger.error(f"send_order_delivered_email failed for {order.reference}: {e}")
 
     await db.flush()
     await db.refresh(order)
