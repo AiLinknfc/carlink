@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 export const TOTAL_FRAMES = 121
 const FRAME_PATH = (n: number) => `/frames/frame_${String(n).padStart(4, '0')}.webp`
 
-const FULL_RECT = { sx: 300, sy: 0, sw: 1400, sh: 1030 }
+const FULL_RECT = { sx: 260, sy: 0, sw: 1400, sh: 1030 }
 const CONTENT_RECT = { sx: 650, sy: 0, sw: 880, sh: 1030 }
 const FULL_ASPECT = FULL_RECT.sw / FULL_RECT.sh
 const NARROW_ASPECT = 0.5
