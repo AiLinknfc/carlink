@@ -58,7 +58,9 @@ async def test_create_channel_rejects_duplicate_name():
 async def test_provision_creates_channel_keychains_outside_web_stock():
     ch = _channel()
     db = _db()
-    with patch.object(channels, "_get_channel", new=AsyncMock(return_value=ch)):
+    # encrypt_url depende de ENCRYPTION_KEY (no existe en CI): se fija para que la prueba no dependa del entorno.
+    with patch.object(channels, "_get_channel", new=AsyncMock(return_value=ch)), \
+         patch.object(channels, "encrypt_url", side_effect=lambda v: f"enc:{v}"):
         items = await channels.provision_channel_keychains(ch.id, ChannelProvisionRequest(quantity=3, note="Lote 1"), ADMIN, db)
     assert len(items) == 3
     assert len({i.activation_code for i in items}) == 3 and len({i.tag_uid for i in items}) == 3

@@ -17,8 +17,11 @@ vi.mock('@/lib/wompi', () => ({ openWompiCheckout: vi.fn() }))
 vi.mock('@/components/Plate3D', () => ({ default: () => null }))
 // Componentes estables (no crear uno nuevo por render, si no React remonta el árbol).
 vi.mock('framer-motion', () => {
-  const Stub = ({ children, initial, animate, exit, transition, ...dom }: any) => <div {...dom}>{children}</div>
-  return { motion: { div: Stub }, AnimatePresence: ({ children }: any) => <>{children}</> }
+  const Stub = ({ children, ...rest }: React.HTMLAttributes<HTMLDivElement> & Record<string, unknown>) => {
+    const { initial: _i, animate: _a, exit: _e, transition: _t, ...dom } = rest
+    return <div {...(dom as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>
+  }
+  return { motion: { div: Stub }, AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</> }
 })
 
 const CREATED = { order_id: 'o1', reference: 'CL-TEST-1', amount_in_cents: 3990000, currency: 'COP', integrity_signature: 'sig' }
