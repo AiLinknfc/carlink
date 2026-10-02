@@ -242,6 +242,43 @@ el sistema real todavía — solo automatizado (`pytest`/`vitest`, en verde) y r
 - [ ] Menú lateral: el ícono de Seguridad (cono de tráfico) navega a la pestaña Seguridad
 - [ ] Plan gratuito: confirmar si Seguridad debería bloquearse como el resto de secciones — hoy no lo está `[pendiente de decisión de negocio, ver docs/PENDIENTES.md]`
 
+## Suite 13 — Defensa automática de llaveros NFC y notificaciones del admin (2026-10-01)
+
+Qué se prueba: que el sistema **pausa solo** un llavero con actividad de clonado/fuga/rastreo, avisa, y que
+un uso normal no se toca. Lógica en `backend/app/services/alerts.py` (umbrales: 10 conexiones distintas o 200
+lecturas en 24 h; apagable con `NFC_AUTO_PAUSE_ENABLED=false`). Se corre **antes de cada deploy que toque
+`nfc.py`, `alerts.py` o `admin_notify.py`** y después de cambiar un umbral.
+
+**Automatizada (primero esto)** — `cd backend && python scripts/qa_nfc_attack_sim.py`. Crea un usuario
+desechable con 4 vehículos/llaveros contra la Supabase real, lanza los ataques por HTTP y lo borra todo al
+terminar (residuo 0). Tarda ~1-2 min. Debe terminar con todas las comprobaciones en PASS:
+
+| Caso | Ataque simulado | Resultado esperado |
+|---|---|---|
+| A | Uso normal: 3 conexiones, 2 lecturas cada una | Fichas 200; llavero activo; sin alerta |
+| B | URL filtrada: lecturas desde 12 conexiones distintas | Llavero pausado (`paused_security`), alerta `auto_paused` ya resuelta, aviso al admin en el historial; lectura posterior 404 con "pausado por seguridad" |
+| C | Bot desde 8 conexiones × 26 lecturas (208/día) | Llavero pausado por volumen |
+| D | Una sola IP con 45 lecturas seguidas | Aparecen 429 (límite por IP); el llavero NO se pausa (una IP no puede pausar el llavero de otro) |
+| E | 30 tokens adivinados al azar | Todo 404/429; ningún llavero afectado |
+| F | El dueño reactiva el llavero pausado | 200, vuelve a `active` y la ficha responde |
+| Z | Limpieza | Sin ningún dato de la simulación |
+
+**Manual (después del deploy, con ADMIN_EMAIL y RESEND_API_KEY ya en Railway)**
+
+- [ ] **Límite por IP en producción (caso D, que la simulación omite sin Redis):** `T=$(python3 -c "import secrets;print(secrets.token_hex(32))"); for i in $(seq 1 40); do curl -s -o /dev/null -w "%{http_code}\n" https://api.carlink.com.co/api/nfc/$T; done | sort | uniq -c` debe mostrar **429** en las últimas ~10 (límite: 30/min por IP). Si salen 40 × 404, el límite está apagado (falta `REDIS_URL` en Railway). `[hallazgo 2026-10-01: en producción dio 40 × 404, ver docs/PENDIENTES.md]`
+- [ ] **IP real en el registro de lecturas:** tras el deploy, escanear un llavero de prueba y mirar `nfc_access_logs.ip_address` de esa lectura: debe ser la IP del celular, no `100.64.0.x` (red interna de Railway). Si sigue saliendo `100.64.0.x`, `client_ip()` en `app/utils.py` no está leyendo el encabezado correcto de Railway.
+- [ ] Provocar el caso B con un llavero de la cuenta de pruebas (no uno real): llega el correo al admin ("Llavero pausado automáticamente") y el correo al dueño.
+- [ ] En Admin > Notificaciones, filtro "Resueltas (historial)": aparece la entrada, sin contar en la campana.
+- [ ] En la app del dueño > Mis llaveros: el llavero aparece pausado y el botón Reactivar lo devuelve a la vida.
+- [ ] Un llavero de la cuenta admin (demostraciones) **no** se pausa aunque lo lean muchas conexiones.
+- [ ] Una venta de prueba contraentrega: aparece como pendiente sin ver en la campana de Admin y de la app, y llega el correo.
+- [ ] Abrir la notificación la deja atenuada (vista); resolverla la hace desaparecer de Pendientes.
+
+**Hallazgos que dejó la simulación (todos corregidos el 2026-10-01 salvo Redis):** (1) la pausa se deshacía porque la lectura que la disparaba terminaba en error y `get_db` revierte la transacción: ahora la pausa corre en su propia sesión; (2) al reactivar, la actividad vieja volvía a pausar el llavero en la primera lectura: la ventana de análisis empieza en la última pausa; (3) lecturas simultáneas creaban dos alertas: bloqueo `FOR NO KEY UPDATE`; (4) en producción las IP registradas son del proxy de Railway (`100.64.0.x`), no del visitante: se excluyen del conteo y se lee la IP real del encabezado; (5) sin `REDIS_URL` no hay límite de peticiones por IP (ver abajo). Además: con 2 o más llaveros personales activos en el mismo vehículo la ficha
+pública respondía 500 (`MultipleResultsFound` en `_has_ficha_access`). Corregido el 2026-10-01; el caso A/B
+de la simulación usa un vehículo por llavero, así que **agregar a mano el caso "2 llaveros en el mismo
+vehículo -> la ficha responde 200"** cuando se pruebe con un kit.
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

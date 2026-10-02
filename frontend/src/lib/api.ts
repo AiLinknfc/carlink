@@ -24,7 +24,7 @@ import type {
   NfcToken, NfcActivateRequest, NfcTokenPublicInfo,
   Profile, ProfileUpdate,
   UploadOut,
-  NfcTokenAdmin, NfcTokenLimit, NfcAccessLog, NfcAlert, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats, AnalyticsSummary,
+  NfcTokenAdmin, NfcAccessLog, NfcAlert, AdminNotification, AdminNotificationFilters, NfcWhitelistEntry, NfcWhitelistProvisionResult, NfcStats, AnalyticsSummary,
   NfcTagInventoryEntry, NfcTagInventoryCreate,
   ShopOrderDetail, ShopOrderStats,
   PartnerMe, PartnerProvisionResult, PartnerBatch, PartnerToken, PartnerAdminView, PartnerCreateResult,
@@ -520,14 +520,24 @@ export const adminApi = {
   updateToken: (id: string, data: Partial<NfcTokenAdmin>) => request<NfcTokenAdmin>('PATCH', `/admin/nfc/tokens/${id}`, data),
   revokeToken: (id: string) => request('DELETE', `/admin/nfc/tokens/${id}`),
   getTokenLogs: (id: string) => request<NfcAccessLog[]>('GET', `/admin/nfc/tokens/${id}/logs`),
-  listAlerts: (resolved?: boolean) => request<NfcAlert[]>('GET', `/admin/nfc/alerts${resolved !== undefined ? `?resolved=${resolved}` : ''}`),
-  resolveAlert: (id: string, resolved: boolean) => request<NfcAlert>('PATCH', `/admin/nfc/alerts/${id}/resolve`, { resolved }),
+  alertDetail: (id: string) => request<unknown>('GET', `/admin/nfc/alerts/${id}/detail`),
+  listNotifications: (f: AdminNotificationFilters = {}) => {
+    const qs = new URLSearchParams()
+    if (f.state) qs.set('state', f.state)
+    if (f.kind) qs.set('kind', f.kind)
+    if (f.date_from) qs.set('date_from', f.date_from)
+    if (f.date_to) qs.set('date_to', f.date_to)
+    if (f.limit) qs.set('limit', String(f.limit))
+    const q = qs.toString()
+    return request<AdminNotification[]>('GET', `/admin/notifications${q ? `?${q}` : ''}`)
+  },
+  notificationsSummary: () => request<{ unseen: number; pending: number }>('GET', '/admin/notifications/summary'),
+  updateNotification: (id: string, data: { seen?: boolean; resolved?: boolean }) => request<AdminNotification>('PATCH', `/admin/notifications/${id}`, data),
+  markAllNotificationsSeen: () => request<{ updated: number }>('POST', '/admin/notifications/mark-all-seen', {}),
   listWhitelist: () => request<NfcWhitelistEntry[]>('GET', '/admin/nfc/whitelist'),
   addToWhitelist: (tag_uid: string, label?: string) => request<NfcWhitelistEntry>('POST', '/admin/nfc/whitelist', { tag_uid, label: label || '' }),
   bulkWhitelist: (entries: { tag_uid: string; label?: string }[]) => request<NfcWhitelistEntry[]>('POST', '/admin/nfc/whitelist/bulk', { entries }),
   removeFromWhitelist: (id: string) => request('DELETE', `/admin/nfc/whitelist/${id}`),
-  listLimits: () => request<NfcTokenLimit[]>('GET', '/admin/nfc/limits'),
-  updateLimit: (accountType: string, data: Partial<NfcTokenLimit>) => request<NfcTokenLimit>('PATCH', `/admin/nfc/limits/${accountType}`, data),
   listInventory: () => request<NfcTagInventoryEntry[]>('GET', '/admin/nfc/inventory'),
   createInventory: (data: NfcTagInventoryCreate) => request<NfcTagInventoryEntry>('POST', '/admin/nfc/inventory', data),
   bulkCreateInventory: (entries: NfcTagInventoryCreate[]) => request<NfcTagInventoryEntry[]>('POST', '/admin/nfc/inventory/bulk', { entries }),

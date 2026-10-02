@@ -20,6 +20,10 @@ _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 TRIAL_DAYS = 7
 TRIAL_ACCOUNT_TYPES = {"taller"}
 
+# Máximo de llaveros activos por vehículo. Parte del modelo de negocio ya validado (el kit trae 3): es
+# una constante de código, igual para todas las cuentas, no un valor editable desde la interfaz.
+MAX_TOKENS_PER_VEHICLE = 3
+
 
 def generate_human_code(length: int = 10) -> str:
     return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))

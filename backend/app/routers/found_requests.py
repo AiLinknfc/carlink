@@ -12,6 +12,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.models import FoundRequest, Profile, Vehicle
 from app.schemas.schemas import FoundRequestCreate, FoundRequestOut
+from app.services.admin_notify import notify_admin
 from app.services.cache import get_redis
 from app.services.email import send_found_request_email
 
@@ -81,6 +82,7 @@ async def create_found_request(
     db.add(request)
     await db.flush()
     await db.refresh(request)
+    await notify_admin(db, kind="found_request", title="Llavero encontrado: alguien dejó un mensaje", body=(request.message or "")[:300], ref=str(request.id), link="/admin")
 
     # Send email notification to owner
     if owner and owner.email and body.finder_phone:
@@ -139,6 +141,7 @@ async def create_found_request_public(
     db.add(request)
     await db.flush()
     await db.refresh(request)
+    await notify_admin(db, kind="found_request", title="Llavero encontrado: alguien dejó un mensaje", body=(request.message or "")[:300], ref=str(request.id), link="/admin")
 
     # Send email notification to owner
     if owner and owner.email:

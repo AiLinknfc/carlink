@@ -347,6 +347,7 @@ select option { background: #141414; color: #f5f3ec; }
   .header-theme-btn {
     width: 52px !important;
     height: 28px !important;
+    --knob-travel: 24px;
   }
   .header-theme-btn span:first-child {
     left: 6px !important;
@@ -366,6 +367,11 @@ select option { background: #141414; color: #f5f3ec; }
   .header-theme-btn {
     width: 46px !important;
     height: 24px !important;
+    --knob-travel: 20px;
+  }
+  .header-theme-btn > span:last-child {
+    width: 18px !important;
+    height: 18px !important;
   }
 }
 

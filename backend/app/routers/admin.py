@@ -4,7 +4,7 @@ import hashlib
 import re
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -22,7 +22,6 @@ from app.models.models import (
     NfcAlert,
     NfcTagInventory,
     NfcToken,
-    NfcTokenLimit,
     NfcTokenWhitelist,
     Partner,
     Profile,
@@ -31,14 +30,11 @@ from app.models.models import (
 from app.schemas.schemas import (
     NfcAccessLogOut,
     NfcAlertOut,
-    NfcAlertResolve,
     NfcStatsOut,
     NfcTagInventoryBulkCreate,
     NfcTagInventoryCreate,
     NfcTagInventoryOut,
     NfcTokenAdminOut,
-    NfcTokenLimitOut,
-    NfcTokenLimitUpdate,
     NfcTokenUpdate,
     NfcWhitelistBulkCreate,
     NfcWhitelistCreate,
@@ -208,33 +204,27 @@ async def list_alerts(
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
     resolved: bool | None = None,
+    seen: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     limit: int = Query(50, ge=1, le=200),
 ):
+    """Historial de alertas NFC. `seen=false` = alertas nuevas aún sin abrir; date_from/date_to
+    son fechas calendario de Colombia (inclusivas)."""
+    from app.routers.admin_notifications import day_bounds
     stmt = select(NfcAlert)
     if resolved is not None:
         stmt = stmt.where(NfcAlert.resolved == resolved)
+    if seen is not None:
+        stmt = stmt.where(NfcAlert.seen_at.is_not(None) if seen else NfcAlert.seen_at.is_(None))
+    start, end = day_bounds(date_from, date_to)
+    if start:
+        stmt = stmt.where(NfcAlert.created_at >= start)
+    if end:
+        stmt = stmt.where(NfcAlert.created_at < end)
     stmt = stmt.order_by(NfcAlert.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
-
-
-@router.patch("/alerts/{alert_id}/resolve", response_model=NfcAlertOut)
-async def resolve_alert(
-    alert_id: UUID,
-    body: NfcAlertResolve,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    from datetime import datetime, timezone
-    result = await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))
-    alert = result.scalar_one_or_none()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    alert.resolved = body.resolved
-    alert.resolved_at = datetime.now(timezone.utc) if body.resolved else None
-    await db.flush()
-    await db.refresh(alert)
-    return alert
 
 
 # ── Whitelist ──
@@ -406,40 +396,6 @@ async def remove_from_whitelist(
         raise HTTPException(status_code=404, detail="Whitelist entry not found")
     await db.delete(entry)
     await db.flush()
-
-
-# ── Token Limits ──
-
-@router.get("/limits", response_model=list[NfcTokenLimitOut])
-async def list_limits(
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    result = await db.execute(select(NfcTokenLimit).order_by(NfcTokenLimit.account_type))
-    return list(result.scalars().all())
-
-
-@router.patch("/limits/{account_type}", response_model=NfcTokenLimitOut)
-async def update_limit(
-    account_type: str,
-    body: NfcTokenLimitUpdate,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit = result.scalar_one_or_none()
-    if not limit:
-        raise HTTPException(status_code=404, detail="Limit not found for this account type")
-
-    from datetime import datetime, timezone
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(limit, field, value)
-    limit.updated_at = datetime.now(timezone.utc)
-    await db.flush()
-    await db.refresh(limit)
-    return limit
 
 
 # ── NFC Tag Inventory (raw scan metadata, separate from whitelist/activation) ──

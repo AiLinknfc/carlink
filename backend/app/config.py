@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     r2_endpoint: str = ""
     r2_public_url: str = ""
 
+    # Respuesta automática a llaveros NFC con actividad que parece clonado/fuga/rastreo
+    # (services/alerts.py): pausa el llavero y avisa. Apagable sin desplegar con NFC_AUTO_PAUSE_ENABLED=false.
+    nfc_auto_pause_enabled: bool = True
+    nfc_auto_pause_ips: int = 10     # conexiones distintas en 24 h
+    nfc_auto_pause_scans: int = 200  # lecturas en 24 h
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 

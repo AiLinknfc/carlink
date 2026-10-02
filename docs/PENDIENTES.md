@@ -1,7 +1,63 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-09-21 (publicación de landing /taller, postulaciones, soporte real, textos
-legales v2.2, blog y footer único; ver las secciones de esa fecha más abajo)._
+_Última actualización: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
+notificaciones de admin, defensa automática NFC, limpieza de datos y R2; ver "Antes y después de publicar" abajo)._
+
+## Antes y después de publicar la campaña (2026-10-02) — lista de seguimiento
+
+Resumen operativo de lo que falta para salir a publicidad. El detalle de cada punto está en las secciones
+enlazadas; esto es solo el orden. Marcar `[x]` y fecha al cerrar cada uno.
+
+**A. Despliegue (bloquea todo lo demás)**
+- [ ] Mergear el PR `develop` -> `master` en GitHub y confirmar que el deploy de Railway y Vercel terminó. El número de
+  versión de `/api/health` sigue en `1.1.0` y no sirve para saber si aterrizó: subirlo en `main.py` antes del próximo merge
+  (`docs/DEPLOY.md`, "Cómo verificar sin ambigüedad").
+- [ ] Después del merge, actualizar `develop` desde `master` (GitHub agrega un commit de merge).
+
+**B. Configuración de producción (Railway / Vercel)**
+- [ ] `REDIS_URL` (Upstash) en Railway — hoy el límite de peticiones por IP **no funciona** en producción (40 lecturas, ningún
+  429). Repetir el curl de la Suite 13 de `docs/PRUEBAS_FUNCIONALES.md`. Ver "Seguridad NFC".
+- [ ] `ADMIN_EMAIL` y `RESEND_API_KEY` confirmadas en Railway; probar un correo real (aviso de venta al admin, código al comprador).
+- [ ] Confirmar que se guarda la **IP real** del visitante (no `100.64.0.x`) tras el deploy: caso manual de la Suite 13. Mientras no
+  se confirme, la pausa automática por "conexiones distintas" no actúa (la de volumen sí).
+- [ ] Servicio de Railway `r2-cleanup` (cron semanal): confirmar que corre y que el primer `--apply` borra solo lo esperado
+  (10 archivos del admin sin referencia). Pasos y límites en `docs/DEPLOY.md`.
+- [ ] Variables de Wompi en modo producción (`prv_prod_`, `prod_events_`, `prod_integrity_`, `pub_prod_`) y webhook de eventos
+  registrado en `https://api.carlink.com.co/api/shop/webhooks/wompi`.
+
+**C. Producto listo para vender**
+- [ ] **Provisionar un lote nuevo** desde Admin NFC: solo los llaveros provisionados con la migración 057 guardan el código
+  recuperable y se entregan por correo; hoy no queda ninguno disponible para pedidos web.
+- [ ] Pedido real de 1 unidad (39.900 COP) de punta a punta: pago aprobado, correo con el código llega, el código activa el
+  llavero, y la venta aparece en la campana de Admin. WhatsApp automático sigue bloqueado por Meta ("En curso: WhatsApp").
+- [ ] Activar el llavero ColombiaTechWeek 05 con el código nuevo (se entregó por chat; no se escribe aquí) y comprobar su QR.
+- [ ] Decidir qué pasa con ColombiaTechWeek 01: está activado en el Bajaj ZYM-35C del admin; si ya se entregó a otra persona,
+  mover el vehículo y sus registros.
+
+**D. Marketing / Meta**
+- [ ] Validar el pixel con Meta Pixel Helper y "Probar eventos": `PageView` y los eventos `InitiateCheckout`, `Purchase`, `Lead`,
+  `CompleteRegistration`. Límites conocidos: el registro con Google y las compras dentro de `/app` no se miden; el registro de
+  taller no dispara evento. La política de privacidad v2.3 ya menciona el pixel; evaluar un banner de consentimiento si Meta o
+  asesoría legal lo exigen.
+- [ ] URL de destino de los anuncios: `https://www.carlink.com.co/?utm_source=meta&utm_medium=paid&utm_campaign=registro`
+  (`/register` es solo para talleres/empresas). Comprobar en incógnito que "Registrarme gratis" lleva a crear la cuenta. `/shop`
+  responde 308 a la portada: confirmar si es intencional.
+- [ ] Textos del anuncio redactados en conversación (5 variantes y el párrafo de 200 palabras): revisar precio y plazo de envío.
+
+**E. Limpieza y deuda técnica**
+- [ ] Marcar como resueltas las 40 alertas viejas de `nfc_alerts` (falsos positivos del proxy). Ver "Hallazgos de la revisión del 2026-10-02".
+- [ ] Decidir si se borra la tabla `nfc_token_limits` (sin uso desde el 2026-10-02) y si se limpian los 6 clics de `whatsapp_clicks`.
+- [ ] Revisar las migraciones antiguas por políticas RLS `USING (true)` sin `TO service_role` (`pg_policies`), como la de `job_applications`.
+- [ ] Migrar `support_tickets.py` y `workshop_applications.py` a `client_ip()` (hoy toman el primer valor de `X-Forwarded-For`, falsificable).
+- [ ] `POST /nfc/tokens/{id}/reactivate` valida el límite contra "el vehículo más reciente" del usuario, no contra el vehículo del
+  llavero: arreglar (mismo patrón que se corrigió en `/nfc/activate`).
+- [ ] Repetir la Suite 13 completa (`python scripts/qa_nfc_attack_sim.py`, ~6 min): la última corrida 13/13 fue antes de quitar la
+  pestaña y la lógica de límites.
+- [ ] `scripts/delete_test_user.sql` sigue sin versionar: ya no hace falta, borrarlo.
+- [ ] Landing en celular: verificar en un iPhone real (Safari) el hero centrado y la placa grande. Quedan sin cambiar el llavero que
+  entra volando en "Cómo funciona" (cortado a propósito al inicio de la animación) y el anillo recortado arriba en las imágenes del hero.
+- [ ] La campana de Admin consulta cada 60 s (no es push al celular). Si se quiere aviso inmediato fuera de la página: WhatsApp o push.
+- [ ] Backend local en redes sin IPv6 (hotspot): usar el pooler de Supabase, ver `docs/DEPLOY.md`.
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza
@@ -269,6 +325,61 @@ histórico** de cómo se construyó cada cosa (verificaciones, bugs encontrados,
 ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
+
+## Notificaciones del administrador (2026-10-01, en local, sin desplegar)
+
+Buzón `admin_notifications` (migración `066`, **ya aplicada** en la Supabase real) + `nfc_alerts.seen_at`.
+Cada evento que requiere atención crea una fila **sin ver** (`seen_at` NULL) hasta que el admin la abre; se
+resuelve aparte (`resolved_at`). Fuentes: venta pagada, pedido contraentrega, ticket de soporte, postulación
+de taller y de empleo, llavero encontrado, verificación de tarjeta pendiente y alertas NFC (una por token y
+tipo cada 24 h). Correo a `ADMIN_EMAIL`: los flujos que ya lo mandaban (venta, ticket, postulaciones) no lo
+duplican; los nuevos (contraentrega, verificación, alerta NFC crítica) sí. Campana de Admin y de la app
+(solo para el admin, consulta cada 60 s), pestaña Admin > Notificaciones con filtros de estado, tipo y fecha
+(día calendario de Colombia) y filtro de fecha. Desde 2026-10-02 las pestañas Notificaciones y Alertas son una sola (Admin > Notificaciones). Una notificación vista se atenúa y al resolverla
+desaparece (queda en el filtro "Resueltas"). Solo avisan las alertas NFC sospechosas (warning) o críticas; las
+informativas quedan en el historial. Abrir una alerta NFC muestra dueño, vehículo, lecturas recientes y una
+recomendación, con dos acciones: pausar/reactivar las lecturas del llavero y resolver. La app NO pausa nada sola.
+Además se dejó de crear una alerta nueva en cada escaneo posterior al umbral (una por token y tipo cada 24 h).
+**Falta**: desplegar (push autorizado); confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway; probar con un
+pedido real. Límite conocido: la campana consulta por polling (no es push en tiempo real al celular).
+
+## Seguridad NFC: respuesta automática y huecos encontrados (2026-10-01)
+
+Un llavero con actividad de clonado/fuga/rastreo (10 conexiones distintas o 200 lecturas en 24 h; se mide desde la
+última pausa) se **pausa solo** (`status=paused_security`), la alerta queda resuelta, llega correo al admin y al dueño, y el
+dueño lo reactiva desde Mis llaveros. Los llaveros de la cuenta admin no se pausan. Apagable: `NFC_AUTO_PAUSE_ENABLED=false`.
+Suite: `docs/PRUEBAS_FUNCIONALES.md` > Suite 13 (`backend/scripts/qa_nfc_attack_sim.py`, 13/13 OK el 2026-10-01).
+
+**Pendiente, encontrado al probar (no son de esta función, ya existían):**
+- **`REDIS_URL` no funciona en producción**: 40 lecturas seguidas de un token inexistente dieron 40 × 404, ningún 429 (límite
+  declarado: 30/min por IP). Sin Redis también están apagados el límite de intentos de códigos de activación y los
+  límites de formularios públicos. Acción: poner `REDIS_URL` (Upstash) en Railway y repetir el curl de la Suite 13.
+- **La IP registrada en `nfc_access_logs` es la del proxy de Railway (`100.64.0.x`), no la del visitante**. Se agregó
+  `client_ip()` (lee el último salto de `X-Forwarded-For` / `X-Real-Ip`) y la detección ignora redes internas, pero hay que
+  confirmar tras el deploy que ahora se guarda la IP real (caso manual de la Suite 13). `support_tickets.py` y
+  `workshop_applications.py` usan el PRIMER valor de `X-Forwarded-For`, que el cliente puede falsificar: migrarlos a `client_ip()`.
+- Con 2 o más llaveros personales activos en un vehículo la ficha pública respondía 500: corregido.
+
+## Panel Admin simplificado y límite de llaveros fijo (2026-10-02)
+
+- **Límite de llaveros por vehículo = 3, constante de código** (`MAX_TOKENS_PER_VEHICLE` en `services/nfc_provisioning.py`),
+  igual para toda cuenta: es parte del modelo de negocio validado y los llaveros son del cliente, no del taller. Se quitó la
+  pestaña Límites, sus endpoints (`/admin/nfc/limits`), el modelo y los esquemas; la tabla `nfc_token_limits` queda sin uso en
+  la base (no se borró, sin migración). El valor `taller = 5` ya no aplica. Ya no hay pestañas Dashboard ni Alertas.
+- **Admin > Analítica** reúne lo del antiguo Dashboard (por atender, tienda, llaveros) encima del tablero de analítica, que
+  no se tocó (`BusinessMetrics.tsx`). **Admin > Notificaciones** es la única bandeja (`NotificationsPanel.tsx`); las alertas NFC
+  informativas ya no tienen pantalla (no requieren acción); las críticas llegan como notificación ya resuelta.
+
+## Hallazgos de la revisión del 2026-10-02
+
+- **`job_applications` nunca se había creado en la base** (la migración `020` no estaba aplicada): cualquier envío de
+  "Trabaja con nosotros" fallaba con error 500. Aplicada hoy y verificada con una postulación de prueba (borrada). La
+  migración original traía una política RLS `FOR ALL USING (true)` sin `TO service_role` que habría expuesto nombre,
+  correo y teléfono de los postulantes a cualquiera con la llave anon: se aplicó sin esa política (RLS sin políticas).
+  **Revisar el resto de migraciones antiguas por el mismo patrón** `USING (true)` y confirmar con `pg_policies` cuáles existen.
+- **35 alertas `multiple_ips` críticas sin resolver (y 5 nocturnas) quedaron en `nfc_alerts` del 18-sep**: son falsos
+  positivos del sistema anterior, que contaba como "IPs distintas" las del proxy de Railway (`100.64.0.x`). Ya no tienen
+  pantalla (la pestaña Alertas se unificó en Notificaciones). Pendiente decidir si se marcan como resueltas.
 
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 

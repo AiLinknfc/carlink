@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routers import (
     admin,
+    admin_notifications,
     analytics,
     whatsapp_webhook,
     appointments,
@@ -105,6 +106,7 @@ app.include_router(workshop_applications.admin_router, prefix="/api")
 app.include_router(support_tickets.router, prefix="/api")
 app.include_router(support_tickets.admin_router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(admin_notifications.router, prefix="/api")
 app.include_router(shop_orders.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")
 app.include_router(waitlist.router, prefix="/api")

@@ -15,6 +15,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
 from app.models.models import NfcToken, ShopOrder, Vehicle
 from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate, VehicleVerificationRequest
+from app.services.admin_notify import notify_admin
 from app.services.auth import ensure_profile
 from app.services.cache import (
     cache_delete,
@@ -363,6 +364,11 @@ async def request_vehicle_verification(
     vehicle.verification_requested_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(vehicle)
+    await notify_admin(
+        db, kind="verification", severity="warning", title=f"Verificación de tarjeta pendiente: {vehicle.plate}",
+        body="Un usuario subió la tarjeta de propiedad y espera aprobación.", ref=str(vehicle.id),
+        link="/admin?tab=verifications", send_email=True,
+    )
     # Commit ANTES de invalidar el caché: get_db confirma recién al terminar el
     # request, así que invalidar antes dejaba una ventana donde otra lectura
     # volvía a cachear el valor viejo (120 s de toggles "que no actualizan").

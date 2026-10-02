@@ -905,15 +905,6 @@ export interface NfcTokenAdmin {
   qr_url: string | null;
 }
 
-export interface NfcTokenLimit {
-  id: string;
-  account_type: string;
-  max_tokens_per_vehicle: number;
-  max_daily_access: number;
-  max_unique_ips_24h: number;
-  updated_at: string;
-}
-
 export interface NfcAccessLog {
   id: string;
   token_id: string;
@@ -932,7 +923,29 @@ export interface NfcAlert {
   message: string | null;
   resolved: boolean;
   resolved_at: string | null;
+  seen_at: string | null;
   created_at: string;
+}
+
+export interface AdminNotification {
+  id: string;
+  kind: string;
+  severity: 'info' | 'warning' | 'critical' | string;
+  title: string;
+  body: string;
+  ref: string;
+  link: string;
+  seen_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface AdminNotificationFilters {
+  state?: 'all' | 'unseen' | 'pending' | 'resolved';
+  kind?: string;
+  date_from?: string; // YYYY-MM-DD, día calendario de Colombia
+  date_to?: string;
+  limit?: number;
 }
 
 export interface NfcWhitelistEntry {

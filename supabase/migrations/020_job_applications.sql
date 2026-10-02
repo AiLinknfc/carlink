@@ -14,13 +14,8 @@ CREATE TABLE job_applications (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Only the backend (service role) can read/write via API.
--- RLS enabled but no user-facing policies — admin-only through the API layer.
+-- Solo el backend (rol dueño de la base, que no pasa por RLS) lee y escribe. RLS activado SIN políticas.
+-- (2026-10-02: la versión original traía una política FOR ALL USING (true) sin "TO service_role", que habría
+-- dejado leer y escribir las postulaciones, con nombre, correo y teléfono, a cualquiera con la llave anon de
+-- Supabase. Esta migración nunca se había aplicado; se corrige antes de aplicarla.)
 ALTER TABLE job_applications ENABLE ROW LEVEL SECURITY;
-
--- Permissive policy for service_role (backend uses service key for admin reads)
-CREATE POLICY "service_role_all_on_job_applications"
-  ON job_applications
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);

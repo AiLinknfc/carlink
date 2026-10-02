@@ -21,16 +21,18 @@ from app.models.models import (
     NfcAccessLog,
     NfcAlert,
     NfcToken,
-    NfcTokenLimit,
     Profile,
     Vehicle,
     Workshop,
 )
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
 from app.services.alerts import check_and_create_alerts
+from app.services.alerts import notify_nfc_alert
+from app.utils import client_ip
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
 from app.services.nfc_provisioning import (
+    MAX_TOKENS_PER_VEHICLE,
     TRIAL_ACCOUNT_TYPES,
     TRIAL_DAYS,
     generate_human_code,
@@ -146,9 +148,12 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
             NfcToken.token_type == "personal",
             NfcToken.is_active,
             NfcToken.status == "active",
-        )
+        ).limit(1)
     )
-    if personal_result.scalar_one_or_none():
+    # .first(), no .scalar_one_or_none(): un vehículo puede tener varios llaveros personales activos
+    # (límite de 3 para persona, 5 para taller); con 2 o más, scalar_one_or_none lanzaba
+    # MultipleResultsFound y la ficha pública respondía 500 (encontrado con qa_nfc_attack_sim.py).
+    if personal_result.scalars().first():
         # A claimed physical keychain grants lifetime access, regardless of
         # subscription state.
         return True, None
@@ -186,7 +191,7 @@ async def activate_nfc_token(
     activation code printed on its packaging. This is the only way a token
     becomes active — nothing can be minted without a real physical item."""
     uid = uuid.UUID(user_id)
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
 
     if not await _check_activate_rate(str(uid)) or not await _check_activate_rate(f"ip:{ip}"):
         raise HTTPException(status_code=429, detail="Demasiados intentos. Espera unos minutos e inténtalo de nuevo.")
@@ -212,15 +217,7 @@ async def activate_nfc_token(
             detail="Esta placa ya está verificada o activa en otra cuenta. Contacta a soporte si es tu vehículo.",
         )
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
@@ -279,13 +276,15 @@ async def activate_nfc_token(
     # el partner deshonesto igual podría auto-activarse antes de repartir,
     # esto solo deja rastro para auditar después.
     if provisioned_by_partner_id and not distributed_at:
-        db.add(NfcAlert(
+        pre_alert = NfcAlert(
             token_id=nfc_token.id,
             alert_type="activated_before_distributed",
             severity="warning",
             message="Llavero de partner activado antes de que se marcara el lote como distribuido.",
-        ))
+        )
+        db.add(pre_alert)
         await db.flush()
+        await notify_nfc_alert(db, pre_alert)
 
     if token_url_encrypted:
         await db.execute(
@@ -325,18 +324,9 @@ async def get_my_token_limit(
     """Return the current user's token limit and usage — para el vehículo
     pedido explícitamente, no "el más reciente de la cuenta" (mismo fix que
     POST /nfc/activate, ver comentario ahí)."""
-    uid = uuid.UUID(user_id)
     vehicle = await verify_vehicle(vehicle_id, user_id, db)
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
@@ -488,15 +478,7 @@ async def reactivate_nfc_token(
     if not vehicle:
         raise HTTPException(status_code=404, detail="No vehicles found")
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
@@ -654,7 +636,7 @@ async def access_via_qr(
     # qué se considera válido, solo dónde aterriza el mensaje cuando no lo es.
     fallback_url = f"{settings.frontend_url}/nfc/q-invalido"
 
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     if not await _check_rate(ip):
         raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
 
@@ -688,7 +670,7 @@ async def access_via_nfc(
 
     Rate-limited to 30 req/min per IP. Never exposes owner info.
     """
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     if not await _check_rate(ip):
         raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
 
@@ -696,12 +678,13 @@ async def access_via_nfc(
         raise HTTPException(status_code=404, detail="Enlace incompleto o inválido")
 
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    result = await db.execute(
-        select(NfcToken).where(NfcToken.token_hash == token_hash, NfcToken.is_active)
-    )
+    result = await db.execute(select(NfcToken).where(NfcToken.token_hash == token_hash))
     nfc_token = result.scalar_one_or_none()
-    if not nfc_token:
+    if not nfc_token or (not nfc_token.is_active and nfc_token.status != "paused_security"):
         raise HTTPException(status_code=404, detail="Enlace no válido o revocado")
+    if nfc_token.status == "paused_security":
+        # Pausado por la detección automática (services/alerts.py): sin ficha, con un mensaje claro.
+        raise HTTPException(status_code=404, detail="Este llavero fue pausado por seguridad. Su propietario puede reactivarlo desde la app.")
 
     if nfc_token.status != "active":
         raise HTTPException(status_code=404, detail="Este llavero fue desactivado por el propietario")
@@ -715,8 +698,13 @@ async def access_via_nfc(
     )
     db.add(access_log)
 
-    # Check for alerts
+    # Check for alerts. Si la actividad parece clonado/filtración, esto pausa el llavero (en su propia
+    # sesión, ya confirmado) y esta misma lectura tampoco muestra la ficha.
+    await db.flush()
     await check_and_create_alerts(nfc_token.id, ip, db)
+    await db.refresh(nfc_token)
+    if nfc_token.status == "paused_security":
+        raise HTTPException(status_code=404, detail="Este llavero fue pausado por seguridad. Su propietario puede reactivarlo desde la app.")
 
     nfc_token.access_count = (nfc_token.access_count or 0) + 1
     nfc_token.last_accessed_at = func.now()

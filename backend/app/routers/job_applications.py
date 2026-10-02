@@ -10,6 +10,7 @@ from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.models import JobApplication
 from app.schemas.schemas import JobApplicationCreate, JobApplicationOut
+from app.services.admin_notify import notify_admin
 from app.services.email import send_job_application_email
 
 router = APIRouter(prefix="/job-applications", tags=["job-applications"])
@@ -34,6 +35,10 @@ async def create_job_application(
     await db.flush()
     await db.refresh(app)
 
+    await notify_admin(
+        db, kind="job_application", title=f"Postulación de empleo: {body.full_name}",
+        body=f"{body.area}{(' · ' + body.offer_title) if body.offer_title else ''}\n{body.email}", ref=str(app.id), link="/admin?tab=postulaciones",
+    )
     # Send email notification to admin (best-effort, don't fail the request)
     send_job_application_email(
         applicant_name=body.full_name,

@@ -255,22 +255,33 @@ export default function LandingPage() {
           [data-r="shopHero-canvas"]{position:relative !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;padding:0 !important;margin-top:24px;justify-content:center;order:2;transform:none !important;width:100%}
           [data-r="shopHero-canvas"] canvas{max-width:100% !important;height:auto !important;max-height:none !important}
           [data-r="shopHero-copy"]{display:contents}
-          [data-r="shopHero-text"]{width:100% !important;max-width:560px !important;margin:0 auto 0 0;order:1;transform:none !important}
-          [data-r="shopHero-cta"]{width:100% !important;max-width:560px !important;margin:-30px auto 0 0 !important;order:3;transform:none !important}
+          [data-r="shopHero-text"]{width:100% !important;max-width:560px !important;margin:0 auto !important;order:1;transform:none !important;text-align:center}
+          [data-r="shopHero-cta"]{width:100% !important;max-width:560px !important;margin:0 auto !important;order:3;transform:none !important;text-align:center}
           [data-r="shopHero-h1"]{font-size:clamp(30px,4.6vw,58px) !important}
-          [data-r="shopHero-badge"]{margin-bottom:26px !important}
-          [data-r="shopHero-lead"]{margin-top:26px !important}
-          [data-r="shopHero-buy"]{margin-top:68px !important}
-          [data-r="shopHero-checks"]{margin-top:32px !important}
+          [data-r="shopHero-badge"]{margin-bottom:22px !important;align-self:center !important;justify-content:center;text-align:center;max-width:100%}
+          [data-r="shopHero-lead"]{margin:22px auto 0 !important}
+          [data-r="shopHero-buy"]{margin-top:24px !important;justify-content:center}
+          [data-r="shopHero-buy"]>button{width:100%;max-width:360px;justify-content:center}
+          [data-r="shopHero-checks"]{margin-top:24px !important;justify-content:center}
           [data-r="comoWrap"]{margin-top:0 !important}
         }
         @media(max-width:720px){
           [data-r="keychainScrub"] canvas{min-height:200px !important}
         }
+        @media(max-width:380px){
+          [data-r="shopHero-badge"]{letter-spacing:.14em !important;font-size:11px !important;padding:6px 12px !important}
+          [data-r="shopHero-checks"]{font-size:12.5px !important;gap:8px 14px !important}
+          [data-r="appHeader"]{padding:8px 12px !important;gap:6px}
+          [data-r="appHeader-brand"]{font-size:15px !important}
+          [data-r="appHeader-actions"]{gap:4px !important}
+        }
+        @media(max-width:290px){
+          [data-r="appHeader-brand"] span{display:none}
+        }
       `}</style>
 
       {/* ===== HEADER ===== */}
-      <header style={{
+      <header data-r="appHeader" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '8px clamp(16px,4vw,40px)',
@@ -278,13 +289,13 @@ export default function LandingPage() {
         borderBottom: `1px solid ${tk.thinBorder}`,
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em' }}>
+        <div data-r="appHeader-brand" style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: '.01em', flexShrink: 0 }}>
           <CarLinkLogo size={33} />
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
         </div>
 
         {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div data-r="appHeader-actions" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <button onClick={openSignupModal} className="header-auth-btn header-register" title="Crear cuenta" style={{
             padding: '6px 12px', borderRadius: 9, border: `1px solid ${tk.switchBorder}`,
             background: 'transparent', color: tk.muted, fontWeight: 600, fontSize: 12,
@@ -313,7 +324,7 @@ export default function LandingPage() {
             <span style={{ position: 'absolute', right: 6, color: '#111', opacity: dark ? 1 : 0, transition: 'opacity .2s', display: 'inline-flex' }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2a1 1 0 0 0-1 1v3.06A8 8 0 0 0 4 13a1 1 0 0 0 1 1h1l1 6h10l1-6h1a1 1 0 0 0 1-1 8 8 0 0 0-4-6.94V3a1 1 0 0 0-1-1z" /></svg>
             </span>
-            <span style={{ position: 'relative', zIndex: 1, width: 22, height: 22, borderRadius: '50%', background: tk.knobBg, boxShadow: `0 2px 6px rgba(0,0,0,.35), ${tk.knobGlow}`, transform: `translateX(${dark ? 28 : 0}px)`, transition: 'transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s' }} />
+            <span style={{ position: 'relative', zIndex: 1, width: 22, height: 22, borderRadius: '50%', background: tk.knobBg, boxShadow: `0 2px 6px rgba(0,0,0,.35), ${tk.knobGlow}`, transform: `translateX(${dark ? 'var(--knob-travel, 28px)' : '0px'})`, transition: 'transform .25s cubic-bezier(0.34,1.56,0.64,1), background .25s' }} />
           </button>
         </div>
       </header>
@@ -336,14 +347,10 @@ export default function LandingPage() {
             <h1 data-r="shopHero-h1" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.6vw,58px)', lineHeight: 0.98, margin: 0, textTransform: 'uppercase' as const }}>Toda la historia de tu vehículo en <span style={{ color: GOLD }}>un solo toque</span>.</h1>
             <p data-r="shopHero-lead" style={{ fontSize: 15, lineHeight: 1.55, color: SHOP_MUTED, margin: '26px 0 0', maxWidth: '52ch' }}>CarLink convierte tu vehículo en un vehículo inteligente. Escanea tu llavero NFC y consulta mantenimiento, documentos, kilometraje, reparaciones y mucho más.</p>
           </div>
-          {/* CTA + price + checklist — below canvas on mobile */}
+          {/* CTA + checklist — below canvas on mobile (el precio vive en la seccion de precios, no aca) */}
           <div data-r="shopHero-cta" style={{ animation: 'shopFadeUp .7s both' }}>
             <div data-r="shopHero-buy" style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginTop: 68 }}>
               <button onClick={() => setCartOpen(true)} style={SHOP_CTA_BTN}>Obtén tu CarLink{ARROW}</button>
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: GOLD, lineHeight: 1 }}>$39.900</div>
-                <div style={{ fontSize: 13, color: SHOP_MUTED, marginTop: 3 }}>pago único · envío incluido</div>
-              </div>
             </div>
             <div data-r="shopHero-checks" style={{ display: 'flex', alignItems: 'center', gap: '10px 20px', marginTop: 32, fontSize: 13.5, color: SHOP_MUTED, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{CHECK()}App gratis para siempre</span>

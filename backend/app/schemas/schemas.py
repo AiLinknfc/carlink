@@ -1360,23 +1360,6 @@ class NfcTokenUpdate(BaseModel):
     is_active: bool | None = None
 
 
-class NfcTokenLimitOut(BaseModel):
-    id: UUID
-    account_type: str
-    max_tokens_per_vehicle: int
-    max_daily_access: int
-    max_unique_ips_24h: int
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class NfcTokenLimitUpdate(BaseModel):
-    max_tokens_per_vehicle: int | None = None
-    max_daily_access: int | None = None
-    max_unique_ips_24h: int | None = None
-
-
 class NfcAccessLogOut(BaseModel):
     id: UUID
     token_id: UUID
@@ -1397,13 +1380,10 @@ class NfcAlertOut(BaseModel):
     message: str | None = None
     resolved: bool
     resolved_at: datetime | None = None
+    seen_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class NfcAlertResolve(BaseModel):
-    resolved: bool = True
 
 
 class NfcWhitelistOut(BaseModel):
@@ -2085,3 +2065,23 @@ class SafetyScanResult(BaseModel):
     # triangulos, chaleco, herramientas), o null si no se puede saber.
     kit_item: str | None = None
     raw_text: str = ""
+
+
+class AdminNotificationOut(BaseModel):
+    id: UUID
+    kind: str
+    severity: str
+    title: str
+    body: str
+    ref: str
+    link: str
+    seen_at: datetime | None = None
+    resolved_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminNotificationUpdate(BaseModel):
+    seen: bool | None = None
+    resolved: bool | None = None

@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.models import NfcTokenLimit
 
 
 def _generic_result(scalar=0, one=None, many=None):
@@ -27,18 +24,6 @@ def _generic_result(scalar=0, one=None, many=None):
     result.scalar_one_or_none.return_value = one
     result.scalars.return_value.all.return_value = many or []
     return result
-
-
-def _fake_limit(account_type: str) -> MagicMock:
-    limit = MagicMock(spec=NfcTokenLimit)
-    limit.id = uuid.uuid4()
-    limit.account_type = account_type
-    limit.max_tokens_per_vehicle = 1
-    limit.max_daily_access = 100
-    limit.max_unique_ips_24h = 10
-    limit.created_at = datetime.now(timezone.utc)
-    limit.updated_at = datetime.now(timezone.utc)
-    return limit
 
 
 @pytest.mark.anyio
@@ -64,20 +49,6 @@ async def test_admin_list_tokens(client, mock_db):
     response = await client.get("/api/admin/nfc/tokens")
     assert response.status_code == 200
     assert response.json() == []
-
-
-@pytest.mark.anyio
-async def test_admin_list_limits(client, mock_db):
-    limits = [_fake_limit("persona"), _fake_limit("taller")]
-    mock_db.execute = AsyncMock(return_value=_generic_result(many=limits))
-
-    response = await client.get("/api/admin/nfc/limits")
-    assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
-    account_types = {l["account_type"] for l in data}
-    assert "persona" in account_types
-    assert "taller" in account_types
 
 
 @pytest.mark.anyio

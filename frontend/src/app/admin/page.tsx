@@ -2,6 +2,9 @@
 
 import AnalyticsPanel from '@/components/admin/AnalyticsPanel'
 import PostulacionesPanel from '@/components/admin/PostulacionesPanel'
+import AlertDetailModal from '@/components/admin/AlertDetailModal'
+import NotificationsPanel from '@/components/admin/NotificationsPanel'
+import BusinessMetrics from '@/components/admin/BusinessMetrics'
 import SoportePanel from '@/components/admin/SoportePanel'
 import EncuestasPanel from '@/components/admin/EncuestasPanel'
 import dynamic from 'next/dynamic'
@@ -13,7 +16,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { adminApi, adminProvisionWhitelist, adminReviewsApi, jobApplicationApi, type JobApplication } from '@/lib/api'
-import type { NfcTokenAdmin, NfcAlert, NfcWhitelistEntry, NfcTokenLimit, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult, AdminReview, AdminReviewSummary, ReviewTargetType } from '@/lib/types'
+import { useAdminNotifications, NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
+import type { AdminNotification, NfcTokenAdmin, NfcWhitelistEntry, NfcStats, NfcTagInventoryEntry, NfcTagInventoryCreate, ShopOrderDetail, ShopOrderStats, PartnerAdminView, PartnerBatch, PartnerCreateResult, AdminReview, AdminReviewSummary, ReviewTargetType } from '@/lib/types'
 import { RatingStars } from '@/lib/icons_new'
 import QrCodePanel from '@/components/QrCodePanel'
 import AdminModal, { adminModalStyles as s } from '@/components/admin/AdminModal'
@@ -77,15 +81,13 @@ export default function AdminPage() {
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { isDark } = useTheme()
-  const [tab, setTab] = useState<'dashboard' | 'tokens' | 'alerts' | 'whitelist' | 'inventory' | 'limits' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte'>('dashboard')
+  const [tab, setTab] = useState<'tokens' | 'whitelist' | 'inventory' | 'orders' | 'partners' | 'reviews' | 'verifications' | 'analytics' | 'recursos' | 'postulaciones' | 'soporte' | 'notificaciones'>('analytics')
   const [stats, setStats] = useState<NfcStats | null>(null)
   const [tokens, setTokens] = useState<NfcTokenAdmin[]>([])
-  const [alerts, setAlerts] = useState<NfcAlert[]>([])
   const [whitelist, setWhitelist] = useState<NfcWhitelistEntry[]>([])
   // Filtro de origen (control estricto por campaña/partner, docs/PLAN_PARTNER_MODEL.md)
   // — 'all' | 'admin' | id de partner.
   const [whitelistOriginFilter, setWhitelistOriginFilter] = useState<string>('all')
-  const [limits, setLimits] = useState<NfcTokenLimit[]>([])
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([])
   const [showJobsDropdown, setShowJobsDropdown] = useState(false)
   const [loading2, setLoading2] = useState(true)
@@ -94,6 +96,10 @@ export default function AdminPage() {
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const [qrLabel, setQrLabel] = useState('')
   const jobsRef = useRef<HTMLDivElement>(null)
+  const isAdminUser = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
+  const { unseen: unseenCount, pending: pendingNotifCount, latest: latestNotifs, refresh: refreshBell } = useAdminNotifications(isAdminUser)
+  const [alertDetailId, setAlertDetailId] = useState<string | null>(null)
+  const [notifRefresh, setNotifRefresh] = useState(0) // sube cuando algo cambia fuera del panel (campana, detalle)
 
   const [provisionModal, setProvisionModal] = useState(false)
   const [provisionUid, setProvisionUid] = useState('')
@@ -174,12 +180,19 @@ export default function AdminPage() {
   }, [user, profile, loading, router])
 
   useEffect(() => {
-    if (tab === 'dashboard') loadStats()
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('tab')
+    // Enlaces viejos (correos, notificaciones previas): dashboard/alerts/limits ya no existen como pestañas.
+    if (t) setTab((t === 'dashboard' ? 'analytics' : t === 'alerts' ? 'notificaciones' : t === 'limits' ? 'analytics' : t) as typeof tab)
+    const al = q.get('alert')
+    if (al) setAlertDetailId(al)
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'analytics') loadStats()
     else if (tab === 'tokens') loadTokens()
-    else if (tab === 'alerts') loadAlerts()
     else if (tab === 'whitelist') loadWhitelist()
     else if (tab === 'inventory') loadInventory()
-    else if (tab === 'limits') loadLimits()
     else if (tab === 'orders') loadShopOrders()
     else if (tab === 'partners') loadPartners()
     else if (tab === 'reviews') loadReviews()
@@ -216,22 +229,32 @@ export default function AdminPage() {
     if (t) setTokens(t)
     setLoading2(false)
   }
-  async function loadAlerts() {
-    setLoading2(true)
-    const a = await adminApi.listAlerts()
-    if (a) setAlerts(a)
-    setLoading2(false)
+  // Abre una notificación: la marca vista (se atenúa) y lleva a donde se atiende.
+  function openNotif(n: AdminNotification) {
+    if (!n.seen_at) void updateNotif(n.id, { seen: true })
+    const q = new URLSearchParams(n.link.split('?')[1] || '')
+    const alertId = q.get('alert')
+    if (alertId) { setAlertDetailId(alertId); setShowJobsDropdown(false); return }
+    const t = q.get('tab')
+    if (t) { setTab(t as typeof tab); setShowJobsDropdown(false) }
+  }
+  async function updateNotif(id: string, data: { seen?: boolean; resolved?: boolean }) {
+    await adminApi.updateNotification(id, data)
+    refreshAfterNotifChange()
+  }
+  async function markAllSeen() {
+    await adminApi.markAllNotificationsSeen()
+    refreshAfterNotifChange()
+  }
+  // Cualquier cambio (campana, panel, detalle de alerta): refresca el contador y la lista.
+  function refreshAfterNotifChange() {
+    void refreshBell()
+    setNotifRefresh(k => k + 1)
   }
   async function loadWhitelist() {
     setLoading2(true)
     const w = await adminApi.listWhitelist()
     if (w) setWhitelist(w)
-    setLoading2(false)
-  }
-  async function loadLimits() {
-    setLoading2(true)
-    const l = await adminApi.listLimits()
-    if (l) setLimits(l)
     setLoading2(false)
   }
   async function loadInventory() {
@@ -359,11 +382,6 @@ export default function AdminPage() {
     loadJobApplications()
   }
 
-  async function handleResolveAlert(id: string) {
-    await adminApi.resolveAlert(id, true)
-    loadAlerts()
-  }
-
   function handleRevokeToken(id: string) {
     setConfirmModal({
       message: 'Se revocará este token. El llavero dejará de funcionar hasta que el usuario active uno nuevo.',
@@ -445,11 +463,6 @@ export default function AdminPage() {
     })
   }
 
-  async function handleUpdateLimit(accountType: string, field: string, value: number) {
-    await adminApi.updateLimit(accountType, { [field]: value })
-    loadLimits()
-  }
-
   function handleAddInventory() {
     setInventoryForm(emptyInventoryForm())
     setInventoryModal(true)
@@ -494,16 +507,14 @@ export default function AdminPage() {
   const pendingShipmentCount = shopOrders.filter(o => o.status === 'approved' && o.fulfillment_status === 'unfulfilled').length
 
   const tabs = [
-    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'analytics', label: 'Analítica' },
     { key: 'tokens', label: 'Tokens' },
-    { key: 'alerts', label: `Alertas${stats && stats.unresolved_alerts > 0 ? ` (${stats.unresolved_alerts})` : ''}` },
+    { key: 'notificaciones', label: `Notificaciones${pendingNotifCount > 0 ? ` (${pendingNotifCount})` : ''}` },
     { key: 'whitelist', label: 'Whitelist' },
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
-    { key: 'limits', label: 'Límites' },
     { key: 'orders', label: `Pedidos${pendingShipmentCount > 0 ? ` (${pendingShipmentCount})` : ''}` },
     { key: 'partners', label: `Partners${partners.length ? ` (${partners.length})` : ''}` },
     { key: 'reviews', label: `Reseñas${reviewsSummary && reviewsSummary.total > 0 ? ` (${reviewsSummary.total})` : ''}` },
-    { key: 'analytics', label: 'Analítica' },
     { key: 'postulaciones', label: 'Postulaciones' },
     { key: 'soporte', label: 'Soporte' },
     { key: 'recursos', label: 'Recursos' },
@@ -529,16 +540,36 @@ export default function AdminPage() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
-              {jobApplications.filter(j => j.status === 'new').length > 0 && (
+              {unseenCount > 0 && (
                 <span style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: '#ff4d6a', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                  {jobApplications.filter(j => j.status === 'new').length}
+                  {unseenCount}
                 </span>
               )}
             </button>
 
             {showJobsDropdown && (
               <div style={{ position: 'absolute', top: '100%', right: 0, width: 340, maxHeight: 400, overflowY: 'auto', background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.24)', zIndex: 50, marginTop: 8 }}>
-                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, fontSize: 13, fontWeight: 700, color: c.accent }}>Postulaciones</div>
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: c.accent }}>Notificaciones{unseenCount > 0 ? ` (${unseenCount} sin ver)` : ''}</span>
+                  <span style={{ display: 'flex', gap: 10 }}>
+                    {unseenCount > 0 && <button onClick={markAllSeen} style={{ background: 'none', border: 'none', color: c.muted, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>Marcar vistas</button>}
+                    <button onClick={() => { setTab('notificaciones'); setShowJobsDropdown(false) }} style={{ background: 'none', border: 'none', color: c.accent, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>Ver todas</button>
+                  </span>
+                </div>
+                {latestNotifs.length === 0 && (
+                  <div style={{ padding: 16, textAlign: 'center', color: c.muted, fontSize: 13 }}>Sin pendientes</div>
+                )}
+                {latestNotifs.map(n => (
+                  <div key={n.id} onClick={() => openNotif(n)}
+                    style={{ padding: '10px 14px', borderBottom: `1px solid ${c.border}`, cursor: 'pointer', background: !n.seen_at ? 'rgba(245,197,24,0.07)' : 'transparent', opacity: n.seen_at ? 0.55 : 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: !n.seen_at ? 700 : 500 }}>{n.title}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: n.severity === 'critical' ? '#ff4d6a' : n.severity === 'warning' ? '#ff8a3d' : c.muted }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(n.created_at).toLocaleString('es-CO')}</div>
+                  </div>
+                ))}
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${c.border}`, borderTop: `1px solid ${c.border}`, fontSize: 13, fontWeight: 700, color: c.accent }}>Postulaciones de empleo</div>
                 {jobApplications.length === 0 && (
                   <div style={{ padding: 20, textAlign: 'center', color: c.muted, fontSize: 13 }}>No hay postulaciones aún</div>
                 )}
@@ -562,6 +593,8 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {alertDetailId && <AlertDetailModal alertId={alertDetailId} c={c} onClose={() => setAlertDetailId(null)} onChanged={refreshAfterNotifChange} />}
+
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: `1px solid ${c.border}`, paddingBottom: 8, flexWrap: 'wrap' }}>
           {tabs.map(t => (
@@ -576,47 +609,6 @@ export default function AdminPage() {
 
         {error && <div style={{ color: '#ff4d6a', marginBottom: 16, fontSize: 13 }}>{error}</div>}
         {loading2 && <div style={{ color: c.muted, fontSize: 13 }}>Cargando datos...</div>}
-
-        {/* Dashboard */}
-        {tab === 'dashboard' && stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-            {[
-              { label: 'Tokens totales', value: stats.total_tokens },
-              { label: 'Tokens activos', value: stats.active_tokens },
-              { label: 'Escaneos hoy', value: stats.total_access_today },
-              { label: 'Alertas totales', value: stats.total_alerts },
-              { label: 'Sin resolver', value: stats.unresolved_alerts, color: stats.unresolved_alerts > 0 ? '#ff4d6a' : undefined },
-              { label: 'Whitelist', value: stats.whitelist_count },
-            ].map((item, i) => (
-              <div key={i} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, fontWeight: 700, color: item.color || c.accent }}>{item.value}</div>
-                <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{item.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Dashboard — checkout del llavero NFC (Wompi) */}
-        {tab === 'dashboard' && shopStats && (
-          <div style={{ marginTop: 28 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>Llavero NFC — tienda</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-              {[
-                { label: 'Pedidos totales', value: shopStats.total_orders },
-                { label: 'Pedidos pagados', value: shopStats.paid_orders },
-                { label: 'Por despachar', value: shopStats.pending_shipment, color: shopStats.pending_shipment > 0 ? '#ff8a3d' : undefined },
-                { label: 'Enviados', value: shopStats.shipped_count },
-                { label: 'Entregados', value: shopStats.delivered_count },
-                { label: 'Ingresos', value: '$' + Math.round(shopStats.revenue_in_cents / 100).toLocaleString('es-CO') },
-              ].map((item, i) => (
-                <div key={i} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20, textAlign: 'center' }}>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: item.color || c.accent }}>{item.value}</div>
-                  <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{item.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Tokens */}
         {tab === 'tokens' && (
@@ -657,29 +649,9 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Alerts */}
-        {tab === 'alerts' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {alerts.map(a => (
-              <div key={a.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    <span style={{ color: a.severity === 'critical' ? '#ff4d6a' : a.severity === 'warning' ? '#ff8a3d' : c.accent }}>
-                      {a.severity.toUpperCase()}
-                    </span>
-                    {' · '}{a.alert_type.replace(/_/g, ' ')}
-                  </div>
-                  <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{a.message}</div>
-                  <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(a.created_at).toLocaleString()}</div>
-                </div>
-                {!a.resolved && (
-                  <button onClick={() => handleResolveAlert(a.id)} style={accentBtnStyle}>Resolver</button>
-                )}
-                {a.resolved && <span style={{ fontSize: 12, color: '#2ecc71' }}>Resuelta</span>}
-              </div>
-            ))}
-            {alerts.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay alertas</div>}
-          </div>
+        {/* Notificaciones y alertas de seguridad, en una sola bandeja */}
+        {tab === 'notificaciones' && (
+          <NotificationsPanel c={c} refreshKey={notifRefresh} unseenCount={unseenCount} onOpen={openNotif} onChanged={refreshAfterNotifChange} />
         )}
 
         {/* Whitelist */}
@@ -830,36 +802,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Limits */}
-        {tab === 'limits' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {limits.map(l => (
-              <div key={l.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, textTransform: 'capitalize' }}>{l.account_type}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-                  {[
-                    { field: 'max_tokens_per_vehicle', label: 'Máx tokens/vehículo', value: l.max_tokens_per_vehicle },
-                    { field: 'max_daily_access', label: 'Máx accesos/día', value: l.max_daily_access },
-                    { field: 'max_unique_ips_24h', label: 'Máx IPs/24h', value: l.max_unique_ips_24h },
-                  ].map(item => (
-                    <div key={item.field}>
-                      <label style={{ fontSize: 12, color: c.muted, display: 'block', marginBottom: 4 }}>{item.label}</label>
-                      <input type="number" defaultValue={item.value} onBlur={e => {
-                        const v = parseInt(e.target.value)
-                        if (!isNaN(v) && v !== item.value) handleUpdateLimit(l.account_type, item.field, v)
-                      }} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 14 }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {limits.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay límites configurados</div>}
-          </div>
-        )}
-
-        {/* Pedidos — cola de despacho del checkout de Wompi. Modo administrador:
-            se ve la placa/guía/etapas de TODO el mundo y se puede adjuntar la
-            ruta de envío. "Mis pedidos" (modo cliente) es de solo lectura. */}
         {tab === 'orders' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {shopOrders.map(o => {
@@ -1110,7 +1052,12 @@ export default function AdminPage() {
         )}
 
         {/* Verificaciones de perfil */}
-        {tab === 'analytics' && <AnalyticsPanel c={c} />}
+        {tab === 'analytics' && (
+          <>
+            <BusinessMetrics c={c} stats={stats} shop={shopStats} pendingNotifications={pendingNotifCount} unseenNotifications={unseenCount} />
+            <AnalyticsPanel c={c} />
+          </>
+        )}
 
         {tab === 'postulaciones' && <PostulacionesPanel c={c} />}
 
