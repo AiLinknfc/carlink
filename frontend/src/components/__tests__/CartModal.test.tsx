@@ -142,6 +142,20 @@ describe('CartModal — total y pago', () => {
     expect(screen.queryByText('Pago confirmado')).toBeNull()
   })
 
+  it('no ofrece coordinar el pago por WhatsApp y siempre crea la orden como wompi', async () => {
+    vi.mocked(apiPost).mockResolvedValueOnce(CREATED)
+    vi.mocked(openWompiCheckout).mockResolvedValueOnce(undefined)
+    renderCart()
+    fillShipping()
+    fireEvent.click(goPayBtn())
+    expect(screen.queryByText(/Coordinar pago por WhatsApp/)).toBeNull()
+    expect(screen.queryByText(/Continuar por WhatsApp/)).toBeNull()
+    expect(screen.getByText('Tarjeta, Nequi, PSE o Bancolombia')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Pagar/ }))
+    await waitFor(() => expect(apiPost).toHaveBeenCalled())
+    expect(vi.mocked(apiPost).mock.calls[0][1]).toMatchObject({ payment_method: 'wompi' })
+  })
+
   it('si falla la creación de la orden muestra el error y no abre Wompi', async () => {
     vi.mocked(apiPost).mockRejectedValueOnce(new Error('500'))
     renderCart()
