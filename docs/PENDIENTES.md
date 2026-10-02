@@ -314,6 +314,17 @@ Suite: `docs/PRUEBAS_FUNCIONALES.md` > Suite 13 (`backend/scripts/qa_nfc_attack_
   no se tocó (`BusinessMetrics.tsx`). **Admin > Notificaciones** es la única bandeja (`NotificationsPanel.tsx`); las alertas NFC
   informativas ya no tienen pantalla (no requieren acción); las críticas llegan como notificación ya resuelta.
 
+## Hallazgos de la revisión del 2026-10-02
+
+- **`job_applications` nunca se había creado en la base** (la migración `020` no estaba aplicada): cualquier envío de
+  "Trabaja con nosotros" fallaba con error 500. Aplicada hoy y verificada con una postulación de prueba (borrada). La
+  migración original traía una política RLS `FOR ALL USING (true)` sin `TO service_role` que habría expuesto nombre,
+  correo y teléfono de los postulantes a cualquiera con la llave anon: se aplicó sin esa política (RLS sin políticas).
+  **Revisar el resto de migraciones antiguas por el mismo patrón** `USING (true)` y confirmar con `pg_policies` cuáles existen.
+- **35 alertas `multiple_ips` críticas sin resolver (y 5 nocturnas) quedaron en `nfc_alerts` del 18-sep**: son falsos
+  positivos del sistema anterior, que contaba como "IPs distintas" las del proxy de Railway (`100.64.0.x`). Ya no tienen
+  pantalla (la pestaña Alertas se unificó en Notificaciones). Pendiente decidir si se marcan como resueltas.
+
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 
 Chat de texto (sin voz por ahora — decisión tomada: empezar sin micrófono funcional, botón
