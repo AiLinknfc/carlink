@@ -1,7 +1,63 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-09-21 (publicación de landing /taller, postulaciones, soporte real, textos
-legales v2.2, blog y footer único; ver las secciones de esa fecha más abajo)._
+_Última actualización: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
+notificaciones de admin, defensa automática NFC, limpieza de datos y R2; ver "Antes y después de publicar" abajo)._
+
+## Antes y después de publicar la campaña (2026-10-02) — lista de seguimiento
+
+Resumen operativo de lo que falta para salir a publicidad. El detalle de cada punto está en las secciones
+enlazadas; esto es solo el orden. Marcar `[x]` y fecha al cerrar cada uno.
+
+**A. Despliegue (bloquea todo lo demás)**
+- [ ] Mergear el PR `develop` -> `master` en GitHub y confirmar que el deploy de Railway y Vercel terminó. El número de
+  versión de `/api/health` sigue en `1.1.0` y no sirve para saber si aterrizó: subirlo en `main.py` antes del próximo merge
+  (`docs/DEPLOY.md`, "Cómo verificar sin ambigüedad").
+- [ ] Después del merge, actualizar `develop` desde `master` (GitHub agrega un commit de merge).
+
+**B. Configuración de producción (Railway / Vercel)**
+- [ ] `REDIS_URL` (Upstash) en Railway — hoy el límite de peticiones por IP **no funciona** en producción (40 lecturas, ningún
+  429). Repetir el curl de la Suite 13 de `docs/PRUEBAS_FUNCIONALES.md`. Ver "Seguridad NFC".
+- [ ] `ADMIN_EMAIL` y `RESEND_API_KEY` confirmadas en Railway; probar un correo real (aviso de venta al admin, código al comprador).
+- [ ] Confirmar que se guarda la **IP real** del visitante (no `100.64.0.x`) tras el deploy: caso manual de la Suite 13. Mientras no
+  se confirme, la pausa automática por "conexiones distintas" no actúa (la de volumen sí).
+- [ ] Servicio de Railway `r2-cleanup` (cron semanal): confirmar que corre y que el primer `--apply` borra solo lo esperado
+  (10 archivos del admin sin referencia). Pasos y límites en `docs/DEPLOY.md`.
+- [ ] Variables de Wompi en modo producción (`prv_prod_`, `prod_events_`, `prod_integrity_`, `pub_prod_`) y webhook de eventos
+  registrado en `https://api.carlink.com.co/api/shop/webhooks/wompi`.
+
+**C. Producto listo para vender**
+- [ ] **Provisionar un lote nuevo** desde Admin NFC: solo los llaveros provisionados con la migración 057 guardan el código
+  recuperable y se entregan por correo; hoy no queda ninguno disponible para pedidos web.
+- [ ] Pedido real de 1 unidad (39.900 COP) de punta a punta: pago aprobado, correo con el código llega, el código activa el
+  llavero, y la venta aparece en la campana de Admin. WhatsApp automático sigue bloqueado por Meta ("En curso: WhatsApp").
+- [ ] Activar el llavero ColombiaTechWeek 05 con el código nuevo (se entregó por chat; no se escribe aquí) y comprobar su QR.
+- [ ] Decidir qué pasa con ColombiaTechWeek 01: está activado en el Bajaj ZYM-35C del admin; si ya se entregó a otra persona,
+  mover el vehículo y sus registros.
+
+**D. Marketing / Meta**
+- [ ] Validar el pixel con Meta Pixel Helper y "Probar eventos": `PageView` y los eventos `InitiateCheckout`, `Purchase`, `Lead`,
+  `CompleteRegistration`. Límites conocidos: el registro con Google y las compras dentro de `/app` no se miden; el registro de
+  taller no dispara evento. La política de privacidad v2.3 ya menciona el pixel; evaluar un banner de consentimiento si Meta o
+  asesoría legal lo exigen.
+- [ ] URL de destino de los anuncios: `https://www.carlink.com.co/?utm_source=meta&utm_medium=paid&utm_campaign=registro`
+  (`/register` es solo para talleres/empresas). Comprobar en incógnito que "Registrarme gratis" lleva a crear la cuenta. `/shop`
+  responde 308 a la portada: confirmar si es intencional.
+- [ ] Textos del anuncio redactados en conversación (5 variantes y el párrafo de 200 palabras): revisar precio y plazo de envío.
+
+**E. Limpieza y deuda técnica**
+- [ ] Marcar como resueltas las 40 alertas viejas de `nfc_alerts` (falsos positivos del proxy). Ver "Hallazgos de la revisión del 2026-10-02".
+- [ ] Decidir si se borra la tabla `nfc_token_limits` (sin uso desde el 2026-10-02) y si se limpian los 6 clics de `whatsapp_clicks`.
+- [ ] Revisar las migraciones antiguas por políticas RLS `USING (true)` sin `TO service_role` (`pg_policies`), como la de `job_applications`.
+- [ ] Migrar `support_tickets.py` y `workshop_applications.py` a `client_ip()` (hoy toman el primer valor de `X-Forwarded-For`, falsificable).
+- [ ] `POST /nfc/tokens/{id}/reactivate` valida el límite contra "el vehículo más reciente" del usuario, no contra el vehículo del
+  llavero: arreglar (mismo patrón que se corrigió en `/nfc/activate`).
+- [ ] Repetir la Suite 13 completa (`python scripts/qa_nfc_attack_sim.py`, ~6 min): la última corrida 13/13 fue antes de quitar la
+  pestaña y la lógica de límites.
+- [ ] `scripts/delete_test_user.sql` sigue sin versionar: ya no hace falta, borrarlo.
+- [ ] Landing en celular: verificar en un iPhone real (Safari) el hero centrado y la placa grande. Quedan sin cambiar el llavero que
+  entra volando en "Cómo funciona" (cortado a propósito al inicio de la animación) y el anillo recortado arriba en las imágenes del hero.
+- [ ] La campana de Admin consulta cada 60 s (no es push al celular). Si se quiere aviso inmediato fuera de la página: WhatsApp o push.
+- [ ] Backend local en redes sin IPv6 (hotspot): usar el pooler de Supabase, ver `docs/DEPLOY.md`.
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza
