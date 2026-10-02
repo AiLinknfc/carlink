@@ -530,6 +530,7 @@ export const adminApi = {
     const q = qs.toString()
     return request<NfcAlert[]>('GET', `/admin/nfc/alerts${q ? `?${q}` : ''}`)
   },
+  alertDetail: (id: string) => request<unknown>('GET', `/admin/nfc/alerts/${id}/detail`),
   markAlertSeen: (id: string) => request<NfcAlert>('PATCH', `/admin/nfc/alerts/${id}/seen`, {}),
   listNotifications: (f: AdminNotificationFilters = {}) => {
     const qs = new URLSearchParams()

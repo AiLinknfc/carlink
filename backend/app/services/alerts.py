@@ -11,14 +11,26 @@ from app.services.admin_notify import notify_admin
 
 
 async def notify_nfc_alert(db: AsyncSession, alert: NfcAlert) -> None:
-    """Campana del admin por una alerta de seguridad NFC; correo solo si es crítica. Una por token y
-    tipo cada 24 h aunque la alerta se repita en cada escaneo."""
+    """Campana del admin por una alerta de seguridad NFC. Solo las sospechosas (warning) o críticas:
+    las informativas (p. ej. una lectura de noche) quedan en el historial de Alertas pero no avisan.
+    Correo solo si es crítica. Una por token y tipo cada 24 h."""
+    if alert.severity == "info":
+        return
     await notify_admin(
         db, kind="nfc_alert", severity=alert.severity,
         title=f"Alerta NFC: {alert.alert_type.replace('_', ' ')}", body=alert.message or "",
-        ref=f"{alert.token_id}:{alert.alert_type}", link="/admin?tab=alerts",
+        ref=f"{alert.token_id}:{alert.alert_type}", link=f"/admin?tab=alerts&alert={alert.id}",
         send_email=alert.severity == "critical", dedupe_hours=24,
     )
+
+
+async def _already_alerted(db: AsyncSession, token_id: UUID, alert_type: str, since: datetime) -> bool:
+    """Una alerta de este tipo para este token en las últimas 24 h (resuelta o no): no se repite en
+    cada escaneo posterior al umbral."""
+    n = (await db.execute(select(func.count(NfcAlert.id)).where(
+        NfcAlert.token_id == token_id, NfcAlert.alert_type == alert_type, NfcAlert.created_at >= since
+    ))).scalar() or 0
+    return n > 0
 
 
 async def check_and_create_alerts(
@@ -39,7 +51,7 @@ async def check_and_create_alerts(
         )
     )
     daily_count = count_result.scalar() or 0
-    if daily_count > 50:
+    if daily_count > 50 and not await _already_alerted(db, token_id, "frequent_scans", day_ago):
         alert = NfcAlert(
             token_id=token_id,
             alert_type="frequent_scans",
@@ -58,7 +70,7 @@ async def check_and_create_alerts(
             )
         )
         unique_ips = ips_result.scalar() or 0
-        if unique_ips > 3:
+        if unique_ips > 3 and not await _already_alerted(db, token_id, "multiple_ips", day_ago):
             alert = NfcAlert(
                 token_id=token_id,
                 alert_type="multiple_ips",

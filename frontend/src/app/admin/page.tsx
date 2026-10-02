@@ -2,6 +2,7 @@
 
 import AnalyticsPanel from '@/components/admin/AnalyticsPanel'
 import PostulacionesPanel from '@/components/admin/PostulacionesPanel'
+import AlertDetailModal from '@/components/admin/AlertDetailModal'
 import SoportePanel from '@/components/admin/SoportePanel'
 import EncuestasPanel from '@/components/admin/EncuestasPanel'
 import dynamic from 'next/dynamic'
@@ -99,13 +100,16 @@ export default function AdminPage() {
   const { unseen: unseenCount, pending: pendingNotifCount, latest: latestNotifs, refresh: refreshBell } = useAdminNotifications(isAdminUser)
   // Pestaña "Notificaciones" (historial completo con filtros)
   const [notifs, setNotifs] = useState<AdminNotification[]>([])
-  const [notifState, setNotifState] = useState<'all' | 'unseen' | 'pending' | 'resolved'>('all')
+  const [notifState, setNotifState] = useState<'all' | 'unseen' | 'pending' | 'resolved'>('pending')
   const [notifKind, setNotifKind] = useState('')
   const [notifFrom, setNotifFrom] = useState('')
   const [notifTo, setNotifTo] = useState('')
   // Filtro de fecha de la pestaña "Alertas" (NFC)
   const [alertFrom, setAlertFrom] = useState('')
   const [alertTo, setAlertTo] = useState('')
+  const [alertDetailId, setAlertDetailId] = useState<string | null>(null)
+  const [showResolvedAlerts, setShowResolvedAlerts] = useState(false)
+  const [showInfoAlerts, setShowInfoAlerts] = useState(false)
 
   const [provisionModal, setProvisionModal] = useState(false)
   const [provisionUid, setProvisionUid] = useState('')
@@ -186,8 +190,11 @@ export default function AdminPage() {
   }, [user, profile, loading, router])
 
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('tab')
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('tab')
     if (t) setTab(t as typeof tab)
+    const al = q.get('alert')
+    if (al) setAlertDetailId(al)
   }, [])
 
   useEffect(() => {
@@ -234,11 +241,20 @@ export default function AdminPage() {
     if (t) setTokens(t)
     setLoading2(false)
   }
-  async function loadAlerts(from = alertFrom, to = alertTo) {
+  async function loadAlerts(from = alertFrom, to = alertTo, withResolved = showResolvedAlerts) {
     setLoading2(true)
-    const a = await adminApi.listAlerts({ date_from: from || undefined, date_to: to || undefined, limit: 200 })
+    const a = await adminApi.listAlerts({ resolved: withResolved ? undefined : false, date_from: from || undefined, date_to: to || undefined, limit: 200 })
     if (a) setAlerts(a)
     setLoading2(false)
+  }
+  // Abre una notificación: la marca vista (se atenúa) y lleva a donde se atiende.
+  function openNotif(n: AdminNotification) {
+    if (!n.seen_at) void updateNotif(n.id, { seen: true })
+    const q = new URLSearchParams(n.link.split('?')[1] || '')
+    const alertId = q.get('alert')
+    if (alertId) { setAlertDetailId(alertId); setShowJobsDropdown(false); return }
+    const t = q.get('tab')
+    if (t) { setTab(t as typeof tab); setShowJobsDropdown(false) }
   }
   async function loadNotifs(over: { state?: typeof notifState; kind?: string; from?: string; to?: string } = {}) {
     setLoading2(true)
@@ -259,9 +275,10 @@ export default function AdminPage() {
     void refreshBell()
     if (tab === 'notificaciones') void loadNotifs()
   }
-  async function handleSeenAlert(id: string) {
-    await adminApi.markAlertSeen(id)
-    loadAlerts()
+  function refreshAfterAlertChange() {
+    void refreshBell()
+    if (tab === 'alerts') void loadAlerts()
+    if (tab === 'notificaciones') void loadNotifs()
   }
   async function loadWhitelist() {
     setLoading2(true)
@@ -591,8 +608,8 @@ export default function AdminPage() {
                   <div style={{ padding: 16, textAlign: 'center', color: c.muted, fontSize: 13 }}>Sin pendientes</div>
                 )}
                 {latestNotifs.map(n => (
-                  <div key={n.id} onClick={() => { if (!n.seen_at) void updateNotif(n.id, { seen: true }); if (n.link) { const t = new URLSearchParams(n.link.split('?')[1] || '').get('tab'); if (t) { setTab(t as typeof tab); setShowJobsDropdown(false) } } }}
-                    style={{ padding: '10px 14px', borderBottom: `1px solid ${c.border}`, cursor: 'pointer', background: !n.seen_at ? 'rgba(245,197,24,0.07)' : 'transparent' }}>
+                  <div key={n.id} onClick={() => openNotif(n)}
+                    style={{ padding: '10px 14px', borderBottom: `1px solid ${c.border}`, cursor: 'pointer', background: !n.seen_at ? 'rgba(245,197,24,0.07)' : 'transparent', opacity: n.seen_at ? 0.55 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: !n.seen_at ? 700 : 500 }}>{n.title}</span>
                       <span style={{ fontSize: 10, fontWeight: 700, color: n.severity === 'critical' ? '#ff4d6a' : n.severity === 'warning' ? '#ff8a3d' : c.muted }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind}</span>
@@ -623,6 +640,8 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        {alertDetailId && <AlertDetailModal alertId={alertDetailId} c={c} onClose={() => setAlertDetailId(null)} onChanged={refreshAfterAlertChange} />}
 
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: `1px solid ${c.border}`, paddingBottom: 8, flexWrap: 'wrap' }}>
@@ -725,7 +744,7 @@ export default function AdminPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Estado
                 <select value={notifState} onChange={e => { const v = e.target.value as typeof notifState; setNotifState(v); void loadNotifs({ state: v }) }} style={FILTER_STYLE}>
-                  <option value="all">Todas</option><option value="unseen">Sin ver</option><option value="pending">Pendientes</option><option value="resolved">Resueltas</option>
+                  <option value="pending">Pendientes</option><option value="unseen">Sin ver</option><option value="resolved">Resueltas (historial)</option><option value="all">Todas</option>
                 </select>
               </label>
               <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Tipo
@@ -740,32 +759,29 @@ export default function AdminPage() {
               <label style={{ fontSize: 12, color: c.muted, display: 'flex', flexDirection: 'column', gap: 4 }}>Hasta
                 <input type="date" value={notifTo} onChange={e => { setNotifTo(e.target.value); void loadNotifs({ to: e.target.value }) }} style={FILTER_STYLE} />
               </label>
-              {(notifFrom || notifTo || notifKind || notifState !== 'all') && (
-                <button onClick={() => { setNotifFrom(''); setNotifTo(''); setNotifKind(''); setNotifState('all'); void loadNotifs({ state: 'all', kind: '', from: '', to: '' }) }} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Limpiar filtros</button>
+              {(notifFrom || notifTo || notifKind || notifState !== 'pending') && (
+                <button onClick={() => { setNotifFrom(''); setNotifTo(''); setNotifKind(''); setNotifState('pending'); void loadNotifs({ state: 'pending', kind: '', from: '', to: '' }) }} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Limpiar filtros</button>
               )}
               {unseenCount > 0 && <button onClick={markAllSeen} style={accentBtnStyle}>Marcar todas como vistas ({unseenCount})</button>}
             </div>
             {notifs.map(n => (
-              <div key={n.id} style={{ background: c.card, border: `1px solid ${!n.seen_at ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, opacity: n.resolved_at ? 0.6 : 1 }}>
+              <div key={n.id} onClick={() => openNotif(n)} style={{ cursor: 'pointer', background: c.card, border: `1px solid ${!n.seen_at ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, opacity: n.resolved_at ? 0.5 : n.seen_at ? 0.6 : 1 }}>
                 <div style={{ minWidth: 0, flex: '1 1 280px' }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div style={{ fontWeight: n.seen_at ? 500 : 700, fontSize: 14 }}>
                     <span style={{ color: n.severity === 'critical' ? '#ff4d6a' : n.severity === 'warning' ? '#ff8a3d' : c.accent }}>{NOTIFICATION_KIND_LABELS[n.kind] || n.kind}</span>
                     {' · '}{n.title}
-                    {!n.seen_at && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.18)', color: c.accent }}>NUEVA</span>}
                   </div>
                   {n.body && <div style={{ fontSize: 12, color: c.muted, marginTop: 4, whiteSpace: 'pre-line' }}>{n.body}</div>}
                   <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(n.created_at).toLocaleString('es-CO')}{n.resolved_at ? ` · atendida ${new Date(n.resolved_at).toLocaleString('es-CO')}` : ''}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {n.link && (() => { const t = new URLSearchParams(n.link.split('?')[1] || '').get('tab'); return t ? <button onClick={() => { if (!n.seen_at) void updateNotif(n.id, { seen: true }); setTab(t as typeof tab) }} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Abrir</button> : null })()}
-                  {!n.seen_at && <button onClick={() => updateNotif(n.id, { seen: true })} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Marcar vista</button>}
+                <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
                   {!n.resolved_at
                     ? <button onClick={() => updateNotif(n.id, { resolved: true })} style={accentBtnStyle}>Resolver</button>
                     : <button onClick={() => updateNotif(n.id, { resolved: false })} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Reabrir</button>}
                 </div>
               </div>
             ))}
-            {notifs.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay notificaciones con estos filtros</div>}
+            {notifs.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>Nada pendiente</div>}
           </div>
         )}
 
@@ -780,30 +796,25 @@ export default function AdminPage() {
                 <input type="date" value={alertTo} onChange={e => { setAlertTo(e.target.value); void loadAlerts(alertFrom, e.target.value) }} style={FILTER_STYLE} />
               </label>
               {(alertFrom || alertTo) && <button onClick={() => { setAlertFrom(''); setAlertTo(''); void loadAlerts('', '') }} style={{ ...dangerBtnStyle, color: c.muted, borderColor: c.border }}>Limpiar fechas</button>}
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={showInfoAlerts} onChange={e => setShowInfoAlerts(e.target.checked)} />Incluir informativas</label>
+              <label style={{ fontSize: 12, color: c.muted, display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={showResolvedAlerts} onChange={e => { setShowResolvedAlerts(e.target.checked); void loadAlerts(alertFrom, alertTo, e.target.checked) }} />Ver resueltas</label>
             </div>
-            {alerts.map(a => (
-              <div key={a.id} style={{ background: c.card, border: `1px solid ${!a.seen_at && !a.resolved ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            {alerts.filter(a => showInfoAlerts || a.severity !== 'info').map(a => (
+              <div key={a.id} onClick={() => setAlertDetailId(a.id)} style={{ cursor: 'pointer', background: c.card, border: `1px solid ${!a.seen_at && !a.resolved ? c.accent : c.border}`, borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, opacity: a.resolved ? 0.5 : a.seen_at ? 0.6 : 1 }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div style={{ fontWeight: a.seen_at ? 500 : 700, fontSize: 14 }}>
                     <span style={{ color: a.severity === 'critical' ? '#ff4d6a' : a.severity === 'warning' ? '#ff8a3d' : c.accent }}>
                       {a.severity.toUpperCase()}
                     </span>
                     {' · '}{a.alert_type.replace(/_/g, ' ')}
-                    {!a.seen_at && !a.resolved && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.18)', color: c.accent }}>NUEVA</span>}
                   </div>
                   <div style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>{a.message}</div>
                   <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{new Date(a.created_at).toLocaleString('es-CO')}</div>
                 </div>
-                {!a.resolved && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {!a.seen_at && <button onClick={() => handleSeenAlert(a.id)} style={{ ...dangerBtnStyle, color: c.text, borderColor: c.border }}>Marcar vista</button>}
-                    <button onClick={() => handleResolveAlert(a.id)} style={accentBtnStyle}>Resolver</button>
-                  </div>
-                )}
-                {a.resolved && <span style={{ fontSize: 12, color: '#2ecc71' }}>Resuelta</span>}
+                <span style={{ fontSize: 12, color: a.resolved ? '#2ecc71' : c.muted }}>{a.resolved ? 'Resuelta' : 'Ver detalle'}</span>
               </div>
             ))}
-            {alerts.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay alertas</div>}
+            {alerts.length === 0 && !loading2 && <div style={{ color: c.muted, padding: 20, textAlign: 'center' }}>No hay alertas pendientes</div>}
           </div>
         )}
 

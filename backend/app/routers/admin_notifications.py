@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
-from app.models.models import AdminNotification
+from app.models.models import AdminNotification, NfcAlert
 from app.schemas.schemas import AdminNotificationOut, AdminNotificationUpdate
 
 router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
@@ -99,6 +99,17 @@ async def update_notification(
         row.resolved_at = now if body.resolved else None
         if body.resolved and row.seen_at is None:
             row.seen_at = now  # atender implica haberla visto
+        # Las de alerta NFC se cierran (o reabren) junto con la alerta que las originó.
+        if row.kind == "nfc_alert" and "alert=" in row.link:
+            try:
+                alert = (await db.execute(select(NfcAlert).where(NfcAlert.id == UUID(row.link.split("alert=")[1])))).scalar_one_or_none()
+            except ValueError:
+                alert = None
+            if alert:
+                alert.resolved = body.resolved
+                alert.resolved_at = now if body.resolved else None
+                if body.resolved and alert.seen_at is None:
+                    alert.seen_at = now
     await db.flush()
     await db.refresh(row)
     return row

@@ -279,10 +279,13 @@ de taller y de empleo, llavero encontrado, verificación de tarjeta pendiente y 
 tipo cada 24 h). Correo a `ADMIN_EMAIL`: los flujos que ya lo mandaban (venta, ticket, postulaciones) no lo
 duplican; los nuevos (contraentrega, verificación, alerta NFC crítica) sí. Campana de Admin y de la app
 (solo para el admin, consulta cada 60 s), pestaña Admin > Notificaciones con filtros de estado, tipo y fecha
-(día calendario de Colombia) y filtro de fecha en Admin > Alertas.
+(día calendario de Colombia) y filtro de fecha en Admin > Alertas. Una notificación vista se atenúa y al resolverla
+desaparece (queda en el filtro "Resueltas"). Solo avisan las alertas NFC sospechosas (warning) o críticas; las
+informativas quedan en el historial. Abrir una alerta NFC muestra dueño, vehículo, lecturas recientes y una
+recomendación, con dos acciones: pausar/reactivar las lecturas del llavero y resolver. La app NO pausa nada sola.
+Además se dejó de crear una alerta nueva en cada escaneo posterior al umbral (una por token y tipo cada 24 h).
 **Falta**: desplegar (push autorizado); confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway; probar con un
-pedido real. Límites conocidos: la campana consulta por polling (no es push en tiempo real al celular); resolver
-una alerta NFC en la pestaña Alertas no resuelve su fila en Notificaciones.
+pedido real. Límite conocido: la campana consulta por polling (no es push en tiempo real al celular).
 
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 
