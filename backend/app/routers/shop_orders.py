@@ -35,7 +35,7 @@ router = APIRouter(prefix="/shop", tags=["shop"])
 # el backend es quien manda de verdad (el monto de la orden nunca sale de lo
 # que mande el cliente), así que si este número cambia hay que actualizar
 # también el de la UI o el total mostrado quedará desalineado del cobrado.
-PRODUCT_PRICE_COP = 49_900
+PRODUCT_PRICE_COP = 39_900
 
 # Estados que puede devolver Wompi (result.transaction.status del widget,
 # data.transaction.status del webhook, o data.status de GET /transactions/{id})

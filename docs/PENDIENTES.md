@@ -673,15 +673,10 @@ desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirma
      (que vive enteramente en `/nfc/activate`, sin tocar); se pierde solo una advertencia temprana
      de "placa duplicada" en un checkout que hoy tampoco era 100% autoritativo.
 
-   **Hallazgo aparte, no relacionado con este pedido, encontrado verificando el checkout en vivo**:
-   `PRODUCT_PRICE_COP` en `backend/app/routers/shop_orders.py` vale **$49.900**, pero el frontend
-   (`CartModal.tsx::productPrice`, y el precio mostrado en `LandingSections.tsx`) muestra
-   **$29.900** para el mismo llavero individual — el backend es quien manda de verdad (comentario
-   ya existente en el propio código lo dice), así que **hoy se le está cobrando a cada comprador
-   $49.900 en vez de los $29.900 que ve en pantalla**. Confirmado con una orden de prueba real
-   (`amount_in_cents: 4990000` = $49.900). No se tocó — es una discrepancia de precio real con
-   plata de por medio, hay que confirmar con el usuario cuál de los dos números es el correcto
-   antes de cambiar cualquiera.
+   **Resuelto (2026-10-02)**: el llavero individual (envío incluido) vale **$39.900** en landing,
+   carrito (`CartModal.tsx::productPrice`) y backend (`PRODUCT_PRICE_COP` en `shop_orders.py`);
+   antes el backend cobraba $49.900 y el carrito mostraba $29.900. Los productos `fob-std` de
+   `shop.ts`/`checkout.ts` ($49.900) son otro llavero y se ajustan después.
 7. **Verificado (2026-09-11): el contacto (correo o WhatsApp) que deja alguien al pedir la Guía de
    Mantenimiento queda registrado siempre**, sea cual sea el tipo — confirmado con un envío real
    contra `POST /api/waitlist` (`source=shop_guia_mantenimiento`) y consulta directa a la tabla
