@@ -664,7 +664,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                     {!skipPlateStep && (
                       <button onClick={() => setStep('customize')} style={{ flex: 1, padding: 12, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Atrás</button>
                     )}
-                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: skipPlateStep ? undefined : 2, width: skipPlateStep ? '100%' : undefined, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Al pago</button>
+                    <button onClick={() => canPay && setStep('payment')} disabled={!canPay} style={{ flex: skipPlateStep ? undefined : 2, width: skipPlateStep ? '100%' : undefined, padding: 12, borderRadius: 10, border: 'none', background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, cursor: canPay ? 'pointer' : 'not-allowed', opacity: canPay ? 1 : 0.5 }}>Ir al pago</button>
                   </div>
                 </div>
               ) : (
