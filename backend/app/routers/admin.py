@@ -22,7 +22,6 @@ from app.models.models import (
     NfcAlert,
     NfcTagInventory,
     NfcToken,
-    NfcTokenLimit,
     NfcTokenWhitelist,
     Partner,
     Profile,
@@ -31,14 +30,11 @@ from app.models.models import (
 from app.schemas.schemas import (
     NfcAccessLogOut,
     NfcAlertOut,
-    NfcAlertResolve,
     NfcStatsOut,
     NfcTagInventoryBulkCreate,
     NfcTagInventoryCreate,
     NfcTagInventoryOut,
     NfcTokenAdminOut,
-    NfcTokenLimitOut,
-    NfcTokenLimitUpdate,
     NfcTokenUpdate,
     NfcWhitelistBulkCreate,
     NfcWhitelistCreate,
@@ -231,106 +227,6 @@ async def list_alerts(
     return list(result.scalars().all())
 
 
-@router.patch("/alerts/{alert_id}/seen", response_model=NfcAlertOut)
-async def mark_alert_seen(
-    alert_id: UUID,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    from datetime import datetime, timezone
-    alert = (await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))).scalar_one_or_none()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    if alert.seen_at is None:
-        alert.seen_at = datetime.now(timezone.utc)
-    await db.flush()
-    await db.refresh(alert)
-    return alert
-
-
-@router.get("/alerts/{alert_id}/detail")
-async def alert_detail(
-    alert_id: UUID,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    """Registro de una alerta: el llavero, su dueño, el vehículo y las últimas lecturas. Solo lectura:
-    la respuesta (pausar el llavero) la decide el sistema, no una persona. Abrirla la marca como vista."""
-    from datetime import datetime, timedelta, timezone
-    alert = (await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))).scalar_one_or_none()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    if alert.seen_at is None:
-        alert.seen_at = datetime.now(timezone.utc)
-        await db.execute(
-            text("UPDATE admin_notifications SET seen_at = COALESCE(seen_at, now()) WHERE kind = 'nfc_alert' AND link LIKE :l"),
-            {"l": f"%alert={alert.id}"},
-        )
-    token = (await db.execute(select(NfcToken).where(NfcToken.id == alert.token_id))).scalar_one_or_none()
-    user = vehicle = None
-    logs: list[NfcAccessLog] = []
-    scans_24h = ips_24h = 0
-    if token:
-        user = (await db.execute(select(Profile).where(Profile.id == token.user_id))).scalar_one_or_none()
-        vehicle = (await db.execute(select(Vehicle).where(Vehicle.id == token.vehicle_id))).scalar_one_or_none()
-        logs = list((await db.execute(
-            select(NfcAccessLog).where(NfcAccessLog.token_id == token.id).order_by(NfcAccessLog.scanned_at.desc()).limit(15)
-        )).scalars().all())
-        since = datetime.now(timezone.utc) - timedelta(hours=24)
-        scans_24h = (await db.execute(select(func.count(NfcAccessLog.id)).where(
-            NfcAccessLog.token_id == token.id, NfcAccessLog.scanned_at >= since))).scalar() or 0
-        ips_24h = (await db.execute(select(func.count(func.distinct(NfcAccessLog.ip_address))).where(
-            NfcAccessLog.token_id == token.id, NfcAccessLog.scanned_at >= since))).scalar() or 0
-    await db.flush()
-    return {
-        "alert": NfcAlertOut.model_validate(alert).model_dump(mode="json"),
-        "token": None if not token else {
-            "id": str(token.id), "prefix": token.token_prefix, "is_active": token.is_active, "status": token.status,
-            "access_count": token.access_count, "last_accessed_at": token.last_accessed_at.isoformat() if token.last_accessed_at else None,
-            "created_at": token.created_at.isoformat(), "tag_uid": token.tag_uid,
-        },
-        "owner": None if not user else {"name": user.full_name or "", "email": user.email or ""},
-        "vehicle": None if not vehicle else {"plate": vehicle.plate, "brand": vehicle.brand, "model": vehicle.model},
-        "scans_24h": scans_24h,
-        "distinct_ips_24h": ips_24h,
-        "recent_scans": [
-            {"at": l.scanned_at.isoformat(), "ip": str(l.ip_address) if l.ip_address else "", "city": l.city or "", "country": l.country or "", "user_agent": (l.user_agent or "")[:120]}
-            for l in logs
-        ],
-    }
-
-
-@router.patch("/alerts/{alert_id}/resolve", response_model=NfcAlertOut)
-async def resolve_alert(
-    alert_id: UUID,
-    body: NfcAlertResolve,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    from datetime import datetime, timezone
-    result = await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))
-    alert = result.scalar_one_or_none()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    now = datetime.now(timezone.utc)
-    alert.resolved = body.resolved
-    alert.resolved_at = now if body.resolved else None
-    if body.resolved and alert.seen_at is None:
-        alert.seen_at = now
-    # La fila de la campana ligada a esta alerta se cierra (o reabre) junto con ella.
-    await db.execute(
-        text(
-            "UPDATE admin_notifications SET resolved_at = CASE WHEN :r THEN now() ELSE NULL END, "
-            "seen_at = CASE WHEN :r THEN COALESCE(seen_at, now()) ELSE seen_at END "
-            "WHERE kind = 'nfc_alert' AND link LIKE :l"
-        ),
-        {"r": body.resolved, "l": f"%alert={alert.id}"},
-    )
-    await db.flush()
-    await db.refresh(alert)
-    return alert
-
-
 # ── Whitelist ──
 
 @router.get("/whitelist", response_model=list[NfcWhitelistOut])
@@ -500,40 +396,6 @@ async def remove_from_whitelist(
         raise HTTPException(status_code=404, detail="Whitelist entry not found")
     await db.delete(entry)
     await db.flush()
-
-
-# ── Token Limits ──
-
-@router.get("/limits", response_model=list[NfcTokenLimitOut])
-async def list_limits(
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    result = await db.execute(select(NfcTokenLimit).order_by(NfcTokenLimit.account_type))
-    return list(result.scalars().all())
-
-
-@router.patch("/limits/{account_type}", response_model=NfcTokenLimitOut)
-async def update_limit(
-    account_type: str,
-    body: NfcTokenLimitUpdate,
-    admin: Annotated[str, Depends(get_current_admin)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit = result.scalar_one_or_none()
-    if not limit:
-        raise HTTPException(status_code=404, detail="Limit not found for this account type")
-
-    from datetime import datetime, timezone
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(limit, field, value)
-    limit.updated_at = datetime.now(timezone.utc)
-    await db.flush()
-    await db.refresh(limit)
-    return limit
 
 
 # ── NFC Tag Inventory (raw scan metadata, separate from whitelist/activation) ──

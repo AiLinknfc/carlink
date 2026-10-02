@@ -393,18 +393,6 @@ class FoundRequest(Base):
     vehicle = relationship("Vehicle")
 
 
-class NfcTokenLimit(Base):
-    __tablename__ = "nfc_token_limits"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    account_type: Mapped[str] = mapped_column(Text, unique=True)
-    max_tokens_per_vehicle: Mapped[int] = mapped_column(Integer, default=1)
-    max_daily_access: Mapped[int] = mapped_column(Integer, default=100)
-    max_unique_ips_24h: Mapped[int] = mapped_column(Integer, default=10)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class NfcAccessLog(Base):
     __tablename__ = "nfc_access_logs"
 

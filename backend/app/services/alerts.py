@@ -25,7 +25,7 @@ async def notify_nfc_alert(db: AsyncSession, alert: NfcAlert) -> None:
     await notify_admin(
         db, kind="nfc_alert", severity=alert.severity,
         title=f"Alerta NFC: {alert.alert_type.replace('_', ' ')}", body=alert.message or "",
-        ref=f"{alert.token_id}:{alert.alert_type}", link=f"/admin?tab=alerts&alert={alert.id}",
+        ref=f"{alert.token_id}:{alert.alert_type}", link=f"/admin?tab=notificaciones&alert={alert.id}",
         send_email=alert.severity == "critical", dedupe_hours=24,
     )
 
@@ -90,7 +90,7 @@ async def auto_pause_token(token_id: UUID, reason: str) -> bool:
             db, kind="nfc_alert", severity="critical", resolved=True,
             title=f"Llavero pausado automáticamente{f' ({plate})' if plate else ''}",
             body=f"{reason}\nDueño: {(owner.full_name if owner else '') or 'sin nombre'} · {owner.email if owner else 's/correo'}",
-            ref=f"{token.id}:auto_paused", link=f"/admin?tab=alerts&alert={alert.id}", send_email=True,
+            ref=f"{token.id}:auto_paused", link=f"/admin?tab=notificaciones&alert={alert.id}", send_email=True,
         )
         await db.commit()
         owner_email, owner_name = (owner.email, owner.full_name or "") if owner else (None, "")

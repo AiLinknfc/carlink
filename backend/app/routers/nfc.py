@@ -21,7 +21,6 @@ from app.models.models import (
     NfcAccessLog,
     NfcAlert,
     NfcToken,
-    NfcTokenLimit,
     Profile,
     Vehicle,
     Workshop,
@@ -33,6 +32,7 @@ from app.utils import client_ip
 from app.services.cache import get_redis
 from app.services.crypto import decrypt_url
 from app.services.nfc_provisioning import (
+    MAX_TOKENS_PER_VEHICLE,
     TRIAL_ACCOUNT_TYPES,
     TRIAL_DAYS,
     generate_human_code,
@@ -217,15 +217,7 @@ async def activate_nfc_token(
             detail="Esta placa ya está verificada o activa en otra cuenta. Contacta a soporte si es tu vehículo.",
         )
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
@@ -332,18 +324,9 @@ async def get_my_token_limit(
     """Return the current user's token limit and usage — para el vehículo
     pedido explícitamente, no "el más reciente de la cuenta" (mismo fix que
     POST /nfc/activate, ver comentario ahí)."""
-    uid = uuid.UUID(user_id)
     vehicle = await verify_vehicle(vehicle_id, user_id, db)
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(
@@ -495,15 +478,7 @@ async def reactivate_nfc_token(
     if not vehicle:
         raise HTTPException(status_code=404, detail="No vehicles found")
 
-    p_result = await db.execute(select(Profile).where(Profile.id == uid))
-    profile = p_result.scalar_one_or_none()
-    account_type = profile.account_type if profile else "persona"
-
-    limit_result = await db.execute(
-        select(NfcTokenLimit).where(NfcTokenLimit.account_type == account_type)
-    )
-    limit_row = limit_result.scalar_one_or_none()
-    max_tokens = limit_row.max_tokens_per_vehicle if limit_row else 1
+    max_tokens = MAX_TOKENS_PER_VEHICLE
 
     count_result = await db.execute(
         select(func.count()).select_from(NfcToken).where(

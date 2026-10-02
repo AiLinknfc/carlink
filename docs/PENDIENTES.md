@@ -279,7 +279,7 @@ de taller y de empleo, llavero encontrado, verificación de tarjeta pendiente y 
 tipo cada 24 h). Correo a `ADMIN_EMAIL`: los flujos que ya lo mandaban (venta, ticket, postulaciones) no lo
 duplican; los nuevos (contraentrega, verificación, alerta NFC crítica) sí. Campana de Admin y de la app
 (solo para el admin, consulta cada 60 s), pestaña Admin > Notificaciones con filtros de estado, tipo y fecha
-(día calendario de Colombia) y filtro de fecha en Admin > Alertas. Una notificación vista se atenúa y al resolverla
+(día calendario de Colombia) y filtro de fecha. Desde 2026-10-02 las pestañas Notificaciones y Alertas son una sola (Admin > Notificaciones). Una notificación vista se atenúa y al resolverla
 desaparece (queda en el filtro "Resueltas"). Solo avisan las alertas NFC sospechosas (warning) o críticas; las
 informativas quedan en el historial. Abrir una alerta NFC muestra dueño, vehículo, lecturas recientes y una
 recomendación, con dos acciones: pausar/reactivar las lecturas del llavero y resolver. La app NO pausa nada sola.
@@ -303,6 +303,16 @@ Suite: `docs/PRUEBAS_FUNCIONALES.md` > Suite 13 (`backend/scripts/qa_nfc_attack_
   confirmar tras el deploy que ahora se guarda la IP real (caso manual de la Suite 13). `support_tickets.py` y
   `workshop_applications.py` usan el PRIMER valor de `X-Forwarded-For`, que el cliente puede falsificar: migrarlos a `client_ip()`.
 - Con 2 o más llaveros personales activos en un vehículo la ficha pública respondía 500: corregido.
+
+## Panel Admin simplificado y límite de llaveros fijo (2026-10-02)
+
+- **Límite de llaveros por vehículo = 3, constante de código** (`MAX_TOKENS_PER_VEHICLE` en `services/nfc_provisioning.py`),
+  igual para toda cuenta: es parte del modelo de negocio validado y los llaveros son del cliente, no del taller. Se quitó la
+  pestaña Límites, sus endpoints (`/admin/nfc/limits`), el modelo y los esquemas; la tabla `nfc_token_limits` queda sin uso en
+  la base (no se borró, sin migración). El valor `taller = 5` ya no aplica. Ya no hay pestañas Dashboard ni Alertas.
+- **Admin > Analítica** reúne lo del antiguo Dashboard (por atender, tienda, llaveros) encima del tablero de analítica, que
+  no se tocó (`BusinessMetrics.tsx`). **Admin > Notificaciones** es la única bandeja (`NotificationsPanel.tsx`); las alertas NFC
+  informativas ya no tienen pantalla (no requieren acción); las críticas llegan como notificación ya resuelta.
 
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 

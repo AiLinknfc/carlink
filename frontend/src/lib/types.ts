@@ -905,15 +905,6 @@ export interface NfcTokenAdmin {
   qr_url: string | null;
 }
 
-export interface NfcTokenLimit {
-  id: string;
-  account_type: string;
-  max_tokens_per_vehicle: number;
-  max_daily_access: number;
-  max_unique_ips_24h: number;
-  updated_at: string;
-}
-
 export interface NfcAccessLog {
   id: string;
   token_id: string;

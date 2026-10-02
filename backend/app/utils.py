@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ipaddress as _ip
+
 from fastapi import HTTPException, UploadFile, status
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -30,7 +32,6 @@ async def validate_upload_file(file: UploadFile) -> bytes:
 # Direcciones que NUNCA son un visitante real: detrás del proxy de Railway las lecturas llegan desde su red
 # interna (100.64.0.0/10, CGNAT), no desde la IP del visitante. Contarlas como "conexiones distintas" haría
 # parecer sospechoso a cualquier llavero con unas pocas lecturas.
-import ipaddress as _ip
 
 _NON_VISITOR_NETS = [_ip.ip_network(n) for n in (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16",

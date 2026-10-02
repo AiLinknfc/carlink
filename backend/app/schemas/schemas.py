@@ -1360,23 +1360,6 @@ class NfcTokenUpdate(BaseModel):
     is_active: bool | None = None
 
 
-class NfcTokenLimitOut(BaseModel):
-    id: UUID
-    account_type: str
-    max_tokens_per_vehicle: int
-    max_daily_access: int
-    max_unique_ips_24h: int
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class NfcTokenLimitUpdate(BaseModel):
-    max_tokens_per_vehicle: int | None = None
-    max_daily_access: int | None = None
-    max_unique_ips_24h: int | None = None
-
-
 class NfcAccessLogOut(BaseModel):
     id: UUID
     token_id: UUID
@@ -1401,10 +1384,6 @@ class NfcAlertOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class NfcAlertResolve(BaseModel):
-    resolved: bool = True
 
 
 class NfcWhitelistOut(BaseModel):
