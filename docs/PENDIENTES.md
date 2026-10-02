@@ -352,7 +352,13 @@ código contra Resend real (sandbox de Wompi).
 - [ ] **Backend local y correo**: `services/email.py` lee `os.getenv`, así que `uvicorn` local debe
       arrancar con `--env-file .env` o no sale ningún correo (en Railway no pasa).
 - [ ] Rotar la llave de Resend (`RESEND_API_KEY`) — se pegó en un chat el 2026-10-02.
-- [ ] Borrar el llavero de prueba `TEST-STOCK-WEB-1` y el pedido de prueba de la base compartida.
+- [ ] **Correo "llavero entregado" no existe**: solo hay "enviado" (`send_order_shipped_email`, al marcar
+      `shipped`). Marcar `delivered` en `PATCH /shop/orders/{ref}/fulfillment` solo cambia el estado, no
+      manda nada. Agregar `send_order_delivered_email` (mismo patrón, best-effort) si se quiere.
+- [ ] **Centralizar el correo del negocio**: hoy `ADMIN_EMAIL` apunta a `business@carlink.com.co`
+      (bandeja de Hostinger que no se usa); las alertas de venta y de stock llegan ahí. Reenviarlo a Gmail
+      (reenvío en Hostinger) o cambiar `ADMIN_EMAIL` en Railway a una bandeja que sí se lea.
+- [x] Llavero de prueba `TEST-STOCK-WEB-1` y pedidos de prueba borrados de la base compartida (2026-10-02).
 
 ## Notificaciones del administrador (2026-10-01, en local, sin desplegar)
 
