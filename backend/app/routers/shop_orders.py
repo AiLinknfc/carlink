@@ -115,6 +115,41 @@ async def _assign_activation_codes(order: ShopOrder, db: AsyncSession) -> list[s
     return [c for c in codes if c]
 
 
+# Umbral de alerta de inventario web: cuando quedan este número de llaveros
+# disponibles (o menos), el admin recibe campana + correo para reponer a tiempo.
+LOW_WEB_STOCK_THRESHOLD = 5
+
+
+async def _alert_low_web_stock(order: ShopOrder, assigned: int, db: AsyncSession) -> None:
+    """Avisa al admin (campana + correo) cuando el inventario web (llaveros
+    disponibles, con código digital, SIN partner — el mismo criterio de
+    `_assign_activation_codes`) está bajo, o cuando este pedido se quedó sin
+    todos sus códigos. Best-effort: nunca interrumpe la aprobación del pago.
+    Una alerta por 12 h para no repetirse en cada venta."""
+    try:
+        remaining = (await db.execute(text(
+            "SELECT count(*) FROM nfc_token_whitelist "
+            "WHERE status = 'available' AND shop_order_id IS NULL "
+            "  AND activation_code_encrypted IS NOT NULL AND provisioned_by_partner_id IS NULL"
+        ))).scalar() or 0
+        short = assigned < order.quantity
+        if remaining > LOW_WEB_STOCK_THRESHOLD and not short:
+            return
+        title = "Inventario web agotado" if remaining == 0 else "Inventario web bajo"
+        body = (
+            f"Quedan {remaining} llavero(s) disponibles para ventas web.\n"
+            f"Último pedido: {order.reference} ({assigned}/{order.quantity} códigos asignados"
+            + (" — el resto debe salir con código impreso en el paquete" if short else "") + ")."
+        )
+        await notify_admin(
+            db, kind="stock_web_low", severity="critical" if short or remaining == 0 else "warning",
+            title=title, body=body, ref="stock_web", link="/admin?tab=nfc",
+            send_email=True, dedupe_hours=12,
+        )
+    except Exception as e:
+        logger.error(f"_alert_low_web_stock failed for {order.reference}: {e}")
+
+
 async def _send_order_whatsapp(order: ShopOrder, codes: list[str], db: AsyncSession) -> WhatsappMessage | None:
     """WhatsApp automático tras aprobarse el pago. Solo si el comprador dio
     consentimiento (`whatsapp_opt_in`), hay códigos digitales asignados y el
@@ -167,6 +202,7 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
     congelaría el event loop entero (no solo este request) si Hostinger
     tarda o no responde. run_in_threadpool lo saca a un hilo aparte."""
     codes = await _assign_activation_codes(order, db)
+    await _alert_low_web_stock(order, len(codes), db)
     # Campana del admin (el correo de venta ya lo manda send_order_admin_notification_email abajo).
     await notify_admin(
         db, kind="order_paid", severity="critical",

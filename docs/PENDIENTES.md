@@ -326,6 +326,34 @@ ya no repiten listas de pendientes, solo enlazan aquí.
 
 ---
 
+## Inventario de llaveros y entrega del código de activación (2026-10-02) — por validar
+
+Contexto: el pedido web reserva un llavero del inventario propio (disponible, con código digital,
+**sin partner**) y manda el código por correo (`_assign_activation_codes` en
+`backend/app/routers/shop_orders.py`). Si no hay stock aprueba igual y el pedido sale sin código.
+Hecho hoy (local, sin desplegar): alerta de stock bajo/agotado al admin (campana + correo,
+umbral `LOW_WEB_STOCK_THRESHOLD`, una vez cada 12 h) y verificación del correo de confirmación con el
+código contra Resend real (sandbox de Wompi).
+
+- [ ] **Validar de punta a punta el flujo de vender un llavero por cualquier plataforma de
+      e-commerce** (Mercado Libre, etc.): el chip llega sin pasar por el checkout web, el comprador
+      se registra y solo puede activar con el código impreso en el empaque (`POST /nfc/activate`).
+      Probar: activar desde el paso a paso y desde el botón "Llavero NFC"; qué ve quien toca un chip
+      sin activar; qué hace soporte si perdió el código.
+- [ ] **Código impreso por llavero como parte de una campaña** (el admin controla a qué plataforma
+      envía cada llavero y puede ver/imprimir su código). Definir primero cómo se asocia
+      llavero -> plataforma/campaña sin tocar partners ni el modelo de activación.
+- [ ] **Caso "códigos mientras llegan los chips importados" — hacerlo con mucho cuidado.** Riesgo
+      operativo: asignar mal el chip físico a una fila. No construir sin diseñar antes la
+      verificación (leer el UID del chip al grabarlo y comparar contra la fila antes de marcarla como
+      lista; una fila "reservada, sin chip" nunca debe entrar al inventario vendible).
+- [ ] **Qué hacer sin stock**: hoy se vende igual; decidir entre dejarlo con alerta (actual) o
+      bloquear/"agotado" en el carrito.
+- [ ] **Backend local y correo**: `services/email.py` lee `os.getenv`, así que `uvicorn` local debe
+      arrancar con `--env-file .env` o no sale ningún correo (en Railway no pasa).
+- [ ] Rotar la llave de Resend (`RESEND_API_KEY`) — se pegó en un chat el 2026-10-02.
+- [ ] Borrar el llavero de prueba `TEST-STOCK-WEB-1` y el pedido de prueba de la base compartida.
+
 ## Notificaciones del administrador (2026-10-01, en local, sin desplegar)
 
 Buzón `admin_notifications` (migración `066`, **ya aplicada** en la Supabase real) + `nfc_alerts.seen_at`.
