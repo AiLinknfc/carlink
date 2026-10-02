@@ -22,6 +22,13 @@ interface Props {
 // fontCity = fontLabel siempre: ciudad y "COLOMBIA" son el mismo texto
 // inferior (nunca los dos a la vez, ver showCol/showCityVal abajo) y deben
 // verse igual — mismo tamaño y mismo tratamiento tipográfico (2026-09-30).
+// Proporcion del texto respecto al ANCHO de la placa, igual en todas las pantallas (el texto
+// escala con la placa por cqw, nunca se achica mas que ella). 1.29 = el tamano que tenia el
+// texto en un celular de 375px en las primeras versiones (80px de numero y 18px de COLOMBIA
+// dentro de una placa de ~345px, con tamanos fijos en px), llevado a todas las pantallas
+// (2026-10-01). Antes la proporcion era 80/448 y en celulares el texto se veia chico.
+const TEXT_BOOST = 1.29
+
 const SIZE_CONFIG: Record<PlateSize, { width: number; height: number; fontLabel: number; fontNumber: number; fontCity: number; radius: number; shadow: string }> = {
   lg: { width: 448, height: 190, fontLabel: 18, fontNumber: 80, fontCity: 18, radius: 18, shadow: '0 30px 70px rgba(0,0,0,.6), inset 0 4px 0 rgba(255,255,255,.5), inset 0 -8px 18px rgba(90,60,0,.22)' },
   md: { width: 200, height: 78, fontLabel: 8, fontNumber: 38, fontCity: 8, radius: 8, shadow: '0 12px 30px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.4), inset 0 -4px 10px rgba(90,60,0,.18)' },
@@ -37,7 +44,7 @@ export default function Plate3D({ plate, city = '', bg = '#F5C518', inkColor = '
   const showCityVal = !showCol && showCity && cfg.fontCity > 0
   // Sin ciudad elegida todavía, la placa dice "CIUDAD" hasta que se seleccione.
   const cityText = city || 'CIUDAD'
-  const s = fontScale
+  const s = fontScale * TEXT_BOOST
 
   return (
     <div
