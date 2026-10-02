@@ -7,7 +7,6 @@ type Palette = { bg: string; card: string; border: string; text: string; muted: 
 
 interface Detail {
   alert: { id: string; alert_type: string; severity: string; message: string | null; resolved: boolean; created_at: string }
-  recommendation: string
   token: { id: string; prefix: string; is_active: boolean; status: string; access_count: number; last_accessed_at: string | null; tag_uid: string } | null
   owner: { name: string; email: string } | null
   vehicle: { plate: string; brand: string; model: string } | null
@@ -16,12 +15,11 @@ interface Detail {
   recent_scans: { at: string; ip: string; city: string; country: string; user_agent: string }[]
 }
 
-/* Detalle de una alerta NFC para decidir sin salir de ella: quién es el dueño, qué llavero y
-   vehículo, cómo se ha leído, qué se recomienda, y dos acciones simples: pausar/reactivar las
-   lecturas de ese llavero y resolver (descartar). Abrirla la marca como vista (lo hace el backend). */
+/* Registro de una alerta NFC, solo lectura: dueño, vehículo, llavero y últimas lecturas. No hay
+   acciones: la respuesta a un llavero sospechoso (pausarlo y resolver la alerta) la ejecuta el sistema
+   solo (services/alerts.py). Abrirla la marca como vista (lo hace el backend). */
 export default function AlertDetailModal({ alertId, c, onClose, onChanged }: { alertId: string; c: Palette; onClose: () => void; onChanged: () => void }) {
   const [d, setD] = useState<Detail | null>(null)
-  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
   async function load() {
@@ -30,20 +28,6 @@ export default function AlertDetailModal({ alertId, c, onClose, onChanged }: { a
   }
   useEffect(() => { void load(); onChanged() /* ya quedó vista */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alertId])
-
-  async function togglePause() {
-    if (!d?.token) return
-    const pausing = d.token.is_active
-    if (pausing && !window.confirm('Pausar las lecturas de este llavero: quien lo escanee verá que no está disponible hasta que lo reactives. ¿Continuar?')) return
-    setBusy(true)
-    await adminApi.updateToken(d.token.id, { is_active: !pausing })
-    await load(); setBusy(false); onChanged()
-  }
-  async function resolve() {
-    setBusy(true)
-    await adminApi.resolveAlert(alertId, true)
-    setBusy(false); onChanged(); onClose()
-  }
 
   const sevColor = d?.alert.severity === 'critical' ? '#ff4d6a' : d?.alert.severity === 'warning' ? '#ff8a3d' : c.accent
   const row: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, padding: '4px 0' }
@@ -65,7 +49,9 @@ export default function AlertDetailModal({ alertId, c, onClose, onChanged }: { a
             {d.alert.message && <div style={{ fontSize: 13, color: c.muted, marginTop: 10 }}>{d.alert.message}</div>}
 
             <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.25)', fontSize: 13, lineHeight: 1.55 }}>
-              <strong>Qué hacer:</strong> {d.recommendation}
+              {d.alert.alert_type === 'auto_paused'
+                ? 'El sistema pausó este llavero automáticamente y resolvió la alerta. El dueño recibió un correo y puede reactivarlo desde Mis llaveros.'
+                : 'Registro informativo: no requiere acción.'}
             </div>
 
             <div style={{ marginTop: 14 }}>
@@ -92,19 +78,6 @@ export default function AlertDetailModal({ alertId, c, onClose, onChanged }: { a
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-              {d.token && (
-                <button disabled={busy} onClick={togglePause} style={{ background: 'transparent', color: d.token.is_active ? '#ff4d6a' : c.text, border: `1px solid ${d.token.is_active ? '#ff4d6a' : c.border}`, borderRadius: 8, padding: '9px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                  {d.token.is_active ? 'Pausar lecturas del llavero' : 'Reactivar lecturas'}
-                </button>
-              )}
-              {!d.alert.resolved && (
-                <button disabled={busy} onClick={resolve} style={{ background: '#F5C518', color: '#111', border: 'none', borderRadius: 8, padding: '9px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700, marginLeft: 'auto' }}>
-                  Resolver (ya lo revisé)
-                </button>
-              )}
-            </div>
-            <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>La app no pausa nada por sí sola: las alertas avisan, tú decides. Al resolver, la alerta desaparece de la lista.</div>
           </>
         )}
       </div>

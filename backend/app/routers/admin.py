@@ -248,33 +248,14 @@ async def mark_alert_seen(
     return alert
 
 
-_RECOMMENDATIONS = {
-    "multiple_ips": (
-        "El mismo llavero se leyó desde varias conexiones distintas en 24 h. Puede ser un llavero compartido o "
-        "clonado, o simplemente varias personas escaneándolo (p. ej. en un evento o taller). Escríbele al dueño "
-        "y pregúntale. Si no reconoce esas lecturas, pausa las lecturas y repón el llavero."
-    ),
-    "frequent_scans": (
-        "Más de 50 lecturas en un día es inusual para un llavero de uso normal: puede ser un bot, una prueba o "
-        "una demostración. Si es un llavero de un partner o de un evento, descártala. Si es de un cliente sin "
-        "explicación, escríbele y, si hay duda, pausa las lecturas."
-    ),
-    "activated_before_distributed": (
-        "Un llavero de partner se activó antes de que se marcara el lote como entregado. Confirma con el partner "
-        "si ya lo repartió. Si no, revisa que no se esté auto-activando llaveros sin entregarlos."
-    ),
-    "nighttime_access": "Lectura nocturna aislada. Normalmente no requiere acción.",
-}
-
-
 @router.get("/alerts/{alert_id}/detail")
 async def alert_detail(
     alert_id: UUID,
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Todo lo necesario para decidir sobre una alerta sin salir de ella: el llavero, su dueño, el
-    vehículo, las últimas lecturas y una recomendación. Abrirla la marca como vista."""
+    """Registro de una alerta: el llavero, su dueño, el vehículo y las últimas lecturas. Solo lectura:
+    la respuesta (pausar el llavero) la decide el sistema, no una persona. Abrirla la marca como vista."""
     from datetime import datetime, timedelta, timezone
     alert = (await db.execute(select(NfcAlert).where(NfcAlert.id == alert_id))).scalar_one_or_none()
     if not alert:
@@ -303,7 +284,6 @@ async def alert_detail(
     await db.flush()
     return {
         "alert": NfcAlertOut.model_validate(alert).model_dump(mode="json"),
-        "recommendation": _RECOMMENDATIONS.get(alert.alert_type, "Revisa las lecturas recientes y, si algo no cuadra, contacta al dueño."),
         "token": None if not token else {
             "id": str(token.id), "prefix": token.token_prefix, "is_active": token.is_active, "status": token.status,
             "access_count": token.access_count, "last_accessed_at": token.last_accessed_at.isoformat() if token.last_accessed_at else None,

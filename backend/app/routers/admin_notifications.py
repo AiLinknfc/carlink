@@ -63,7 +63,8 @@ async def notifications_summary(
 ):
     """Lo que alimenta la campana: cuántas no se han visto y cuántas siguen sin atender."""
     unseen = (await db.execute(
-        select(func.count()).select_from(AdminNotification).where(AdminNotification.seen_at.is_(None))
+        select(func.count()).select_from(AdminNotification).where(
+            AdminNotification.seen_at.is_(None), AdminNotification.resolved_at.is_(None))
     )).scalar() or 0
     pending = (await db.execute(
         select(func.count()).select_from(AdminNotification).where(AdminNotification.resolved_at.is_(None))

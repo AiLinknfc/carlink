@@ -555,7 +555,7 @@ export default function AdminPage() {
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'tokens', label: 'Tokens' },
     { key: 'notificaciones', label: `Notificaciones${pendingNotifCount > 0 ? ` (${pendingNotifCount})` : ''}` },
-    { key: 'alerts', label: `Alertas${stats && stats.unresolved_alerts > 0 ? ` (${stats.unresolved_alerts})` : ''}` },
+    { key: 'alerts', label: 'Alertas' },
     { key: 'whitelist', label: 'Whitelist' },
     { key: 'inventory', label: `Inventario${inventory.length ? ` (${inventory.length})` : ''}` },
     { key: 'limits', label: 'Límites' },

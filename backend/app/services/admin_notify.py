@@ -32,6 +32,7 @@ async def notify_admin(
     severity: str = "info",
     send_email: bool = False,
     dedupe_hours: int = 0,
+    resolved: bool = False,
 ) -> None:
     """dedupe_hours > 0: si ya hay una notificación del mismo kind+ref de las últimas N horas, no crea otra
     (ni manda correo) — para alertas que se repiten en cada escaneo."""
@@ -44,7 +45,12 @@ async def notify_admin(
             if dup:
                 return
         async with db.begin_nested():  # un fallo aquí no contamina la transacción del caller
-            db.add(AdminNotification(kind=kind, severity=severity, title=title, body=body, ref=ref, link=link))
+            now = datetime.now(timezone.utc)
+            db.add(AdminNotification(
+                kind=kind, severity=severity, title=title, body=body, ref=ref, link=link,
+                # resolved=True: ya lo atendió la automatización; queda en el historial, sin pendiente.
+                resolved_at=now if resolved else None, seen_at=now if resolved else None,
+            ))
             await db.flush()
     except Exception:
         logger.exception("admin notification insert failed (%s)", kind)

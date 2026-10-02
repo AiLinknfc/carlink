@@ -287,6 +287,23 @@ Además se dejó de crear una alerta nueva en cada escaneo posterior al umbral (
 **Falta**: desplegar (push autorizado); confirmar `ADMIN_EMAIL` y `RESEND_API_KEY` en Railway; probar con un
 pedido real. Límite conocido: la campana consulta por polling (no es push en tiempo real al celular).
 
+## Seguridad NFC: respuesta automática y huecos encontrados (2026-10-01)
+
+Un llavero con actividad de clonado/fuga/rastreo (10 conexiones distintas o 200 lecturas en 24 h; se mide desde la
+última pausa) se **pausa solo** (`status=paused_security`), la alerta queda resuelta, llega correo al admin y al dueño, y el
+dueño lo reactiva desde Mis llaveros. Los llaveros de la cuenta admin no se pausan. Apagable: `NFC_AUTO_PAUSE_ENABLED=false`.
+Suite: `docs/PRUEBAS_FUNCIONALES.md` > Suite 13 (`backend/scripts/qa_nfc_attack_sim.py`, 13/13 OK el 2026-10-01).
+
+**Pendiente, encontrado al probar (no son de esta función, ya existían):**
+- **`REDIS_URL` no funciona en producción**: 40 lecturas seguidas de un token inexistente dieron 40 × 404, ningún 429 (límite
+  declarado: 30/min por IP). Sin Redis también están apagados el límite de intentos de códigos de activación y los
+  límites de formularios públicos. Acción: poner `REDIS_URL` (Upstash) en Railway y repetir el curl de la Suite 13.
+- **La IP registrada en `nfc_access_logs` es la del proxy de Railway (`100.64.0.x`), no la del visitante**. Se agregó
+  `client_ip()` (lee el último salto de `X-Forwarded-For` / `X-Real-Ip`) y la detección ignora redes internas, pero hay que
+  confirmar tras el deploy que ahora se guarda la IP real (caso manual de la Suite 13). `support_tickets.py` y
+  `workshop_applications.py` usan el PRIMER valor de `X-Forwarded-For`, que el cliente puede falsificar: migrarlos a `client_ip()`.
+- Con 2 o más llaveros personales activos en un vehículo la ficha pública respondía 500: corregido.
+
 ## Idea futura: agente conversacional + captura automática en Inicio (2026-09-30, solo planteado, sin empezar)
 
 Chat de texto (sin voz por ahora — decisión tomada: empezar sin micrófono funcional, botón
