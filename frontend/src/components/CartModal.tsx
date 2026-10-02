@@ -389,13 +389,19 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       </div>
                     </div>
                   </div>
-                  {orderId && (
-                    <a href={activationCodeWhatsappUrl(orderId)} target="_blank" rel="noopener noreferrer"
-                      onClick={() => track('activation_code_whatsapp_click')}
-                      style={{ display: 'block', textAlign: 'center', padding: 12, borderRadius: 10, background: GOLD, color: '#111', fontWeight: 800, fontSize: 13, textDecoration: 'none', marginBottom: 8 }}>
-                      Recibir mi código de activación por WhatsApp
-                    </a>
-                  )}
+                  <div style={{ fontSize: 12, color: muted, textAlign: 'center', marginBottom: 14, lineHeight: 1.5 }}>
+                    Te enviamos la confirmación de tu pedido y tu código de activación a <strong style={{ color: text }}>{email.trim()}</strong>.
+                    {orderId && (
+                      <>
+                        {' '}¿No te llegó?{' '}
+                        <a href={activationCodeWhatsappUrl(orderId)} target="_blank" rel="noopener noreferrer"
+                          onClick={() => track('activation_code_whatsapp_click')}
+                          style={{ color: muted, textDecoration: 'underline' }}>
+                          Escríbenos por WhatsApp
+                        </a>
+                      </>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => { reset(); onClose() }} style={{ flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${subtle}`, background: 'transparent', color: muted, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cerrar</button>
                     <button onClick={reset} style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: 'rgba(245,197,24,0.12)', color: GOLD, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Comprar otro</button>

@@ -128,6 +128,10 @@ describe('CartModal — total y pago', () => {
     fireEvent.click(goPayBtn())
     fireEvent.click(screen.getByRole('button', { name: /Pagar/ }))
     expect(await screen.findByText('Pago confirmado')).toBeInTheDocument()
+    // El código llega por correo; WhatsApp es solo un enlace discreto de respaldo, no un botón principal.
+    expect(screen.getByText('juan@correo.com')).toBeInTheDocument()
+    expect(screen.queryByText('Recibir mi código de activación por WhatsApp')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' })).toHaveAttribute('href', expect.stringContaining('CL-TEST-1'))
     expect(vi.mocked(apiPost).mock.calls[1][0]).toBe('/shop/orders/CL-TEST-1/confirm')
   })
 
