@@ -194,6 +194,7 @@ i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/064_surveys.sql
 \i supabase/migrations/065_vehicle_safety_items.sql
 \i supabase/migrations/066_admin_notifications.sql
+\i supabase/migrations/067_sales_channels.sql   -- canales de venta (APLICAR ANTES de desplegar el codigo: el modelo ya lee channel_id)
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

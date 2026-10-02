@@ -340,7 +340,15 @@ código contra Resend real (sandbox de Wompi).
       se registra y solo puede activar con el código impreso en el empaque (`POST /nfc/activate`).
       Probar: activar desde el paso a paso y desde el botón "Llavero NFC"; qué ve quien toca un chip
       sin activar; qué hace soporte si perdió el código.
-- [ ] **Código impreso por llavero como parte de una campaña** (el admin controla a qué plataforma
+- [ ] **Canales de venta (Shopify, Mercado Libre...) — decidido 2026-10-02**: concepto separado de los
+      partners (partner = aliado que vende productos de CarLink; canal = experimento para medir cómo se
+      comportan los llaveros). Fase 1 (código listo, sin aplicar): migración `067_sales_channels.sql`
+      (tabla `sales_channels` + `nfc_token_whitelist.channel_id`, excluyente con partner) y
+      `WEB_STOCK_WHERE` en `shop_orders.py` para que un llavero de canal NUNCA se venda por la web.
+      **Aplicar la 067 a la base ANTES de desplegar/usar el código** (el modelo ya lee `channel_id`).
+      Fase 2: sección "Canales" en Admin (crear canal, provisionar/asignar llaveros, lote con códigos y
+      QR). Fase 3: reporte por canal (asignados, enviados, activados, días envío→activación).
+- [ ] **Código impreso por llavero como parte de una campaña** (se resuelve con los canales, arriba) (el admin controla a qué plataforma
       envía cada llavero y puede ver/imprimir su código). Definir primero cómo se asocia
       llavero -> plataforma/campaña sin tocar partners ni el modelo de activación.
 - [ ] **Caso "códigos mientras llegan los chips importados" — hacerlo con mucho cuidado.** Riesgo

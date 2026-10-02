@@ -80,6 +80,17 @@ def _apply_transaction_data(order: ShopOrder, txn: dict) -> bool:
     return True
 
 
+# Inventario "web": llaveros disponibles con código digital que NO son de un
+# partner ni de un canal de venta. Única definición — la usan la reserva de
+# códigos y la alerta de stock, para que nunca se desincronicen (un llavero de
+# canal vendido por la web es irreversible: el físico ya está en otras manos).
+WEB_STOCK_WHERE = (
+    "status = 'available' AND shop_order_id IS NULL AND suspended_at IS NULL "
+    "AND activation_code_encrypted IS NOT NULL "
+    "AND provisioned_by_partner_id IS NULL AND channel_id IS NULL"
+)
+
+
 async def _assign_activation_codes(order: ShopOrder, db: AsyncSession) -> list[str]:
     """Reserva hasta `order.quantity` códigos de activación ya provisionados
     (chip físico ya fabricado, sentado en inventario — ver migración 057)
@@ -103,9 +114,7 @@ async def _assign_activation_codes(order: ShopOrder, db: AsyncSession) -> list[s
         text(
             "UPDATE nfc_token_whitelist SET shop_order_id = :oid "
             "WHERE id IN ("
-            "  SELECT id FROM nfc_token_whitelist "
-            "  WHERE status = 'available' AND shop_order_id IS NULL "
-            "    AND activation_code_encrypted IS NOT NULL AND provisioned_by_partner_id IS NULL "
+            f"  SELECT id FROM nfc_token_whitelist WHERE {WEB_STOCK_WHERE} "
             "  ORDER BY created_at LIMIT :n FOR UPDATE SKIP LOCKED"
             ") RETURNING activation_code_encrypted"
         ),
@@ -128,9 +137,7 @@ async def _alert_low_web_stock(order: ShopOrder, assigned: int, db: AsyncSession
     Una alerta por 12 h para no repetirse en cada venta."""
     try:
         remaining = (await db.execute(text(
-            "SELECT count(*) FROM nfc_token_whitelist "
-            "WHERE status = 'available' AND shop_order_id IS NULL "
-            "  AND activation_code_encrypted IS NOT NULL AND provisioned_by_partner_id IS NULL"
+            f"SELECT count(*) FROM nfc_token_whitelist WHERE {WEB_STOCK_WHERE}"
         ))).scalar() or 0
         short = assigned < order.quantity
         if remaining > LOW_WEB_STOCK_THRESHOLD and not short:
