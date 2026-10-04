@@ -53,7 +53,8 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    usuario en vez de asumir que se puede deshacer.
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
-solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.
+solo una instrucción puntual). Es personal (vive en `~/Documents/mis-skills/capture-thinking/`) y
+decide si el patrón es portable (va a `andres-app-blueprint`) o específico de CarLink (va aquí).
 
 ### Patrones de razonamiento capturados
 
