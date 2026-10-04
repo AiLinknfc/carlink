@@ -130,9 +130,9 @@ export function saveCart(cart: Cart) {
 
 export function addToCart(item: CartItem): Cart {
   const cart = loadCart()
-  const existing = cart.items.findIndex(i => i.productId === item.productId && i.color.id === item.color.id && i.engraving === item.engraving)
+  const existing = cart.items.findIndex(i => i.productId === item.productId && i.color.id === item.color.id && i.engraving === item.engraving && i.plateText === item.plateText && i.plateType === item.plateType)
   if (existing >= 0) {
-    cart.items[existing].quantity += item.quantity
+    cart.items[existing].quantity = Math.min(10, cart.items[existing].quantity + item.quantity)
     cart.items[existing].total = cart.items[existing].quantity * cart.items[existing].unitPrice
   } else {
     cart.items.push(item)
@@ -158,7 +158,8 @@ export function updateCartItemQty(index: string, qty: number): Cart {
 
 export function removeFromCart(index: string): Cart {
   const cart = loadCart()
-  cart.items.splice(parseInt(index), 1)
+  const idx = parseInt(index)
+  if (Number.isInteger(idx) && idx >= 0 && idx < cart.items.length) cart.items.splice(idx, 1)
   cart.total = cart.items.reduce((s, i) => s + i.total, 0)
   cart.count = cart.items.reduce((s, i) => s + i.quantity, 0)
   saveCart(cart)
