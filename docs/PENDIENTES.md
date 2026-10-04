@@ -618,6 +618,45 @@ desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirma
 10. Ya existía el ítem de auto-sincronización de facturación sin consentimiento por registro
     (🔴 #3): el texto de privacidad dice que vincular un taller lo autoriza; alinear cuando se decida.
 
+## Agentes de desarrollo (Claude Code) — plan de agentes que cuidan el código (2026-10-03)
+
+No confundir con "Idea futura: agente conversacional" (más abajo), que es una función de la app para
+usuarios. Estos son agentes de **desarrollo**: archivos en `.claude/agents/` que Claude invoca para
+revisar, probar y mantener el código. Objetivo: limpiar código basura y sostener buenas prácticas de
+arquitectura sin depender de acordarse de pedirlo.
+
+**Cómo funcionan (lo aprendido al crear el primero):** corren solo cuando alguien los invoca (en una
+sesión o programados con `/schedule`), no todo el tiempo. Se cargan **al iniciar la sesión**: editar
+`.claude/agents/*.md` exige reabrir Claude Code. Las reglas en prosa no bastan: el alcance de escritura
+se refuerza con un hook (`.claude/hooks/`), que cubre Edit/Write pero no escrituras por Bash, así que
+tras cada corrida se audita con `git status` y `git diff --stat`.
+
+**Protocolo para crear cada agente nuevo:** (1) prompt con las reglas duras de `CLAUDE.md` repetidas;
+(2) `tools` mínimas y hook de alcance si escribe; (3) probar el hook con un agente descartable sin reglas
+en el prompt (si no, el agente se niega por prosa y el hook no se ejercita); (4) prueba de humo con una
+tarea que lo tiente a salirse del alcance; (5) un primer encargo medible; (6) revisar el diff.
+
+| # | Agente | Estado | Alcance previsto | Notas / requisitos |
+|---|---|---|---|---|
+| 1 | **testing** | ✅ Creado y validado 2026-10-03 | Escribe tests (vitest/pytest); no toca producción ni docs | `.claude/agents/testing.md` + hook `testing-scope.py`. Cubierto `frontend/src/lib` (falta `surveys.ts`); falta backend y componentes. Programable en modo diagnóstico (solo reporte). |
+| 2 | **code review** | ⬜ Pendiente (siguiente) | Solo lectura; reporta hallazgos por severidad con archivo:línea | Sin Edit/Write. Seguro de programar semanal. Revisa contra `ARCHITECTURE.md`, `DESIGN_GUIDELINES.md`, `SECURITY.md`. |
+| 3 | **error resolution** | ⬜ Pendiente | Diagnostica y propone el arreglo; aplica solo con OK | Requiere testing antes (para verificar el fix). Debe seguir `INCIDENT_RESPONSE.md` y verificar contra el proceso local reiniciado o el dominio real. |
+| 4 | **datos** | ⬜ Pendiente | Solo lectura sobre esquema/migraciones; propone SQL sin ejecutarlo | El más delicado: local, staging y producción comparten la misma base de Supabase y las migraciones se aplican a mano (ver `DEPLOY.md`). Nunca escribe en la DB. |
+| 5 | **lógica** (backend/servicios) | ⬜ Pendiente | Detecta duplicación, código muerto, capas mezcladas (routers vs services), reglas de negocio repetidas | Evaluar fusionarlo con code review como un modo/checklist: seis agentes con alcances que se pisan generan más ruido que valor. |
+| 6 | **interfaz** (frontend) | ⬜ Pendiente | Revisa responsive (`data-r`), regla sin emojis, consistencia visual, componentes gigantes | Misma evaluación de fusión con code review. Verificación visual real necesita navegador (ningún entorno de agente tuvo Chromium). |
+
+**Orden recomendado:** testing -> code review -> error resolution -> datos -> (lógica + interfaz como
+modos de code review).
+
+**Deuda previa que conviene pagar antes de un agente de limpieza** (si no, arranca con ruido): 29
+errores de mypy y el backlog de ESLint, ambos con `continue-on-error` en el CI.
+
+**Limpieza de código basura:** que sea bajo demanda o programada con salida de reporte, no un proceso
+continuo que edite solo; cualquier edición automática se revisa en un diff antes de commitear.
+
+**Skills relacionadas:** `capture-thinking` (en `~/Documents/mis-skills/`) ahora decide si un patrón
+reusable va a la skill portable `andres-app-blueprint` o a los docs de este repo.
+
 ## 🔴 Prioridad alta
 
 1. **`DEEPSEEK_API_KEY` no está configurada en Railway** (confirmado por el usuario, 2026-08-07).
@@ -1961,7 +2000,23 @@ entre talleres), `test_vehicles.py` (gating del trial gratis — ambos nuevos, 2
 - [ ] E2E (Playwright/Cypress): login Google OAuth, registro de vehículo, token NFC, formulario de
       llavero perdido
 
-_Ya existe:_ `plate.test.ts` (único test de frontend en todo el repo).
+_Ya existe:_ `plate.test.ts`, `safety.test.ts` y (2026-10-03) tests de la lógica pura de
+`frontend/src/lib/__tests__/`: contactValidation, predictions, oilCatalog, blog, pqrs, checkout, shop,
+wompi y diagnostics. 163 tests pasando. Falta `surveys.ts` (solo tiene el hook `useSurveys` y datos por
+defecto; conviene un test de hook que mockee `surveysApi`).
+
+#### Observaciones de la cobertura de `lib` (2026-10-03) — por decidir, sin corregir
+Los tests documentan el comportamiento actual. Los 3 bugs de `shop.ts` ya se corrigieron (placas
+distintas fusionadas, tope de 10 al fusionar, índice inválido en `removeFromCart`); quedan:
+- [ ] `predictions.ts` (~línea 28): un `status` manual `'worn'` rebaja un `critical` calculado (95% de
+      vida útil pasa a "Próximo"). Decidir si es intencional; si no, el estado calculado crítico debe
+      ganar.
+- [x] `predictions.ts`: `lifespan_mileage = 0` quedaba como `ok` con remaining 0 (`??` conserva el 0).
+      Resuelto 2026-10-03 (opción A): 0 o negativo se trata como sin dato y usa el default de 50000 km.
+- [ ] `diagnostics.ts`: con sesión sin correo muestra "Iniciada ((sin correo))" (paréntesis dobles).
+      Cosmético.
+- [ ] Exportar `maskEmail`, `browserName` y `osName` de `diagnostics.ts` para testearlos sin mockear
+      todo el entorno del navegador.
 
 ### Cómo correr lo que sí existe
 ```bash
