@@ -350,6 +350,11 @@ una tarjeta de propiedad real o una foto legible de una.
 - [ ] Analítica (Admin): hacer 5 visitas con la cuenta de pruebas y con la del admin; el conteo de visitantes y las páginas vistas **no** suben. Visitantes de otros navegadores sí cuentan.
 - [ ] Un pedido de prueba con un correo `@carlink.internal` no suma a "Pago aprobado (pedidos)".
 
+**Versión automatizada:** `scripts/qa_suite14/` (ver su `README.md`) repite esta suite de punta a punta con un Chromium
+real: `QA_PASSWORD=... python scripts/qa_suite14/run_suite14.py`. Deja el vehículo y los datos de la cuenta de pruebas,
+así que **siempre termina con `qa_test_account.py reset`**. Cubre lo que se lista en el resultado de abajo; el OCR de una
+tarjeta real, el pedido con pago y la aprobación del admin siguen siendo a mano.
+
 ### Resultado de la corrida de la Suite 14 (2026-10-05)
 
 Corrida automatizada con un Chromium real (Playwright, sin pantalla) contra el frontend y el backend locales y la
