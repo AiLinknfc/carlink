@@ -350,6 +350,35 @@ una tarjeta de propiedad real o una foto legible de una.
 - [ ] Analítica (Admin): hacer 5 visitas con la cuenta de pruebas y con la del admin; el conteo de visitantes y las páginas vistas **no** suben. Visitantes de otros navegadores sí cuentan.
 - [ ] Un pedido de prueba con un correo `@carlink.internal` no suma a "Pago aprobado (pedidos)".
 
+### Resultado de la corrida de la Suite 14 (2026-10-05)
+
+Corrida automatizada con un Chromium real (Playwright, sin pantalla) contra el frontend y el backend locales y la
+base compartida, con la cuenta de pruebas y el código `6WDDSBEEE7`, más consultas directas a la base para lo que
+la pantalla no muestra. **72 comprobaciones pasan, 0 fallan, 2 no se pudieron correr** (A3 y E4, abajo). Al
+terminar se reseteó la cuenta de pruebas (sus vehículos y llavero se borran; el código vuelve a estar libre).
+
+| Bloque | Casos | Resultado |
+|---|---|---|
+| A. Registro, kilometraje, fechas | gris hasta tener todo, desplegable de combustible, lectura inicial, aceite 49.000/200.000/51.000 km, calendario amarillo y limitado a 30 días, aviso periódico, reglas del servidor (fecha, km, próximo servicio, aceite sin datos) | Pasan (A3 omitido) |
+| B. Filtros | carro: 5 opciones, exclusivas, flujo de aire solo con aire, marca y referencia en la pieza, próximo servicio por filtro | Pasan |
+| C. Aceite de caja y transmisión | pasos propios, piezas propias, aparecen en Servicios, **no** mueven el próximo cambio de aceite de la Ficha | Pasan |
+| D. Control de partes, salud | vistas Todo/Partes/Servicios, categoría manda, barra avanza (44 %), contador solo de piezas, salud "Crítico · Aceite" con aceite vencido | Pasan |
+| E. Ficha pública y analítica | llavero, ficha pública con el aceite de **motor**, "Ver ficha pública" abre localhost, la cuenta de pruebas no cuenta | Pasan (E4 omitido) |
+| F. Batería e historial anterior | wizard de 4 pasos, voltaje, "solo revisada" no renueva, historial anterior con soporte obligatorio y sin efectos en piezas/odómetro | Pasan |
+| G. Tarjeta, verificación y venta | enviar a revisión bloqueado, documento cifrado y enmascarado, confirmación casilla por casilla, venta 403/409/200, edición invalida la confirmación | Pasan |
+| H. Tipo de vehículo | moto (3 filtros, litio, transmisión), placa de carga (12/24 V), Suspensión desde Inicio, pasarela de aceites | Pasan |
+
+**No se pudieron correr:** **A3** (escanear frente y reverso con OCR: necesita la foto de una tarjeta real; solo se
+verificó con texto sintético) y **E4** (un pedido de prueba con correo `@carlink.internal`: necesita crear un
+pedido con pago). La verificación del admin en G se **simuló** en la base (no hay sesión de admin en la corrida).
+
+**Hallazgos de la corrida (corregidos):** (1) el formulario de servicio validaba el kilometraje solo contra los
+servicios, así que un vehículo recién registrado (sin servicios) no avisaba hasta el último paso — ahora valida
+contra el odómetro; (2) la barra lateral mostraba "0 · particular · " cuando el año o el color no están definidos —
+ahora omite lo vacío. **Observaciones sin corregir** (en `docs/PENDIENTES.md`): "Tipo" del perfil sigue siendo un
+`<select>` nativo; el alta del vehículo se compara en UTC (un servicio anterior con la fecha local de hoy puede
+pasar el límite de "antes del alta" cerca de la medianoche).
+
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
 - Backend: `cd backend && pytest tests/ -v` (última cifra conocida: ver `docs/PENDIENTES.md`).

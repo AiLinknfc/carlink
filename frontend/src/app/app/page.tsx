@@ -8,7 +8,7 @@ import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleA
 import { uploadFile, scanVehicleCard } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import CarLinkLogo from '@/components/CarLinkLogo'
-import { useMaintenance } from '@/lib/hooks'
+import { useMaintenance, useCurrentMileage } from '@/lib/hooks'
 import { useRatingPrompts } from '@/lib/useRatingPrompts'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { RatingPromptBanner } from '@/components/RatingPrompt'
@@ -198,6 +198,9 @@ export default function AppPage() {
   const [showNotifications, setShowNotifications] = useState(false)
   const pqrsNew = usePqrsCount('nuevo')
   const { records: maintenanceRecords, latest } = useMaintenance(vehicle?.id, refreshKey)
+  // Kilometraje del odómetro (lectura inicial, periódicas y de servicio): sin esto, un vehículo recién
+  // registrado (sin servicios) no tenía contra qué validar el kilometraje en el formulario.
+  const odometerKm = useCurrentMileage(vehicle?.id, refreshKey)
 
   // Prompts de calificación distribuidos por eventos reales (no un ítem de
   // menú suelto) — ver docs del plan de este feature. Supresión unificada por
@@ -1156,7 +1159,10 @@ export default function AppPage() {
           vehicleId={vehicle.id}
           editRecord={editRecord}
           defaultServiceType={pendingServiceType}
-          latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
+          latestMileage={(() => {
+            const serviceKm = maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage
+            return serviceKm != null || odometerKm != null ? Math.max(serviceKm ?? 0, odometerKm ?? 0) : undefined
+          })()}
           hideServiceType={!!pendingServiceType}
           fuelType={vehicle?.fuel_type || ''}
           vehicleBodyType={vehicle?.body_type || ''}

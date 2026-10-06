@@ -369,7 +369,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: '.01em', margin: '4px 0 2px', color: textPrimary }}>{vehicle.modelo || '—'}</div>
           )}
 
-          <div style={{ fontSize: 12, color: textMuted }}>{vehicle.anio} · {vehicle.tipo} · {vehicle.color}</div>
+          <div style={{ fontSize: 12, color: textMuted }}>{[vehicle.anio || null, vehicle.tipo, vehicle.color].filter(Boolean).join(' · ')}</div>
           {plateText && (
             <div style={{ width: 134, height: 66, margin: '4px 0 0', position: 'relative', overflow: 'visible', pointerEvents: 'none' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, transform: 'scale(0.3)', transformOrigin: 'top left' }}>

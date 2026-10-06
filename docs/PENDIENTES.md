@@ -2203,3 +2203,8 @@ Contexto completo en `docs/MODELO_OPERATIVO.md`. Pendiente de decidir o de hacer
 - **Moto sin clase:** los perfiles de motos guardadas antes del arreglo pueden tener `body_type = 'Auto'`.
 - **Cards de Inicio ocultas:** Combustible, Frenos, Refrigeración y Transmisión solo aparecen tras un registro
   de ese tipo (se llega por la card "Otro").
+- **Observaciones de la corrida de la Suite 14 (2026-10-05):** (a) el campo "Tipo" del perfil sigue siendo un
+  `<select>` nativo (la guía de estilo pide un desplegable temático; "Año" sí puede quedar nativo); (b) el límite
+  "anterior al alta" del historial anterior usa la fecha UTC del alta: cerca de la medianoche (UTC-5) un servicio
+  con la fecha local de hoy puede pasar; (c) faltan por probar con datos reales el OCR de la tarjeta (A3) y el
+  pedido de prueba `@carlink.internal` en la analítica (E4).
