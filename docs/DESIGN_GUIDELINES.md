@@ -155,6 +155,53 @@ renderizada en JSX, sin `<option>` nativo) o una grilla de tiles con su propio e
 resaltado de opciones no importa visualmente (ej. Año, cuando la lista es solo numérica
 y no necesita marcarse en amarillo).
 
+## Chips de selección, desplegables y tiles (2026-10-05)
+
+Antes de crear un control de selección, **buscar si ya existe uno en `src/components`** (aquí se
+sobrescribió por error un `ThemedSelect` que ya existía): `ThemedSelect` (desplegable de una fila),
+`ThemedSuggestInput` (input con sugerencias), pastillas y tiles. Nunca un `<select>` nativo (ver regla
+dura arriba: el menú nativo se ve azul y con esquinas rectas, fuera del sistema de la app).
+
+- **Pocas opciones que deben ocupar una fila** (combustible, tipo): `ThemedSelect`
+  (`components/FuelSelect.tsx` es el ejemplo de uso). Las opciones sueltas como pastillas ocupan
+  demasiado espacio en formularios densos como el perfil.
+- **Pastilla** (para filtros o para ≤ 5 opciones donde ver todas ayuda; ejemplo: "Servicio" en
+  `VehicleCardDetails.tsx`): `borderRadius: 999`, `padding: 7px 13px`, `fontSize: 12`. Normal: borde
+  `1.5px var(--input-border)`, fondo `var(--input-bg)`, texto `var(--text-3)`. Seleccionada: borde
+  `rgba(245,197,24,0.45)`, fondo `rgba(245,197,24,0.15)`, texto `#F5C518`, `fontWeight: 700`.
+  Accesible: `role="radiogroup"` / `role="radio"` + `aria-checked`.
+- **Tile con ícono** (cards de filtros en `ServiceFormModal.tsx`): `borderRadius: 12`, mismo criterio de
+  color amarillo al seleccionar; el ícono va en `#F5C518`.
+- **Sin opción "sin definir"** cuando el dato sale de un documento (tarjeta de propiedad): el valor se
+  captura por OCR y, si no se leyó, se elige; no se deja vacío por diseño.
+- **Antes de implementar cualquier control de UI nuevo**: releer esta guía (select, chips, colores,
+  radios, emojis) y revisar que ninguna parte use controles nativos que el navegador pinte por su cuenta.
+
+## Verde vs amarillo en marcos (2026-10-05)
+
+El marco de un control que se está llenando o que quedó **seleccionado/válido** (campo de kilometraje con
+un valor correcto, taller elegido, ítem marcado en una lista) va en **amarillo**: borde
+`rgba(245,197,24,0.5)`; fondo seleccionado `rgba(245,197,24,0.1)`; casillas marcadas `#F5C518`. El **verde**
+(`#2ecc71`) es solo para estados de resultado —"verificado", "confirmado", archivo cargado, aviso de éxito— y
+nunca para el marco de un campo mientras se escribe o se elige. Rojo/naranja siguen para error y
+advertencia (p. ej. kilometraje menor al último, o demasiado alto).
+
+## Selector de fecha (2026-10-05)
+
+**Nunca `<input type="date">`.** Su calendario lo dibuja el navegador: sale azul y con esquinas rectas y
+no hay CSS que lo cambie de forma confiable (`color-scheme` y el ícono ámbar solo tocan la caja cerrada;
+así se vio azul una y otra vez aunque la caja estuviera bien). Usar siempre
+`components/ThemedDateInput.tsx`: mismas props (`value` AAAA-MM-DD, `min`, `max`, `className="date-field"`,
+`style`, `disabled`) y `onChange={e => set(e.target.value)}` sin cambios. Calendario propio: día
+seleccionado en `#F5C518` con texto `#111`, hoy con borde amarillo, hover `rgba(245,197,24,0.15)`,
+esquinas de 10 px en los días y 14 px en el panel, fondo `var(--panel-bg)`, semana desde el lunes, botones
+"Hoy" y "Cerrar" como pastillas. Se posiciona `fixed` para no quedar recortado dentro de los modales.
+
+**Regla general de color:** el color por defecto de cualquier control de la app es el amarillo
+`#F5C518`, nunca el azul del sistema. Si un control nativo (`<select>`, `<input type="date">`,
+`<input type="time">`, `<input type="color">`) mostrara el color del navegador, se sustituye por un
+componente propio; no se intenta "arreglarlo" con CSS.
+
 ## Shadows
 
 - Card: `0 20px 50px rgba(0,0,0,0.5)` (dark) / `0 20px 50px rgba(0,0,0,0.12)` (light)

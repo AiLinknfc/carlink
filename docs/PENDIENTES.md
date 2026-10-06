@@ -626,7 +626,7 @@ revisar, probar y mantener el código. Objetivo: limpiar código basura y sosten
 arquitectura sin depender de acordarse de pedirlo.
 
 **Cómo funcionan (lo aprendido al crear el primero):** corren solo cuando alguien los invoca (en una
-sesión o programados con `/schedule`), no todo el tiempo. Se cargan **al iniciar la sesión**: editar
+sesión local; decisión 2026-10-03: sin rutinas `/schedule` en la nube por seguridad), no todo el tiempo. Se cargan **al iniciar la sesión**: editar
 `.claude/agents/*.md` exige reabrir Claude Code. Las reglas en prosa no bastan: el alcance de escritura
 se refuerza con un hook (`.claude/hooks/`), que cubre Edit/Write pero no escrituras por Bash, así que
 tras cada corrida se audita con `git status` y `git diff --stat`.
@@ -638,7 +638,7 @@ tarea que lo tiente a salirse del alcance; (5) un primer encargo medible; (6) re
 
 | # | Agente | Estado | Alcance previsto | Notas / requisitos |
 |---|---|---|---|---|
-| 1 | **testing** | ✅ Creado y validado 2026-10-03 | Escribe tests (vitest/pytest); no toca producción ni docs | `.claude/agents/testing.md` + hook `testing-scope.py`. Cubierto `frontend/src/lib` (falta `surveys.ts`); falta backend y componentes. Programable en modo diagnóstico (solo reporte). |
+| 1 | **testing** | ✅ Creado y validado 2026-10-03 | Escribe tests (vitest/pytest); no toca producción ni docs | `.claude/agents/testing.md` + hook `testing-scope.py`. Cubierto `frontend/src/lib` (falta `surveys.ts`); falta backend y componentes. Decisión 2026-10-03: se usa en local a demanda (semanal o antes de cada push); sin rutinas en la nube. El CI de GitHub ya cubre la verificación automática. |
 | 2 | **code review** | ⬜ Pendiente (siguiente) | Solo lectura; reporta hallazgos por severidad con archivo:línea | Sin Edit/Write. Seguro de programar semanal. Revisa contra `ARCHITECTURE.md`, `DESIGN_GUIDELINES.md`, `SECURITY.md`. |
 | 3 | **error resolution** | ⬜ Pendiente | Diagnostica y propone el arreglo; aplica solo con OK | Requiere testing antes (para verificar el fix). Debe seguir `INCIDENT_RESPONSE.md` y verificar contra el proceso local reiniciado o el dominio real. |
 | 4 | **datos** | ⬜ Pendiente | Solo lectura sobre esquema/migraciones; propone SQL sin ejecutarlo | El más delicado: local, staging y producción comparten la misma base de Supabase y las migraciones se aplican a mano (ver `DEPLOY.md`). Nunca escribe en la DB. |
@@ -2163,3 +2163,43 @@ Se mezcló a `develop` (PR #6) y luego a `master` (deploy automático a Railway/
   son aditivas y ya están aplicadas; no hace falta deshacerlas).
 - **Decisiones que dejó pendientes el dueño:** lista de qué otros módulos/servicios bloquear más
   adelante; si Ficha e Historial quedan libres (hoy sí).
+
+## Campos de la tarjeta de propiedad (implementado 2026-10-05, falta probar con tarjeta real)
+
+Todos los campos de la licencia son obligatorios para enviar a revisión (ver `docs/ARCHITECTURE.md` →
+"Datos de la tarjeta de propiedad"). Pendiente:
+- **`DEEPSEEK_API_KEY` sigue sin estar en Railway** (la pone el dueño: Railway → servicio backend →
+  Variables → `DEEPSEEK_API_KEY`; `DEEPSEEK_BASE_URL` y `DEEPSEEK_MODEL` ya tienen valor por defecto). Sin
+  ella el OCR no lee nada de la tarjeta en producción. Verificado en local con texto sintético: sí lee
+  todos los campos.
+- Probar el escaneo con tarjetas reales (carro y moto): el OCR puede leer mal VIN/motor/chasis.
+- Decidir qué hacer con tarjetas antiguas que no traigan VIN u otro campo (hoy bloquean el envío; la
+  salida sería una revisión manual del admin).
+- Verificar que producción tenga `ENCRYPTION_KEY` (el cifrado del documento falla cerrado sin ella) y que la
+  de local sea la misma si se va a probar ese campo contra la base compartida.
+- Una venta ya publicada no se baja sola si luego cambian datos de la tarjeta (hoy quedan bloqueados en
+  revisión/verificada); decidir si hace falta.
+- Decidir si se cruza con RUNT.
+
+## Modelo operativo: decisiones y pendientes abiertos (2026-10-05)
+
+Contexto completo en `docs/MODELO_OPERATIVO.md`. Pendiente de decidir o de hacer:
+
+- **Buses y cargas pesadas — ¿la app los atiende?** Hoy "pesado" solo se detecta por **placa de carga**; la app
+  no ofrece las clases "Camión" ni "Bus" (un camión leído de la tarjeta cae en "Pickup" y un bus, con placa pública,
+  se trata como carro). Lo único especial de un pesado es la batería (12 V / 24 V MF). Si habrá flotas de carga
+  o transporte público: añadir las clases, definir filtros y ciclos propios (separador de agua, urea/AdBlue,
+  intervalos más cortos, llantas múltiples) y decidir si la placa pública de pasajeros cuenta como pesado.
+- **Plan de integridad, fases pendientes:** sello de origen visible al comprador, tabla de auditoría de ediciones y
+  borrados, ventana de 48 h para editar/borrar registros propios, y el botón para eliminar el historial anterior
+  dentro de las 48 h (el servidor ya lo permite).
+- **Datos de prueba a corregir a mano:** un registro de Aceite con 2000 km y próximo servicio 2000, y la clase de
+  ZYM-35C guardada como "Auto" (es moto; el código ya no repite el error).
+- **Sin probar en navegador** (solo con pruebas que renderizan el modal): wizards de Aceite (4 pasos), Filtros y
+  Batería (4 pasos), Control de partes con las tres vistas, calendario propio, desplegable de combustible,
+  historial anterior con soporte, "Detalles del vehículo" y la confirmación a mano. Correr la Suite 14.
+- **Ficha pública en local:** el usuario reportó que no la ve en local; con el token real responde 200 igual que
+  producción. Falta saber qué botón/mensaje ve exactamente.
+- **Moto sin clase:** los perfiles de motos guardadas antes del arreglo pueden tener `body_type = 'Auto'`.
+- **Cards de Inicio ocultas:** Combustible, Frenos, Refrigeración y Transmisión solo aparecen tras un registro
+  de ese tipo (se llega por la card "Otro").

@@ -54,7 +54,7 @@ WhatsApp/nombre. No toca el `id` de usuario ni la contraseña.
 claves `carlink_onboarding_*` de localStorage) antes de entrar — el wizard guarda ahí qué pasos
 ya completó, y ese estado no vive en la base de datos.
 
-**Código de activación de prueba**: `BHXEMCAKW7` (whitelist `tag_uid='TEST-002'`). `reset` lo
+**Código de activación de prueba**: `6WDDSBEEE7` (whitelist `tag_uid='TEST-002'`, provisionado el 2026-10-05; el anterior ya no existía en la base). `reset` lo
 deja siempre disponible de nuevo. Si algún día se gasta/rompe, provisionar uno nuevo desde
 `/admin` → NFC → Whitelist → "Provisionar llavero" con un `tag_uid` tipo `TEST-00N`, y actualizar
 el default en `qa_test_account.py`.
@@ -282,6 +282,73 @@ terminar (residuo 0). Tarda ~1-2 min. Debe terminar con todas las comprobaciones
 pública respondía 500 (`MultipleResultsFound` en `_has_ficha_access`). Corregido el 2026-10-01; el caso A/B
 de la simulación usa un vehículo por llavero, así que **agregar a mano el caso "2 llaveros en el mismo
 vehículo -> la ficha responde 200"** cuando se pruebe con un kit.
+
+## Suite 14 — Odómetro, historial anterior, tarjeta completa, venta y analítica (2026-10-05)
+
+Cuenta: `pruebas.features@carlink.internal` (contraseña: la que imprimió `create`; no se guarda). Código de
+llavero: `6WDDSBEEE7`. Entrar en ventana de incógnito. Antes de empezar: `python scripts/qa_test_account.py reset`.
+Para las pruebas de OCR hace falta `DEEPSEEK_API_KEY` en el backend local (`backend/.env` ya la tiene) y
+una tarjeta de propiedad real o una foto legible de una.
+
+**A. Registro del vehículo y odómetro**
+- [ ] Wizard, paso Vehículo: "Guardar vehículo" sigue gris hasta tener placa, ciudad, **combustible** y **kilometraje**. El aviso "Ten cuidado con este dato" es visible.
+- [ ] Combustible: es un desplegable de una fila (no chips sueltas), con el resaltado amarillo y esquinas redondeadas, sin opción "sin definir".
+- [ ] Escanear frente y reverso: se prellenan combustible, propietario y los datos de la licencia (se ven luego en Mi perfil > Detalles del vehículo). Al terminar el wizard el vehículo queda **sin verificar** (no se envía solo a revisión) y las fotos aparecen en Documentos. `[requiere DEEPSEEK_API_KEY]`
+- [ ] En la base, `vehicles.card_data` trae todo lo leído (aunque sea inválido, p. ej. un VIN de 16 caracteres) y `fuel_type` queda guardado.
+- [ ] Selector de fecha (en Registrar servicio, Historial anterior, Documentos, Seguridad, etc.): al abrirlo el calendario es **amarillo** (día elegido en #F5C518), con esquinas redondeadas y sin ningún azul; en tema claro y oscuro. Dentro de un modal con scroll no queda cortado.
+- [ ] Registrar servicio: al digitar el kilometraje, "Próximo servicio (km)" se llena solo para **todos** los tipos (Aceite con y sin viscosidad, Filtros). En Filtros, marcar solo el de partículas cambia la predicción a 100.000 km; desmarcarlo vuelve a la de los otros filtros.
+- [ ] Registrar con 50000 km. En Inicio **no** aparece el aviso de kilometraje (ya hay lectura inicial).
+- [ ] Registrar un servicio de Aceite con 49000 km: error legible "menor al de un registro anterior" (no JSON crudo).
+- [ ] Registrar Aceite con 51000 km: pasa. Con 200000 km: error "muy alto comparado con el último".
+- [ ] Fecha del servicio: el selector no deja elegir fechas futuras ni de hace más de 30 días. Forzarlo por la API (`POST /api/maintenance` con `date` de hace 45 días) responde 422.
+- [ ] Aviso periódico: en la base, `UPDATE odometer_readings SET recorded_at = now() - interval '100 days' WHERE vehicle_id = ...`; recargar Inicio: aparece "Actualiza el kilometraje". "Ahora no" lo oculta hasta cerrar la pestaña. Ingresar menos que el actual: error; ingresar más: se guarda y desaparece.
+
+- [ ] Registrar servicio > Aceite empieza con **¿Para qué es el lubricante?**: Motor, Caja de cambios y Transmisión (moto: solo Motor y Caja); son 4 pasos. Motor sigue el flujo de marcas y viscosidad; Caja pide marca, viscosidad (75W-90...) y norma opcional; Transmisión pide marca y tipo de fluido (ATF, CVT, DCT...). Sin marca y tipo/viscosidad no avanza. Cambiar de caso borra los datos del anterior.
+- [ ] Con **solo** un aceite de caja o de transmisión registrado (sin aceite de motor), la Ficha técnica no muestra su marca, viscosidad ni próximo cambio (sigue "sin datos" de aceite), y la ficha pública tampoco. Lo único que toman es el kilometraje (el odómetro sube) y su fila en Control de partes > Servicios.
+- [ ] Registrar un aceite de **caja** o de **transmisión** no cambia el testigo, la cuenta regresiva ni el dial de aceite de motor; aparece en Control de partes > Servicios como "Aceite de caja" / "Aceite de transmisión" (categoría Transmisión), con su propia vida útil.
+- [ ] Registrar servicio > Aceite, paso 1: pasarela horizontal de **marcas con logo** (con flechas y buscador que la filtra). Al elegir una marca aparece otra pasarela con sus **productos** (viscosidad y tipo de base); elegir un producto completa marca, producto y viscosidad. "Otra marca" permite escribirla.
+- [ ] "Siguiente" en el paso 1 **no avanza** sin marca y viscosidad (mensaje "Indica el aceite utilizado"). Forzar el `POST /api/maintenance` de Aceite sin esos datos responde 422.
+- [ ] Digitar 2000 km en el paso 2: en el paso 3 "Próximo servicio" ya viene predicho según la viscosidad elegida (p. ej. 5W-30 → 10.000). Poner el mismo valor que el kilometraje (2000) o menor: error "debe ser mayor al kilometraje actual", en pantalla y en la API (422).
+
+**B. Control de partes**
+- [ ] Registrar Filtros con un **carro**: aparecen aceite, aire del motor, habitáculo / A/C, combustible y transmisión (y Partículas solo si es diésel o sin combustible definido). Con una **moto** (placa de moto o clase Moto): solo aceite, aire y combustible, sin que el usuario elija el tipo.
+- [ ] Al elegir un filtro aparecen, en el mismo paso 1, **Marca** (con sugerencias) y **Referencia**, opcionales; siguen siendo 3 pasos. Tras guardar, Control de partes muestra "marca · referencia" en esa pieza. Cambiar de filtro limpia ambos campos.
+- [ ] Las cards son **exclusivas**: elegir una desmarca la anterior; "Siguiente" no avanza sin elegir una. "Flujo de aire verificado" solo aparece con el filtro de aire.
+- [ ] Cada filtro predice su propio próximo servicio (habitáculo 15.000 km, transmisión 60.000, aceite de moto 5.000...) y en Control de partes solo se renueva la pieza de ese filtro, con la vida útil de su tipo de vehículo.
+- [ ] Control de partes: cada pieza muestra la barra con **avance** > 0 % al registrar un servicio posterior con más kilometraje, o una lectura periódica mayor. El color pasa de verde a naranja desde media vida y a rojo con ≤ 15 %.
+- [ ] Una pieza con menos km que su instalación muestra 0 %, nunca negativo.
+
+- [ ] Ficha > tablero: el testigo de **Aceite** (gota) aparece junto a los demás, primero. Tras registrar el primer aceite sale en **verde** ("Al día"); al pasar la mitad de su vida útil, naranja; con 15 % o menos, rojo. Al pasar el mouse el odómetro muestra los km que faltan para el cambio. Cuenta para el promedio de "Salud vehículo".
+
+- [ ] Control de partes tiene las vistas **Partes** y **Servicios**. Con solo un cambio de aceite registrado, "Partes" no lo muestra y "Servicios" sí, con su barra avanzando al subir el kilometraje. El contador del odómetro dice 0 partes reemplazadas (el aceite no es una pieza).
+- [ ] Por defecto (categoría **Todas**, pestaña **Todo**) Control de partes muestra juntas las partes y los servicios (aceite incluido); las pestañas Partes y Servicios filtran cada grupo.
+- [ ] La categoría manda: con solo aceite registrado, elegir **Motor** pasa solo a la vista Servicios y muestra el aceite; elegir **Frenos** (si hay pastillas) vuelve a Partes. "Todas" no cambia la vista. En Servicios el filtro por categoría también aplica (Enfriamiento = refrigerante).
+- [ ] Salud del vehículo: con el aceite vencido (kilometraje actual ≥ próximo cambio) la salud sale en **rojo** con el motivo ("Crítico · Aceite") aunque los demás testigos estén bien. Con un filtro vencido y lo demás bien: naranja ("Atención"). Los testigos sin datos no entran en el promedio.
+- [ ] Cambio de aceite con 0 km restantes: el contador del "Próximo cambio de aceite" está en 0 y dice "cambio vencido" (no aparecen ~90 días). Con un cambio reciente muestra la fecha de la regla que llegue primero (kilómetros o meses de la viscosidad).
+- [ ] Un registro de aceite viejo con próximo servicio igual al kilometraje: la Ficha dice "Revisa este registro" y la card del historial no muestra "Vida útil 0 km".
+
+- [ ] Desde **Inicio**, tocar la card Batería (y Suspensión / Transmisión) abre el formulario de ese servicio con sus campos (Inicio manda el id sin tilde; el formulario lo normaliza). Hallazgo 2026-10-05: sin eso la card de Batería abría un formulario sin campos.
+- [ ] Registrar servicio > Batería es un wizard de **4 pasos** (Tipo, Medición, Datos generales, Confirmar). El tipo se ofrece según el vehículo (carro: MF, convencional, AGM/EFB, híbrido/eléctrico; moto: MF/AGM, convencional, litio; camión/bus: 12/24 V MF) y no avanza sin elegirlo.
+- [ ] Medición: el voltaje 12,7 dice "Carga completa", 11,5 "Descargada"; un valor imposible (99) bloquea el paso. Con "Solo la revisé" no se renueva la batería en Control de partes y el próximo servicio queda a ~6 meses; con "Cambié la batería" el próximo servicio depende del tipo (AGM/EFB 48 meses, convencional 24...). El testigo de batería de la Ficha usa los meses del tipo elegido.
+
+**C. Historial anterior**
+- [ ] Historial > "Cargar historial anterior": no deja guardar sin soporte; con foto o PDF y fecha anterior al alta, queda como "Anterior declarado" con "Ver soporte" (el enlace abre el archivo).
+- [ ] Fecha igual o posterior al alta del vehículo: error "debe ser de antes de registrar el vehículo".
+- [ ] Kilometraje mayor al inicial: error. No aparece botón de editar en ese registro; la API `PUT` responde 403.
+- [ ] Ese registro **no** cambia ninguna barra de Control de partes ni el "próximo servicio".
+
+**D. Tarjeta, verificación y venta**
+- [ ] Mi perfil > Datos del vehículo: Combustible es el mismo desplegable temático, no un select azul nativo.
+- [ ] "Detalles del vehículo": cada campo con marca verde o roja; el documento del propietario se ve enmascarado (`•••••456`); guardar sin tocarlo no lo borra.
+- [ ] "Enviar a revisión" está deshabilitado hasta que no haya campos en rojo; forzar el `POST /vehicles/{id}/verification` con la tarjeta incompleta responde 422 con la lista.
+- [ ] En la base, `card_data->>'owner_document'` empieza con `enc1:` (cifrado), nunca el número en claro.
+- [ ] Aprobar la verificación desde Admin. Intentar activar "Publicar en venta" **sin** confirmar: mensaje de que falta confirmar a mano; la API responde 409.
+- [ ] Confirmar a mano: el botón solo se habilita con las casillas marcadas una por una. Después se puede publicar. Editar cualquier dato invalida la confirmación.
+
+**E. Ficha pública y analítica**
+- [ ] Activar el llavero con `6WDDSBEEE7`; "Ver ficha pública" abre `localhost:3000/nfc/...` con la ficha (en local y producción responden lo mismo: misma base).
+- [ ] Analítica (Admin): hacer 5 visitas con la cuenta de pruebas y con la del admin; el conteo de visitantes y las páginas vistas **no** suben. Visitantes de otros navegadores sí cuentan.
+- [ ] Un pedido de prueba con un correo `@carlink.internal` no suma a "Pago aprobado (pedidos)".
 
 ## Automatizado (referencia, no reemplaza lo de arriba)
 
