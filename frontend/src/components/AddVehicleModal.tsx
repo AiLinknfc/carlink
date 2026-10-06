@@ -1,5 +1,6 @@
 'use client'
 
+import FuelSelect from '@/components/FuelSelect'
 import { useState, useEffect, useMemo } from 'react'
 import { apiPost } from '@/lib/api'
 import { formatPlate, getPlateConfig, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
@@ -36,6 +37,8 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const [type, setType] = useState(VEHICLE_TYPES[0])
   const [color, setColor] = useState('')
   const [city, setCity] = useState('')
+  const [initialMileage, setInitialMileage] = useState('')
+  const [fuelType, setFuelType] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ vehicle: any; gotTrial: boolean } | null>(null)
@@ -46,7 +49,10 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
   const plateComplete = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen)
   // Color ahora es obligatorio como el resto de los campos (pedido explícito) —
   // antes quedaba afuera de esta validación, se podía agregar el vehículo sin elegirlo.
-  const canSubmit = plateComplete && brand && model.trim() && color && !saving
+  // Kilometraje inicial obligatorio: punto de partida del odómetro (migración 069).
+  const initialMileageNum = parseInt(initialMileage, 10)
+  const initialMileageValid = Number.isFinite(initialMileageNum) && initialMileageNum >= 0 && initialMileageNum <= 3_000_000
+  const canSubmit = plateComplete && brand && model.trim() && color && fuelType && initialMileageValid && !saving
   const brandOptions = brandsForType(type)
   // Mismas sugerencias de modelo que app/register/page.tsx (@/lib/vehicleBrands,
   // antes vivían solo ahí) — filtradas por marca + tipo + año.
@@ -78,7 +84,7 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
     if (!canSubmit) return
     setSaving(true)
     setError(null)
-    const created = await apiPost('/vehicles', { plate, brand, model: model.trim(), year, type, color, city })
+    const created = await apiPost('/vehicles', { plate, brand, model: model.trim(), year, type, color, city, fuel_type: fuelType, initial_mileage: initialMileageNum })
     setSaving(false)
     if (!created) {
       setError('No se pudo agregar el vehículo — revisa la placa e intenta de nuevo.')
@@ -224,6 +230,21 @@ export default function AddVehicleModal({ onClose, isFirstVehicle, isBusinessAcc
                 </button>
               )
             })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Combustible <span style={{ color: '#F5C518' }}>*</span></label>
+          <FuelSelect value={fuelType} onChange={setFuelType} />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Kilometraje actual <span style={{ color: '#F5C518' }}>*</span></label>
+          <input type="number" inputMode="numeric" min={0} value={initialMileage} placeholder="Ej. 52000"
+            onChange={e => setInitialMileage(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-1)', fontSize: 14, outline: 'none' }} />
+          <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            <b>Ten cuidado con este dato.</b> Es el punto de partida del historial del vehículo: desde aquí el kilometraje nunca puede bajar, y después solo se corrige durante 48 horas. Ingresa lo que marca el tablero hoy.
           </div>
         </div>
 

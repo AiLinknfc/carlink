@@ -1,15 +1,41 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.services.vehicle_card import mask_card_data, normalize_card_data
+
 
 # =========== Vehicle ===========
+FUEL_TYPES = {"gasolina", "diesel", "gas", "hibrido", "electrico"}
+
+
+def normalize_fuel_type(v: str | None) -> str | None:
+    """Lleva lo que venga (OCR, UI, API) a un valor canónico; "" si no se reconoce.
+    None se respeta para que VehicleUpdate distinga "no vino" de "borrar"."""
+    if v is None:
+        return None
+    t = unicodedata.normalize("NFD", v).encode("ascii", "ignore").decode().strip().lower()
+    if not t:
+        return ""
+    if "hibrid" in t or "hybrid" in t:
+        return "hibrido"
+    if "electric" in t:
+        return "electrico"
+    if "diesel" in t or "disel" in t or "acpm" in t:
+        return "diesel"
+    if "gasolina" in t or "gasoline" in t or t == "petrol":
+        return "gasolina"
+    if t in ("gas", "gnv", "glp", "gnc") or "gas natural" in t:
+        return "gas"
+    return ""
+
 class VehicleCreate(BaseModel):
     plate: str
     city: str = ""
@@ -24,11 +50,29 @@ class VehicleCreate(BaseModel):
     # (2026-09-18, hallado al revisar por qué una moto escaneada mostraba
     # "Sedán" en el perfil).
     body_type: str = ""
+    # Combustible canónico (FUEL_TYPES) o "" si no se sabe — migración 068.
+    fuel_type: str = ""
+    # Kilometraje al registrar el vehículo: punto de partida del odómetro (migración 069). El
+    # wizard lo pide obligatorio; acá es opcional para no romper otros clientes de la API (los
+    # vehículos sin lectura reciben el aviso "initial" en GET /odometer).
+    initial_mileage: int | None = Field(default=None, ge=0, le=3_000_000)
+    # Datos de la tarjeta de propiedad leídos por OCR / completados por el usuario (migración 071).
+    card_data: dict[str, Any] | None = None
+
+    @field_validator('card_data', mode='before')
+    @classmethod
+    def validate_card_data(cls, v):
+        return normalize_card_data(v) if v is not None else None
     color: str = ""
     image_url: str = ""
     # Nombre del propietario según la tarjeta escaneada — separado de
     # profiles.full_name, ver comentario en models.py Vehicle.owner_name.
     owner_name: str = ""
+
+    @field_validator('fuel_type', mode='before')
+    @classmethod
+    def validate_fuel_type(cls, v):
+        return normalize_fuel_type(v) or ""
 
     @field_validator('plate')
     @classmethod
@@ -64,6 +108,7 @@ class VehicleUpdate(BaseModel):
     model: str | None = None
     year: int | None = None
     body_type: str | None = None
+    fuel_type: str | None = None
     color: str | None = None
     owner_name: str | None = None
     image_url: str | None = None
@@ -76,6 +121,19 @@ class VehicleUpdate(BaseModel):
     sell_description: str | None = None
     lost_keychain_enabled: bool | None = None
     vehicle_condition: str | None = None
+
+    # Parcial: solo trae las claves que se editan; el router las mezcla con las que ya había.
+    card_data: dict[str, Any] | None = None
+
+    @field_validator('card_data', mode='before')
+    @classmethod
+    def validate_card_data(cls, v):
+        return normalize_card_data(v) if v is not None else None
+
+    @field_validator('fuel_type', mode='before')
+    @classmethod
+    def validate_fuel_type(cls, v):
+        return normalize_fuel_type(v)
 
     # El validador de placa vivía aquí; se fue con el campo. La validación de
     # formato sigue en VehicleCreate, que es donde la placa se fija.
@@ -91,6 +149,9 @@ class VehicleOut(BaseModel):
     year: int
     type: str
     body_type: str = ""
+    fuel_type: str = ""
+    card_data: dict[str, Any] = Field(default_factory=dict)
+    card_confirmed_at: datetime | None = None
     color: str
     owner_name: str = ""
     verification_status: str = "unverified"
@@ -113,6 +174,12 @@ class VehicleOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_validator('card_data', mode='before')
+    @classmethod
+    def mask_card(cls, v):
+        # El documento del propietario nunca sale en claro hacia el cliente.
+        return mask_card_data(v)
+
     model_config = {"from_attributes": True}
 
 
@@ -126,6 +193,10 @@ class ReplacedPartIn(BaseModel):
     name: str
     category: str = "Otros"
     lifespan_mileage: int | None = None
+    # Marca y referencia del repuesto instalado (opcionales; hoy los pide el servicio Filtros). Quedan en
+    # la parte, que ya tenía las columnas `brand` y `part_number`.
+    brand: str = Field(default="", max_length=80)
+    part_number: str = Field(default="", max_length=80)
     notes: str = ""
 
 
@@ -141,8 +212,23 @@ class MaintenanceCreate(BaseModel):
     lubricant_brand: str = ""
     lubricant_type: str = ""
     lubricant_product: str = ""
+    # Para qué sirve el lubricante: motor (por defecto), caja de cambios o transmisión.
+    lubricant_use: Literal["motor", "caja", "transmision"] = "motor"
     next_service_mileage: int | None = None
     replaced_parts: list[ReplacedPartIn] = Field(default_factory=list)
+
+
+class PriorMaintenanceCreate(BaseModel):
+    """Historial anterior al alta del vehículo en CarLink: la fecha es obligatoria (y anterior al
+    alta) y el soporte —foto o PDF de la factura/orden— también."""
+    vehicle_id: UUID
+    service_type: str
+    description: str = ""
+    mileage: int
+    date: str
+    workshop: str = ""
+    cost: Decimal = Field(default=Decimal(0))
+    support_url: str = Field(min_length=1)
 
 
 class MaintenanceOut(BaseModel):
@@ -158,11 +244,29 @@ class MaintenanceOut(BaseModel):
     lubricant_brand: str
     lubricant_type: str
     lubricant_product: str
+    lubricant_use: str = "motor"
     next_service_mileage: int | None
     source_work_order_id: UUID | None = None
+    # user | workshop | prior (migración 070) y el soporte (foto/PDF) del historial anterior.
+    origin: str = "user"
+    support_url: str = ""
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# =========== Odometer ===========
+class OdometerIn(BaseModel):
+    mileage: int = Field(ge=0, le=3_000_000)
+
+
+class OdometerStatus(BaseModel):
+    # initial: el vehículo no tiene ninguna lectura; periodic: pasaron meses sin lectura ni
+    # servicio y se sugiere una lectura; ok: nada que pedir.
+    state: Literal["initial", "periodic", "ok"]
+    current_mileage: int | None = None
+    last_recorded_at: datetime | None = None
+    can_correct_initial: bool = False
 
 
 # =========== Parts ===========
@@ -299,9 +403,31 @@ class VehicleCardResult(BaseModel):
     year: int | None = None
     color: str | None = None
     vehicle_class: str | None = None
+    fuel_type: str | None = None
     owner_name: str | None = None
     document_number: str | None = None
+    # Resto de campos de la licencia de tránsito (services/vehicle_card.py CARD_FIELDS).
+    license_number: str | None = None
+    vin: str | None = None
+    engine_number: str | None = None
+    chassis_number: str | None = None
+    cilindraje: str | None = None
+    service: str | None = None
+    capacity: str | None = None
+    doors: str | None = None
+    registration_date: str | None = None
     raw_text: str
+
+    @field_validator('license_number', 'vin', 'engine_number', 'chassis_number', 'cilindraje', 'service',
+                     'capacity', 'doors', 'registration_date', mode='before')
+    @classmethod
+    def stringify(cls, v):
+        return None if v is None or str(v).strip() == "" else str(v).strip()
+
+    @field_validator('fuel_type', mode='before')
+    @classmethod
+    def validate_fuel_type(cls, v):
+        return normalize_fuel_type(v) or None
 
 
 class OcrExtractResult(BaseModel):
@@ -478,6 +604,11 @@ class ProfileUpdate(BaseModel):
     whatsapp_number: str | None = None
     # verification_status queda fuera a propósito: el usuario no puede
     # auto-verificarse. Sólo /auth/me/verification lo mueve a "pending".
+
+
+class VehicleCardConfirmRequest(BaseModel):
+    """El dueño marcó a mano, uno por uno, que cada dato coincide con su tarjeta física."""
+    confirmed_fields: list[str]
 
 
 class VehicleVerificationRequest(BaseModel):

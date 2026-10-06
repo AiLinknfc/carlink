@@ -26,6 +26,7 @@ import {
   uploadApi,
   profileApi,
   authApi,
+  apiGet,
 } from './api'
 import type {
   Vehicle,
@@ -1092,4 +1093,20 @@ export function useAuth() {
   }, [])
 
   return { googleLogin }
+}
+
+/* Kilometraje actual del vehículo según el odómetro (mayor lectura: servicios, inicial y periódicas).
+   Se vuelve a pedir al cambiar `refreshKey`. */
+export function useCurrentMileage(vehicleId: string | undefined, refreshKey?: number): number | null {
+  const [km, setKm] = useState<number | null>(null)
+  useEffect(() => {
+    setKm(null)
+    if (!vehicleId) return
+    let cancelled = false
+    apiGet<{ current_mileage: number | null }>(`/odometer/vehicle/${vehicleId}`).then(r => {
+      if (!cancelled && r) setKm(r.current_mileage ?? null)
+    })
+    return () => { cancelled = true }
+  }, [vehicleId, refreshKey])
+  return km
 }

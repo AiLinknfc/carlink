@@ -263,8 +263,19 @@ reverso, no sabés cuál — y devuelves JSON con estas claves exactas:
   color            color del vehículo, o null
   vehicle_class    el campo "CLASE" de la tarjeta tal cual aparece (ej. "AUTOMOVIL",
                    "CAMPERO", "CAMIONETA", "MOTOCICLETA", "MICROBUS", "CAMION"), o null
+  fuel_type        el campo "COMBUSTIBLE" de la tarjeta: "gasolina", "diesel", "gas", "hibrido" o
+                   "electrico" (ACPM es diesel; GNV/GLP es gas), o null
   owner_name       nombre completo del propietario, o null
   document_number  cédula o NIT del propietario, sólo dígitos y guiones, o null
+  license_number   número de la licencia de tránsito (el "No." del documento), sólo dígitos, o null
+  vin              VIN / número de serie, o null
+  engine_number    número de motor, o null
+  chassis_number   número de chasis, o null
+  cilindraje       cilindraje en cc, sólo el número, o null
+  service          "particular", "publico", "oficial", "diplomatico" o "especial", o null
+  capacity         capacidad (pasajeros o kg), sólo el número, o null
+  doors            número de puertas, sólo el número, o null
+  registration_date fecha de matrícula en formato YYYY-MM-DD, o null
 
 Reglas:
 - Si un dato no aparece con claridad, devuelve null. Nunca inventes ni completes a medias.
@@ -280,8 +291,10 @@ async def structure_vehicle_card_data(raw_text: str) -> dict:
     """
     fallback = {
         "plate": None, "city": None, "brand": None, "model": None,
-        "year": None, "color": None, "vehicle_class": None,
+        "year": None, "color": None, "vehicle_class": None, "fuel_type": None,
         "owner_name": None, "document_number": None,
+        "license_number": None, "vin": None, "engine_number": None, "chassis_number": None,
+        "cilindraje": None, "service": None, "capacity": None, "doors": None, "registration_date": None,
     }
 
     if not raw_text.strip():

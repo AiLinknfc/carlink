@@ -8,6 +8,7 @@ import { safetyApi } from '@/lib/api'
 import { uploadFile, scanSafetyItem, proxyUrl } from '@/lib/upload'
 import { KIND_LABEL, KIT_ITEMS } from '@/lib/safety'
 import type { SafetyItem, SafetyKind } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 const KINDS: SafetyKind[] = ['extintor', 'botiquin', 'kit_carretera', 'otro']
 const LABEL_TO_KIND = Object.fromEntries(KINDS.map(k => [KIND_LABEL[k], k])) as Record<string, SafetyKind>
@@ -146,7 +147,7 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
   const dateField = (label: string, value: string, set: (v: string) => void) => (
     <div>
       <label style={labelStyle}>{label}</label>
-      <input type="date" className="date-field" value={value} onChange={e => set(e.target.value)} style={{ height: 40 }} />
+      <ThemedDateInput className="date-field" value={value} onChange={e => set(e.target.value)} style={{ height: 40 }} />
     </div>
   )
 
@@ -257,10 +258,10 @@ export default function SafetyFormModal({ vehicleId, item, defaultKind = 'extint
                 const hasPhoto = !!kitPhotos[k.key]
                 return (
                   <div key={k.key} style={{ display: 'flex', alignItems: 'center', gap: 6,
-                    borderRadius: 10, border: `1px solid ${on ? 'rgba(46,204,113,0.5)' : 'var(--input-border)'}`, background: on ? 'rgba(46,204,113,0.08)' : 'var(--input-bg)' }}>
+                    borderRadius: 10, border: `1px solid ${on ? 'rgba(245,197,24,0.5)' : 'var(--input-border)'}`, background: on ? 'rgba(245,197,24,0.1)' : 'var(--input-bg)' }}>
                     <button type="button" onClick={() => setChecklist(c => ({ ...c, [k.key]: !on }))} aria-pressed={on}
                       style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '11px 6px 11px 13px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text-1)', fontSize: 13.5 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: 6, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? '#2ecc71' : 'transparent', border: `1.5px solid ${on ? '#2ecc71' : 'var(--text-3)'}`, color: '#111' }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 6, flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? '#F5C518' : 'transparent', border: `1.5px solid ${on ? '#F5C518' : 'var(--text-3)'}`, color: '#111' }}>
                         {on && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                       </span>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.label}</span>

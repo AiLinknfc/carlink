@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useMaintenance, useWorkshops, useParts } from '@/lib/hooks'
+import { useMaintenance, useWorkshops, useParts, useCurrentMileage } from '@/lib/hooks'
+import { healthSummary } from '@/lib/vehicleHealth'
+import { batteryMonthsFromNotes } from '@/lib/batteryCatalog'
+import { isFluidPart } from '@/lib/fluids'
+import { getLubricantRule } from '@/lib/lubricantRules'
 import { apiGet, apiPut, expensesApi } from '@/lib/api'
 import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
@@ -34,12 +38,16 @@ const normalizePart = (n: string) =>
 
 const PARTS = [
   { name: 'Aceite de motor', interval: 5000, lastKm: 0 },
-  { name: 'Filtro de aire', interval: 10000, lastKm: 0 },
+  { name: 'Filtro de aceite', interval: 10000, lastKm: 0 },
+  { name: 'Filtro de aire', interval: 15000, lastKm: 0 },
+  { name: 'Filtro de habitáculo', interval: 15000, lastKm: 0 },
+  { name: 'Filtro de transmisión', interval: 60000, lastKm: 0 },
   { name: 'Pastillas de freno', interval: 20000, lastKm: 0 },
   { name: 'Llantas', interval: 40000, lastKm: 0 },
   { name: 'Refrigerante', interval: 30000, lastKm: 0 },
   { name: 'Batería', interval: 36000, lastKm: 0 },
   { name: 'Filtro de combustible', interval: 20000, lastKm: 0 },
+  { name: 'Filtro de partículas', interval: 100000, lastKm: 0 },
   { name: 'Transmisión', interval: 40000, lastKm: 0 },
   { name: 'Discos de freno', interval: 60000, lastKm: 0 },
   { name: 'Freno de mano', interval: 40000, lastKm: 0 },
@@ -82,6 +90,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const { records: maintenance, latest } = useMaintenance(vehicle?.id, refreshKey)
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
+  const currentMileage = useCurrentMileage(vehicle?.id, refreshKey)
   const [flipped, setFlipped] = useState(false)
   const [workshopLogo, setWorkshopLogo] = useState<string>('')
   const [stampsRequired, setStampsRequired] = useState(6)
@@ -187,16 +196,24 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   }
 
   /* Derive latest Aceite record specifically — ficha always shows oil info */
-  const latestAceite = [...maintenance].find(r => r.service_type === 'Aceite') || null
-  /* Fallback to overall latest only if no aceite record exists */
-  const fichaRecord = latestAceite || latest
+  /* Solo el aceite de MOTOR: el de caja o transmisión tiene su propio ciclo y no mueve este testigo. */
+  const latestAceite = [...maintenance].find(r => r.service_type === 'Aceite' && (r.lubricant_use ?? 'motor') === 'motor') || null
+  /* Sin aceite de motor se usa el último servicio, pero NUNCA un aceite de caja o transmisión: esos solo
+     aportan su kilometraje y viven en Control de servicios; no deben llenar la marca, la viscosidad ni el
+     próximo cambio de la ficha técnica. */
+  const isOtherLubricant = (r: any) => r.service_type === 'Aceite' && (r.lubricant_use ?? 'motor') !== 'motor'
+  const fichaRecord = latestAceite || [...maintenance].find(r => !isOtherLubricant(r)) || null
 
   /* Real current vehicle mileage = highest mileage across ALL records */
-  const currentKm = maintenance.length > 0 ? Math.max(...maintenance.map(r => r.mileage)) : fichaRecord?.mileage
+  const serviceKm = maintenance.length > 0 ? Math.max(...maintenance.map(r => r.mileage)) : fichaRecord?.mileage
+  /* El odómetro (lecturas iniciales, periódicas y de servicio) puede ir por delante del último
+     servicio: sin él, la vida útil de las piezas no avanzaba entre servicios. */
+  const currentKm = serviceKm != null || currentMileage != null ? Math.max(serviceKm ?? 0, currentMileage ?? 0) : undefined
   /* Oil change mileage: when the oil was last changed (for reference) */
   const oilChangeKm = latestAceite?.mileage ?? null
   /* Next service from the aceite record */
-  const nextServiceKm = fichaRecord?.next_service_mileage
+  /* El próximo cambio de aceite es el del aceite de motor; el próximo servicio de cualquier otro tipo no lo reemplaza. */
+  const nextServiceKm = latestAceite?.next_service_mileage
 
   const totalServ = maintenance.length
   const kmToNext = nextServiceKm != null && currentKm != null ? Math.max(0, nextServiceKm - currentKm) : null
@@ -206,19 +223,27 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     : 0
   const progWidth = `${Math.round(oilProgress * 100)}%`
 
-  /* Predicted date for next service based on avg 1500 km/month */
+  /* Fecha estimada del próximo cambio: la que llegue PRIMERO entre la de kilómetros (1.500 km/mes) y la
+     de tiempo (fecha del último cambio + meses de la viscosidad). Si ya se pasó cualquiera de las dos
+     —o faltan 0 km— el cambio está vencido: el contador va en cero. Antes, con 0 km restantes caía a
+     un "hoy + 90 días" inventado y mostraba un plazo que no existía. */
   const AVG_KM_PER_MONTH = 1500
-  const predictedDateMs = useMemo(() => kmToNext != null && kmToNext > 0
+  const oilRule = getLubricantRule(latestAceite?.lubricant_type)
+  const oilLastDate = latestAceite?.date ? new Date(latestAceite.date).getTime() : null
+  const timeDueMs = oilRule && oilLastDate != null ? new Date(oilLastDate).setMonth(new Date(oilLastDate).getMonth() + oilRule.lifespanMonths) : null
+  const kmDueMs = useMemo(() => kmToNext != null && kmToNext > 0
     ? Date.now() + (kmToNext / AVG_KM_PER_MONTH) * 30.44 * 86400000
     : null, [kmToNext])
+  const oilOverdue = kmToNext === 0 || (timeDueMs != null && timeDueMs <= Date.now())
+  const predictedDateMs = oilOverdue ? null : (kmDueMs != null && timeDueMs != null ? Math.min(kmDueMs, timeDueMs) : (kmDueMs ?? timeDueMs))
   const predictedDate = predictedDateMs != null ? new Date(predictedDateMs) : null
   const predictedDateStr = predictedDate
     ? predictedDate.toLocaleDateString('es', { month: 'short', year: 'numeric' })
     : null
 
   const hasCountdown = nextServiceKm != null && currentKm != null && kmToNext != null && kmToNext > 0
-  const fallbackTarget = useMemo(() => Date.now() + 90 * 86400000, [])
-  const countdownTarget = predictedDateMs ?? fallbackTarget
+  const noCountdownTarget = useMemo(() => Date.now(), [])
+  const countdownTarget = predictedDateMs ?? noCountdownTarget
   const cd = useCountdown(countdownTarget)
 
   if (!vehicle) return (
@@ -277,9 +302,12 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const oilInterval = latestAceite?.next_service_mileage != null && latestAceite?.mileage != null
     ? (latestAceite.next_service_mileage - latestAceite.mileage)
     : (dbParts.find((dp: any) => dp.name === 'Aceite de motor')?.lifespan_mileage || 5000)
+  /* Un registro con próximo servicio igual o menor al kilometraje (error de digitación) deja un
+     intervalo de cero o negativo: no es "100 % de vida", es un dato inválido que hay que corregir. */
+  const oilInvalid = latestAceite?.next_service_mileage != null && oilInterval <= 0
   const oilLastKm = latestAceite?.mileage ?? dbParts.find((dp: any) => dp.name === 'Aceite de motor')?.mileage_installed ?? 0
   const oilRemaining = Math.max(0, (oilLastKm + oilInterval) - currentKmVal)
-  const oilLife = oilInterval > 0 ? Math.max(0, Math.min(1, oilRemaining / oilInterval)) : 1
+  const oilLife = oilInterval > 0 ? Math.max(0, Math.min(1, oilRemaining / oilInterval)) : (oilInvalid ? 0 : 1)
   /* Sin un servicio de aceite registrado no hay nada que medir: el 100% verde
      que salía antes era inventado a partir del intervalo por defecto. */
   const oilTracked = Boolean(latestAceite || (dbParts.find((dp: any) => dp.name === 'Aceite de motor')?.mileage_installed ?? 0) > 0)
@@ -307,7 +335,9 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
 
   /* Piezas efectivamente reemplazadas: las que tienen kilometraje de instalación
      registrado por un servicio o a mano. */
-  const replacedPartsCount = dbParts.filter((dp: any) => (dp.mileage_installed ?? 0) > 0).length
+  /* Solo piezas físicas: el aceite, el refrigerante y demás fluidos son servicios (lib/fluids.ts) y
+     se ven en Control de servicios, no como "partes reemplazadas". */
+  const replacedPartsCount = dbParts.filter((dp: any) => (dp.mileage_installed ?? 0) > 0 && !isFluidPart(dp.name)).length
 
   const findPart = (name: string) => parts.find(p => p.name === name)
   const NO_DATA = { name: '', estado: 'Sin datos', color: NO_DATA_COLOR, pct: 1, rem: 0, tracked: false }
@@ -332,15 +362,17 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
      refrigeración registra. Reemplaza al testigo de motor, que duplicaba el
      aceite ya representado por el medidor de vida de aceite. */
   const tempP = findPart('Refrigerante') || NO_DATA
-  const filtersP = worstOf('Filtro de aire', 'Filtro de combustible')
+  const filtersP = worstOf('Filtro de aceite', 'Filtro de aire', 'Filtro de habitáculo', 'Filtro de combustible', 'Filtro de transmisión', 'Filtro de partículas')
   const suspensionP = findPart('Amortiguadores') || NO_DATA
   const transmissionP = findPart('Transmisión') || NO_DATA
 
   /* Batería: envejece por tiempo y por uso a la vez, así que se calculan las dos
      vidas y manda la que se agote primero. Antes los "meses" salían de dividir
      los km entre 1500 — un número inventado que no medía el tiempo real. */
-  const BATTERY_LIFESPAN_MONTHS = 24
   const battDbPart = dbParts.find((dp: any) => normalizePart(dp.name) === 'bateria')
+  /* Meses de vida útil: los del tipo de batería elegido al registrarla (se guardan en las notas de la
+     pieza); sin ese dato, 24. */
+  const BATTERY_LIFESPAN_MONTHS = batteryMonthsFromNotes(battDbPart?.notes)
   const battTracked = Boolean(battDbPart)
 
   /* Desgaste por kilómetros, igual que cualquier otra pieza. */
@@ -380,7 +412,15 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     part: p.name || undefined,
   })
 
+  /* Aceite en el tablero (2026-10-05): era el único servicio sin testigo —solo tenía el medidor
+     "Vida aceite" aparte—, así que no contaba para la salud del vehículo ni se veía junto a los demás.
+     Mismos umbrales y colores que el resto: verde recién registrado, naranja desde media vida. */
+  const oilEstado = !oilTracked ? 'Sin datos' : oilRemaining <= 0 ? 'Vencido' : oilLife <= 0.15 ? 'Urgente' : oilLife <= 0.5 ? 'Media vida' : 'Al día'
+  const oilTellColor = !oilTracked ? NO_DATA_COLOR : oilEstado === 'Vencido' || oilEstado === 'Urgente' ? '#ff4d6a' : oilEstado === 'Media vida' ? '#ffb020' : '#2ecc71'
+  const oilP = { name: 'Aceite de motor', color: oilTellColor, estado: oilEstado, pct: oilTracked ? oilLife : 1, rem: oilRemaining, tracked: oilTracked }
+
   const telltales: TellDef[] = [
+    tellDef('Aceite', oilP, 'oil'),
     tellDef('Frenos', brakesP, 'brakes'),
     tellDef('Llantas', tiresP, 'tire'),
     tellDef('Filtros', filtersP, 'filter'),
@@ -395,14 +435,19 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   /* Salud del vehículo: promedio de los testigos del tablero, que es lo que el
      usuario ve. Antes promediaba la lista interna de piezas, que incluía piezas
      que ningún servicio alimenta. */
-  const tracked = telltales.filter(t => t.tracked)
-  const healthTracked = tracked.length > 0
-  const health = healthTracked ? tracked.reduce((a, t) => a + t.pct, 0) / tracked.length : 0
+  /* Salud: promedio de los testigos encendidos, con el nivel nunca mejor que el peor testigo en rojo
+     (lib/vehicleHealth.ts). El motivo se nombra para que un "Crítico" con promedio alto no parezca
+     un error. */
+  const healthSum = healthSummary(telltales)
+  const healthTracked = healthSum.tracked
+  const health = healthSum.average
   const healthPctDyn = healthTracked ? Math.round(health * 100) : 0
-  const healthColorDyn = !healthTracked ? NO_DATA_COLOR
-    : health > 0.5 ? '#22c55e' : health > 0.25 ? '#ffb020' : '#ff4d6a'
-  const healthLabelDyn = !healthTracked ? 'Sin datos'
-    : health > 0.5 ? 'Óptimo' : health > 0.25 ? 'Atención' : 'Crítico'
+  const healthColorDyn = healthSum.level === 'sin-datos' ? NO_DATA_COLOR
+    : healthSum.level === 'optimo' ? '#22c55e' : healthSum.level === 'atencion' ? '#ffb020' : '#ff4d6a'
+  const healthReds = telltales.filter(t => t.tracked && t.critical).map(t => t.label)
+  const healthBase = healthSum.level === 'sin-datos' ? 'Sin datos'
+    : healthSum.level === 'optimo' ? 'Óptimo' : healthSum.level === 'atencion' ? 'Atención' : 'Crítico'
+  const healthLabelDyn = healthSum.level !== 'optimo' && healthReds.length ? `${healthBase} · ${healthReds[0]}` : healthBase
   const healthDegDyn = healthTracked ? Math.round(health * 270) : 0
 
   // --- Hover telltale ---
@@ -631,6 +676,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
                 border: t.tracked ? `1.5px solid ${t.color}` : `1.5px dashed ${t.color}`,
                 color: t.color, opacity: !t.tracked ? 0.9 : t.critical ? 1 : 0.75,
                 animation: t.critical ? 'telltalePulse 1.1s ease-in-out infinite' : 'none', cursor: 'pointer', transition: 'transform .15s', padding: 0 }}>
+              {t.iconKey === 'oil' && <ServiceTypeIcon type="Aceite" size={20} />}
               {t.iconKey === 'brakes' && <ServiceTypeIcon type="Frenos" size={20} />}
               {t.iconKey === 'tire' && <ServiceTypeIcon type="Llantas" size={20} />}
               {t.iconKey === 'battery' && <ServiceTypeIcon type="Batería" size={20} />}
@@ -649,9 +695,11 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.9"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Próximo cambio de aceite
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: oilTracked ? sInk : NO_DATA_COLOR, margin: '5px 0 8px' }}>
-              {oilTracked
-                ? `${nextServiceDisp.toLocaleString()} km · faltan ${kmToNextDisp.toLocaleString()} km${predictedDateStr ? ` · ${predictedDateStr}` : ''}`
-                : '0 km · faltan 0 km'}
+              {oilInvalid
+                ? 'Revisa este registro: el próximo cambio no es mayor al kilometraje'
+                : oilTracked
+                  ? `${nextServiceDisp.toLocaleString()} km · ${oilOverdue ? 'cambio vencido' : `faltan ${kmToNextDisp.toLocaleString()} km`}${predictedDateStr ? ` · ${predictedDateStr}` : ''}`
+                  : '0 km · faltan 0 km'}
             </div>
             <div style={{ height: 8, borderRadius: 6, background: tableroTrack, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: oilTracked ? progWidthDisp : '0%', background: oilTracked ? 'linear-gradient(90deg,#FFD84D,#F5C518,#8a6a00)' : NO_DATA_COLOR, borderRadius: 6, transition: 'width .7s cubic-bezier(0.22,1,0.36,1)' }} />
@@ -683,7 +731,8 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
             : t.pct <= 0.5
               ? `${quien} pasó la mitad de su vida útil — le quedan ${Math.round(t.pct * 100)}% de su intervalo. Ve agendando la revisión.`
               : `${quien} está dentro de su vida útil normal.`
-        const iconSvg = t.iconKey === 'brakes' ? <ServiceTypeIcon type="Frenos" size={22} />
+        const iconSvg = t.iconKey === 'oil' ? <ServiceTypeIcon type="Aceite" size={22} />
+          : t.iconKey === 'brakes' ? <ServiceTypeIcon type="Frenos" size={22} />
           : t.iconKey === 'tire' ? <ServiceTypeIcon type="Llantas" size={22} />
           : t.iconKey === 'filter' ? <ServiceTypeIcon type="Aire" size={22} />
           : t.iconKey === 'suspension' ? <ServiceTypeIcon type="Suspensión" size={22} />

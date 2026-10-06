@@ -57,6 +57,8 @@ async def _refresh(vehicle):
     vehicle.lost_keychain_enabled = False
     vehicle.georeference_enabled = False
     vehicle.body_type = ""
+    vehicle.fuel_type = ""
+    vehicle.card_data = {}
     vehicle.owner_name = ""
     vehicle.verification_status = "unverified"
     vehicle.verification_doc_url = ""
@@ -209,6 +211,22 @@ async def test_verification_requires_both_faces_and_goes_pending(client, mock_db
     assert resp.status_code == 400
     assert v.verification_status == "unverified"
 
-    resp = await client.post(f"/api/vehicles/{fake_vehicle_id}/verification",
-                             json={"verification_doc_url": "https://x/f.jpg", "verification_doc_url_back": "https://x/b.jpg"})
+    both = {"verification_doc_url": "https://x/f.jpg", "verification_doc_url_back": "https://x/b.jpg"}
+
+    # Con las dos caras pero la tarjeta incompleta: 422 con los campos que faltan, sigue sin enviar.
+    resp = await client.post(f"/api/vehicles/{fake_vehicle_id}/verification", json=both)
+    assert resp.status_code == 422
+    assert "license_number" in resp.json()["detail"]["errors"]
+    assert v.verification_status == "unverified"
+
+    # Tarjeta completa y coherente: queda 'pending'.
+    v.body_type = "Automóvil"
+    v.fuel_type = "gasolina"
+    v.owner_name = "JUAN CARLOS PEREZ GOMEZ"
+    v.card_data = {
+        "license_number": "10012345678", "owner_document": "79123456", "vin": "3MZBN1V70KM123456",
+        "engine_number": "PE12345678", "chassis_number": "3MZBN1V70KM123456", "cilindraje": "2000",
+        "service": "particular", "capacity": "5", "doors": "4", "registration_date": "2021-03-15",
+    }
+    resp = await client.post(f"/api/vehicles/{fake_vehicle_id}/verification", json=both)
     assert v.verification_status == "pending"

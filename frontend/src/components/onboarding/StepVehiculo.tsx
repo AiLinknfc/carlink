@@ -7,6 +7,8 @@ import { uploadFile, scanVehicleCard } from '@/lib/upload'
 import { formatPlate, parsePlate, getPlateConfig, plateShowsCountryLabel, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
 import { CITIES } from '@/lib/constants'
 import { normalizeBodyType, matchColorKeyword } from '@/lib/vehicleBrands'
+import FuelSelect from '@/components/FuelSelect'
+import { cardDataFromScan, mergeCardData } from '@/lib/vehicleCard'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import CameraCapture from '@/components/CameraCapture'
 import { getDraft, saveDraft } from './OnboardingWizard'
@@ -68,7 +70,7 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
   // Datos silenciosos leídos de la tarjeta escaneada — no se muestran como
   // campos, viajan tal cual en el POST /vehicles. El usuario los completa
   // más adelante desde su perfil si no escaneó nada.
-  const [ocrData, setOcrData] = useState<{ brand: string; model: string; year: number; color: string; bodyType: string; ownerName: string }>({ brand: '', model: '', year: 0, color: '', bodyType: '', ownerName: '' })
+  const [ocrData, setOcrData] = useState<{ brand: string; model: string; year: number; color: string; bodyType: string; fuelType: string; ownerName: string }>({ brand: '', model: '', year: 0, color: '', bodyType: '', fuelType: '', ownerName: '' })
   const [frontFile, setFrontFile] = useState<File | null>(null)
   const [backFile, setBackFile] = useState<File | null>(null)
   // Qué cara está por capturar la cámara — reemplaza el `showCam: boolean`
@@ -98,7 +100,14 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
   const plateConfig = getPlateConfig(plateType)
   const plate = formatPlate(plateLetters, plateNumbers, plateType)
   const plateComplete = plateLetters.length === plateConfig.letterLen && plateNumbers.length === (plateConfig.moto ? 3 : plateConfig.numLen)
-  const canSubmit = plateComplete && !!city && plateTypeValid && !saving && !plateExists && !plateChecking
+  // Kilometraje inicial: obligatorio. Es el punto de partida del odómetro y, desde ahí, ningún
+  // servicio puede registrar menos (backend: services/maintenance_rules.py).
+  const [initialMileage, setInitialMileage] = useState('')
+  // Resto de campos de la tarjeta leídos por OCR (frente y reverso); viajan en el POST /vehicles.
+  const [cardData, setCardData] = useState<Record<string, string>>({})
+  const initialMileageNum = parseInt(initialMileage, 10)
+  const initialMileageValid = Number.isFinite(initialMileageNum) && initialMileageNum >= 0 && initialMileageNum <= 3_000_000
+  const canSubmit = plateComplete && !!city && plateTypeValid && initialMileageValid && !!ocrData.fuelType && !saving && !plateExists && !plateChecking
 
   // Recupera placa/ciudad si el usuario ya las había escrito en la landing
   // (hero público, antes de loguearse) — mismo sessionStorage que ya usaba
@@ -221,7 +230,8 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
     // Cada escaneo nuevo reemplaza al anterior: se descartan los datos leídos
     // antes, así nunca quedan mezclados con los de otra tarjeta si esta
     // lectura falla o trae menos campos.
-    setOcrData({ brand: '', model: '', year: 0, color: '', bodyType: '', ownerName: '' })
+    setOcrData({ brand: '', model: '', year: 0, color: '', bodyType: '', fuelType: '', ownerName: '' })
+    setCardData({})
     try {
       const data = await scanVehicleCard(file)
       if (!data) { setScanHint('No pudimos leer la tarjeta — completa placa y ciudad a mano.'); return }
@@ -243,6 +253,8 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
         year: data.year && data.year > 1900 ? data.year : 0,
         color: matchColorKeyword(data.color),
         bodyType,
+        // Combustible: campo COMBUSTIBLE de la tarjeta (ya normalizado por el backend).
+        fuelType: data.fuel_type || '',
         // Nombre del propietario según la tarjeta — NO se escribe en el
         // nombre de la cuenta (2026-09-19: la cuenta no necesariamente es
         // la misma persona que figura en la tarjeta, ej. auto de un
@@ -252,6 +264,10 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
       })
       if (data.brand || data.model) filled.push('datos del vehiculo')
       if (bodyType) filled.push('tipo de vehiculo')
+      if (data.fuel_type) filled.push('combustible')
+      const cd = cardDataFromScan(data)
+      setCardData(prev => mergeCardData(prev, cd))
+      if (Object.keys(cd).length) filled.push('datos de la licencia')
       if (data.owner_name) filled.push('nombre del propietario')
       setScanHint(filled.length
         ? `Leimos: ${filled.join(', ')}. Revisa los datos antes de continuar.`
@@ -280,6 +296,7 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
         setCity(data.city)
         filled.push('ciudad')
       }
+      setCardData(prev => mergeCardData(prev, cardDataFromScan(data)))
       setOcrData(prev => {
         const next = { ...prev }
         if (!prev.ownerName && data.owner_name) { next.ownerName = data.owner_name; filled.push('nombre del propietario') }
@@ -288,6 +305,7 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
         if (!prev.year && data.year && data.year > 1900) next.year = data.year
         if (!prev.color && data.color) next.color = matchColorKeyword(data.color)
         if (!prev.bodyType) next.bodyType = normalizeBodyType(data.vehicle_class) || prev.bodyType
+        if (!prev.fuelType && data.fuel_type) { next.fuelType = data.fuel_type; filled.push('combustible') }
         return next
       })
       setScanHint(filled.length ? `Reverso registrado. Leimos: ${filled.join(', ')}.` : 'Reverso registrado.')
@@ -324,22 +342,21 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
     const created = await apiPost('/vehicles', {
       plate, city, type: plateType,
       brand: ocrData.brand, model: ocrData.model, year: ocrData.year, color: ocrData.color,
-      body_type: bodyType, owner_name: ocrData.ownerName,
+      body_type: bodyType, fuel_type: ocrData.fuelType, owner_name: ocrData.ownerName,
+      initial_mileage: initialMileageNum,
+      card_data: cardData,
     })
     if (!created) {
       setSaving(false)
       setError('No se pudo agregar el vehiculo — revisa la placa e intenta de nuevo.')
       return
     }
-    const frontUrl = frontFile ? await archiveCardPhoto(created.id, frontFile, 'frente') : null
-    const backUrl = backFile ? await archiveCardPhoto(created.id, backFile, 'reverso') : null
-    // Las dos caras ya están guardadas: se envían solas a revisión del admin
-    // (la misma verificación del perfil), así el usuario no las sube de nuevo.
-    // Con una sola cara queda sin enviar; el perfil pide la que falta.
-    if (frontUrl && backUrl) {
-      const sent = await apiPost(`/vehicles/${created.id}/verification`, { verification_doc_url: frontUrl, verification_doc_url_back: backUrl })
-      if (sent) created.verification_status = 'pending'
-    }
+    if (frontFile) await archiveCardPhoto(created.id, frontFile, 'frente')
+    if (backFile) await archiveCardPhoto(created.id, backFile, 'reverso')
+    // Las fotos quedan archivadas en Documentos y todo lo que leyó el escaneo ya viaja guardado en el
+    // vehículo (columnas y card_data). Ya NO se envía sola a revisión (2026-10-05): la verificación
+    // completa de la tarjeta se hace en una etapa posterior (al transferir o vender), desde el perfil
+    // (Detalles del vehículo), no en este paso a paso.
     saveDraft(userId, 'vehiculo_plateLetters', '')
     saveDraft(userId, 'vehiculo_plateNumbers', '')
     saveDraft(userId, 'vehiculo_city', '')
@@ -475,6 +492,24 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
           <label style={labelStyle}>Ciudad</label>
           <ThemedSuggestInput value={city} onChange={setCity} suggestions={CITIES} placeholder="Elige o escribe"
             style={{ height: 46, boxSizing: 'border-box', padding: '0 11px', fontSize: 13 }} theme={SUGGEST_THEME} />
+        </div>
+      </div>
+
+      {/* Combustible: obligatorio. Lo prellena el escaneo de la tarjeta (campo COMBUSTIBLE); si no
+         se leyó, se elige acá. Sin opción "sin definir". */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Combustible *</label>
+        <FuelSelect value={ocrData.fuelType} onChange={v => setOcrData(prev => ({ ...prev, fuelType: v }))} />
+      </div>
+
+      {/* Kilometraje inicial — obligatorio, con aviso de precaución. */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Kilometraje actual *</label>
+        <input type="number" inputMode="numeric" min={0} value={initialMileage} placeholder="Ej. 52000"
+          onChange={e => setInitialMileage(e.target.value)}
+          style={{ width: '100%', height: 46, boxSizing: 'border-box', padding: '0 13px', borderRadius: 10, border: `1px solid ${inputBorder}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none' }} />
+        <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
+          <b>Ten cuidado con este dato.</b> Es el punto de partida del historial del vehiculo: desde aqui el kilometraje nunca puede bajar, y despues solo se corrige durante 48 horas. Ingresa lo que marca el tablero hoy.
         </div>
       </div>
 

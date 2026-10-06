@@ -58,6 +58,13 @@ class Vehicle(Base):
     # Carrocería (Sedán/SUV/Moto/...), separada de `type` (categoría de
     # placa) — ver comentario en schemas.py VehicleCreate.body_type.
     body_type: Mapped[str] = mapped_column(Text, default="")
+    # Combustible ('' | gasolina | diesel | gas | hibrido | electrico) — migración 068.
+    fuel_type: Mapped[str] = mapped_column(Text, default="")
+    # Resto de campos de la tarjeta de propiedad (migración 071) — ver services/vehicle_card.py.
+    card_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # Confirmación manual de los datos antes de vender (migración 072): cuándo y huella de lo confirmado.
+    card_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    card_confirmed_digest: Mapped[str] = mapped_column(Text, default="")
     color: Mapped[str] = mapped_column(Text, default="")
     # Nombre del propietario que trae la tarjeta escaneada — separado de
     # profiles.full_name (2026-09-19): la cuenta no necesariamente es la
@@ -137,17 +144,37 @@ class MaintenanceRecord(Base):
     # Migración 052 (aplicada 2026-09-12) — producto exacto del catálogo elegido
     # en el wizard de 3 pasos de Aceite (ServiceFormModal.tsx + oilCatalog.ts).
     lubricant_product: Mapped[str] = mapped_column(Text, default="")
+    # Migración 073: motor | caja | transmision — para qué sirve el lubricante de un servicio "Aceite".
+    lubricant_use: Mapped[str] = mapped_column(Text, default="motor")
     next_service_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes_embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     # Migración 034 — docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3: idempotencia
     # (no duplicar si la orden se re-guarda) y trazabilidad de qué orden generó
     # este registro automático.
     source_work_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("work_orders.id", ondelete="SET NULL"), nullable=True)
+    # Migración 070: user | workshop | prior (historial anterior al alta, con soporte).
+    origin: Mapped[str] = mapped_column(Text, default="user")
+    support_url: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     vehicle = relationship("Vehicle", back_populates="maintenance_records")
     workshop_rel = relationship("Workshop", back_populates="maintenance_records")
+
+
+class OdometerReading(Base):
+    """Lectura de odómetro — migración 069. Tabla de solo agregar (ver el SQL)."""
+
+    __tablename__ = "odometer_readings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    mileage: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(Text)  # initial | service | periodic
+    maintenance_record_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("maintenance_records.id", ondelete="SET NULL"), nullable=True
+    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Part(Base):

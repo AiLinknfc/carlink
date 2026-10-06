@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
@@ -15,6 +16,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import (
     MaintenanceRecord,
+    OdometerReading,
     Part,
     WorkOrder,
     WorkOrderLaborItem,
@@ -252,16 +254,25 @@ async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, d
         select(func.count()).select_from(MaintenanceRecord).where(MaintenanceRecord.source_work_order_id == order.id)
     )
     if not already_history:
+        record_id = uuid.uuid4()
         db.add(MaintenanceRecord(
+            id=record_id,
             vehicle_id=linked_vehicle_id,
             workshop_id=workshop.id,
             source_work_order_id=order.id,
+            origin="workshop",
             service_type=order.category or "Servicio de taller",
             description=f"{order.symptoms or order.category or 'Servicio realizado'} (Orden {order.order_number})",
             mileage=workshop_vehicle.mileage or 0,
             workshop=workshop.name,
             cost=order.final_total,
         ))
+        # Lectura de odómetro del servicio (migración 069), igual que en POST /maintenance.
+        if workshop_vehicle.mileage:
+            db.add(OdometerReading(
+                vehicle_id=linked_vehicle_id, mileage=workshop_vehicle.mileage,
+                source="service", maintenance_record_id=record_id,
+            ))
 
     already_parts = await db.scalar(
         select(func.count()).select_from(Part).where(Part.source_work_order_id == order.id)

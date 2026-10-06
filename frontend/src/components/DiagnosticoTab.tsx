@@ -6,6 +6,7 @@ import { useDiagnostics } from '@/lib/hooks'
 import { uploadFile } from '@/lib/upload'
 import { isBusinessAccount } from '@/lib/constants'
 import type { DiagnosticCdaCheck } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 interface Props {
   vehicleId: string | undefined
@@ -242,7 +243,7 @@ function CdaFormModal({ vehicleId, onClose, onSaved, addDiagnostic }: {
           </div>
           <div>
             <label style={fieldLabel}>Fecha de vencimiento *</label>
-            <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} style={fieldInput} />
+            <ThemedDateInput value={expiryDate} onChange={e => setExpiryDate(e.target.value)} style={fieldInput} />
           </div>
 
           <div>

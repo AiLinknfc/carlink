@@ -13,10 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
-from app.models.models import NfcToken, ShopOrder, Vehicle
-from app.schemas.schemas import VehicleCreate, VehicleOut, VehicleUpdate, VehicleVerificationRequest
+from app.models.models import NfcToken, OdometerReading, ShopOrder, Vehicle
+from app.schemas.schemas import VehicleCardConfirmRequest, VehicleCreate, VehicleOut, VehicleUpdate, VehicleVerificationRequest
 from app.services.admin_notify import notify_admin
 from app.services.auth import ensure_profile
+from app.services.crypto import EncryptionUnavailable
+from app.services.vehicle_card import card_digest, normalize_card_data, required_fields, seal_card_data, validate_card
 from app.services.cache import (
     cache_delete,
     cache_get,
@@ -253,6 +255,10 @@ async def create_vehicle(
         model=body.model,
         year=body.year,
         type=body.type,
+        body_type=body.body_type,
+        fuel_type=body.fuel_type,
+        owner_name=body.owner_name,
+        card_data=_sealed(body.card_data or {}, None),
         color=body.color,
         image_url=body.image_url,
     )
@@ -260,6 +266,9 @@ async def create_vehicle(
     try:
         await db.flush()
         await db.refresh(vehicle)
+        if body.initial_mileage is not None:
+            db.add(OdometerReading(vehicle_id=vehicle.id, mileage=body.initial_mileage, source="initial"))
+            await db.flush()
     except Exception as e:
         logger.error(f"Failed to create vehicle for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Vehicle creation failed: {e}")
@@ -314,9 +323,22 @@ async def update_vehicle(
     # plate/city/type ya no existen en VehicleUpdate: Pydantic los descarta aunque
     # el cliente los mande, así que el congelado es efectivo aquí.
     update_data = body.model_dump(exclude_unset=True)
+    if update_data.get("card_data") is not None:
+        # Mezcla parcial: editar un campo no borra los demás; un valor vacío sí lo quita.
+        update_data["card_data"] = _sealed(update_data["card_data"], vehicle.card_data)
+    elif "card_data" in update_data:
+        del update_data["card_data"]
     # Publicar el vehículo en venta es publicar al exterior: plan gratuito no puede.
     if update_data.get("sell_enabled") and not vehicle.sell_enabled:
         await require_full_access(db, user_id, vehicle.id, PUBLISH_DETAIL)
+        # Vender exige tarjeta verificada y que el dueño haya confirmado a mano los datos actuales.
+        if vehicle.verification_status != "verified":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verifica la tarjeta de propiedad para publicar el vehículo en venta.")
+        if not _card_confirmed(vehicle):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Confirma a mano que los datos de la tarjeta son correctos (Detalles del vehículo) antes de publicar en venta.",
+            )
     for key, val in update_data.items():
         setattr(vehicle, key, val)
 
@@ -328,6 +350,91 @@ async def update_vehicle(
     await db.commit()
     await cache_invalidate_vehicle(str(vehicle_id))
     return vehicle
+
+
+def _sealed(incoming: dict, existing: dict | None) -> dict:
+    """Normaliza y cifra el documento del propietario. Sin ENCRYPTION_KEY se rechaza (503) en vez
+    de guardar un documento de identidad en claro."""
+    # Un valor vacío en `incoming` borra ese campo (normalize_card_data lo descarta, así que se
+    # anota antes).
+    cleared = [k for k, v in incoming.items() if v is None or str(v).strip() == ""]
+    try:
+        sealed = seal_card_data(normalize_card_data(incoming), existing)
+        for k in cleared:
+            sealed.pop(k, None)
+        return sealed
+    except EncryptionUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No se pueden guardar datos sensibles ahora mismo. Intenta más tarde.")
+
+
+def _card_confirmed(vehicle: Vehicle) -> bool:
+    try:
+        return bool(vehicle.card_confirmed_digest) and vehicle.card_confirmed_digest == card_digest(vehicle)
+    except EncryptionUnavailable:
+        return False
+
+
+@router.post("/{vehicle_id}/card-confirm")
+async def confirm_vehicle_card(
+    vehicle_id: UUID,
+    body: VehicleCardConfirmRequest,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """El dueño confirma, campo por campo, que los datos coinciden con su tarjeta física. Exige que
+    estén todos completos y válidos y que se hayan marcado todos; guarda la fecha y una huella de lo
+    confirmado (si luego se edita un dato, hay que volver a confirmar)."""
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    errors = validate_card(vehicle)
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": "Completa y corrige los datos de la tarjeta antes de confirmarlos.", "errors": errors},
+        )
+    missing = [f for f in required_fields(vehicle) if f not in set(body.confirmed_fields)]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": "Revisa y marca todos los datos para confirmarlos.", "missing": missing},
+        )
+    try:
+        vehicle.card_confirmed_digest = card_digest(vehicle)
+    except EncryptionUnavailable:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="No se pueden confirmar los datos ahora mismo. Intenta más tarde.")
+    vehicle.card_confirmed_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(vehicle)
+    await db.commit()
+    await cache_invalidate_vehicle(str(vehicle_id))
+    return {"confirmed": True, "confirmed_at": vehicle.card_confirmed_at}
+
+
+@router.get("/{vehicle_id}/card-check")
+async def check_vehicle_card(
+    vehicle_id: UUID,
+    user_id: Annotated[str, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Qué le falta o está mal en los datos de la tarjeta, por campo. Sin cambios: solo informa;
+    la misma validación corre al enviar a revisión."""
+    result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.owner_id == uuid.UUID(user_id))
+    )
+    vehicle = result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    errors = validate_card(vehicle)
+    return {
+        "complete": not errors, "errors": errors,
+        "confirmed": not errors and _card_confirmed(vehicle),
+        "confirmed_at": vehicle.card_confirmed_at if _card_confirmed(vehicle) else None,
+        "required_fields": required_fields(vehicle),
+    }
 
 
 @router.post("/{vehicle_id}/verification", response_model=VehicleOut)
@@ -356,6 +463,13 @@ async def request_vehicle_verification(
     # Ambas caras obligatorias (2026-09-18) — front-only ya no alcanza.
     if not body.verification_doc_url or not body.verification_doc_url_back:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falta el frente o el reverso del documento")
+    # Todos los datos de la tarjeta son obligatorios y coherentes: una tarjeta real los trae todos.
+    card_errors = validate_card(vehicle)
+    if card_errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": "Completa y corrige los datos de la tarjeta antes de enviar a revisión.", "errors": card_errors},
+        )
 
     vehicle.verification_doc_url = body.verification_doc_url
     vehicle.verification_doc_url_back = body.verification_doc_url_back

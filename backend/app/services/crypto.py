@@ -51,3 +51,43 @@ def decrypt_url(token: str) -> str | None:
         return aesgcm.decrypt(nonce, ct, None).decode()
     except Exception:
         return None
+
+
+# ---- Cifrado de campos sensibles (documento del propietario) ----
+# A diferencia de encrypt_url (que degrada a "sin cifrar" si falta la clave), acá se falla
+# cerrado: un documento de identidad nunca se guarda en claro.
+FIELD_PREFIX = "enc1:"
+
+
+class EncryptionUnavailable(RuntimeError):
+    """No hay ENCRYPTION_KEY: no se puede guardar un dato sensible."""
+
+
+def encrypt_field(plaintext: str) -> str:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    key = _get_key()
+    if key is None:
+        raise EncryptionUnavailable("ENCRYPTION_KEY no configurada")
+    nonce = os.urandom(12)
+    return FIELD_PREFIX + base64.b64encode(nonce + AESGCM(key).encrypt(nonce, plaintext.encode(), None)).decode()
+
+
+def decrypt_field(token: str) -> str | None:
+    """Plaintext, o None si no se puede descifrar (clave ausente/distinta o dato corrupto)."""
+    if not token.startswith(FIELD_PREFIX):
+        return None
+    result = decrypt_url(token[len(FIELD_PREFIX):])
+    return result
+
+
+def hmac_digest(message: str) -> str:
+    """Huella HMAC-SHA256 con la clave de cifrado (un hash simple de un documento de pocos dígitos
+    se revertiría por fuerza bruta)."""
+    import hashlib
+    import hmac
+
+    key = _get_key()
+    if key is None:
+        raise EncryptionUnavailable("ENCRYPTION_KEY no configurada")
+    return hmac.new(key, message.encode(), hashlib.sha256).hexdigest()

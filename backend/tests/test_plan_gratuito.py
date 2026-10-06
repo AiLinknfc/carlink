@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -29,17 +29,30 @@ def _res(**attrs) -> MagicMock:
     return r
 
 
-def _sequence(vehicle, account_type, active_keychains):
-    """verify_vehicle -> perfil.account_type -> llaveros personales activos."""
-    return AsyncMock(side_effect=[
+def _res_readings() -> MagicMock:
+    r = MagicMock()
+    r.scalars.return_value.all.return_value = []
+    return r
+
+
+def _sequence(vehicle, account_type, active_keychains, history=False):
+    """verify_vehicle -> perfil.account_type -> llaveros personales activos (-> historial de km)."""
+    results = [
         _res(scalar_one_or_none=vehicle),
         _res(scalar=account_type),
         _res(scalar=active_keychains),
-    ])
+    ]
+    if history:
+        results.append(_res(all=[]))
+        results.append(_res_readings())
+    return AsyncMock(side_effect=results)
 
 
 def _body(vid: str, service_type: str) -> dict:
-    return {"vehicle_id": vid, "service_type": service_type, "description": "x", "mileage": 1000, "date": "2026-07-07"}
+    body = {"vehicle_id": vid, "service_type": service_type, "description": "x", "mileage": 1000, "date": date.today().isoformat()}
+    if service_type == "Aceite":  # el cambio de aceite exige decir qué aceite se usó
+        body.update(lubricant_brand="Mobil 1", lubricant_type="5W-30")
+    return body
 
 
 async def _refresh(record):
@@ -50,7 +63,7 @@ async def _refresh(record):
 @pytest.mark.anyio
 async def test_free_persona_can_register_oil(client, mock_db, fake_user_id, fake_vehicle_id):
     v = _vehicle(fake_vehicle_id, fake_user_id)
-    mock_db.execute = AsyncMock(side_effect=[_res(scalar_one_or_none=v)])
+    mock_db.execute = AsyncMock(side_effect=[_res(scalar_one_or_none=v), _res(all=[]), _res_readings()])
     mock_db.refresh = AsyncMock(side_effect=_refresh)
     resp = await client.post("/api/maintenance", json=_body(fake_vehicle_id, "Aceite"))
     assert resp.status_code == 201
@@ -68,7 +81,7 @@ async def test_free_persona_blocked_on_other_services(client, mock_db, fake_user
 @pytest.mark.anyio
 async def test_persona_with_active_keychain_can_register_any_service(client, mock_db, fake_user_id, fake_vehicle_id):
     v = _vehicle(fake_vehicle_id, fake_user_id)
-    mock_db.execute = _sequence(v, "persona", 1)
+    mock_db.execute = _sequence(v, "persona", 1, history=True)
     mock_db.refresh = AsyncMock(side_effect=_refresh)
     resp = await client.post("/api/maintenance", json=_body(fake_vehicle_id, "Frenos"))
     assert resp.status_code == 201
@@ -77,7 +90,7 @@ async def test_persona_with_active_keychain_can_register_any_service(client, moc
 @pytest.mark.anyio
 async def test_taller_is_not_subject_to_free_plan(client, mock_db, fake_user_id, fake_vehicle_id):
     v = _vehicle(fake_vehicle_id, fake_user_id)
-    mock_db.execute = AsyncMock(side_effect=[_res(scalar_one_or_none=v), _res(scalar="taller")])
+    mock_db.execute = AsyncMock(side_effect=[_res(scalar_one_or_none=v), _res(scalar="taller"), _res(all=[]), _res_readings()])
     mock_db.refresh = AsyncMock(side_effect=_refresh)
     resp = await client.post("/api/maintenance", json=_body(fake_vehicle_id, "Frenos"))
     assert resp.status_code == 201

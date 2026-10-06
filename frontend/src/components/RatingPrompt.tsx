@@ -95,7 +95,7 @@ export function RatingPromptForm({
             placeholder="Nombre o código del taller (ej. TLR-XXXXX)"
             style={{
               width: '100%', padding: '11px 13px', borderRadius: 10,
-              border: workshopId ? '1px solid rgba(46,204,113,0.5)' : '1px solid var(--border-2)',
+              border: workshopId ? '1px solid rgba(245,197,24,0.5)' : '1px solid var(--border-2)',
               background: 'rgba(255,255,255,0.04)', color: 'var(--text-1)', fontSize: 14, outline: 'none',
             }} />
           {showWsDropdown && wsResults.length > 0 && (
