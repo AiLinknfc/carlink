@@ -8,6 +8,7 @@ import { downloadInvoicePdf } from '@/lib/invoicePdf'
 import CameraCapture from './CameraCapture'
 import FileCard, { getStatusColor, getStatusLabel } from './FileCard'
 import type { Document, VehicleInvoice } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 function FileLightbox({ urls, onClose }: { urls: string[]; onClose: () => void }) {
   const [index, setIndex] = useState(0)
@@ -362,7 +363,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
               placeholder="Ej. SOAT-8842-XZ"
               style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 14, outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha de vencimiento</label>
-            <input type="date" className="date-field date-field--sm" value={editExpiry} onChange={e => setEditExpiry(e.target.value)}
+            <ThemedDateInput className="date-field date-field--sm" value={editExpiry} onChange={e => setEditExpiry(e.target.value)}
               style={{ marginBottom: 20 }} />
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={saveEdit} style={{
@@ -503,7 +504,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
             {/* Expiry */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento</label>
-              <input type="date" className="date-field" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} />
+              <ThemedDateInput className="date-field" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} />
             </div>
 
             {/* Archivo — se adjunta al crear, sin tener que volver a la card */}

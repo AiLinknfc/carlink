@@ -26,6 +26,7 @@ from app.routers import (
     support_tickets,
     maintenance,
     nfc,
+    odometer,
     ocr,
     parts,
     partners,
@@ -89,6 +90,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(vehicles.router, prefix="/api")
 app.include_router(vehicle_invoices.router, prefix="/api")
 app.include_router(maintenance.router, prefix="/api")
+app.include_router(odometer.router, prefix="/api")
 app.include_router(nfc.router, prefix="/api")
 app.include_router(parts.router, prefix="/api")
 app.include_router(certificates.router, prefix="/api")

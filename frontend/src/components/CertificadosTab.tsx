@@ -8,6 +8,7 @@ import { CertIcon } from '@/lib/icons_new'
 import CameraCapture from './CameraCapture'
 import FileCard from './FileCard'
 import type { Certificate } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 function FileLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   return createPortal(
@@ -252,7 +253,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
             <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border-2)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 14, outline: 'none', marginBottom: 14, boxSizing: 'border-box' }} />
             <label style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha de vencimiento</label>
-            <input type="date" className="date-field date-field--sm" value={editExpiry} onChange={e => setEditExpiry(e.target.value)}
+            <ThemedDateInput className="date-field date-field--sm" value={editExpiry} onChange={e => setEditExpiry(e.target.value)}
               style={{ marginBottom: 20 }} />
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={saveEdit} style={{
@@ -357,7 +358,7 @@ export default function CertificadosTab({ vehicleId, refreshKey }: Props) {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento <span style={{ fontWeight: 500 }}>(opcional)</span></label>
-              <input type="date" className="date-field" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} />
+              <ThemedDateInput className="date-field" value={createExpiry} onChange={e => setCreateExpiry(e.target.value)} />
             </div>
 
             {/* Archivo — se adjunta al crear, sin tener que volver a la tarjeta */}

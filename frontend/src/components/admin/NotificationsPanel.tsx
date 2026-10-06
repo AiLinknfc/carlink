@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '@/lib/api'
 import { NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
 import type { AdminNotification } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 interface Colors { bg: string; card: string; border: string; text: string; muted: string; accent: string }
 type State = 'all' | 'unseen' | 'pending' | 'resolved'
@@ -66,8 +67,8 @@ export default function NotificationsPanel({ c, refreshKey, unseenCount, onOpen,
             {Object.entries(NOTIFICATION_KIND_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field c={c} label="Desde"><input type="date" value={from} onChange={e => setFrom(e.target.value)} style={FIELD} /></Field>
-        <Field c={c} label="Hasta"><input type="date" value={to} onChange={e => setTo(e.target.value)} style={FIELD} /></Field>
+        <Field c={c} label="Desde"><ThemedDateInput value={from} onChange={e => setFrom(e.target.value)} style={FIELD} /></Field>
+        <Field c={c} label="Hasta"><ThemedDateInput value={to} onChange={e => setTo(e.target.value)} style={FIELD} /></Field>
         {filtered && <button onClick={() => { setState('pending'); setKind(''); setFrom(''); setTo('') }} style={{ ...BTN, background: 'transparent', color: c.muted, border: `1px solid ${c.border}` }}>Limpiar filtros</button>}
         {unseenCount > 0 && <button onClick={markAllSeen} style={{ ...BTN, background: '#F5C518', color: '#111' }}>Marcar todas como vistas ({unseenCount})</button>}
       </div>

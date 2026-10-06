@@ -255,6 +255,74 @@ export function FiltroIcon({ size = 22 }: { size?: number; strokeWidth?: number 
   )
 }
 
+/* Logos de los cuatro filtros del servicio "Filtros" (cards del paso 1 en
+   ServiceFormModal). Íconos de línea, mismo criterio que el resto de testigos:
+   currentColor, viewBox cuadrado, sin relleno sólido. */
+const filterSvg = (size: number, children: ReactNode) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" stroke="currentColor"
+    strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+)
+
+/* Aceite: cartucho cilíndrico (spin-on) con su rosca abajo y una gota. */
+export function FiltroAceiteIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <path d="M12 16h24v22a3 3 0 0 1-3 3H15a3 3 0 0 1-3-3z" />
+    <path d="M15 16v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4" />
+    <path d="M18 41v3h12v-3" />
+    <path d="M24 22c0 0-5 5-5 8.5a5 5 0 0 0 10 0c0-3.5-5-8.5-5-8.5z" />
+  </>)
+}
+
+/* Aire: panel rectangular con papel plisado y flechas de flujo. */
+export function FiltroAireIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <rect x="8" y="14" width="32" height="20" rx="3" />
+    <path d="M14 14v20M20 14v20M26 14v20M32 14v20" />
+    <path d="M24 4v6M21 7l3 3 3-3" />
+    <path d="M24 44v-6M21 41l3-3 3 3" />
+  </>)
+}
+
+/* Combustible: cartucho con conexiones de entrada/salida y una gota. */
+export function FiltroCombustibleIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <rect x="14" y="12" width="20" height="28" rx="4" />
+    <path d="M14 18h20M14 34h20" />
+    <path d="M4 20h10M34 32h10" />
+    <path d="M24 22c0 0-3.5 3.5-3.5 6a3.5 3.5 0 0 0 7 0c0-2.5-3.5-6-3.5-6z" />
+  </>)
+}
+
+/* Habitáculo / A/C: panel plisado con una hoja de aire fresco. */
+export function FiltroHabitaculoIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <rect x="7" y="22" width="34" height="18" rx="3" />
+    <path d="M13 22v18M19 22v18M25 22v18M31 22v18M37 22v18" strokeWidth={1.6} />
+    <path d="M24 17c-5-1-8-5-8-10 5 0 8 4 8 10z" />
+    <path d="M24 17c1-4 4-6 8-6" />
+  </>)
+}
+
+/* Transmisión: engranaje. */
+export function FiltroTransmisionIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <circle cx="24" cy="24" r="7" />
+    <path d="M24 6v6M24 36v6M6 24h6M36 24h6M11.3 11.3l4.2 4.2M32.5 32.5l4.2 4.2M11.3 36.7l4.2-4.2M32.5 15.5l4.2-4.2" />
+  </>)
+}
+
+/* Partículas (DPF): cuerpo cilíndrico con panal interno y conos de entrada/salida. */
+export function FiltroParticulasIcon({ size = 28 }: { size?: number }): ReactNode {
+  return filterSvg(size, <>
+    <rect x="12" y="12" width="24" height="24" rx="5" />
+    <path d="M12 20H5M12 28H5M36 20h7M36 28h7" />
+    <path d="M18 18v12M24 18v12M30 18v12" strokeWidth={1.6} />
+    <circle cx="21" cy="24" r="1" fill="currentColor" stroke="none" />
+    <circle cx="27" cy="21" r="1" fill="currentColor" stroke="none" />
+    <circle cx="27" cy="27" r="1" fill="currentColor" stroke="none" />
+  </>)
+}
+
 /* Testigo "Batería / carga" — tomado tal cual de la presentación CarLink
    (Presentación de Carlink/Carpeta Transparente.dc.html, tarjeta "Batería / carga").
    Uso puntual: solo la card de Bateria en InicioView. De paso corrige que esa card

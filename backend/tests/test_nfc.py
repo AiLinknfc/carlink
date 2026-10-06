@@ -33,6 +33,8 @@ def _fake_vehicle(id: str, owner_id: str, nfc_active: bool = True) -> MagicMock:
     v.lost_keychain_enabled = False
     v.georeference_enabled = False
     v.body_type = ""
+    v.fuel_type = ""
+    v.card_data = {}
     v.owner_name = ""
     v.verification_status = "unverified"
     v.verification_doc_url = ""
@@ -180,6 +182,9 @@ async def test_public_nfc_endpoint_visible_when_active(
     # fall back to their "no record yet" defaults.
     maintenance_result = MagicMock()
     maintenance_result.scalar_one_or_none.return_value = None
+    # Último aceite de MOTOR (de él salen el próximo servicio y el lubricante de la ficha).
+    engine_oil_result = MagicMock()
+    engine_oil_result.scalar_one_or_none.return_value = None
     count_result = MagicMock()
     count_result.scalar.return_value = 0
 
@@ -195,6 +200,7 @@ async def test_public_nfc_endpoint_visible_when_active(
             owner_result,
             personal_result,
             maintenance_result,
+            engine_oil_result,
             count_result,
             history_result,
         ]
@@ -206,6 +212,81 @@ async def test_public_nfc_endpoint_visible_when_active(
     data = resp.json()
     assert data["plate"] == "TEST-123"
     assert "owner_id" not in data
+
+
+@pytest.mark.asyncio
+async def test_public_ficha_next_service_comes_from_engine_oil_only(
+    client, mock_db, fake_user_id, fake_vehicle_id, monkeypatch
+):
+    """GET /api/nfc/{token} returns vehicle public data when nfc_active is True."""
+    monkeypatch.setattr(
+        "app.routers.nfc.check_and_create_alerts", AsyncMock(return_value=[])
+    )
+
+    raw_token = "b" * 64
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    mock_token = _fake_token(fake_vehicle_id, token_hash, is_active=True)
+    token_result = MagicMock()
+    token_result.scalar_one_or_none.return_value = mock_token
+
+    mock_vehicle = _fake_vehicle(fake_vehicle_id, fake_user_id, nfc_active=True)
+    vehicle_result = MagicMock()
+    vehicle_result.scalar_one_or_none.return_value = mock_vehicle
+
+    mock_owner = _fake_profile(fake_user_id, account_type="persona")
+    owner_result = MagicMock()
+    owner_result.scalar_one_or_none.return_value = mock_owner
+
+    # A claimed physical keychain (token_type="personal") grants lifetime
+    # access in `_has_ficha_access` without needing to check trial state.
+    mock_personal_token = _fake_token(fake_vehicle_id, "unused", is_active=True)
+    personal_result = MagicMock()
+    personal_result.scalar_one_or_none.return_value = mock_personal_token
+
+    # No maintenance history for this fake vehicle — ficha técnica fields
+    # fall back to their "no record yet" defaults.
+    # El último servicio de cualquier tipo es una transmisión con su propio próximo servicio...
+    other = MagicMock()
+    other.workshop_id = None; other.mileage = 60000; other.next_service_mileage = 120000
+    other.lubricant_brand = "Motul"; other.lubricant_type = "75W-90"; other.lubricant_use = "caja"
+    other.date = None; other.workshop = "Taller"
+    maintenance_result = MagicMock()
+    maintenance_result.scalar_one_or_none.return_value = other
+    # Último aceite de MOTOR (de él salen el próximo servicio y el lubricante de la ficha).
+    # ...pero el conteo de la ficha es el del aceite de MOTOR.
+    oil = MagicMock()
+    oil.next_service_mileage = 65000; oil.lubricant_brand = "Mobil 1"; oil.lubricant_type = "5W-30"
+    engine_oil_result = MagicMock()
+    engine_oil_result.scalar_one_or_none.return_value = oil
+    count_result = MagicMock()
+    count_result.scalar.return_value = 0
+
+    # Full service history (last 20 records) for the public ficha — no
+    # maintenance records for this fake vehicle, so an empty list.
+    history_result = MagicMock()
+    history_result.scalars.return_value.all.return_value = []
+
+    mock_db.execute = AsyncMock(
+        side_effect=[
+            token_result,
+            vehicle_result,
+            owner_result,
+            personal_result,
+            maintenance_result,
+            engine_oil_result,
+            count_result,
+            history_result,
+        ]
+    )
+    mock_db.flush = AsyncMock()
+
+    resp = await client.get(f"/api/nfc/{raw_token}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["next_service_mileage"] == 65000
+    assert (data["lubricant_brand"], data["lubricant_type"]) == ("Mobil 1", "5W-30")
+    assert data["current_mileage"] == 60000  # el kilometraje actual sí es el del último servicio
 
 
 @pytest.mark.anyio

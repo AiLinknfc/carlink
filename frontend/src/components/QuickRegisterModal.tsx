@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { uploadFile, scanDocument, type OcrExtractResult } from '@/lib/upload'
 import { apiPost } from '@/lib/api'
 import CameraCapture from './CameraCapture'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 const TYPE_OPTIONS = [
   { value: 'certificado', label: 'Certificado / Factura', api: 'certificates', defaultName: 'Factura' },
@@ -326,7 +327,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha del documento</label>
-                    <input type="date" className="date-field" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
+                    <ThemedDateInput className="date-field" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Costo (opcional)</label>
@@ -347,7 +348,7 @@ export default function QuickRegisterModal({ vehicleId, onClose, onSuccess, onSa
                 <>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha de vencimiento</label>
-                    <input type="date" className="date-field" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+                    <ThemedDateInput className="date-field" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Número de documento</label>

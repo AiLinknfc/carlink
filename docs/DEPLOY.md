@@ -195,6 +195,12 @@ i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/065_vehicle_safety_items.sql
 \i supabase/migrations/066_admin_notifications.sql
 \i supabase/migrations/067_sales_channels.sql   -- canales de venta (APLICAR ANTES de desplegar el codigo: el modelo ya lee channel_id)
+\i supabase/migrations/068_vehicle_fuel_type.sql   -- vehicles.fuel_type (aplicada 2026-10-05 contra la base real, verificada)
+\i supabase/migrations/069_odometer_readings.sql   -- odometer_readings + backfill de 1 lectura por mantenimiento (aplicada 2026-10-05, verificada: 5 filas, idempotente, RLS activo; APLICAR ANTES de desplegar el codigo)
+\i supabase/migrations/070_maintenance_origin_support.sql   -- maintenance_records.origin + support_url (aplicada 2026-10-05, verificada: 5 registros 'user', idempotente; APLICAR ANTES de desplegar el codigo)
+\i supabase/migrations/071_vehicle_card_data.sql   -- vehicles.card_data JSONB (aplicada 2026-10-05, verificada; APLICAR ANTES de desplegar el codigo)
+\i supabase/migrations/072_vehicle_card_confirmation.sql   -- vehicles.card_confirmed_at/_digest (aplicada 2026-10-05, verificada; APLICAR ANTES de desplegar el codigo)
+\i supabase/migrations/073_maintenance_lubricant_use.sql   -- maintenance_records.lubricant_use (aplicada 2026-10-05, verificada: todos los registros existentes quedan 'motor'; APLICAR ANTES de desplegar el codigo)
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

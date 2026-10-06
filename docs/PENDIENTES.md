@@ -618,6 +618,45 @@ desplegar.** Cambios de fondo respecto al texto v1.0 que el dueño debe confirma
 10. Ya existía el ítem de auto-sincronización de facturación sin consentimiento por registro
     (🔴 #3): el texto de privacidad dice que vincular un taller lo autoriza; alinear cuando se decida.
 
+## Agentes de desarrollo (Claude Code) — plan de agentes que cuidan el código (2026-10-03)
+
+No confundir con "Idea futura: agente conversacional" (más abajo), que es una función de la app para
+usuarios. Estos son agentes de **desarrollo**: archivos en `.claude/agents/` que Claude invoca para
+revisar, probar y mantener el código. Objetivo: limpiar código basura y sostener buenas prácticas de
+arquitectura sin depender de acordarse de pedirlo.
+
+**Cómo funcionan (lo aprendido al crear el primero):** corren solo cuando alguien los invoca (en una
+sesión local; decisión 2026-10-03: sin rutinas `/schedule` en la nube por seguridad), no todo el tiempo. Se cargan **al iniciar la sesión**: editar
+`.claude/agents/*.md` exige reabrir Claude Code. Las reglas en prosa no bastan: el alcance de escritura
+se refuerza con un hook (`.claude/hooks/`), que cubre Edit/Write pero no escrituras por Bash, así que
+tras cada corrida se audita con `git status` y `git diff --stat`.
+
+**Protocolo para crear cada agente nuevo:** (1) prompt con las reglas duras de `CLAUDE.md` repetidas;
+(2) `tools` mínimas y hook de alcance si escribe; (3) probar el hook con un agente descartable sin reglas
+en el prompt (si no, el agente se niega por prosa y el hook no se ejercita); (4) prueba de humo con una
+tarea que lo tiente a salirse del alcance; (5) un primer encargo medible; (6) revisar el diff.
+
+| # | Agente | Estado | Alcance previsto | Notas / requisitos |
+|---|---|---|---|---|
+| 1 | **testing** | ✅ Creado y validado 2026-10-03 | Escribe tests (vitest/pytest); no toca producción ni docs | `.claude/agents/testing.md` + hook `testing-scope.py`. Cubierto `frontend/src/lib` (falta `surveys.ts`); falta backend y componentes. Decisión 2026-10-03: se usa en local a demanda (semanal o antes de cada push); sin rutinas en la nube. El CI de GitHub ya cubre la verificación automática. |
+| 2 | **code review** | ⬜ Pendiente (siguiente) | Solo lectura; reporta hallazgos por severidad con archivo:línea | Sin Edit/Write. Seguro de programar semanal. Revisa contra `ARCHITECTURE.md`, `DESIGN_GUIDELINES.md`, `SECURITY.md`. |
+| 3 | **error resolution** | ⬜ Pendiente | Diagnostica y propone el arreglo; aplica solo con OK | Requiere testing antes (para verificar el fix). Debe seguir `INCIDENT_RESPONSE.md` y verificar contra el proceso local reiniciado o el dominio real. |
+| 4 | **datos** | ⬜ Pendiente | Solo lectura sobre esquema/migraciones; propone SQL sin ejecutarlo | El más delicado: local, staging y producción comparten la misma base de Supabase y las migraciones se aplican a mano (ver `DEPLOY.md`). Nunca escribe en la DB. |
+| 5 | **lógica** (backend/servicios) | ⬜ Pendiente | Detecta duplicación, código muerto, capas mezcladas (routers vs services), reglas de negocio repetidas | Evaluar fusionarlo con code review como un modo/checklist: seis agentes con alcances que se pisan generan más ruido que valor. |
+| 6 | **interfaz** (frontend) | ⬜ Pendiente | Revisa responsive (`data-r`), regla sin emojis, consistencia visual, componentes gigantes | Misma evaluación de fusión con code review. Verificación visual real necesita navegador (ningún entorno de agente tuvo Chromium). |
+
+**Orden recomendado:** testing -> code review -> error resolution -> datos -> (lógica + interfaz como
+modos de code review).
+
+**Deuda previa que conviene pagar antes de un agente de limpieza** (si no, arranca con ruido): 29
+errores de mypy y el backlog de ESLint, ambos con `continue-on-error` en el CI.
+
+**Limpieza de código basura:** que sea bajo demanda o programada con salida de reporte, no un proceso
+continuo que edite solo; cualquier edición automática se revisa en un diff antes de commitear.
+
+**Skills relacionadas:** `capture-thinking` (en `~/Documents/mis-skills/`) ahora decide si un patrón
+reusable va a la skill portable `andres-app-blueprint` o a los docs de este repo.
+
 ## 🔴 Prioridad alta
 
 1. **`DEEPSEEK_API_KEY` no está configurada en Railway** (confirmado por el usuario, 2026-08-07).
@@ -1961,7 +2000,23 @@ entre talleres), `test_vehicles.py` (gating del trial gratis — ambos nuevos, 2
 - [ ] E2E (Playwright/Cypress): login Google OAuth, registro de vehículo, token NFC, formulario de
       llavero perdido
 
-_Ya existe:_ `plate.test.ts` (único test de frontend en todo el repo).
+_Ya existe:_ `plate.test.ts`, `safety.test.ts` y (2026-10-03) tests de la lógica pura de
+`frontend/src/lib/__tests__/`: contactValidation, predictions, oilCatalog, blog, pqrs, checkout, shop,
+wompi y diagnostics. 163 tests pasando. Falta `surveys.ts` (solo tiene el hook `useSurveys` y datos por
+defecto; conviene un test de hook que mockee `surveysApi`).
+
+#### Observaciones de la cobertura de `lib` (2026-10-03) — por decidir, sin corregir
+Los tests documentan el comportamiento actual. Los 3 bugs de `shop.ts` ya se corrigieron (placas
+distintas fusionadas, tope de 10 al fusionar, índice inválido en `removeFromCart`); quedan:
+- [ ] `predictions.ts` (~línea 28): un `status` manual `'worn'` rebaja un `critical` calculado (95% de
+      vida útil pasa a "Próximo"). Decidir si es intencional; si no, el estado calculado crítico debe
+      ganar.
+- [x] `predictions.ts`: `lifespan_mileage = 0` quedaba como `ok` con remaining 0 (`??` conserva el 0).
+      Resuelto 2026-10-03 (opción A): 0 o negativo se trata como sin dato y usa el default de 50000 km.
+- [ ] `diagnostics.ts`: con sesión sin correo muestra "Iniciada ((sin correo))" (paréntesis dobles).
+      Cosmético.
+- [ ] Exportar `maskEmail`, `browserName` y `osName` de `diagnostics.ts` para testearlos sin mockear
+      todo el entorno del navegador.
 
 ### Cómo correr lo que sí existe
 ```bash
@@ -2108,3 +2163,43 @@ Se mezcló a `develop` (PR #6) y luego a `master` (deploy automático a Railway/
   son aditivas y ya están aplicadas; no hace falta deshacerlas).
 - **Decisiones que dejó pendientes el dueño:** lista de qué otros módulos/servicios bloquear más
   adelante; si Ficha e Historial quedan libres (hoy sí).
+
+## Campos de la tarjeta de propiedad (implementado 2026-10-05, falta probar con tarjeta real)
+
+Todos los campos de la licencia son obligatorios para enviar a revisión (ver `docs/ARCHITECTURE.md` →
+"Datos de la tarjeta de propiedad"). Pendiente:
+- **`DEEPSEEK_API_KEY` sigue sin estar en Railway** (la pone el dueño: Railway → servicio backend →
+  Variables → `DEEPSEEK_API_KEY`; `DEEPSEEK_BASE_URL` y `DEEPSEEK_MODEL` ya tienen valor por defecto). Sin
+  ella el OCR no lee nada de la tarjeta en producción. Verificado en local con texto sintético: sí lee
+  todos los campos.
+- Probar el escaneo con tarjetas reales (carro y moto): el OCR puede leer mal VIN/motor/chasis.
+- Decidir qué hacer con tarjetas antiguas que no traigan VIN u otro campo (hoy bloquean el envío; la
+  salida sería una revisión manual del admin).
+- Verificar que producción tenga `ENCRYPTION_KEY` (el cifrado del documento falla cerrado sin ella) y que la
+  de local sea la misma si se va a probar ese campo contra la base compartida.
+- Una venta ya publicada no se baja sola si luego cambian datos de la tarjeta (hoy quedan bloqueados en
+  revisión/verificada); decidir si hace falta.
+- Decidir si se cruza con RUNT.
+
+## Modelo operativo: decisiones y pendientes abiertos (2026-10-05)
+
+Contexto completo en `docs/MODELO_OPERATIVO.md`. Pendiente de decidir o de hacer:
+
+- **Buses y cargas pesadas — ¿la app los atiende?** Hoy "pesado" solo se detecta por **placa de carga**; la app
+  no ofrece las clases "Camión" ni "Bus" (un camión leído de la tarjeta cae en "Pickup" y un bus, con placa pública,
+  se trata como carro). Lo único especial de un pesado es la batería (12 V / 24 V MF). Si habrá flotas de carga
+  o transporte público: añadir las clases, definir filtros y ciclos propios (separador de agua, urea/AdBlue,
+  intervalos más cortos, llantas múltiples) y decidir si la placa pública de pasajeros cuenta como pesado.
+- **Plan de integridad, fases pendientes:** sello de origen visible al comprador, tabla de auditoría de ediciones y
+  borrados, ventana de 48 h para editar/borrar registros propios, y el botón para eliminar el historial anterior
+  dentro de las 48 h (el servidor ya lo permite).
+- **Datos de prueba a corregir a mano:** un registro de Aceite con 2000 km y próximo servicio 2000, y la clase de
+  ZYM-35C guardada como "Auto" (es moto; el código ya no repite el error).
+- **Sin probar en navegador** (solo con pruebas que renderizan el modal): wizards de Aceite (4 pasos), Filtros y
+  Batería (4 pasos), Control de partes con las tres vistas, calendario propio, desplegable de combustible,
+  historial anterior con soporte, "Detalles del vehículo" y la confirmación a mano. Correr la Suite 14.
+- **Ficha pública en local:** el usuario reportó que no la ve en local; con el token real responde 200 igual que
+  producción. Falta saber qué botón/mensaje ve exactamente.
+- **Moto sin clase:** los perfiles de motos guardadas antes del arreglo pueden tener `body_type = 'Auto'`.
+- **Cards de Inicio ocultas:** Combustible, Frenos, Refrigeración y Transmisión solo aparecen tras un registro
+  de ese tipo (se llega por la card "Otro").

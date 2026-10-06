@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
+import { proxyUrl } from '@/lib/upload'
 
 /* Stack de historial, estilo/efectos adaptados 1:1 de una referencia de "wallet" de tarjetas
    apiladas (stage fijo de pantalla completa, una tarjeta activa al frente, el resto se acomoda
@@ -91,7 +92,20 @@ function CardFace({ r, theme, onEdit, shineRef }: { r: any; theme: { bg: string;
           </span>
           {/* Registrado solo por un taller (docs/PLAN_FACTURACION_AUTOMATICA.md
               Paso 3) — nunca editable, ni siquiera por el dueño del vehículo. */}
-          {r.workshop_id ? (
+          {r.origin === 'prior' ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span title="Declarado por el dueño, de antes de registrar el vehículo en CarLink" style={{
+                fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999,
+                background: 'rgba(255,255,255,0.1)', color: theme.sub, whiteSpace: 'nowrap',
+              }}>Anterior declarado</span>
+              {r.support_url && (
+                <a href={proxyUrl(r.support_url)} target="_blank" rel="noopener noreferrer" title="Ver el comprobante" style={{
+                  fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999, textDecoration: 'none',
+                  background: 'rgba(17,17,17,0.12)', color: theme.text, whiteSpace: 'nowrap',
+                }}>Ver soporte</a>
+              )}
+            </span>
+          ) : r.workshop_id ? (
             <span title="Registrado por el taller — no editable" style={{
               fontSize: 9.5, fontWeight: 700, padding: '4px 8px', borderRadius: 999,
               background: 'rgba(255,255,255,0.1)', color: theme.sub, whiteSpace: 'nowrap',
@@ -147,7 +161,8 @@ function CardFace({ r, theme, onEdit, shineRef }: { r: any; theme: { bg: string;
               <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginTop: 2 }}>{r.lubricant_brand}{r.lubricant_type ? ` · ${r.lubricant_type}` : ''}</div>
             </div>
           )}
-          {r.next_service_mileage != null && r.mileage != null && (
+          {/* Intervalo de cero o negativo = registro con error de digitación: no se muestra "0 km". */}
+          {r.next_service_mileage != null && r.mileage != null && r.next_service_mileage > r.mileage && (
             <div>
               <div style={{ fontSize: 9, letterSpacing: '.16em', textTransform: 'uppercase', color: theme.sub, fontWeight: 700 }}>Vida útil</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: theme.accent, marginTop: 2 }}>{(r.next_service_mileage - r.mileage).toLocaleString()} km</div>

@@ -6,6 +6,9 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
 - `docs/PENDIENTES.md` — **única** lista de pendientes del proyecto (no crear otra en ningún doc
   nuevo ni viejo — si algo queda pendiente, agregalo ahí y enlazá desde donde corresponda).
 - `docs/ARCHITECTURE.md` — modelo de datos de servicio/kilometraje/partes.
+- `docs/MODELO_OPERATIVO.md` — reglas de negocio y de datos del historial, odómetro, partes/servicios,
+  tipos de vehículo (moto/carro/pesado), tarjeta de propiedad y analítica, con el registro de decisiones y lo
+  que sigue abierto (p. ej. buses y cargas pesadas). Leerlo antes de tocar servicios, partes o validaciones.
 - `docs/DESIGN_GUIDELINES.md` — sistema visual (tipografía, colores, espaciado) **y la regla de
   sin emojis en la interfaz**, ver abajo.
 - `docs/DEPLOY.md` — cómo se despliega, gotchas conocidos, cómo confirmar que un deploy aterrizó.
@@ -53,7 +56,8 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    usuario en vez de asumir que se puede deshacer.
 
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
-solo una instrucción puntual) — ver `.claude/skills/capture-thinking/SKILL.md`.
+solo una instrucción puntual). Es personal (vive en `~/Documents/mis-skills/capture-thinking/`) y
+decide si el patrón es portable (va a `andres-app-blueprint`) o específico de CarLink (va aquí).
 
 ### Patrones de razonamiento capturados
 

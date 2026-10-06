@@ -16,7 +16,8 @@ export function predictPart(
   }
 
   const installed = part.mileage_installed ?? 0
-  const lifespan = part.lifespan_mileage ?? 50000
+  // 0 o negativo equivale a "sin dato": se usa la vida util por defecto, igual que con null.
+  const lifespan = part.lifespan_mileage && part.lifespan_mileage > 0 ? part.lifespan_mileage : 50000
   const kmSinceInstalled = Math.max(0, currentKm - installed)
   const remaining = Math.max(0, lifespan - kmSinceInstalled)
   const pct = lifespan > 0 ? Math.min(100, (kmSinceInstalled / lifespan) * 100) : 0

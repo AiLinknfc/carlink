@@ -14,8 +14,8 @@ import type { SafetyItem, SafetyKind } from '@/lib/types'
 // Orden: los 5 por defecto primero (los que se ven en Inicio sin haberlos usado nunca), despues
 // los que solo aparecen una vez que ya se llamaron (ver DEFAULT_SERVICE_IDS abajo), "Otro" al final.
 const SERVICE_TYPES = [
-  { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite y filtro' },
-  { id: 'Aire', label: 'Filtros', desc: 'Filtro de aire, cabina, combustible' },
+  { id: 'Aceite', label: 'Aceite', desc: 'Cambio de aceite' },
+  { id: 'Aire', label: 'Filtros', desc: 'Aceite, aire, combustible y mas' },
   { id: 'Bateria', label: 'Bateria', desc: 'Bateria y sistema electrico' },
   { id: 'Llantas', label: 'Llantas', desc: 'Rotacion, alineacion, balanceo' },
   { id: 'Suspension', label: 'Suspension', desc: 'Amortiguadores, bujes' },
@@ -70,6 +70,9 @@ interface Props {
   freeServiceId?: string
 }
 
+import OdometerPrompt from '@/components/OdometerPrompt'
+import { sameService } from '@/lib/serviceIds'
+
 export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavigate, onOpenVerification, onAddVehicle, onOpenPublicar, theme, vehicle, documents, maintenanceRecords, nfcActive, isVerified, freeServiceId, vehicles, onSwitchVehicle }: Props) {
   const isDark = theme !== 'light'
   const [explored, setExplored] = useState<Record<string, boolean>>({})
@@ -88,7 +91,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
   // uno de esos en vez de abrir directo el formulario libre de "Otro".
   const [showOtherMenu, setShowOtherMenu] = useState(false)
   const hiddenServiceTypes = SERVICE_TYPES.filter(st =>
-    st.id !== 'Otro' && !DEFAULT_SERVICE_IDS.includes(st.id) && !maintenanceRecords?.some((r: any) => r.service_type === st.id))
+    st.id !== 'Otro' && !DEFAULT_SERVICE_IDS.includes(st.id) && !maintenanceRecords?.some((r: any) => sameService(r.service_type, st.id)))
   const handleOtroClick = useCallback(() => {
     if (hiddenServiceTypes.length > 0) setShowOtherMenu(true)
     else handleCardClick('Otro')
@@ -185,6 +188,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
 
   return (
     <div style={{ padding: '0 4px' }}>
+      <OdometerPrompt vehicleId={vehicle?.id} theme={theme} refreshKey={maintenanceRecords?.length} />
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: textPrimary, fontFamily: 'var(--font-display)' }}>Inicio</div>
         {vehicle?.plate && (
@@ -312,7 +316,7 @@ export default function InicioView({ onAddService, onOpenScan, onOpenNfc, onNavi
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 10 }}>Registrar servicio</div>
         <div data-r="svcGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-          {SERVICE_TYPES.filter(st => DEFAULT_SERVICE_IDS.includes(st.id) || st.id === 'Otro' || maintenanceRecords?.some((r: any) => r.service_type === st.id)).map(st => {
+          {SERVICE_TYPES.filter(st => DEFAULT_SERVICE_IDS.includes(st.id) || st.id === 'Otro' || maintenanceRecords?.some((r: any) => sameService(r.service_type, st.id))).map(st => {
             const isExplored = explored[st.id]
             const isLockedSvc = !!freeServiceId && st.id !== freeServiceId
             return (

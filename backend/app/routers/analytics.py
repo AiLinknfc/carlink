@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -26,6 +26,7 @@ from app.schemas.schemas import (
     WhatsappClickOut,
     WhatsappClickSummaryOut,
 )
+from app.services.analytics_scope import INTERNAL_EMAIL_DOMAIN, event_scope, excluded_user_ids
 from app.services.cache import get_redis
 
 logger = logging.getLogger("carlink")
@@ -65,13 +66,16 @@ async def whatsapp_clicks_summary(
     """Admin-only — conteo agregado, no la lista fila por fila (no hace falta
     todavía; si más adelante se necesita filtrar por fecha/usuario puntual,
     se agrega ahí, no acá)."""
-    total = await db.scalar(select(func.count()).select_from(WhatsappClick)) or 0
+    # Sin los clics del admin ni de las cuentas de prueba (services/analytics_scope.py).
+    excluded = await excluded_user_ids(db)
+    scope = or_(WhatsappClick.user_id.is_(None), WhatsappClick.user_id.notin_(excluded)) if excluded else and_()
+    total = await db.scalar(select(func.count()).select_from(WhatsappClick).where(scope)) or 0
 
     by_intent_rows = await db.execute(
-        select(WhatsappClick.intent, func.count()).group_by(WhatsappClick.intent)
+        select(WhatsappClick.intent, func.count()).where(scope).group_by(WhatsappClick.intent)
     )
     by_source_rows = await db.execute(
-        select(WhatsappClick.source, func.count()).group_by(WhatsappClick.source)
+        select(WhatsappClick.source, func.count()).where(scope).group_by(WhatsappClick.source)
     )
 
     return WhatsappClickSummaryOut(
@@ -173,7 +177,10 @@ async def analytics_summary(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    in_window = AnalyticsEvent.created_at >= since
+    # El admin y las cuentas de prueba no cuentan (services/analytics_scope.py): `in_window` ya
+    # lleva ese filtro, así que todas las consultas de abajo lo heredan.
+    excluded = await excluded_user_ids(db)
+    in_window = and_(AnalyticsEvent.created_at >= since, event_scope(excluded))
     pv = AnalyticsEvent.event == "page_view"
 
     visitors = await db.scalar(select(func.count(distinct(AnalyticsEvent.anon_id))).where(in_window)) or 0
@@ -229,7 +236,11 @@ async def analytics_summary(
             out.append(AnalyticsFunnelStep(label=label, count=n))
         if key == "shop":
             paid = await db.scalar(
-                select(func.count()).select_from(ShopOrder).where(ShopOrder.created_at >= since, ShopOrder.status == "approved")
+                select(func.count()).select_from(ShopOrder).where(
+                    ShopOrder.created_at >= since, ShopOrder.status == "approved",
+                    ~ShopOrder.customer_email.ilike(f"%{INTERNAL_EMAIL_DOMAIN}"),
+                    or_(ShopOrder.user_id.is_(None), ShopOrder.user_id.notin_(excluded)) if excluded else and_(),
+                )
             ) or 0
             out.append(AnalyticsFunnelStep(label="Pago aprobado (pedidos)", count=paid))
         funnels.append(AnalyticsFunnel(key=key, title=title, steps=out))

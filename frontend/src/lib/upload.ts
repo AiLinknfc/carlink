@@ -175,8 +175,18 @@ export interface VehicleCardScan {
   year: number | null
   color: string | null
   vehicle_class: string | null
+  fuel_type: string | null
   owner_name: string | null
   document_number: string | null
+  license_number: string | null
+  vin: string | null
+  engine_number: string | null
+  chassis_number: string | null
+  cilindraje: string | null
+  service: string | null
+  capacity: string | null
+  doors: string | null
+  registration_date: string | null
   raw_text: string
 }
 

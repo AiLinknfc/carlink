@@ -510,6 +510,22 @@ async def reactivate_nfc_token(
     )
 
 
+async def _latest_engine_oil(vehicle_id, db: AsyncSession) -> MaintenanceRecord | None:
+    """Último cambio de aceite de MOTOR del vehículo. De aquí salen el próximo servicio y el lubricante de la
+    ficha pública: el aceite de caja o transmisión, y los demás servicios, tienen su propio ciclo."""
+    result = await db.execute(
+        select(MaintenanceRecord)
+        .where(
+            MaintenanceRecord.vehicle_id == vehicle_id,
+            MaintenanceRecord.service_type == "Aceite",
+            MaintenanceRecord.lubricant_use == "motor",
+        )
+        .order_by(MaintenanceRecord.date.desc(), MaintenanceRecord.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 @router.get("/my-preview", response_model=NfcTokenInfoPublic)
 async def my_ficha_preview(
     user_id: Annotated[str, Depends(get_current_user)],
@@ -542,6 +558,7 @@ async def my_ficha_preview(
         .limit(1)
     )
     latest = m_result.scalar_one_or_none()
+    engine_oil = await _latest_engine_oil(vehicle.id, db)
 
     count_result = await db.execute(
         select(func.count()).select_from(MaintenanceRecord).where(MaintenanceRecord.vehicle_id == vehicle.id)
@@ -588,9 +605,11 @@ async def my_ficha_preview(
         type=vehicle.type,
         vehicle_id=vehicle.id,
         current_mileage=latest.mileage if latest else None,
-        next_service_mileage=latest.next_service_mileage if latest else None,
-        lubricant_brand=latest.lubricant_brand if latest else "",
-        lubricant_type=latest.lubricant_type if latest else "",
+        # El conteo de kilómetros de la ficha es el del aceite de MOTOR: ni el de caja o transmisión ni el próximo
+        # servicio de cualquier otro tipo (filtros, batería...) lo reemplazan.
+        next_service_mileage=engine_oil.next_service_mileage if engine_oil else None,
+        lubricant_brand=engine_oil.lubricant_brand if engine_oil else "",
+        lubricant_type=engine_oil.lubricant_type if engine_oil else "",
         total_services=total_services,
         latest_service_date=str(latest.date) if latest and latest.date else None,
         workshop_name=latest.workshop if latest else None,
@@ -739,6 +758,7 @@ async def access_via_nfc(
         .limit(1)
     )
     latest = m_result.scalar_one_or_none()
+    engine_oil = await _latest_engine_oil(vehicle.id, db)
 
     # Count total services
     count_result = await db.execute(
@@ -789,9 +809,11 @@ async def access_via_nfc(
         vehicle_id=vehicle.id,
         # Ficha técnica
         current_mileage=latest.mileage if latest else None,
-        next_service_mileage=latest.next_service_mileage if latest else None,
-        lubricant_brand=latest.lubricant_brand if latest else "",
-        lubricant_type=latest.lubricant_type if latest else "",
+        # El conteo de kilómetros de la ficha es el del aceite de MOTOR: ni el de caja o transmisión ni el próximo
+        # servicio de cualquier otro tipo (filtros, batería...) lo reemplazan.
+        next_service_mileage=engine_oil.next_service_mileage if engine_oil else None,
+        lubricant_brand=engine_oil.lubricant_brand if engine_oil else "",
+        lubricant_type=engine_oil.lubricant_type if engine_oil else "",
         total_services=total_services,
         latest_service_date=str(latest.date) if latest and latest.date else None,
         workshop_name=latest.workshop if latest else None,

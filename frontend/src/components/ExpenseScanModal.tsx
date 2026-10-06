@@ -5,6 +5,7 @@ import { uploadFile, scanExpense } from '@/lib/upload'
 import { expensesApi } from '@/lib/api'
 import CameraCapture from './CameraCapture'
 import type { ExpenseScanResult, ExpenseCreate } from '@/lib/types'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 const CATEGORY_OPTIONS = [
   { value: 'fuel', label: 'Gasolina / Combustible' },
@@ -332,7 +333,7 @@ export default function ExpenseScanModal({ vehicleId, onClose, onSuccess, onSave
               <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
-                  <input type="date" className="date-field" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
+                  <ThemedDateInput className="date-field" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 11, color: 'var(--text-3, #9a968a)', fontWeight: 600, display: 'block', marginBottom: 5 }}>

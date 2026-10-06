@@ -6,6 +6,7 @@ import type { Appointment } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, SERVICE_CATEGORIES } from './shared'
 import { Icon } from '@/lib/icons_new'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 const STATUS_COLOR: Record<string, string> = {
   'Pendiente': '#8f8a7a', 'Confirmada': '#3aa0ff', 'Completada': '#2ecc71', 'Cancelada': '#ff4d6a',
@@ -194,7 +195,7 @@ function AppointmentFormModal({ t, theme, onClose, onSave }: {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div><label style={labelStyle(t)}>Fecha</label><input type="date" style={inputStyle(t)} value={date} onChange={e => setDate(e.target.value)} /></div>
+        <div><label style={labelStyle(t)}>Fecha</label><ThemedDateInput style={inputStyle(t)} value={date} onChange={e => setDate(e.target.value)} /></div>
         <div><label style={labelStyle(t)}>Hora</label><input type="time" style={inputStyle(t)} value={time} onChange={e => setTime(e.target.value)} /></div>
       </div>
       <div><label style={labelStyle(t)}>Notas</label><textarea rows={2} style={{ ...inputStyle(t), resize: 'vertical' }} value={notes} onChange={e => setNotes(e.target.value)} /></div>

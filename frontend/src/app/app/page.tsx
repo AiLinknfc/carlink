@@ -15,6 +15,9 @@ import { RatingPromptBanner } from '@/components/RatingPrompt'
 import Sidebar from '@/components/Sidebar'
 import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
+import FuelSelect from '@/components/FuelSelect'
+import VehicleCardDetails from '@/components/VehicleCardDetails'
+import { cardDataFromScan, mergeCardData } from '@/lib/vehicleCard'
 import InicioView from '@/components/InicioView'
 import QuickRegisterModal from '@/components/QuickRegisterModal'
 import TransferVehicleModal from '@/components/TransferVehicleModal'
@@ -66,6 +69,10 @@ export default function AppPage() {
   const router = useRouter()
   const { user, loading, profile, signOut, refreshProfile } = useAuth()
   const [verifying, setVerifying] = useState(false)
+  // La tarjeta está completa y coherente (GET /vehicles/{id}/card-check): habilita enviar a revisión.
+  const [cardComplete, setCardComplete] = useState(false)
+  // El dueño confirmó a mano los datos actuales de la tarjeta: requisito para publicar en venta.
+  const [cardConfirmed, setCardConfirmed] = useState(false)
   // Verificación con frente y reverso de la tarjeta (2026-09-18) — cada cara
   // se sube apenas se elige (uploadFile), pero el POST /vehicles/{id}/verification
   // (por vehículo desde 2026-09-19, ver más abajo) que manda todo a revisión
@@ -144,6 +151,7 @@ export default function AppPage() {
   }
   const [editModel, setEditModel] = useState('')
   const [editTipo, setEditTipo] = useState('Auto')
+  const [editFuel, setEditFuel] = useState('')
   const [editAnio, setEditAnio] = useState(2026)
   const [editColor, setEditColor] = useState('')
   // Nombre de propietario según la tarjeta escaneada — del vehículo, no de
@@ -224,7 +232,7 @@ export default function AppPage() {
     }).catch(() => {})
   }, [vehicle?.id])
   const currentKmForNotifs = maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : 0
-  const latestAceiteForNotifs = [...maintenanceRecords].find(r => r.service_type === 'Aceite')
+  const latestAceiteForNotifs = [...maintenanceRecords].find(r => r.service_type === 'Aceite' && (r.lubricant_use ?? 'motor') === 'motor')
   const oilNextKm = latestAceiteForNotifs?.next_service_mileage
   const oilKmRemaining = oilNextKm != null ? oilNextKm - currentKmForNotifs : null
   const urgentCount = (oilKmRemaining != null && oilKmRemaining <= 0 ? 1 : 0)
@@ -286,6 +294,15 @@ export default function AppPage() {
           if (!vehicle.model && data.model) { patch.model = data.model; filled.push('modelo') }
           if (!vehicle.year && data.year && data.year > 1900) { patch.year = data.year; filled.push('año') }
           if (!vehicle.color && data.color) { patch.color = matchColorKeyword(data.color); filled.push('color') }
+          // Resto de campos de la licencia (VIN, motor, chasis, cilindraje, etc.): se guardan en
+          // card_data sin pisar lo que el usuario ya completó.
+          const scanned = cardDataFromScan(data)
+          const mergedCard = mergeCardData(vehicle.card_data || {}, scanned)
+          if (Object.keys(scanned).some(k => !(vehicle.card_data || {})[k])) {
+            patch.card_data = mergedCard
+            filled.push('datos de la licencia')
+          }
+          if (!vehicle.fuel_type && data.fuel_type) { patch.fuel_type = data.fuel_type; filled.push('combustible') }
           if (Object.keys(patch).length) {
             const saved = await apiPut(`/vehicles/${vehicle.id}`, patch)
             if (saved) {
@@ -295,6 +312,7 @@ export default function AppPage() {
               if (patch.model) setEditModel(patch.model)
               if (patch.year) setEditAnio(patch.year)
               if (patch.color) setEditColor(patch.color)
+              if (patch.fuel_type) setEditFuel(patch.fuel_type)
               flashApp(`Leímos y guardamos: ${filled.join(', ')}`)
             }
           }
@@ -425,11 +443,17 @@ export default function AppPage() {
     if (!vehicle?.id) return
     if (!isVerified) { flashApp('Verifica tu perfil para publicar el vehículo en venta'); return }
     if (!sellEnabled && !fullAccess) { flashApp('Activa tu llavero NFC para publicar el vehículo.'); return }
+    if (!sellEnabled) {
+      // El estado local solo se actualiza si el panel de detalles está abierto: se consulta al
+      // servidor para no bloquear a quien ya confirmó. El servidor igual lo exige al publicar.
+      const chk = cardConfirmed ? { confirmed: true } : await apiGet<{ confirmed: boolean }>(`/vehicles/${vehicle.id}/card-check`)
+      if (!chk?.confirmed) { flashApp('Confirma a mano los datos de la tarjeta (Detalles del vehículo) para publicar en venta'); return }
+    }
     const next = !sellEnabled
     await runToggle('sell', on => { setSellEnabled(on); patchVehicle(vehicle.id, { sell_enabled: on }) }, sellEnabled,
       async () => { const r = await apiPut(`/vehicles/${vehicle.id}`, { sell_enabled: next }); return r ? { value: next } : null },
       { on: 'Perfil de venta activado', off: 'Perfil de venta desactivado' })
-  }, [vehicle?.id, sellEnabled, isVerified, fullAccess, flashApp, runToggle, patchVehicle])
+  }, [vehicle?.id, sellEnabled, isVerified, fullAccess, cardConfirmed, flashApp, runToggle, patchVehicle])
 
   const openTransferModal = useCallback(() => {
     if (!vehicle?.id) return
@@ -742,7 +766,10 @@ export default function AppPage() {
     setEditModel(vehicle?.model || '')
     // body_type (carrocería), no `type` (categoría de placa — 2026-09-18,
     // ver comentario en handleSaveProfile más abajo).
-    setEditTipo(vehicle?.body_type || 'Auto')
+    // Una moto nunca debe caer en "Auto": el valor por defecto sale de la categoría de placa. Antes,
+    // guardar el perfil de una moto sin clase escribía body_type="Auto" (pasó con ZYM-35C).
+    setEditTipo(vehicle?.type?.toLowerCase() === 'moto' ? 'Moto' : (vehicle?.body_type || 'Auto'))
+    setEditFuel(vehicle?.fuel_type || '')
     setEditAnio(vehicle?.year || 2026)
     setEditColor(vehicle?.color || '')
     setEditOwnerName(vehicle?.owner_name || '')
@@ -855,13 +882,13 @@ export default function AppPage() {
       // guardar el perfil la estaba pisando con la carrocería elegida acá,
       // corrompiéndola en cada edición.
       apiPut(`/vehicles/${vehicle.id}`, {
-        brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, color: editColor,
+        brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, ...(editFuel ? { fuel_type: editFuel } : {}), color: editColor,
         owner_name: editOwnerName,
         sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity,
         sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription,
       }),
     ])
-    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, color: editColor, owner_name: editOwnerName, sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity, sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription } : prev)
+    setVehicle((prev: any) => prev ? { ...prev, owner: editName, brand: editBrand, model: editModel, year: editAnio, body_type: editTipo, fuel_type: editFuel, color: editColor, owner_name: editOwnerName, sell_enabled: sellEnabled, sell_price: sellPrice, sell_city: sellCity, sell_zip: sellZip, sell_phone: sellPhone, sell_description: sellDescription } : prev)
     // Sin esto, `profile` (useAuth, compartido por toda la app) queda con el
     // nombre/whatsapp viejo hasta recargar la página — mismo bug que el del
     // wizard (2026-09-15).
@@ -1020,7 +1047,7 @@ export default function AppPage() {
         <div inert={showOnboarding || undefined} style={{ maxWidth: 900, margin: '0 auto', paddingTop: 10 }}>
           {activeTab === 'inicio' ? <InicioView onAddService={onAddService} onOpenScan={() => setShowQuickRegister(true)} onOpenNfc={() => setShowNfc(true)} onNavigate={setActiveTab} onOpenVerification={openVerification} onAddVehicle={onQuickAddVehicle} onOpenPublicar={openPublicar} vehicles={vehicles} onSwitchVehicle={id => switchVehicle(id, { stay: true })} freeServiceId={fullAccess ? undefined : FREE_SERVICE_ID} theme={theme} vehicle={vehicle} documents={undefined} maintenanceRecords={maintenanceRecords} nfcActive={isNfcPublished} isVerified={isVerified} /> :
            activeTab === 'ficha' ? <FichaTab vehicle={vehicle} onAddService={onAddService} onEditService={onEditService} onOpenPublicar={openPublicar} onOpenTransfer={() => isVerified && isAdmin ? setShowTransferModal(true) : flashApp('Verifica tu perfil para transferir el vehiculo')} transferLocked={!isVerified} showTransfer={isAdmin} onNavigate={setActiveTab} toggleNfcActive={toggleNfcActive} refreshKey={refreshKey} theme={theme} onAddVehicle={() => setShowAddVehicle(true)} keychainAvailable={keychainAvailable} onBuyKeychain={() => setShowCart(true)} isNfcPublished={isNfcPublished} /> :
-           activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
+           activeTab === 'historial' ? <HistorialTab vehicleId={vehicle?.id} vehicleJoinedAt={vehicle?.created_at} onAddService={onAddService} onEditService={onEditService} refreshKey={refreshKey} /> :
            activeTab === 'diagnostico' ? <DiagnosticoTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
             activeTab === 'partes' ? <PartesTab vehicleId={vehicle?.id} accountType={profile?.account_type || undefined} /> :
            activeTab === 'galeria' ? <GaleriaTab vehicleId={vehicle?.id} /> :
@@ -1131,6 +1158,9 @@ export default function AppPage() {
           defaultServiceType={pendingServiceType}
           latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
           hideServiceType={!!pendingServiceType}
+          fuelType={vehicle?.fuel_type || ''}
+          vehicleBodyType={vehicle?.body_type || ''}
+          vehiclePlateType={vehicle?.type || ''}
           onClose={onCloseForm}
           onSaved={onSaved}
         />
@@ -1274,6 +1304,11 @@ export default function AppPage() {
                   </select>
                 </div>
                 <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Combustible</label>
+                  <FuelSelect value={editFuel} onChange={setEditFuel} />
+                  {!editFuel && <div style={{ fontSize: 11, color: '#F5C518', marginTop: 6 }}>Elige el combustible que figura en la tarjeta de propiedad.</div>}
+                </div>
+                <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Año</label>
                   <select value={editAnio} onChange={e => setEditAnio(Number(e.target.value))} style={{ width: '100%', padding: '11px 13px', borderRadius: 10, border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: tDark ? '#f5f3ec' : '#17171a', fontSize: 14, outline: 'none', cursor: 'pointer' }}>
                     {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
@@ -1291,6 +1326,11 @@ export default function AppPage() {
                  transferir/vender TODOS los vehículos de la cuenta, no sólo
                  el que se revisó (2026-09-19, bug real encontrado por el
                  usuario). */}
+              {vehicle?.id && (
+                <VehicleCardDetails vehicle={vehicle} onComplete={setCardComplete} onConfirmed={setCardConfirmed}
+                  onPatch={patch => setVehicle((prev: any) => prev ? { ...prev, ...patch } : prev)} />
+              )}
+
               <div data-verify-block style={{ marginTop: 18, padding: '14px 16px', borderRadius: 14, background: isVerified ? 'rgba(46,204,113,0.08)' : 'var(--surface-2)', border: `1px solid ${isVerified ? 'rgba(46,204,113,0.3)' : 'var(--border)'}` }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-2)' }}>
                   {isVerified ? 'Vehículo verificado' : verifyStatus === 'pending' ? 'Verificación en revisión' : 'Vehículo sin verificar'}
@@ -1334,8 +1374,13 @@ export default function AppPage() {
                         )
                       })}
                     </div>
+                    {!cardComplete && (
+                      <div style={{ marginTop: 10, fontSize: 11.5, color: '#F5C518', lineHeight: 1.5 }}>
+                        Completa los detalles del vehículo (arriba) para poder enviar a revisión.
+                      </div>
+                    )}
                     <button onClick={async () => {
-                      if (!verifyFrontUrl || !verifyBackUrl || !vehicle?.id) return
+                      if (!verifyFrontUrl || !verifyBackUrl || !vehicle?.id || !cardComplete) return
                       setVerifying(true)
                       try {
                         const ok = await apiPost(`/vehicles/${vehicle.id}/verification`, { verification_doc_url: verifyFrontUrl, verification_doc_url_back: verifyBackUrl })
@@ -1345,10 +1390,10 @@ export default function AppPage() {
                         }
                         else flashApp('No se pudo enviar a revisión')
                       } finally { setVerifying(false) }
-                    }} disabled={!verifyFrontUrl || !verifyBackUrl || verifying} style={{
+                    }} disabled={!verifyFrontUrl || !verifyBackUrl || !cardComplete || verifying} style={{
                       marginTop: 10, width: '100%', padding: '10px 16px', borderRadius: 11, border: 'none', background: '#F5C518', color: '#111',
-                      fontWeight: 800, fontSize: 12.5, cursor: (!verifyFrontUrl || !verifyBackUrl || verifying) ? 'not-allowed' : 'pointer',
-                      opacity: (!verifyFrontUrl || !verifyBackUrl || verifying) ? 0.5 : 1,
+                      fontWeight: 800, fontSize: 12.5, cursor: (!verifyFrontUrl || !verifyBackUrl || !cardComplete || verifying) ? 'not-allowed' : 'pointer',
+                      opacity: (!verifyFrontUrl || !verifyBackUrl || !cardComplete || verifying) ? 0.5 : 1,
                     }}>
                       {verifying ? 'Enviando…' : verifyStatus === 'rejected' ? 'Reemplazar y enviar a revisión' : 'Enviar a revisión'}
                     </button>

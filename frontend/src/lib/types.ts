@@ -8,6 +8,10 @@ export interface Vehicle {
   year: number;
   type: string;
   body_type?: string;
+  /** Resto de campos de la tarjeta de propiedad (migración 071). */
+  card_data?: Record<string, string>;
+  /** '' | gasolina | diesel | gas | hibrido | electrico (migración 068). */
+  fuel_type?: string;
   color: string;
   /** Nombre del propietario según la tarjeta escaneada — separado de
    * profile.full_name (2026-09-19), puede ser otra persona. */
@@ -55,10 +59,15 @@ export interface MaintenanceRecord {
    * pantallas (historial, ficha, escaneo NFC) siguen usando
    * lubricant_brand/lubricant_type como siempre. */
   lubricant_product: string;
+  /** Para qué es el lubricante de un servicio "Aceite": motor (por defecto), caja o transmision. Migración 073. */
+  lubricant_use?: 'motor' | 'caja' | 'transmision';
   next_service_mileage: number | null;
   /** Presente si un taller lo creó solo al entregar/cobrar una orden — el
    * frontend lo muestra sin edición. docs/PLAN_FACTURACION_AUTOMATICA.md Paso 3. */
   source_work_order_id: string | null;
+  /** user | workshop | prior (historial anterior al alta, con soporte). Migración 070. */
+  origin?: 'user' | 'workshop' | 'prior';
+  support_url?: string;
   created_at: string;
   updated_at: string;
 }

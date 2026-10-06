@@ -2,9 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ServiceTypeIcon, Icon } from '@/lib/icons_new'
+import { ServiceTypeIcon, Icon, FiltroAceiteIcon, FiltroAireIcon, FiltroCombustibleIcon, FiltroParticulasIcon, FiltroHabitaculoIcon, FiltroTransmisionIcon } from '@/lib/icons_new'
 import { useTheme } from '@/store/theme'
-import { getOilBrands, getOilProductsByBrand, type OilCatalogItem } from '@/lib/oilCatalog'
+import { filterOptions, chosenFilter, filterLifespanKm, vehicleKindOf, filterBrands, ALL_FILTER_KEYS, type FilterIcon } from '@/lib/filterCatalog'
+import { pickLifespanKm, predictNextKm } from '@/lib/servicePrediction'
+import { LUBRICANT_RULES, getLubricantRule } from '@/lib/lubricantRules'
+import OilPicker from '@/components/OilPicker'
+import { canonicalServiceId } from '@/lib/serviceIds'
+import { useOptions, USE_INFO, lifespanFor, isLubricantUse, useSummary, GEAR_VISCOSITIES, GEAR_SPECS, TRANSMISSION_FLUIDS, DRIVETRAIN_BRANDS, type LubricantUse } from '@/lib/lubricantUse'
+import ThemedSuggestInput from '@/components/ThemedSuggestInput'
+import { batteryOptions, batteryOptionByKey, interpretVoltage, parseVoltage, VOLTAGE_LABEL, BATTERY_REVIEW_MONTHS, DEFAULT_BATTERY_MONTHS } from '@/lib/batteryCatalog'
+import ThemedDateInput from '@/components/ThemedDateInput'
 
 /* Opciones de frenos: revisar y reemplazar en un mismo control. La última es la
    única que renueva la pieza en Control de partes. */
@@ -16,6 +24,55 @@ const ABS_OPTIONS = ['Revisado — OK', 'Revisado — falla detectada', REPAIRED
 /* Valores que cuentan como intervención y renuevan la pieza. */
 const ACTION_VALUES = new Set([REPLACED, REPAIRED])
 
+/* Fecha local en AAAA-MM-DD. toISOString() da la fecha UTC, que de noche en Colombia ya es
+   "mañana". */
+const localISO = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+/* Mismo tope que el servidor (maintenance_rules.py MAX_BACKDATE_DAYS): la fecha del servicio
+   no puede ser futura ni de hace más de 30 días. */
+const MAX_BACKDATE_DAYS = 30
+
+/* El servidor responde {"detail": "..."}; mostrar solo el mensaje. */
+async function readApiError(res: Response): Promise<string> {
+  const text = await res.text()
+  try {
+    const d = JSON.parse(text)?.detail
+    if (typeof d === 'string') return d
+  } catch { /* no era JSON */ }
+  return text
+}
+
+/* Un cambio de aceite exige decir qué aceite se usó (marca y viscosidad): de eso depende la vida
+   útil que se predice. Mismo criterio que el servidor (maintenance_rules.check_oil_used). */
+function oilProblem(extra: Record<string, any>): string {
+  if (!String(extra.lubricant_brand || '').trim() || !String(extra.lubricant_type || '').trim()) {
+    return extra.lubricant_use === 'transmision'
+      ? 'Indica el lubricante utilizado: la marca y el tipo de fluido son obligatorios.'
+      : 'Indica el aceite utilizado: elige la marca y la viscosidad antes de continuar.'
+  }
+  return ''
+}
+
+/* Paso 1 del servicio Filtros: UNA card por filtro y la elección es exclusiva —cada filtro tiene su
+   propio ciclo de vida útil, así que el próximo servicio nunca se mezcla entre filtros. Las opciones
+   dependen del tipo de vehículo (moto o carro), que se detecta solo (lib/filterCatalog.ts). */
+const FILTER_ICONS: Record<FilterIcon, (p: { size?: number }) => React.ReactNode> = {
+  oil: FiltroAceiteIcon, air: FiltroAireIcon, cabin: FiltroHabitaculoIcon,
+  fuel: FiltroCombustibleIcon, transmission: FiltroTransmisionIcon, particle: FiltroParticulasIcon,
+}
+const hasFilterSelected = (extra: Record<string, any>) => chosenFilter(extra) !== null
+
+/* Servicios que se registran con el wizard de 3 pasos (Producto o Filtros /
+   Datos generales / Confirmar). El resto usa el formulario plano. */
+const WIZARD_TYPES = new Set(['Aceite', 'Aire', 'Batería'])
+
+/* Pasos del wizard por rol: Aceite y Filtros tienen 3; la batería suma una etapa de Medición
+   (acción + voltaje) entre el tipo y los datos generales. */
+type StepRole = 'use' | 'detail' | 'measure' | 'general' | 'confirm'
+const stepRolesFor = (serviceType: string): StepRole[] =>
+  serviceType === 'Batería' ? ['detail', 'measure', 'general', 'confirm']
+    : serviceType === 'Aceite' ? ['use', 'detail', 'general', 'confirm'] // primero: ¿lubricante de motor, caja o transmisión?
+    : ['detail', 'general', 'confirm']
+
 /* ── Service type definitions ── */
 const SERVICE_TYPES = [
   {
@@ -24,29 +81,39 @@ const SERVICE_TYPES = [
     fields: [
       { key: 'lubricant_brand', label: 'Marca del aceite', type: 'text', placeholder: 'Ej. Mobil 1' },
       { key: 'lubricant_type', label: 'Tipo / viscosidad', type: 'autocomplete', placeholder: 'Ej. 5W-30' },
-      { key: 'oil_filter', label: 'Filtro de aceite', type: 'checkbox' },
     ],
     partNames: ['Aceite de motor'],
     partCategory: 'Motor',
   },
   {
     id: 'Aire',
-    label: 'Filtro de aire',
+    label: 'Filtros',
     fields: [
-      { key: 'air_filter', label: 'Filtro de aire reemplazado', type: 'checkbox' },
+      /* El filtro se elige con cards exclusivas (lib/filterCatalog.ts) en el paso 1 del wizard; sus
+         claves viven en `replacements`, no se listan acá. El flujo de aire solo aplica al filtro de aire. */
       { key: 'air_flow', label: 'Flujo de aire verificado', type: 'checkbox' },
     ],
-    partNames: ['Filtro de aire'],
+    /* Solo se renueva el filtro que se marcó: marcar uno no debe reiniciar la
+       vida útil del otro. */
+    partNames: [],
+    replacements: [
+      { key: 'oil_filter', part: 'Filtro de aceite' },
+      { key: 'air_filter', part: 'Filtro de aire' },
+      { key: 'cabin_filter', part: 'Filtro de habitáculo' },
+      { key: 'fuel_filter', part: 'Filtro de combustible' },
+      { key: 'transmission_filter', part: 'Filtro de transmisión' },
+      { key: 'particle_filter', part: 'Filtro de partículas' },
+    ],
     partCategory: 'Filtros',
   },
   {
     id: 'Combustible',
     label: 'Sistema de combustible',
     fields: [
-      { key: 'fuel_filter', label: 'Filtro de combustible', type: 'checkbox' },
       { key: 'injection_check', label: 'Inyección revisada', type: 'checkbox' },
     ],
-    partNames: ['Filtro de combustible'],
+    /* El filtro de combustible se registra en "Filtros"; acá solo la inyección. */
+    partNames: [],
     partCategory: 'Filtros',
   },
   {
@@ -105,6 +172,8 @@ const SERVICE_TYPES = [
   {
     id: 'Batería',
     label: 'Batería / eléctrico',
+    /* Los campos se piden en el wizard: el tipo en el paso 1 y la medición (acción, voltaje, verificada)
+       en el paso 2. Si solo se revisó, la batería no se renueva (ver handleSave). */
     fields: [
       { key: 'battery_check', label: 'Batería verificada', type: 'checkbox' },
       { key: 'battery_voltage', label: 'Voltaje', type: 'text', placeholder: 'Ej. 12.6V' },
@@ -116,7 +185,8 @@ const SERVICE_TYPES = [
     id: 'Transmisión',
     label: 'Transmisión',
     fields: [
-      { key: 'transmission_oil', label: 'Aceite de transmisión', type: 'checkbox' },
+      /* El aceite de transmisión (y el de caja) se registra desde Aceite > "¿Para qué es el lubricante?":
+         tiene su propia pieza y ciclo. Acá solo queda la revisión general de la transmisión. */
       { key: 'transmission_check', label: 'Revisión general', type: 'checkbox' },
     ],
     partNames: ['Transmisión'],
@@ -150,8 +220,12 @@ const DEFAULT_LIFESPAN_KM: Record<string, number> = {
    tipo de servicio no alcanza para predecir cuándo falla cada una. */
 const PART_LIFESPAN_KM: Record<string, number> = {
   'Aceite de motor': 5000,
-  'Filtro de aire': 10000,
+  'Filtro de aceite': 10000,
+  'Filtro de aire': 15000,
+  'Filtro de habitáculo': 15000,
+  'Filtro de transmisión': 60000,
   'Filtro de combustible': 20000,
+  'Filtro de partículas': 100000,
   'Pastillas de freno': 20000,
   'Discos de freno': 60000,
   'Freno de mano': 40000,
@@ -164,58 +238,36 @@ const PART_LIFESPAN_KM: Record<string, number> = {
   'Transmisión': 40000,
 }
 
-/* Lubricant rules — viscosity/brand → lifespan (km + months) and price tier */
-interface LubricantRule {
-  lifespanKm: number
-  lifespanMonths: number
-  label: string
-}
-const LUBRICANT_RULES: Record<string, LubricantRule> = {
-  /* Sintéticos */
-  '0W-20':  { lifespanKm: 10000, lifespanMonths: 12, label: 'Sintético premium' },
-  '0W-30':  { lifespanKm: 10000, lifespanMonths: 12, label: 'Sintético premium' },
-  '0W-40':  { lifespanKm: 10000, lifespanMonths: 12, label: 'Sintético premium' },
-  '5W-20':  { lifespanKm: 8000,  lifespanMonths: 10, label: 'Sintético' },
-  '5W-30':  { lifespanKm: 8000,  lifespanMonths: 10, label: 'Sintético' },
-  '5W-40':  { lifespanKm: 8000,  lifespanMonths: 10, label: 'Sintético' },
-  /* Semi-sintéticos */
-  '10W-30': { lifespanKm: 7000,  lifespanMonths: 8,  label: 'Semi-sintético' },
-  '10W-40': { lifespanKm: 6000,  lifespanMonths: 7,  label: 'Semi-sintético' },
-  '10W-50': { lifespanKm: 6000,  lifespanMonths: 7,  label: 'Semi-sintético' },
-  '15W-40': { lifespanKm: 5000,  lifespanMonths: 6,  label: 'Mineral mejorado' },
-  '15W-50': { lifespanKm: 5000,  lifespanMonths: 6,  label: 'Mineral mejorado' },
-  /* Minerales */
-  '20W-40': { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '20W-50': { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '25W-50': { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '25W-60': { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '30':     { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '40':     { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '50':     { lifespanKm: 4000,  lifespanMonths: 5,  label: 'Mineral' },
-  '60':     { lifespanKm: 3500,  lifespanMonths: 4,  label: 'Mineral' },
-}
-
-function getLubricantRule(type?: string): LubricantRule | null {
-  if (!type) return null
-  const key = type.trim().toUpperCase()
-  return LUBRICANT_RULES[key] || null
-}
-
 function buildDescription(type: string, extra: Record<string, any>): string {
   const parts: string[] = []
   if (type === 'Aceite') {
-    if (extra.lubricant_brand) parts.push(`Aceite ${extra.lubricant_brand}`)
+    const use: LubricantUse = isLubricantUse(extra.lubricant_use) ? extra.lubricant_use : 'motor'
+    if (extra.lubricant_brand) parts.push(`${useSummary(use)} ${extra.lubricant_brand}`)
     if (extra.lubricant_type) parts.push(extra.lubricant_type)
-    if (extra.oil_filter) parts.push('Filtro de aceite cambiado')
-    return parts.join(' · ') || 'Cambio de aceite'
+    if (use === 'caja' && extra.lubricant_product) parts.push(extra.lubricant_product)
+    return parts.join(' · ') || (use === 'motor' ? 'Cambio de aceite' : `Cambio de ${useSummary(use).toLowerCase()}`)
+  }
+  if (type === 'Batería') {
+    const bt = batteryOptionByKey(extra.battery_type)
+    parts.push(extra.battery_action === 'review' ? 'Batería revisada' : 'Batería reemplazada')
+    if (bt && bt.key !== 'other') parts.push(bt.label)
+    if (String(extra.battery_voltage || '').trim()) parts.push(`Voltaje ${String(extra.battery_voltage).trim().replace(/v$/i, '')} V`)
+    if (extra.battery_check) parts.push('Verificada')
+    return parts.join(' · ')
   }
   if (type === 'Aire') {
+    if (extra.oil_filter) parts.push('Filtro de aceite reemplazado')
     if (extra.air_filter) parts.push('Filtro de aire reemplazado')
+    if (extra.cabin_filter) parts.push('Filtro de habitáculo reemplazado')
+    if (extra.fuel_filter) parts.push('Filtro de combustible reemplazado')
+    if (extra.transmission_filter) parts.push('Filtro de transmisión reemplazado')
+    if (extra.particle_filter) parts.push('Filtro de partículas reemplazado')
     if (extra.air_flow) parts.push('Flujo verificado')
-    return parts.join(' · ') || 'Servicio de filtro de aire'
+    if (extra.filter_brand?.trim()) parts.push(`Marca ${extra.filter_brand.trim()}`)
+    if (extra.filter_reference?.trim()) parts.push(`Ref. ${extra.filter_reference.trim()}`)
+    return parts.join(' · ') || 'Servicio de filtros'
   }
   if (type === 'Combustible') {
-    if (extra.fuel_filter) parts.push('Filtro de combustible')
     if (extra.injection_check) parts.push('Inyección revisada')
     return parts.join(' · ') || 'Servicio de combustible'
   }
@@ -261,6 +313,12 @@ interface Props {
   vehicleId: string
   editRecord?: any
   defaultServiceType?: string
+  /** Combustible del vehículo ('' = sin definir): decide si se ofrece el filtro de partículas. */
+  fuelType?: string
+  /** Clase (body_type) y categoría de placa (type) del vehículo: de ahí se detecta moto o carro y se
+   * ofrecen sus filtros. */
+  vehicleBodyType?: string
+  vehiclePlateType?: string
   latestMileage?: number
   hideServiceType?: boolean
   onClose: () => void
@@ -269,7 +327,7 @@ interface Props {
   onSaved: (newWorkshop?: { workshopId: string; workshopName: string }) => void
 }
 
-export default function ServiceFormModal({ vehicleId, editRecord, defaultServiceType, latestMileage, hideServiceType, onClose, onSaved }: Props) {
+export default function ServiceFormModal({ vehicleId, editRecord, defaultServiceType, fuelType, vehicleBodyType, vehiclePlateType, latestMileage, hideServiceType, onClose, onSaved }: Props) {
   const { theme } = useTheme()
   const isDark = theme !== 'light'
   const textPrimary = isDark ? '#f5f3ec' : '#17171a'
@@ -280,9 +338,9 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
   const btnGhostBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'
   const inputBg = isDark ? 'rgba(255,255,255,0.04)' : '#ffffff'
   const [step, setStep] = useState<'type' | 'form'>(editRecord ? 'form' : defaultServiceType ? 'form' : 'type')
-  const [serviceType, setServiceType] = useState(editRecord?.service_type || defaultServiceType || '')
+  const [serviceType, setServiceType] = useState(canonicalServiceId(editRecord?.service_type || defaultServiceType || ''))
   const [mileage, setMileage] = useState(editRecord?.mileage?.toString() || (latestMileage != null && !editRecord ? String(latestMileage) : ''))
-  const [date, setDate] = useState(editRecord?.date ? editRecord.date.slice(0, 10) : new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(editRecord?.date ? editRecord.date.slice(0, 10) : localISO(new Date()))
   const [workshop, setWorkshop] = useState(editRecord?.workshop || '')
   const [workshopId, setWorkshopId] = useState(editRecord?.workshop_id || '')
   const [wsResults, setWsResults] = useState<any[]>([])
@@ -300,11 +358,19 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
   /* Wizard de 3 pasos, solo para Aceite (ver icons_new no — plan del cambio en
      docs, resumen: Producto / Datos generales / Confirmar). El resto de tipos
      de servicio sigue con el formulario plano de siempre, sin este estado. */
-  const [aceiteStep, setAceiteStep] = useState<1 | 2 | 3>(1)
-  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false)
-  const brandInputRef = useRef<HTMLDivElement>(null)
-  const [productDropdownOpen, setProductDropdownOpen] = useState(false)
-  const productInputRef = useRef<HTMLDivElement>(null)
+  const [aceiteStep, setAceiteStep] = useState(1)
+  const wizard = WIZARD_TYPES.has(serviceType)
+  const stepRoles = stepRolesFor(serviceType)
+  const totalSteps = stepRoles.length
+  /* Qué se muestra en el paso actual (en servicios sin wizard no aplica: se ve todo). */
+  const role: StepRole = stepRoles[Math.min(aceiteStep, totalSteps) - 1]
+  const vehicleKind = vehicleKindOf(vehicleBodyType, vehiclePlateType)
+  /* Para qué sirve el lubricante (solo Aceite): motor por defecto. */
+  const lubricantUse: LubricantUse = isLubricantUse(extra.lubricant_use) ? extra.lubricant_use : 'motor'
+  /* Vida útil de una pieza: en Filtros depende del tipo de vehículo (el filtro de aceite de una moto se
+     cambia mucho antes que el de un carro). */
+  const partLifespan = (name: string): number | undefined =>
+    (serviceType === 'Aire' ? filterLifespanKm(vehicleKind, name) : undefined) ?? PART_LIFESPAN_KM[name]
 
   /* Parse description into extra fields when editing */
   useEffect(() => {
@@ -312,8 +378,12 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     const desc = (editRecord.description || '').toLowerCase()
     const e: Record<string, any> = {}
     if (desc.includes('filtro de aceite') || desc.includes('filtro aceite')) e.oil_filter = true
-    if (desc.includes('filtro de aire') || desc.includes('flujo verific')) e.air_filter = true; e.air_flow = true
+    if (desc.includes('filtro de aire')) e.air_filter = true
+    if (desc.includes('flujo verific')) e.air_flow = true
     if (desc.includes('filtro de combustible')) e.fuel_filter = true
+    if (desc.includes('filtro de part')) e.particle_filter = true
+    if (desc.includes('filtro de habit')) e.cabin_filter = true
+    if (desc.includes('filtro de transmis')) e.transmission_filter = true
     if (desc.includes('inyección') || desc.includes('inyeccion')) e.injection_check = true
     if (desc.includes('pastillas')) e.brake_pads = 'Desgaste medio'
     if (desc.includes('discos')) e.brake_discs = 'Desgaste medio'
@@ -326,6 +396,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     e.lubricant_brand = editRecord.lubricant_brand || ''
     e.lubricant_type = editRecord.lubricant_type || ''
     e.lubricant_product = editRecord.lubricant_product || ''
+    e.lubricant_use = isLubricantUse(editRecord.lubricant_use) ? editRecord.lubricant_use : 'motor'
     e.next_service_mileage = editRecord.next_service_mileage?.toString() || ''
     setExtra(e)
   }, [editRecord])
@@ -382,55 +453,40 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  /* Close brand/product catalog dropdowns on outside click — mismo patrón que el
-     de viscosidad de arriba. */
+  /* Predicción automática del "Próximo servicio (km)": se recalcula al cambiar el kilometraje, el
+     tipo de servicio, la viscosidad o las piezas que se marcan como renovadas. Antes solo corría
+     para Aceite con una viscosidad conocida y para tipos con valor fijo, así que con un aceite sin
+     viscosidad (o escrita libre) —y con Filtros— el campo quedaba vacío al digitar el kilometraje.
+     Ahora siempre hay una vida útil: la de la viscosidad, la de la pieza que se gasta primero o la
+     del tipo de servicio. */
+  const replacedSignature = ((SERVICE_TYPES.find(st => st.id === serviceType) as any)?.replacements || [])
+    .filter((r: { key: string }) => extra[r.key] === true || ACTION_VALUES.has(extra[r.key]))
+    .map((r: { part: string }) => r.part).join('|')
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (brandInputRef.current && !brandInputRef.current.contains(e.target as Node)) {
-        setBrandDropdownOpen(false)
-      }
-      if (productInputRef.current && !productInputRef.current.contains(e.target as Node)) {
-        setProductDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  /* Auto-calculate next_service_mileage when mileage or lubricant type changes.
-     Uses BOTH km and time: picks whichever threshold is reached FIRST. */
-  useEffect(() => {
-    if (editRecord) return
+    if (editRecord || !serviceType) return
     const milVal = parseInt(mileage) || 0
     if (milVal <= 0) return
 
-    if (serviceType === 'Aceite') {
+    const defaultKm = DEFAULT_LIFESPAN_KM[serviceType] || 0
+    let lifeKm = defaultKm
+    let lifeMonths: number | null = null
+    if (serviceType === 'Aceite' && lubricantUse !== 'motor') {
+      // Caja o transmisión: ciclo propio del caso (y del tipo de fluido en transmisión).
+      const l = lifespanFor(lubricantUse, extra.lubricant_type)
+      lifeKm = l.km; lifeMonths = l.months
+    } else if (serviceType === 'Aceite') {
       const rule = getLubricantRule(extra.lubricant_type)
-      if (rule) {
-        const kmBased = milVal + rule.lifespanKm
-        // Time-based: estimate km at date + lifespanMonths using avg 1500 km/month default
-        const today = new Date()
-        const futureDate = new Date(today)
-        futureDate.setMonth(futureDate.getMonth() + rule.lifespanMonths)
-        const monthsAhead = rule.lifespanMonths
-        const avgKmPerMonth = 1500
-        const timeBased = milVal + Math.round(avgKmPerMonth * monthsAhead)
-        // Pick the LOWER of the two (reaches threshold first)
-        const autoNext = Math.min(kmBased, timeBased)
-        setExtra(prev => ({ ...prev, next_service_mileage: String(autoNext) }))
-        return
-      }
+      if (rule) { lifeKm = rule.lifespanKm; lifeMonths = rule.lifespanMonths }
+    } else if (serviceType === 'Batería') {
+      // La batería envejece por tiempo: meses del tipo elegido (o 6 si solo se revisó) → km a 1.500/mes.
+      lifeMonths = extra.battery_action === 'review' ? BATTERY_REVIEW_MONTHS : (batteryOptionByKey(extra.battery_type)?.months ?? DEFAULT_BATTERY_MONTHS)
+      lifeKm = lifeMonths * 1500
+    } else if (replacedSignature) {
+      lifeKm = pickLifespanKm(replacedSignature.split('|').map((name: string) => partLifespan(name)), defaultKm)
     }
-
-    // Non-Aceite services: use DEFAULT_LIFESPAN_KM
-    if (serviceType && serviceType !== 'Aceite') {
-      const lifeKm = DEFAULT_LIFESPAN_KM[serviceType] || 0
-      if (lifeKm > 0) {
-        const autoNext = milVal + lifeKm
-        setExtra(prev => ({ ...prev, next_service_mileage: String(autoNext) }))
-      }
-    }
-  }, [mileage, extra.lubricant_type, serviceType, editRecord])
+    const next = predictNextKm(milVal, lifeKm, lifeMonths)
+    if (next != null) setExtra(prev => ({ ...prev, next_service_mileage: String(next) }))
+  }, [mileage, extra.lubricant_type, serviceType, editRecord, replacedSignature, extra.battery_type, extra.battery_action, lubricantUse])
 
   function setField(key: string, val: any) {
     setExtra(prev => ({ ...prev, [key]: val }))
@@ -450,6 +506,24 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
       return
     }
 
+    if (serviceType === 'Aire' && !editRecord && !hasFilterSelected(extra) && !extra.air_flow) {
+      setError('Elige el filtro que reemplazaste')
+      return
+    }
+    if (serviceType === 'Aceite' && !editRecord) {
+      const problem = oilProblem(extra)
+      if (problem) { setError(problem); if (aceiteStep !== 1) setAceiteStep(1); return }
+    }
+    if (serviceType === 'Batería' && !editRecord && !extra.battery_type) {
+      setError('Elige el tipo de batería'); if (aceiteStep !== 1) setAceiteStep(1); return
+    }
+    // El próximo servicio es futuro: igual al kilometraje actual (o menor) es un error de digitación.
+    const nextKm = extra.next_service_mileage ? parseInt(extra.next_service_mileage) : null
+    if (nextKm != null && nextKm <= milVal) {
+      setError('El próximo servicio (km) debe ser mayor al kilometraje actual.')
+      return
+    }
+
     setSaving(true); setError('')
 
     const desc = buildDescription(serviceType, extra)
@@ -462,25 +536,38 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     // datos reales: Frenos/Llantas en el historial sin su pieza en Control de Partes). Ahora viaja
     // en el mismo body y el backend la sincroniza en la misma transacción (ver maintenance.py).
     const stDef = SERVICE_TYPES.find(st => st.id === serviceType) as any
-    const replacedNames: string[] = [
-      ...(stDef?.partNames || []),
+    // Una batería que solo se revisó (medición) no se renueva: sigue siendo la misma pieza.
+    const batteryReviewOnly = serviceType === 'Batería' && extra.battery_action === 'review'
+    const batteryType = serviceType === 'Batería' ? batteryOptionByKey(extra.battery_type) : undefined
+    const replacedNames: string[] = batteryReviewOnly ? [] : [
+      // Aceite: la pieza depende del lubricante (motor, caja o transmisión).
+      ...(serviceType === 'Aceite' ? [USE_INFO[lubricantUse].part] : (stDef?.partNames || [])),
       ...((stDef?.replacements || []) as { key: string; part: string }[])
-        .filter(r => ACTION_VALUES.has(extra[r.key]))
+        .filter(r => extra[r.key] === true || ACTION_VALUES.has(extra[r.key]))
         .map(r => r.part),
     ]
     let lifeKm: number | null = null
     let lifeMonths: number | null = null
-    if (serviceType === 'Aceite') {
+    if (serviceType === 'Aceite' && lubricantUse !== 'motor') {
+      const l = lifespanFor(lubricantUse, extra.lubricant_type)
+      lifeKm = l.km; lifeMonths = l.months
+    } else if (serviceType === 'Aceite') {
       const rule = getLubricantRule(extra.lubricant_type)
       if (rule) { lifeKm = rule.lifespanKm; lifeMonths = rule.lifespanMonths }
+    } else if (serviceType === 'Batería') {
+      lifeMonths = batteryType?.months ?? DEFAULT_BATTERY_MONTHS
+      lifeKm = lifeMonths * 1500
     }
     const replacedParts = stDef ? replacedNames.map(partName => ({
       name: partName,
-      category: stDef.partCategory || 'Otros',
-      lifespan_mileage: (serviceType === 'Aceite' && lifeKm != null)
+      category: (serviceType === 'Aceite' ? USE_INFO[lubricantUse].category : stDef.partCategory) || 'Otros',
+      lifespan_mileage: ((serviceType === 'Aceite' || serviceType === 'Batería') && lifeKm != null)
         ? lifeKm
-        : (PART_LIFESPAN_KM[partName] ?? DEFAULT_LIFESPAN_KM[serviceType] ?? null),
-      notes: lifeMonths ? `Vida útil: ${lifeMonths} meses` : '',
+        : (partLifespan(partName) ?? DEFAULT_LIFESPAN_KM[serviceType] ?? null),
+      // Los meses de vida útil (y el tipo de batería) viajan en las notas de la pieza: la Ficha los lee de ahí.
+      notes: lifeMonths ? `Vida útil: ${lifeMonths} meses${batteryType ? ` · Tipo: ${batteryType.label}` : ''}` : '',
+      // Marca y referencia del filtro instalado (opcionales): quedan en la pieza, en Control de partes.
+      ...(serviceType === 'Aire' ? { brand: (extra.filter_brand || '').trim(), part_number: (extra.filter_reference || '').trim() } : {}),
     })) : []
 
     const body: Record<string, any> = {
@@ -490,11 +577,11 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
       mileage: parseInt(mileage),
       date,
       workshop: workshop || 'Taller no registrado',
-      workshop_id: workshopId || null,
       cost: cost ? parseFloat(cost) : 0,
       lubricant_brand: extra.lubricant_brand || '',
       lubricant_type: extra.lubricant_type || '',
       lubricant_product: extra.lubricant_product || '',
+      lubricant_use: serviceType === 'Aceite' ? lubricantUse : 'motor',
       next_service_mileage: extra.next_service_mileage ? parseInt(extra.next_service_mileage) : null,
       replaced_parts: replacedParts,
     }
@@ -513,7 +600,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) throw new Error(await readApiError(res))
 
       // Prompt de calificación de taller solo en alta nueva (no en ediciones,
       // para no volver a preguntar cada vez que se retoca el mismo registro).
@@ -537,7 +624,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) throw new Error(await readApiError(res))
       onSaved()
       onClose()
     } catch (e: any) {
@@ -551,7 +638,26 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
      lo mismo que ya exigía handleSave al guardar — así el aviso llega un paso
      antes en vez de recién al final. */
   function handleAceiteNext() {
-    if (aceiteStep === 2) {
+    if (role === 'detail' && serviceType === 'Batería' && !editRecord && !extra.battery_type) {
+      setError('Elige el tipo de batería')
+      return
+    }
+    if (role === 'measure' && serviceType === 'Batería') {
+      const raw = String(extra.battery_voltage || '').trim()
+      if (raw && interpretVoltage(parseVoltage(raw)) === 'invalida') {
+        setError('El voltaje no es válido: escribe lo que marca el multímetro (ej. 12.6).')
+        return
+      }
+    }
+    if (role === 'detail' && serviceType === 'Aceite' && !editRecord) {
+      const problem = oilProblem(extra)
+      if (problem) { setError(problem); return }
+    }
+    if (role === 'detail' && serviceType === 'Aire' && !editRecord && !hasFilterSelected(extra) && !extra.air_flow) {
+      setError('Elige el filtro que reemplazaste')
+      return
+    }
+    if (role === 'general') {
       if (!mileage) { setError('Ingresa el kilometraje'); return }
       const milVal = parseInt(mileage)
       if (!editRecord && latestMileage != null && milVal < latestMileage) {
@@ -564,7 +670,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
       }
     }
     setError('')
-    setAceiteStep(prev => (prev < 3 ? (prev + 1) as 1 | 2 | 3 : prev))
+    setAceiteStep(prev => Math.min(prev + 1, totalSteps))
   }
 
   return (
@@ -630,7 +736,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
           <div>
             {/* Service type (editable) — en el wizard de Aceite solo se ve en el
                paso 1: cambiarlo a mitad del wizard no tendría sentido. */}
-            {!hideServiceType && (serviceType !== 'Aceite' || aceiteStep === 1) && (
+            {!hideServiceType && (!wizard || role === 'detail') && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Tipo de servicio</label>
               <select value={serviceType} onChange={e => setServiceType(e.target.value)} style={{
@@ -648,18 +754,18 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             {/* Wizard de Aceite: registro corto en 3 pasos (Producto / Datos
                generales / Confirmar) en vez del formulario plano de siempre —
                el resto de tipos de servicio no entra acá. */}
-            {serviceType === 'Aceite' && (
+            {wizard && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                   <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700 }}>
-                    Paso {aceiteStep} de 3
+                    Paso {aceiteStep} de {totalSteps}
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>
-                    {aceiteStep === 1 ? 'Producto' : aceiteStep === 2 ? 'Datos generales' : 'Confirmar'}
+                    {role === 'use' ? 'Lubricante' : role === 'detail' ? (serviceType === 'Aire' ? 'Filtros' : serviceType === 'Batería' ? 'Tipo de batería' : 'Producto') : role === 'measure' ? 'Medición' : role === 'general' ? 'Datos generales' : 'Confirmar'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: 5 }}>
-                  {[1, 2, 3].map(n => (
+                  {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
                     <div key={n} style={{ flex: 1, height: 4, borderRadius: 3, background: n <= aceiteStep ? '#F5C518' : border }} />
                   ))}
                 </div>
@@ -667,16 +773,190 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             )}
 
             {/* Type-specific fields */}
-            {(serviceType !== 'Aceite' || aceiteStep === 1) && (() => {
+            {/* Aceite, paso 1: ¿para qué es el lubricante? Cada caso pide sus propios datos. */}
+            {serviceType === 'Aceite' && role === 'use' && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>
+                  ¿Para qué es el lubricante?
+                </div>
+                <div role="radiogroup" aria-label="Tipo de lubricante" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {useOptions(vehicleKind).map(o => {
+                    const on = lubricantUse === o.key
+                    return (
+                      <button key={o.key} type="button" role="radio" aria-checked={on}
+                        onClick={() => setExtra(prev => (prev.lubricant_use ?? 'motor') === o.key && prev.lubricant_use ? prev
+                          // Otro caso, otros datos: no se arrastran la marca ni el tipo del anterior.
+                          : { ...prev, lubricant_use: o.key, lubricant_brand: '', lubricant_type: '', lubricant_product: '' })}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                          background: on ? 'rgba(245,197,24,0.12)' : btnGhostBg,
+                          border: `1px solid ${on ? 'rgba(245,197,24,0.6)' : border}`, color: textPrimary, transition: 'all .15s',
+                        }}>
+                        <span style={{ color: '#F5C518', display: 'flex', flex: '0 0 auto' }}><ServiceTypeIcon type="Aceite" size={26} /></span>
+                        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700 }}>{o.label}</span>
+                          <span style={{ fontSize: 11.5, color: on ? '#F5C518' : textMuted }}>{o.desc}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ fontSize: 11, color: textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                  En el siguiente paso se piden los datos de ese lubricante. Si cambiaste más de uno, registra cada uno por separado.
+                </div>
+              </div>
+            )}
+
+            {(!wizard || role === 'detail') && (() => {
               const stDef = SERVICE_TYPES.find(st => st.id === serviceType)
               if (!stDef) return null
               return (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>
-                    Detalles — {stDef.label}
+                    Detalles — {stDef.label}{serviceType === 'Aceite' ? ` · ${USE_INFO[lubricantUse].label}` : ''}
                   </div>
+                  {serviceType === 'Aire' && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div role="radiogroup" aria-label="Filtro que reemplazaste" className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {filterOptions(vehicleKind, fuelType).map(o => {
+                          const on = !!extra[o.key]
+                          const Icon = FILTER_ICONS[o.icon]
+                          return (
+                            <button key={o.key} type="button" role="radio" aria-checked={on}
+                              /* Exclusivo: elegir uno desmarca los demás (y el flujo de aire, que solo
+                                 aplica al filtro de aire). */
+                              onClick={() => setExtra(prev => {
+                                const next: Record<string, any> = { ...prev }
+                                ALL_FILTER_KEYS.forEach(k => { next[k] = false })
+                                if (!prev[o.key]) { next.filter_brand = ''; next.filter_reference = '' } // otro filtro, otro repuesto
+                                next[o.key] = true
+                                if (o.key !== 'air_filter') next.air_flow = false
+                                return next
+                              })}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px',
+                                borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                                background: on ? 'rgba(245,197,24,0.12)' : btnGhostBg,
+                                border: `1px solid ${on ? 'rgba(245,197,24,0.6)' : border}`,
+                                color: textPrimary, transition: 'all .15s',
+                              }}>
+                              <span style={{ color: '#F5C518', display: 'flex', flex: '0 0 auto' }}><Icon size={30} /></span>
+                              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span style={{ fontSize: 13.5, fontWeight: 700 }}>{o.label}</span>
+                                <span style={{ fontSize: 11, color: on ? '#F5C518' : textMuted, fontWeight: 600 }}>{on ? 'Reemplazado' : o.hint}</span>
+                                {o.note && <span style={{ fontSize: 10.5, color: textMuted }}>{o.note}</span>}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11, color: textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                        Elige un solo filtro por registro: cada uno tiene su propio ciclo de vida útil. Si cambiaste varios, registra cada uno por separado.
+                      </div>
+                      {/* Al elegir el filtro se abre, en este mismo paso, la marca y la referencia (opcionales). */}
+                      {hasFilterSelected(extra) && (
+                        <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+                          <div>
+                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Marca <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                            <ThemedSuggestInput value={extra.filter_brand || ''} onChange={v => setField('filter_brand', v)}
+                              suggestions={filterBrands(vehicleKind)} placeholder="Ej. Mann-Filter"
+                              style={{ padding: '11px 13px', fontSize: 14 }}
+                              theme={{ inputBg: 'var(--input-bg)', inputBorder: 'var(--input-border)', inputText: 'var(--text-1)', accent: '#F5C518', muted: 'var(--text-3)', panelBg: 'var(--panel-bg)' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Referencia <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                            <input type="text" value={extra.filter_reference || ''} maxLength={80} onChange={e => setField('filter_reference', e.target.value)}
+                              placeholder="Ej. C 25 114" style={{
+                                width: '100%', boxSizing: 'border-box', padding: '11px 13px', borderRadius: 10,
+                                border: `1px solid ${border}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none',
+                              }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {serviceType === 'Batería' && (
+                    <div>
+                      <div role="radiogroup" aria-label="Tipo de batería" className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {batteryOptions(vehicleKind).map(o => {
+                          const on = extra.battery_type === o.key
+                          return (
+                            <button key={o.key} type="button" role="radio" aria-checked={on}
+                              onClick={() => setField('battery_type', o.key)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px',
+                                borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                                background: on ? 'rgba(245,197,24,0.12)' : btnGhostBg,
+                                border: `1px solid ${on ? 'rgba(245,197,24,0.6)' : border}`,
+                                color: textPrimary, transition: 'all .15s',
+                              }}>
+                              <span style={{ color: '#F5C518', display: 'flex', flex: '0 0 auto' }}><ServiceTypeIcon type="Batería" size={26} /></span>
+                              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span style={{ fontSize: 13.5, fontWeight: 700 }}>{o.label}</span>
+                                <span style={{ fontSize: 11, color: textMuted }}>{o.spec}</span>
+                                <span style={{ fontSize: 11, color: on ? '#F5C518' : textMuted, fontWeight: 600 }}>Dura ~{o.months} meses</span>
+                                {o.note && <span style={{ fontSize: 10.5, color: textMuted }}>{o.note}</span>}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11, color: textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                        Las opciones salen del tipo de vehículo. La vida útil de cada tipo define cuándo se predice el próximo cambio.
+                      </div>
+                    </div>
+                  )}
+                  {serviceType === 'Aceite' && lubricantUse !== 'motor' && (() => {
+                    const chip = (on: boolean): React.CSSProperties => ({
+                      padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: on ? 700 : 600, transition: 'all .15s',
+                      border: `1.5px solid ${on ? 'rgba(245,197,24,0.45)' : border}`,
+                      background: on ? 'rgba(245,197,24,0.15)' : inputBg, color: on ? '#F5C518' : textMuted,
+                    })
+                    const lab: React.CSSProperties = { fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 6 }
+                    const typeOptions = lubricantUse === 'caja' ? GEAR_VISCOSITIES : TRANSMISSION_FLUIDS.map(f => f.label)
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div>
+                          <label style={lab}>Marca <span style={{ color: '#F5C518' }}>*</span></label>
+                          <ThemedSuggestInput value={extra.lubricant_brand || ''} onChange={v => setField('lubricant_brand', v)}
+                            suggestions={DRIVETRAIN_BRANDS} placeholder="Ej. Motul"
+                            style={{ padding: '11px 13px', fontSize: 14 }}
+                            theme={{ inputBg: 'var(--input-bg)', inputBorder: 'var(--input-border)', inputText: 'var(--text-1)', accent: '#F5C518', muted: 'var(--text-3)', panelBg: 'var(--panel-bg)' }} />
+                        </div>
+                        <div>
+                          <label style={lab}>{lubricantUse === 'caja' ? 'Viscosidad' : 'Tipo de fluido'} <span style={{ color: '#F5C518' }}>*</span></label>
+                          <div role="radiogroup" aria-label={lubricantUse === 'caja' ? 'Viscosidad' : 'Tipo de fluido'} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {typeOptions.map(t => (
+                              <button key={t} type="button" role="radio" aria-checked={extra.lubricant_type === t}
+                                onClick={() => setField('lubricant_type', t)} style={chip(extra.lubricant_type === t)}>{t}</button>
+                            ))}
+                          </div>
+                        </div>
+                        {lubricantUse === 'caja' ? (
+                          <div>
+                            <label style={lab}>Norma <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                            <div role="radiogroup" aria-label="Norma" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {GEAR_SPECS.map(t => (
+                                <button key={t} type="button" role="radio" aria-checked={extra.lubricant_product === t}
+                                  onClick={() => setField('lubricant_product', extra.lubricant_product === t ? '' : t)} style={chip(extra.lubricant_product === t)}>{t}</button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <label style={lab}>Producto <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                            <input type="text" value={extra.lubricant_product || ''} maxLength={80} onChange={e => setField('lubricant_product', e.target.value)}
+                              placeholder="Ej. Multi ATF" style={{
+                                width: '100%', boxSizing: 'border-box', padding: '11px 13px', borderRadius: 10,
+                                border: `1px solid ${border}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none',
+                              }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {stDef.fields.map((f: any) => {
+                    {(serviceType === 'Batería' || (serviceType === 'Aceite' && lubricantUse !== 'motor') ? [] : stDef.fields).filter((f: any) => f.key !== 'air_flow' || !!extra.air_filter).map((f: any) => {
                       /* Marca del aceite (solo Aceite): en vez del texto libre
                          genérico, autocomplete contra el catálogo de aceites/
                          (frontend/src/lib/oilCatalog.ts) con logo de marca, y un
@@ -686,99 +966,17 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                          catálogo o el usuario prefiere escribir libre, ambos
                          campos siguen funcionando como texto normal (no bloquea
                          nada, mismo criterio que ya tenía el campo de viscosidad). */
+                      /* Aceite usado (obligatorio): pasarela visual de marcas y productos (OilPicker). Elegir
+                         un producto completa marca, producto y viscosidad; si la marca no está en el
+                         catálogo se escribe a mano. */
                       if (f.key === 'lubricant_brand' && serviceType === 'Aceite') {
-                        const brandVal = extra.lubricant_brand || ''
-                        const brandSuggestions = getOilBrands().filter(b =>
-                          b.marca.toLowerCase().includes(brandVal.toLowerCase()) && b.marca !== brandVal
-                        ).slice(0, 8)
-                        const productVal = extra.lubricant_product || ''
-                        const productSuggestions: OilCatalogItem[] = brandVal
-                          ? getOilProductsByBrand(brandVal).filter(p =>
-                              p.producto.toLowerCase().includes(productVal.toLowerCase())
-                            ).slice(0, 8)
-                          : []
                         return (
-                          <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <div ref={brandInputRef} style={{ position: 'relative' }}>
-                              <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
-                              <input
-                                type="text" value={brandVal}
-                                onChange={e => { setField('lubricant_brand', e.target.value); setBrandDropdownOpen(true) }}
-                                onFocus={() => setBrandDropdownOpen(true)}
-                                placeholder={f.placeholder}
-                                style={{
-                                  width: '100%', padding: '11px 13px', borderRadius: 10,
-                                  border: `1px solid ${border}`, background: inputBg,
-                                  color: textPrimary, fontSize: 14, outline: 'none',
-                                }}
-                              />
-                              {brandDropdownOpen && brandSuggestions.length > 0 && brandVal.length > 0 && (
-                                <div style={{
-                                  position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
-                                  background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
-                                  maxHeight: 200, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
-                                }}>
-                                  {brandSuggestions.map(b => (
-                                    <button key={b.marca} onClick={() => { setField('lubricant_brand', b.marca); setBrandDropdownOpen(false) }}
-                                      style={{
-                                        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                                        padding: '9px 13px', background: 'transparent', border: 'none',
-                                        borderBottom: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left',
-                                      }}>
-                                      {b.logo ? (
-                                        <img src={`/oil-brands/${b.logo}`} alt="" width={18} height={18}
-                                          style={{ objectFit: 'contain', background: '#fff', borderRadius: 4, padding: 2, flex: '0 0 auto' }} />
-                                      ) : (
-                                        <span style={{ width: 18, height: 18, flex: '0 0 auto' }} />
-                                      )}
-                                      <span style={{ fontSize: 14, fontWeight: 600, color: textPrimary }}>{b.marca}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div ref={productInputRef} style={{ position: 'relative' }}>
-                              <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Producto <span style={{ fontWeight: 400, color: textMuted }}>(opcional)</span></label>
-                              <input
-                                type="text" value={productVal}
-                                onChange={e => { setField('lubricant_product', e.target.value); setProductDropdownOpen(true) }}
-                                onFocus={() => setProductDropdownOpen(true)}
-                                placeholder={brandVal ? `Ej. ${brandVal} ...` : 'Elige o escribe una marca primero'}
-                                style={{
-                                  width: '100%', padding: '11px 13px', borderRadius: 10,
-                                  border: productVal ? '1px solid rgba(245,197,24,0.5)' : `1px solid ${border}`,
-                                  background: inputBg,
-                                  color: textPrimary, fontSize: 14, outline: 'none',
-                                }}
-                              />
-                              {productDropdownOpen && productSuggestions.length > 0 && (
-                                <div style={{
-                                  position: 'absolute', zIndex: 80, top: '100%', left: 0, right: 0, marginTop: 4,
-                                  background: isDark ? '#1a1a1e' : '#fff', border: '1px solid rgba(245,197,24,0.25)', borderRadius: 10,
-                                  maxHeight: 220, overflowY: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.6)',
-                                }}>
-                                  {productSuggestions.map(p => (
-                                    <button key={p.producto} onClick={() => {
-                                        setField('lubricant_product', p.producto)
-                                        setField('lubricant_type', p.viscosidad)
-                                        setProductDropdownOpen(false)
-                                      }}
-                                      style={{
-                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
-                                        padding: '10px 13px', background: 'transparent', border: 'none',
-                                        borderBottom: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left',
-                                      }}>
-                                      <div>
-                                        <div style={{ fontSize: 13.5, fontWeight: 600, color: textPrimary }}>{p.producto}</div>
-                                        <div style={{ fontSize: 11, color: textMuted }}>{p.tipoBase} · {p.viscosidad}</div>
-                                      </div>
-                                      <span style={{ display: 'flex', color: '#F5C518', flex: '0 0 auto' }}><Icon type="Check" size={14} strokeWidth={2.4} /></span>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          <OilPicker key={f.key}
+                            brand={extra.lubricant_brand || ''} product={extra.lubricant_product || ''}
+                            onBrand={marca => setExtra(prev => ({ ...prev, lubricant_brand: marca, lubricant_product: marca === prev.lubricant_brand ? prev.lubricant_product : '' }))}
+                            onProduct={item => setExtra(prev => ({ ...prev, lubricant_brand: item.marca, lubricant_product: item.producto, lubricant_type: item.viscosidad }))}
+                            onBrandText={t => setExtra(prev => ({ ...prev, lubricant_brand: t, lubricant_product: '' }))}
+                            onProductText={t => setField('lubricant_product', t)} />
                         )
                       }
                       if (f.type === 'checkbox') {
@@ -818,7 +1016,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                         ).slice(0, 8)
                         return (
                           <div key={f.key} ref={viscInputRef} style={{ position: 'relative' }}>
-                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}</label>
+                            <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>{f.label}{serviceType === 'Aceite' && <span style={{ color: '#F5C518' }}> *</span>}</label>
                             <input
                               type="text" value={val}
                               onChange={e => { setField(f.key, e.target.value); setViscDropdownOpen(true) }}
@@ -876,8 +1074,53 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
               )
             })()}
 
+            {/* Batería, paso 2: qué se hizo y la medición de voltaje (la etapa extra del wizard). */}
+            {serviceType === 'Batería' && role === 'measure' && (() => {
+              const action = extra.battery_action === 'review' ? 'review' : 'replace'
+              const raw = String(extra.battery_voltage || '').trim()
+              const state = raw ? interpretVoltage(parseVoltage(raw)) : null
+              const chip = (on: boolean): React.CSSProperties => ({
+                padding: '8px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: on ? 700 : 600, transition: 'all .15s',
+                border: `1.5px solid ${on ? 'rgba(245,197,24,0.45)' : border}`,
+                background: on ? 'rgba(245,197,24,0.15)' : inputBg, color: on ? '#F5C518' : textMuted,
+              })
+              return (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Medición</div>
+                  <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 6 }}>¿Qué hiciste?</label>
+                  <div role="radiogroup" aria-label="Acción" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                    <button type="button" role="radio" aria-checked={action === 'replace'} onClick={() => setField('battery_action', 'replace')} style={chip(action === 'replace')}>Cambié la batería</button>
+                    <button type="button" role="radio" aria-checked={action === 'review'} onClick={() => setField('battery_action', 'review')} style={chip(action === 'review')}>Solo la revisé</button>
+                  </div>
+                  <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Voltaje en reposo <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                  <input type="text" inputMode="decimal" value={extra.battery_voltage || ''} placeholder="Ej. 12.6"
+                    onChange={e => setField('battery_voltage', e.target.value)} style={{
+                      width: '100%', boxSizing: 'border-box', padding: '11px 13px', borderRadius: 10, fontSize: 14, outline: 'none',
+                      border: state === 'invalida' ? '1.5px solid #ff4d6a' : raw ? '1px solid rgba(245,197,24,0.5)' : `1px solid ${border}`,
+                      background: inputBg, color: textPrimary,
+                    }} />
+                  {state && (
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: state === 'ok' || state === 'aceptable' ? '#F5C518' : state === 'baja' ? '#ffb020' : '#ff4d6a' }}>
+                      {VOLTAGE_LABEL[state]}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 11, color: textMuted, marginTop: 6, lineHeight: 1.5 }}>
+                    Mide con el motor apagado y en reposo: 12,6 V o más es carga completa; menos de 12,0 V, descargada.
+                  </div>
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', marginTop: 12, borderRadius: 10, background: btnGhostBg,
+                    border: `1px solid ${extra.battery_check ? 'rgba(245,197,24,0.4)' : border}`, cursor: 'pointer', fontSize: 13, color: textPrimary, fontWeight: 500,
+                  }}>
+                    <input type="checkbox" checked={!!extra.battery_check} onChange={e => setField('battery_check', e.target.checked)}
+                      style={{ width: 17, height: 17, accentColor: '#F5C518', cursor: 'pointer' }} />
+                    Batería verificada (prueba de carga)
+                  </label>
+                </div>
+              )
+            })()}
+
             {/* Common fields */}
-            {(serviceType !== 'Aceite' || aceiteStep === 2) && <>
+            {(!wizard || role === 'general') && <>
             <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: textMuted, fontWeight: 700, marginBottom: 12 }}>Datos generales</div>
             <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16, alignItems: 'start' }}>
               <div>
@@ -890,7 +1133,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                         ? '1.5px solid #ff4d6a'
                         : parseInt(mileage) > latestMileage + 100000
                           ? '1.5px solid #ffb020'
-                          : '1px solid rgba(46,204,113,0.5)'
+                          : '1px solid rgba(245,197,24,0.5)'
                       : '1px solid rgba(255,255,255,0.14)',
                     background: inputBg,
                     color: textPrimary, fontSize: 14, outline: 'none',
@@ -903,7 +1146,13 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
               </div>
               <div>
                 <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Fecha</label>
-                <input type="date" className="date-field" value={date} onChange={e => setDate(e.target.value)} style={{ height: 40 }} />
+                <ThemedDateInput className="date-field" value={date} onChange={e => setDate(e.target.value)} style={{ height: 40 }}
+                  min={(() => {
+                    const limit = localISO(new Date(Date.now() - MAX_BACKDATE_DAYS * 86400000))
+                    const own = editRecord?.date?.slice(0, 10)
+                    return own && own < limit ? own : limit
+                  })()}
+                  max={localISO(new Date())} />
               </div>
               <div ref={wsRef} style={{ position: 'relative' }}>
                 <label style={{ fontSize: 11, color: textMuted, fontWeight: 600, display: 'block', marginBottom: 5 }}>Taller</label>
@@ -913,7 +1162,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                     placeholder="Nombre o código TLR-XXXXX"
                     style={{
                       width: '100%', padding: '11px 13px', borderRadius: 10,
-                      border: workshopId ? '1px solid rgba(46,204,113,0.5)' : `1px solid ${border}`,
+                      border: workshopId ? '1px solid rgba(245,197,24,0.5)' : `1px solid ${border}`,
                       background: inputBg,
                       color: textPrimary, fontSize: 14, outline: 'none',
                     }} />
@@ -947,7 +1196,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                   </div>
                 )}
                 {workshopId && (
-                  <div style={{ fontSize: 11, color: '#2ecc71', marginTop: 4, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Taller registrado</div>
+                  <div style={{ fontSize: 11, color: '#F5C518', marginTop: 4, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Taller registrado</div>
                 )}
               </div>
               <div>
@@ -963,7 +1212,25 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
             </>}
 
             {/* Lubricant rule prediction — auto from type/viscosity (paso 3 del wizard) */}
-            {serviceType === 'Aceite' && aceiteStep === 3 && (() => {
+            {serviceType === 'Aceite' && role === 'confirm' && lubricantUse !== 'motor' && (() => {
+              const l = lifespanFor(lubricantUse, extra.lubricant_type)
+              return (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>Predicción de vida útil</div>
+                  <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,197,24,0.06)', border: '1px solid rgba(245,197,24,0.2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#F5C518' }}>{USE_INFO[lubricantUse].label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#d8c98a' }}>{extra.lubricant_type}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 20, fontSize: 12, color: '#d8c98a', flexWrap: 'wrap' }}>
+                      <div><span style={{ color: '#8a7a3c' }}>Vida útil:</span> <b>{l.km.toLocaleString()} km</b></div>
+                      <div><span style={{ color: '#8a7a3c' }}>Tiempo:</span> <b>{l.months} meses</b></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+            {serviceType === 'Aceite' && role === 'confirm' && lubricantUse === 'motor' && (() => {
               const rule = getLubricantRule(extra.lubricant_type)
               if (!rule) return (
                 <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: btnGhostBg, border: `1px solid ${border}`, fontSize: 12, color: textMuted }}>
@@ -996,7 +1263,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
 
             {/* Programación + Vista previa — en Aceite, paso 3 (Confirmar); en el
                resto de tipos de servicio siempre visibles, sin wizard. */}
-            {(serviceType !== 'Aceite' || aceiteStep === 3) && <>
+            {(!wizard || role === 'confirm') && <>
             {/* Common field: Próximo servicio (km) — auto-calculated, editable */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#F5C518', fontWeight: 700, marginBottom: 10 }}>
@@ -1058,8 +1325,8 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8 }}>
-              {serviceType === 'Aceite' && aceiteStep > 1 ? (
-                <button onClick={() => { setError(''); setAceiteStep(prev => (prev - 1) as 1 | 2) }}
+              {wizard && aceiteStep > 1 ? (
+                <button onClick={() => { setError(''); setAceiteStep(prev => Math.max(1, prev - 1)) }}
                   style={{
                     padding: '12px 18px', borderRadius: 11,
                     border: `1px solid ${border}`, background: btnGhostBg,
@@ -1087,7 +1354,7 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
                 </button>
               )}
               <div style={{ flex: 1 }} />
-              {serviceType === 'Aceite' && aceiteStep < 3 ? (
+              {wizard && aceiteStep < totalSteps ? (
                 <button onClick={handleAceiteNext} style={{
                   padding: '12px 24px', borderRadius: 11, border: 'none',
                   background: '#F5C518', color: '#111',
