@@ -155,11 +155,13 @@ class MaintenanceRecord(Base):
     # Migración 070: user | workshop | prior (historial anterior al alta, con soporte).
     origin: Mapped[str] = mapped_column(Text, default="user")
     support_url: Mapped[str] = mapped_column(Text, default="")
+    # Migración 074 (aplicada): "el conductor dice que fue en este taller". NUNCA da la etiqueta "Del taller" (eso es workshop_id).
+    claimed_workshop_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     vehicle = relationship("Vehicle", back_populates="maintenance_records")
-    workshop_rel = relationship("Workshop", back_populates="maintenance_records")
+    workshop_rel = relationship("Workshop", back_populates="maintenance_records", foreign_keys=[workshop_id])
 
 
 class OdometerReading(Base):
@@ -380,11 +382,42 @@ class Workshop(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     owner = relationship("Profile", back_populates="workshops")
-    maintenance_records = relationship("MaintenanceRecord", back_populates="workshop_rel")
+    maintenance_records = relationship("MaintenanceRecord", back_populates="workshop_rel", foreign_keys="MaintenanceRecord.workshop_id")
     mechanics = relationship("WorkshopMechanic", back_populates="workshop", cascade="all, delete-orphan")
     service_items = relationship("WorkshopServiceItem", back_populates="workshop", cascade="all, delete-orphan")
     clients = relationship("WorkshopClient", back_populates="workshop", cascade="all, delete-orphan")
     reviews = relationship("WorkshopReview", back_populates="workshop", cascade="all, delete-orphan")
+
+
+class WorkshopClientLink(Base):
+    """Migración 074: el conductor X (con el vehículo V) es cliente del taller W. Lo inicia siempre el conductor."""
+    __tablename__ = "workshop_client_links"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workshop_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"))
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(Text, default="active")  # active | revoked
+    origin: Mapped[str] = mapped_column(Text, default="qr_taller")  # qr_taller | claim_link | name_match | order_qr
+    consent_share_contact: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WorkshopClaimToken(Base):
+    """Migración 074: enlace de un solo uso que el taller le da a un cliente para reclamar su historial."""
+    __tablename__ = "workshop_claim_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workshop_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"))
+    workshop_vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshop_vehicles.id", ondelete="CASCADE"))
+    work_order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("work_orders.id", ondelete="SET NULL"), nullable=True)
+    token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    used_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ServiceLog(Base):
@@ -661,6 +694,8 @@ class WorkshopServiceItem(Base):
     estimated_price: Mapped[Decimal] = mapped_column(DECIMAL(12, 2), default=0)
     estimated_hours: Mapped[Decimal] = mapped_column(DECIMAL(6, 2), default=0)
     description: Mapped[str] = mapped_column(Text, default="")
+    photo_url: Mapped[str] = mapped_column(Text, default="", server_default="")
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

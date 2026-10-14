@@ -33,6 +33,7 @@ from app.schemas.schemas import (
     WorkshopUpdate,
 )
 from app.services.colombian_nit import is_valid_colombian_nit
+from app.services.geocoding import apply_geocode
 
 router = APIRouter(prefix="/workshops", tags=["workshops"])
 
@@ -99,6 +100,8 @@ async def create_workshop(
         phone=body.phone,
         description=body.description,
     )
+    # Mejor esfuerzo: ubica el pin del mapa de la ficha publica; si falla, el taller queda sin coordenadas.
+    await apply_geocode(workshop)
     db.add(workshop)
     await db.flush()
 
@@ -150,8 +153,14 @@ async def update_my_workshop(
     """
     workshop = await verify_workshop(user_id, db)
     update_data = body.model_dump(exclude_unset=True)
+    address_before = (workshop.address, workshop.city)
     for key, val in update_data.items():
         setattr(workshop, key, val)
+    # Solo se vuelve a geocodificar si cambio la direccion o la ciudad (un guardado de sellos no llama afuera).
+    # Si el taller mando su propio pin (lo confirmo/arrastro en el mapa), ese manda.
+    pin_sent = "latitude" in update_data and update_data["latitude"] is not None
+    if (workshop.address, workshop.city) != address_before and not pin_sent:
+        await apply_geocode(workshop)
     await db.flush()
     await db.refresh(workshop)
     return workshop

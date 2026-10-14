@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.services.vehicle_card import mask_card_data, normalize_card_data
 
@@ -670,6 +670,19 @@ class WorkshopUpdate(BaseModel):
     social_website: str | None = None
     social_whatsapp: str | None = None
     is_published: bool | None = None
+    # Pin del mapa confirmado por el propio taller (fase 0b de PLAN_VINCULO_TALLER_CONDUCTOR.md):
+    # van juntas y dentro de Colombia; si se mandan, no se vuelve a geocodificar la direccion.
+    latitude: float | None = None
+    longitude: float | None = None
+
+    @model_validator(mode="after")
+    def _pin_valido(self):
+        from app.services.geocoding import in_colombia
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude y longitude van juntas")
+        if self.latitude is not None and not in_colombia(self.latitude, self.longitude):
+            raise ValueError("El pin debe quedar dentro de Colombia")
+        return self
 
 
 class WorkshopOut(BaseModel):
@@ -701,6 +714,8 @@ class WorkshopOut(BaseModel):
     social_facebook: str = ""
     social_website: str = ""
     social_whatsapp: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
     rating: float = 0.0
     created_at: datetime
 
@@ -766,6 +781,8 @@ class WorkshopServiceItemCreate(BaseModel):
     estimated_price: Decimal = Decimal(0)
     estimated_hours: Decimal = Decimal(0)
     description: str = ""
+    photo_url: str = ""
+    is_featured: bool = False
 
 
 class WorkshopServiceItemUpdate(BaseModel):
@@ -774,6 +791,8 @@ class WorkshopServiceItemUpdate(BaseModel):
     estimated_price: Decimal | None = None
     estimated_hours: Decimal | None = None
     description: str | None = None
+    photo_url: str | None = None
+    is_featured: bool | None = None
 
 
 class WorkshopServiceItemOut(BaseModel):
@@ -784,6 +803,8 @@ class WorkshopServiceItemOut(BaseModel):
     estimated_price: Decimal
     estimated_hours: Decimal
     description: str
+    photo_url: str = ""
+    is_featured: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -2275,3 +2296,85 @@ class ChannelKeychainOut(BaseModel):
 
 class ChannelMarkDistributed(BaseModel):
     keychain_ids: list[UUID] | None = None  # None = todos los pendientes del canal
+
+
+# =========== Vínculo taller-conductor (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md) ===========
+class WorkshopLinksStatusOut(BaseModel):
+    enabled: bool
+
+
+class WorkshopLinkCreate(BaseModel):
+    workshop_code: str = Field(min_length=3, max_length=32)
+    vehicle_id: UUID
+    share_contact: bool = False
+
+
+class WorkshopLinkClaim(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    vehicle_id: UUID
+    share_contact: bool = False
+
+
+class WorkshopLinkOut(BaseModel):
+    id: UUID
+    workshop_code: str
+    workshop_name: str
+    workshop_city: str
+    vehicle_id: UUID
+    plate: str
+    origin: str
+    consent_share_contact: bool
+    created_at: datetime
+
+
+class WorkshopClaimResult(BaseModel):
+    link: WorkshopLinkOut
+    synced_orders: int
+
+
+class WorkshopClaimInfoOut(BaseModel):
+    """Lo que ve quien abre un enlace de reclamo ANTES de iniciar sesion: lo minimo para reconocerlo."""
+    workshop_code: str
+    workshop_name: str
+    plate_hint: str
+    brand: str = ""
+    model: str = ""
+
+
+class WorkshopClaimTokenOut(BaseModel):
+    token: str
+    expires_at: datetime
+    workshop_name: str
+
+
+class WorkshopCandidateOut(BaseModel):
+    workshop_id: UUID
+    workshop_code: str
+    workshop_name: str
+    workshop_city: str
+    vehicle_id: UUID
+    typed_names: list[str]
+    record_count: int
+
+
+class WorkshopCandidateConfirm(BaseModel):
+    workshop_id: UUID
+    vehicle_id: UUID
+    share_contact: bool | None = None  # None = solo marcar los registros; True/False = ademas crear el vinculo
+
+
+class WorkshopCandidateResult(BaseModel):
+    records_claimed: int
+    linked: bool
+
+
+class WorkshopClientLinkTallerOut(BaseModel):
+    """Lo que el taller ve de un conductor vinculado: nombre y placa siempre; WhatsApp solo si el conductor lo permitio."""
+    id: UUID
+    client_name: str
+    plate: str
+    brand: str
+    model: str
+    whatsapp: str | None
+    origin: str
+    created_at: datetime

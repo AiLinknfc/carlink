@@ -42,6 +42,7 @@ from app.routers import (
     work_orders,
     workshop_ai,
     workshop_clients,
+    workshop_links,
     workshop_documents,
     workshop_inventory,
     workshop_mechanics,
@@ -131,6 +132,8 @@ app.include_router(surveys.admin_router, prefix="/api")
 app.include_router(workshop_mechanics.router, prefix="/api")
 app.include_router(workshop_services.router, prefix="/api")
 app.include_router(workshop_clients.router, prefix="/api")
+app.include_router(workshop_links.router, prefix="/api")
+app.include_router(workshop_links.taller_router, prefix="/api")
 app.include_router(workshop_inventory.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")
 app.include_router(appointments.router, prefix="/api")

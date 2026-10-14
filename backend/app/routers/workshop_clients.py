@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
-from app.models.models import Vehicle, WorkshopClient, WorkshopVehicle
+from app.models.models import Vehicle, WorkshopClient, WorkshopClientLink, WorkshopVehicle
+from app.services.workshop_links import links_enabled
 from app.schemas.schemas import (
     WorkshopClientCreate,
     WorkshopClientOut,
@@ -198,6 +199,22 @@ async def link_workshop_vehicle(
     vehicle = result.scalar_one_or_none()
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No hay ninguna cuenta CarLink registrada con esta placa")
+    if links_enabled():
+        # Fase 4 de PLAN_VINCULO_TALLER_CONDUCTOR.md: ligar solo por placa dejaba a cualquier taller escribir historial
+        # "Del taller" en el vehiculo de otra persona. Ahora el DUEÑO debe haber aceptado el vinculo con este taller.
+        workshop = await verify_workshop(user_id, db)
+        consent = await db.scalar(
+            select(func.count()).select_from(WorkshopClientLink).where(
+                WorkshopClientLink.workshop_id == workshop.id,
+                WorkshopClientLink.vehicle_id == vehicle.id,
+                WorkshopClientLink.status == "active",
+            )
+        )
+        if not consent:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El dueño del vehículo debe aceptar el vínculo primero: envíale el enlace de vinculación.",
+            )
     workshop_vehicle.linked_vehicle_id = vehicle.id
     await db.flush()
     await db.refresh(workshop_vehicle)

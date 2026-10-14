@@ -47,11 +47,9 @@ const NAV_ITEMS = [
   { id: 'rentabilidad', label: 'Rentabilidad', icon: <><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></> },
 ]
 
-// "Perfil del taller" salió de acá (queda solo detrás del botón de perfil
-// del topbar, ver showPerfilModal más abajo — antes duplicaba ese acceso).
-// El array queda vacío, pero se sigue pasando a <Sidebar> para que Admin NFC
-// (isAdmin) se agrupe en la sección "Administración" en vez de aparecer
-// suelto arriba, como sí pasa en /app persona.
+// "Perfil y configuración del taller" no vive en el sidebar: se abre como panel lateral derecho desde el botón
+// de perfil del topbar (igual que "Mi perfil" del conductor). El array queda vacío, pero se sigue pasando a
+// <Sidebar> para que Admin NFC (isAdmin) se agrupe en "Administración" en vez de aparecer suelto arriba.
 const NAV_ITEMS_ADMIN: never[] = []
 
 // Ícono del botón "Ficha pública" del topbar-actions — antes vivía en el
@@ -103,11 +101,6 @@ const SECTION_HEADER: Record<string, { eyebrow: string; title: string; subtitle:
     title: 'Reportes de rentabilidad & análisis financiero',
     subtitle: 'Métricas mensuales de ingresos, costos de repuestos, rendimiento de mano de obra y margen neto del taller.',
   },
-  perfil: {
-    eyebrow: 'Administración',
-    title: 'Perfil y configuración del taller',
-    subtitle: 'Personaliza la información oficial, catálogo de servicios, especialidades y equipo de mecánicos.',
-  },
 }
 
 const MODULE_INFO: Record<string, { title: string; blurb: string }> = {
@@ -119,7 +112,6 @@ const MODULE_INFO: Record<string, { title: string; blurb: string }> = {
   rentabilidad: { title: 'Rentabilidad', blurb: 'Ingresos, costos y margen calculados en tiempo real sobre tus órdenes.' },
   documentos: { title: 'Documentos', blurb: 'Facturas, garantías y certificados numerados, ligados a la orden de trabajo.' },
   ia: { title: 'Diagnóstico IA', blurb: 'Diagnóstico técnico preliminar a partir de los síntomas reportados.' },
-  perfil: { title: 'Perfil del taller', blurb: 'Mecánicos, catálogo de servicios, redes sociales y tarifa de IVA — alimenta tu ficha pública.' },
 }
 
 export default function NegocioPage() {
@@ -353,24 +345,49 @@ export default function NegocioPage() {
           <NotificacionesModule theme={theme} />
         ) : activeTab === 'rentabilidad' ? (
           <RentabilidadModule theme={theme} workshop={workshop!} />
-        ) : activeTab === 'perfil' ? (
-          <PerfilModule theme={theme} workshop={workshop!} />
         ) : (
           <PlaceholderModule id={activeTab} cardBg={cardBg} border={border} textMuted={textMuted} />
         )}
       </div>
 
-      {/* Botones del topbar-actions: Diagnóstico IA y Perfil abren como modal,
+      {/* Botones del topbar-actions: Diagnóstico IA abre como modal,
           sin depender de la tab activa (ver docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase A). */}
       {showDiagnosticoModal && (
         <AdminModal isOpen onClose={() => setShowDiagnosticoModal(false)} title="Diagnóstico IA" theme={theme} maxWidth={960}>
           <DiagnosticoIAModule theme={theme} />
         </AdminModal>
       )}
+
+      {/* Perfil y configuración del taller: panel lateral derecho de altura completa, mismo patrón que "Mi perfil"
+          del conductor (/app), no un modal centrado. */}
       {showPerfilModal && workshop && (
-        <AdminModal isOpen onClose={() => setShowPerfilModal(false)} title="Perfil y configuración del taller" theme={theme} maxWidth={820}>
-          <PerfilModule theme={theme} workshop={workshop} />
-        </AdminModal>
+        <div onClick={() => setShowPerfilModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Perfil y configuración del taller" style={{
+            width: 560, maxWidth: '100vw', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column',
+            background: 'var(--panel-bg, ' + (theme === 'light' ? '#ffffff' : '#141414') + ')',
+            borderLeft: `1px solid ${theme === 'light' ? 'rgba(17,17,17,0.08)' : 'rgba(255,255,255,0.06)'}`,
+            boxShadow: theme === 'light' ? '0 20px 60px rgba(0,0,0,.12)' : '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)',
+            color: rootTextColor,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 18px', borderBottom: `1px solid ${theme === 'light' ? 'rgba(17,17,17,0.08)' : 'rgba(255,255,255,0.06)'}`, position: 'sticky', top: 0, background: 'inherit', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 48, height: 48, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19 }}>
+                  {(workshop.manager_name || workshop.name || 'T').charAt(0).toUpperCase()}
+                </span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15 }}>Perfil y configuración del taller</div>
+                  <div style={{ fontSize: 12, color: textMuted }}>{workshop.name} · {workshop.code}</div>
+                </div>
+              </div>
+              <button onClick={() => setShowPerfilModal(false)} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${border}`, background: 'transparent', color: textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div style={{ padding: '18px 24px 28px' }}>
+              <PerfilModule theme={theme} workshop={workshop} />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* "Generar documento" contextual desde el detalle de una orden, o

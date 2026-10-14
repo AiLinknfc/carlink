@@ -657,6 +657,36 @@ continuo que edite solo; cualquier edición automática se revisa en un diff ant
 **Skills relacionadas:** `capture-thinking` (en `~/Documents/mis-skills/`) ahora decide si un patrón
 reusable va a la skill portable `andres-app-blueprint` o a los docs de este repo.
 
+## Vínculo taller-conductor por QR y mapa de la ficha pública (2026-10-14, en local, sin commitear)
+
+Diseño, fases y pruebas en `docs/PLAN_VINCULO_TALLER_CONDUCTOR.md`; casos manuales en la Suite 15 de `docs/PRUEBAS_FUNCIONALES.md`.
+Fases 0, 0b, 1, 2, 3, 4 y 5 **escritas** (backend `routers/workshop_links.py`, `services/workshop_links.py`, `services/geocoding.py`; frontend
+`WorkshopLocationEditor`, `WorkshopLinkPrompt`, `ClaimLinkModal`, `/vincular/[token]`), detrás de `WORKSHOP_LINKS_ENABLED` (apagado).
+- [x] **Migración 074 aplicada** a la base compartida (2026-10-14, por el dueño) y `claimed_workshop_id` ya está en el modelo `MaintenanceRecord`.
+- [x] `backend/scripts/qa_workshop_links_e2e.py` contra la base real con un backend local aparte (`WORKSHOP_LINKS_ENABLED=true`, puerto 8001): **30/30**
+  (escenarios A, B, C, fase 4, fase 5, seguridad, núcleo intacto) + pin 0b (geocodifica al crear, rechaza fuera de Colombia, no se mueve al guardar otra cosa,
+  se limpia si la dirección nueva no se ubica). Cuentas de prueba desechables, borradas al terminar.
+- [ ] Falta la parte de **interfaz** de la Suite 15 (casos 15.1 a 15.9, 15.14, 15.17 en navegador real): el E2E cubre el API, no los modales ni `/vincular/[token]`.
+- [ ] Correr `backend/scripts/geocode_workshops.py --apply` en producción tras el deploy (hoy el único taller registrado no tiene dirección).
+- [ ] El taller puede editar dirección/ciudad solo desde el editor de ubicación del Perfil; confirmar que no falta ese campo en otro flujo.
+- [ ] Encender el flag en producción solo después de la Suite 15 y del push (a `develop` + PR a `master`).
+- [x] **Hueco de seguridad del vínculo por placa** (`POST /api/workshops/me/vehicles/{id}/link` sin consentimiento): cerrado en la fase 4 **solo con el flag
+  encendido**; con el flag apagado sigue igual que antes. Verificarlo en la Suite 15 (caso 15.12).
+- [ ] Decisión abierta futura: ofrecer sellos de fidelidad por taller como beneficio visible del vínculo.
+
+## Panel del taller y ficha pública del taller (2026-10-14, en local, sin commitear) — solo modo TALLER
+
+Detalle completo en `docs/PLAN_PANEL_TALLER_FICHA_PUBLICA.md` (no confundir con la ficha del vehículo del conductor, `/nfc/[token]`). Casos manuales: Suite 15, 15.18 a 15.26.
+Hecho y verificado en navegador real con cuentas desechables: panel de perfil como panel lateral derecho, campos del registro editables, ficha pública en un card con QR,
+catálogo con fotos (migración 075 **aplicada** el 2026-10-14) y carrusel, mapa incrustado, catálogo y ubicación al mismo nivel, cuenta de taller no se vincula como cliente (403).
+- [ ] **Decisión: responder reseñas.** Se retiró la pestaña Reseñas del panel; hoy nadie puede escribir `manager_response` desde la interfaz. Propuesta: botón "Responder" en la ficha, solo para el dueño con sesión.
+- [ ] **Decisión: cerrar `POST /api/workshops/me/reviews`.** Sigue abierto: un taller podría crear reseñas propias por API e inflar su puntaje (recomendado cerrarlo, con su prueba).
+- [ ] Verificar con un conductor real que el aviso de calificar al taller se muestra (la base tiene la encuesta `workshop_service`, el código busca `workshop_service_registered`; 0 reseñas en la base).
+- [ ] Probar a mano lo que no cubrió la verificación automática: subir foto desde el selector del panel, límite de 5 MB y archivo que no es imagen, deslizar carrusel y mapa en celular real, aspecto con fotos reales de un taller, escanear el QR con un lector.
+- [ ] El taller de pruebas (`TLR-UYA5K`) no tiene pin guardado: ubicarlo en Perfil > Ubicación para ver el mapa en su ficha.
+- [ ] Horas estimadas del catálogo se muestran como `0.00h` en el panel (formato, anterior a esta sesión).
+- [ ] Commit local y push **solo con autorización fresca**, siempre a `develop` + PR a `master`. Antes de encender `WORKSHOP_LINKS_ENABLED` en producción: Suite 15 completa.
+
 ## 🔴 Prioridad alta
 
 1. **`DEEPSEEK_API_KEY` no está configurada en Railway** (confirmado por el usuario, 2026-08-07).

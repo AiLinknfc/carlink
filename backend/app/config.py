@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     nfc_auto_pause_ips: int = 10     # conexiones distintas en 24 h
     nfc_auto_pause_scans: int = 200  # lecturas en 24 h
 
+    # Vinculo taller-conductor por QR (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md). Apagado por defecto: con False los
+    # endpoints responden 404 y el vinculo por placa del taller sigue como antes. Encender con WORKSHOP_LINKS_ENABLED=true.
+    workshop_links_enabled: bool = False
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 

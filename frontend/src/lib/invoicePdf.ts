@@ -5,6 +5,8 @@
    certificado CDA (html2canvas rasteriza una plantilla HTML), pero
    empotrada en una página A4 con jsPDF para que el archivo sea un .pdf de
    verdad, no solo una imagen. docs/PLAN_FACTURACION_AUTOMATICA.md. */
+import { formatLocalDate } from './dates'
+
 
 export interface InvoicePdfColumn {
   label: string
@@ -46,7 +48,7 @@ export async function downloadInvoicePdf(opts: InvoicePdfOptions) {
       <div style="text-align:right;">
         <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#999;">${escapeHtml(opts.docType)}</div>
         <div style="font-size:18px;font-weight:800;color:#111;">${escapeHtml(opts.docNumber)}</div>
-        <div style="font-size:12px;color:#666;">${new Date(opts.issueDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        <div style="font-size:12px;color:#666;">${formatLocalDate(opts.issueDate, 'es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">

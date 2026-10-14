@@ -201,6 +201,8 @@ i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/071_vehicle_card_data.sql   -- vehicles.card_data JSONB (aplicada 2026-10-05, verificada; APLICAR ANTES de desplegar el codigo)
 \i supabase/migrations/072_vehicle_card_confirmation.sql   -- vehicles.card_confirmed_at/_digest (aplicada 2026-10-05, verificada; APLICAR ANTES de desplegar el codigo)
 \i supabase/migrations/073_maintenance_lubricant_use.sql   -- maintenance_records.lubricant_use (aplicada 2026-10-05, verificada: todos los registros existentes quedan 'motor'; APLICAR ANTES de desplegar el codigo)
+\i supabase/migrations/074_workshop_links.sql   -- vinculo taller-conductor: workshop_client_links, workshop_claim_tokens, maintenance_records.claimed_workshop_id (ADITIVA; APLICADA a la base compartida el 2026-10-14 por el usuario y verificada; dejar WORKSHOP_LINKS_ENABLED apagado en produccion hasta pasar la Suite 15)
+\i supabase/migrations/075_workshop_service_photos.sql   -- fotos del catalogo de servicios del taller: workshop_service_items.photo_url y is_featured (ADITIVA, con default; APLICADA a la base compartida el 2026-10-14 por el usuario y verificada; el codigo ya selecciona esas columnas, asi que va ANTES de cualquier deploy)
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

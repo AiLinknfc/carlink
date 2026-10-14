@@ -12,6 +12,7 @@ import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
+import { formatLocalDate } from '@/lib/dates'
 import { ServiceTypeIcon, NfcKeyIcon } from '@/lib/icons_new'
 import { isPdf, proxyUrl } from '@/lib/upload'
 import ExpenseScanModal from '@/components/ExpenseScanModal'
@@ -500,7 +501,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     + expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
   const investFmt = investTotal > 0 ? `$${investTotal.toLocaleString()}` : '$0'
 
-  const latestDate = latest?.date ? new Date(latest.date).toLocaleDateString() : null
+  const latestDate = latest?.date ? formatLocalDate(latest.date) : null
 
   const vehicleColor = (vehicle.color?.toLowerCase() || 'negro') as string
   const bgGradients: Record<string, string> = {
@@ -1060,7 +1061,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <NfcKeyIcon size={16} strokeWidth={1.8} />Vinculado a llavero NFC
             </div>
             <p style={{ margin: '10px 0 16px', fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55 }}>Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
-            <button onClick={onAddService} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
+            <button onClick={() => onAddService()} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
             <button onClick={onOpenPublicar} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: isNfcPublished ? '1px solid rgba(46,204,113,0.4)' : '1px solid rgba(245,197,24,0.4)', background: isNfcPublished ? 'rgba(46,204,113,0.08)' : 'rgba(245,197,24,0.06)', color: isNfcPublished ? '#2ecc71' : '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               Ver ficha pública

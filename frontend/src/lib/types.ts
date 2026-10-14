@@ -223,6 +223,9 @@ export interface Workshop {
   social_facebook: string;
   social_website: string;
   social_whatsapp: string;
+  /** Pin del mapa de la ficha pública: lo geocodifica el servidor y el taller lo confirma/arrastra (Perfil). */
+  latitude: number | null;
+  longitude: number | null;
   rating: number;
   created_at: string;
 }
@@ -255,6 +258,10 @@ export interface WorkshopServiceItem {
   estimated_price: number;
   estimated_hours: number;
   description: string;
+  /** Foto del servicio (archivo propio, /api/upload/files/...). Vacío = sin foto. */
+  photo_url?: string;
+  /** Hasta 4 por taller; la ficha pública los muestra en un carrusel. Necesita foto. */
+  is_featured?: boolean;
   created_at: string;
 }
 
@@ -741,6 +748,8 @@ export type WorkshopServiceItemCreate = {
   estimated_price?: number;
   estimated_hours?: number;
   description?: string;
+  photo_url?: string;
+  is_featured?: boolean;
 };
 export type WorkshopServiceItemUpdate = Partial<WorkshopServiceItemCreate>;
 

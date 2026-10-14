@@ -55,3 +55,20 @@ async def client(override_deps):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture(autouse=True)
+def _no_real_geocoding(monkeypatch):
+    """Ninguna prueba debe llamar a Nominatim de verdad (red + politica de uso). Las pruebas del servicio
+    de geocodificacion pasan su propio cliente HTTP simulado, que no depende de esta funcion."""
+    async def _none(*_a, **_k):
+        return None
+    monkeypatch.setattr("app.services.geocoding.geocode_address", _none)
+
+
+@pytest.fixture(autouse=True)
+def _workshop_links_apagado_por_defecto(monkeypatch):
+    """El vinculo taller-conductor viene apagado: las pruebas no dependen del WORKSHOP_LINKS_ENABLED del .env local
+    (que se enciende a mano para probar la interfaz). Las que lo necesitan encendido usan su propia fixture `flag_on`."""
+    from types import SimpleNamespace
+    monkeypatch.setattr("app.services.workshop_links.get_settings", lambda: SimpleNamespace(workshop_links_enabled=False))

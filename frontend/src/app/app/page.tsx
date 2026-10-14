@@ -41,11 +41,13 @@ import OrderTrackingModal from '@/components/OrderTrackingModal'
 import { useAdminNotifications, NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
 import CartModal from '@/components/CartModal'
 import OnboardingWizard, { isOnboardingDone } from '@/components/onboarding/OnboardingWizard'
+import WorkshopLinkPrompt from '@/components/WorkshopLinkPrompt'
 import GuidedTour, { isTourDone, markTourDone, type TourStep } from '@/components/onboarding/GuidedTour'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import ColorPickerButton from '@/components/ColorPickerButton'
 import BrandPickerModal from '@/components/BrandPickerModal'
 import { brandsForType, modelSuggestions, matchColorKeyword, VEHICLE_TYPES } from '@/lib/vehicleBrands'
+import { formatLocalDate } from '@/lib/dates'
 
 const FREE_SERVICE_ID = 'Aceite'
 
@@ -655,6 +657,8 @@ export default function AppPage() {
   }, [flashApp])
 
   const onAddService = useCallback((serviceType?: string) => {
+    // Un onClick={onAddService} sin envolver pasa el evento del clic como tipo de servicio: solo se aceptan strings.
+    if (typeof serviceType !== 'string') serviceType = undefined
     // Plan gratuito: solo aceite (y sin selector de tipo, así no hay cómo cambiarlo).
     if (!fullAccess) {
       if (serviceType && serviceType !== FREE_SERVICE_ID) { promptUnlock(); return }
@@ -1095,6 +1099,12 @@ export default function AppPage() {
             }}>Empezar</button>
           </div>
         </div>
+      )}
+
+      {/* Vinculo taller-conductor por QR (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md): solo con el flag encendido en el
+          servidor, despues del onboarding y con al menos un vehiculo. Sin flag no pinta nada ni llama al backend. */}
+      {!showOnboarding && !isBusiness && vehicles.length > 0 && (
+        <WorkshopLinkPrompt vehicles={vehicles} currentVehicleId={vehicle?.id} theme={theme} onDone={flashApp} />
       )}
 
       {/* Onboarding wizard obligatorio — solo conductores, ver comentario del efecto de arriba */}
@@ -1920,7 +1930,7 @@ export default function AppPage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>Info</span>
                   </div>
-                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Último servicio: {latest.service_type} registrado el {latest.date ? new Date(latest.date).toLocaleDateString() : '—'}</div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Último servicio: {latest.service_type} registrado el {latest.date ? formatLocalDate(latest.date) : '—'}</div>
                 </div>
               )}
 

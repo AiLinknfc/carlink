@@ -3,11 +3,14 @@
 import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { formatLocalDate } from '@/lib/dates'
 
 interface HistoryItem {
   date: string | null
   service_type: string
   workshop_name: string
+  /** El dueño dijo que fue en este taller; no está verificado por el taller. */
+  declared?: boolean
   latitude: number | null
   longitude: number | null
 }
@@ -53,7 +56,8 @@ export default function ServiceHistoryMap({ items, onSelectWorkshop }: Props) {
       marker.bindPopup(
         `<div style="font-family:system-ui;font-size:12px;min-width:120px">` +
         `<div style="font-weight:700;margin-bottom:2px">${it.workshop_name || 'Taller'}</div>` +
-        `<div style="color:#666;font-size:11px">${it.service_type}${it.date ? ' · ' + new Date(it.date).toLocaleDateString() : ''}</div>` +
+        `<div style="color:#666;font-size:11px">${it.service_type}${it.date ? ' · ' + formatLocalDate(it.date) : ''}</div>` +
+        (it.declared ? `<div style="color:#999;font-size:10px;margin-top:2px">Declarado por el dueño</div>` : '') +
         `</div>`,
         { closeButton: false, offset: [0, -14] as [number, number] }
       )

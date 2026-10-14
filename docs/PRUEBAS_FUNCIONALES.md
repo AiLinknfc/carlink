@@ -399,3 +399,41 @@ caso, cómo probarlo, resultado esperado — en vez de dejar la lista de verific
 conversación donde se construyó. Si un caso falla a propósito por un hallazgo ya conocido,
 marcarlo **[hallazgo conocido]** con el link al ítem de `docs/PENDIENTES.md`, no dejarlo como si
 fuera a pasar.
+
+---
+
+## Suite 15 — Vínculo taller-conductor por QR y pin del mapa (2026-10-14)
+
+Plan y diseño: `docs/PLAN_VINCULO_TALLER_CONDUCTOR.md`. Cuentas: `taller.pruebas@carlink.internal` (taller, NIT `900999001-1`) y
+`pruebas.features@carlink.internal` (conductor). Requiere la migración 074 aplicada. **Primero** correr las suites 1 a 14 con el flag
+APAGADO (es el estado de producción) para comprobar que nada cambió; después encender `WORKSHOP_LINKS_ENABLED=true` en un backend
+local aparte (`--port 8001`) y correr `backend/scripts/qa_workshop_links_e2e.py` (automatiza A, B, seguridad, fase 4 y núcleo).
+
+| # | Caso | Cómo probarlo | Resultado esperado |
+|---|---|---|---|
+| 15.1 | Flag apagado = nada nuevo | Con el flag apagado abrir `/taller/<codigo>`, `/app`, Clientes y Órdenes del panel taller | No hay botón "Registrar mi vehículo con este taller", ni "Enlace para el cliente", ni "QR de vinculación", ni aviso de vínculo; `GET /api/workshop-links/mine` da 404 |
+| 15.2 | Pin: ubicar por dirección | menú lateral > Configuración > Ubicación: escribir dirección y ciudad y "Guardar dirección y ubicar" | Aparece el pin (o el mensaje de que no se encontró); `workshops.latitude/longitude` quedan guardados |
+| 15.3 | Pin: confirmar a mano | Arrastrar el pin o tocar el mapa y "Guardar ubicación" | Se guarda; recargar conserva la posición; un punto fuera de Colombia se rechaza |
+| 15.4 | Pin en la ficha del conductor | Servicio del conductor ligado a ese taller por el vínculo (15.8) con georreferencia ON | El mapa de la ficha pública dibuja el pin; con georreferencia OFF no sale nombre ni pin |
+| 15.5 | A: QR del taller, cuenta nueva | Abrir `/taller/<codigo>` sin sesión > "Registrar mi vehículo..." > registrarse > asistente | Tras el asistente aparece "Vincular con <taller>"; al aceptar, el taller lo ve en Clientes CarLink |
+| 15.6 | A: no compartir WhatsApp | Aceptar sin marcar WhatsApp | El taller ve nombre y placa pero "Sin WhatsApp compartido" |
+| 15.7 | A: "Ahora no" | Rechazar el aviso | No vuelve a aparecer; no hay vínculo |
+| 15.8 | B: enlace de reclamo | Taller: Clientes > vehículo > "Enlace para el cliente" > abrir en incógnito | Muestra el taller y la placa enmascarada; iniciar sesión/registrarse > aviso con la placa preseleccionada |
+| 15.9 | B: un solo uso y vencimiento | Reclamar dos veces el mismo enlace; generar uno nuevo y probar el viejo | El segundo intento y el enlace viejo dan "Enlace no válido o vencido" |
+| 15.10 | B: historial retroactivo | Orden Entregada y pagada de un cliente sin cuenta; luego reclamar | El servicio llega al historial con la fecha de la orden, etiqueta "Del taller", sin editar ni borrar (403); el odómetro del conductor NO sube |
+| 15.11 | B: placa distinta | Reclamar eligiendo un vehículo con otra placa | Rechazado con "La placa de tu vehículo no coincide" |
+| 15.12 | Fase 4: ligar sin consentimiento | Taller: "Vincular" por placa a un vehículo cuyo dueño NO aceptó | 403 "El dueño del vehículo debe aceptar el vínculo primero" |
+| 15.13 | Revocar | El conductor quita el vínculo | El taller deja de verlo y sus nuevas órdenes ya no llegan; lo ya sincronizado se conserva |
+| 15.14 | C: candidatos | Conductor con servicios escritos "Aceitosos"; el taller "Aceitosos S.A.S." se registra | Aviso "¿Este es tu taller?"; confirmar marca los servicios como declarados (sin etiqueta "Del taller"); "No es mi taller" no insiste |
+| 15.15 | Núcleo intacto | Conductor manda `workshop_id` en un servicio | Se ignora (`origin` sigue `user`) |
+| 15.16 | Orden QR | Orden > "QR de vinculación" | Genera enlace/QR; al reclamarlo el origen del vínculo es `order_qr` |
+| 15.17 | 320 px | Modales de enlace, aviso del conductor y editor de pin a 320 px | Sin scroll horizontal; botones tocables |
+| 15.18 | Cuenta de taller no se vincula como cliente | Con sesión de TALLER abierta, entrar a `/taller/<codigo>` (de cualquier taller) | El aviso "¿Eres cliente de…?" no trae botón: dice que una cuenta de taller no puede vincularse. No navega ni cambia de panel. Por API: `POST /api/workshop-links` y `/claim` con token de taller dan 403; `/candidates` da `[]` |
+| 15.19 | Una sola sesión por navegador | Abrir taller en una pestaña y conductor en OTRA pestaña del mismo navegador (también en incógnito) | Es esperado que la sesión sea una sola: la última cuenta que inicia sesión reemplaza a la otra en TODAS las pestañas. Para probar las dos cuentas a la vez usar navegadores o perfiles distintos (ej. ventana normal + incógnito, o Chrome + otro navegador). No es un fallo de seguridad ni de la app |
+| 15.20 | Ficha pública del taller | Abrir `/taller/<codigo>` sin sesión y a 320 px | Un solo card con encabezado, QR siempre visible, catálogo, equipo y contacto; fuera del card, debajo: "¿Eres cliente de…?" (solo con el flag encendido) y "Reseñas de clientes" (siempre, con "Aún no hay reseñas" si no hay). Sin scroll horizontal |
+| 15.21 | Foto en un servicio | Panel > Perfil > Servicios: tocar el recuadro de foto de un servicio y subir una imagen | La foto aparece en la fila; una imagen > 5 MB o un archivo que no es imagen se rechaza con mensaje; "Quitar foto" la borra |
+| 15.22 | Destacar servicios (máx. 4) | Destacar servicios con foto uno por uno hasta 4; intentar el quinto | El contador marca n/4; el quinto da el mensaje de límite y no se destaca (por API: 409). Un servicio sin foto no se puede destacar (422). Quitar la foto a un destacado lo deja sin destacar |
+| 15.23 | Carrusel en la ficha pública | Abrir `/taller/<codigo>` con 2 a 4 destacados | Carrusel "Servicios destacados": avanza solo cada 4 s, se detiene con el cursor o al tocar, se desliza con el dedo, flechas y puntos funcionan; con 1 destacado no hay controles; sin destacados no aparece |
+| 15.24 | Carrusel a 320 px y movimiento reducido | Misma ficha a 320 px; con "reducir movimiento" activado en el sistema | Sin scroll horizontal, texto legible sobre la foto; con movimiento reducido no avanza solo |
+| 15.25 | Foto de otra cuenta o externa | Por API: `PUT /api/workshops/me/services/<id>` con `photo_url` de https externo o de archivo de otro usuario | 422 "La foto debe ser un archivo subido desde tu cuenta" |
+| 15.26 | Mapa en la ficha pública | Taller con pin guardado (Perfil > Ubicación): abrir `/taller/<codigo>`; luego uno sin pin | Con pin: sección "Ubicación" dentro del card con dirección, botón "Cómo llegar" y el mapa con el pin (no es un modal); a 320 px sin scroll horizontal; en celular un dedo desplaza la página y el pellizco hace zoom. Sin pin: la sección no aparece |

@@ -1,6 +1,7 @@
 'use client'
 
 import type { InvoicePdfOptions } from '@/lib/invoicePdf'
+import { formatLocalDate } from '@/lib/dates'
 
 /* "Hoja" de documento imprimible, en vivo — igual que la pestaña "2. Vista
    Previa / Imprimir" de tallerpro (DocumentGeneratorModal.tsx: SHEET OF
@@ -34,7 +35,7 @@ export default function InvoiceDocumentPreview({ opts, statusLabel = 'VIGENTE' }
           </div>
           <div style={{ border: '1px solid #ddd', borderTop: 'none', borderRadius: '0 0 6px 6px', padding: '6px 10px', background: '#fafafa' }}>
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#111' }}>{opts.docNumber || '—'}</div>
-            <div style={{ fontSize: 10, color: '#888' }}>{opts.issueDate ? new Date(opts.issueDate).toLocaleDateString('es-CO') : '—'}</div>
+            <div style={{ fontSize: 10, color: '#888' }}>{opts.issueDate ? formatLocalDate(opts.issueDate, 'es-CO') : '—'}</div>
           </div>
         </div>
       </div>

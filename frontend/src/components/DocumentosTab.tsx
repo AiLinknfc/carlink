@@ -9,6 +9,7 @@ import CameraCapture from './CameraCapture'
 import FileCard, { getStatusColor, getStatusLabel } from './FileCard'
 import type { Document, VehicleInvoice } from '@/lib/types'
 import ThemedDateInput from '@/components/ThemedDateInput'
+import { formatLocalDate } from '@/lib/dates'
 
 function FileLightbox({ urls, onClose }: { urls: string[]; onClose: () => void }) {
   const [index, setIndex] = useState(0)
@@ -699,7 +700,7 @@ export default function DocumentosTab({ vehicleId, refreshKey }: Props) {
                       </div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)', marginTop: 2 }}>{inv.doc_number}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{new Date(inv.issue_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{formatLocalDate(inv.issue_date, 'es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   </div>
                   {locked ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '14px 6px', textAlign: 'center' }}>
