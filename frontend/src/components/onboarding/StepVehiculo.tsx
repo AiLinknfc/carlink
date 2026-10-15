@@ -7,7 +7,7 @@ import { uploadFile, scanVehicleCard } from '@/lib/upload'
 import { formatPlate, parsePlate, getPlateConfig, plateShowsCountryLabel, PLATE_TYPE_LABELS, type PlateType } from '@/lib/plate'
 import { CITIES } from '@/lib/constants'
 import { normalizeBodyType, matchColorKeyword } from '@/lib/vehicleBrands'
-import FuelSelect from '@/components/FuelSelect'
+import MileageCaution from '@/components/MileageCaution'
 import { cardDataFromScan, mergeCardData } from '@/lib/vehicleCard'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import CameraCapture from '@/components/CameraCapture'
@@ -103,11 +103,12 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
   // Kilometraje inicial: obligatorio. Es el punto de partida del odómetro y, desde ahí, ningún
   // servicio puede registrar menos (backend: services/maintenance_rules.py).
   const [initialMileage, setInitialMileage] = useState('')
+  const [mileageFocused, setMileageFocused] = useState(false)
   // Resto de campos de la tarjeta leídos por OCR (frente y reverso); viajan en el POST /vehicles.
   const [cardData, setCardData] = useState<Record<string, string>>({})
   const initialMileageNum = parseInt(initialMileage, 10)
   const initialMileageValid = Number.isFinite(initialMileageNum) && initialMileageNum >= 0 && initialMileageNum <= 3_000_000
-  const canSubmit = plateComplete && !!city && plateTypeValid && initialMileageValid && !!ocrData.fuelType && !saving && !plateExists && !plateChecking
+  const canSubmit = plateComplete && !!city && plateTypeValid && initialMileageValid && !saving && !plateExists && !plateChecking
 
   // Recupera placa/ciudad si el usuario ya las había escrito en la landing
   // (hero público, antes de loguearse) — mismo sessionStorage que ya usaba
@@ -495,22 +496,15 @@ export default function StepVehiculo({ userId, theme, vehicle, onCreated, onCont
         </div>
       </div>
 
-      {/* Combustible: obligatorio. Lo prellena el escaneo de la tarjeta (campo COMBUSTIBLE); si no
-         se leyó, se elige acá. Sin opción "sin definir". */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Combustible *</label>
-        <FuelSelect value={ocrData.fuelType} onChange={v => setOcrData(prev => ({ ...prev, fuelType: v }))} />
-      </div>
-
-      {/* Kilometraje inicial — obligatorio, con aviso de precaución. */}
+      {/* Kilometraje inicial — obligatorio, con aviso de precaución que se resalta al enfocar el campo. El combustible ya no se pide
+          acá: lo prellena el escaneo de la tarjeta si lo lee, y si no se completa luego en el panel lateral (Corregir datos). */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Kilometraje actual *</label>
         <input type="number" inputMode="numeric" min={0} value={initialMileage} placeholder="Ej. 52000"
           onChange={e => setInitialMileage(e.target.value)}
+          onFocus={() => setMileageFocused(true)} onBlur={() => setMileageFocused(false)}
           style={{ width: '100%', height: 46, boxSizing: 'border-box', padding: '0 13px', borderRadius: 10, border: `1px solid ${inputBorder}`, background: inputBg, color: textPrimary, fontSize: 14, outline: 'none' }} />
-        <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 10, background: 'rgba(245,197,24,0.08)', border: '1px solid rgba(245,197,24,0.3)', fontSize: 11.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
-          <b>Ten cuidado con este dato.</b> Es el punto de partida del historial del vehiculo: desde aqui el kilometraje nunca puede bajar, y despues solo se corrige durante 48 horas. Ingresa lo que marca el tablero hoy.
-        </div>
+        <MileageCaution active={mileageFocused} />
       </div>
 
       {/* Placa duplicada — mismo aviso que CartModal.tsx, antes de intentar

@@ -1322,7 +1322,7 @@ export default function AppPage() {
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Combustible</label>
                   <FuelSelect value={editFuel} onChange={setEditFuel} />
-                  {!editFuel && <div style={{ fontSize: 11, color: '#F5C518', marginTop: 6 }}>Elige el combustible que figura en la tarjeta de propiedad.</div>}
+                  {!editFuel && <div style={{ fontSize: 11, color: '#F5C518', marginTop: 6 }}>Obligatorio para enviar a revisión: elige el combustible que figura en la tarjeta de propiedad.</div>}
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Año</label>

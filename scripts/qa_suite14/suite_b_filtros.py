@@ -7,6 +7,8 @@ def nxt(pg): return pg.get_by_role("button", name="Siguiente", exact=True).last
 def run():
     global VID; VID = VID or current_vehicle_id()
     sess = session(); tok = sess["access_token"]
+    # El wizard ya no pide combustible (2026-10-15): el caso B1 es "carro gasolina", asi que se fija aqui como lo haria el panel lateral.
+    api("PUT", f"/vehicles/{VID}", tok, json={"fuel_type": "gasolina"})
     # Activar el llavero de prueba (necesario para ficha pública y registrar servicios que no sean aceite)
     r = api("POST", "/nfc/activate", tok, json={"activation_code": "6WDDSBEEE7", "vehicle_id": VID})
     record("E0", "Activar el llavero de prueba con el código 6WDDSBEEE7", r.status_code == 201, f"HTTP {r.status_code} {r.text[:80]}")

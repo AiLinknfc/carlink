@@ -291,8 +291,8 @@ Para las pruebas de OCR hace falta `DEEPSEEK_API_KEY` en el backend local (`back
 una tarjeta de propiedad real o una foto legible de una.
 
 **A. Registro del vehículo y odómetro**
-- [ ] Wizard, paso Vehículo: "Guardar vehículo" sigue gris hasta tener placa, ciudad, **combustible** y **kilometraje**. El aviso "Ten cuidado con este dato" es visible.
-- [ ] Combustible: es un desplegable de una fila (no chips sueltas), con el resaltado amarillo y esquinas redondeadas, sin opción "sin definir".
+- [ ] Wizard, paso Vehículo: "Guardar vehículo" sigue gris hasta tener placa, ciudad y **kilometraje**. El aviso "Ten cuidado con este dato" es visible y, al enfocar el campo de kilometraje, se resalta y pulsa (con "reducir movimiento" solo se resalta).
+- [ ] Combustible: el wizard y "Agregar vehículo" **ya no lo piden** (2026-10-15). Se elige después en el panel lateral > Corregir datos (desplegable de una fila, sin "sin definir"), y es obligatorio para enviar a revisión. Si el escaneo de la tarjeta lo lee, se guarda solo.
 - [ ] Escanear frente y reverso: se prellenan combustible, propietario y los datos de la licencia (se ven luego en Mi perfil > Detalles del vehículo). Al terminar el wizard el vehículo queda **sin verificar** (no se envía solo a revisión) y las fotos aparecen en Documentos. `[requiere DEEPSEEK_API_KEY]`
 - [ ] En la base, `vehicles.card_data` trae todo lo leído (aunque sea inválido, p. ej. un VIN de 16 caracteres) y `fuel_type` queda guardado.
 - [ ] Selector de fecha (en Registrar servicio, Historial anterior, Documentos, Seguridad, etc.): al abrirlo el calendario es **amarillo** (día elegido en #F5C518), con esquinas redondeadas y sin ningún azul; en tema claro y oscuro. Dentro de un modal con scroll no queda cortado.
