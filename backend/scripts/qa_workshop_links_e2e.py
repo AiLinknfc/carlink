@@ -12,6 +12,9 @@ Uso (desde backend/):
     QA_TALLER_EMAIL=taller.pruebas@carlink.internal  QA_TALLER_PASSWORD=... \\
     .venv/bin/python scripts/qa_workshop_links_e2e.py [--api http://localhost:8001]
 
+El vehiculo de prueba queda SIN verificar a proposito: asi se comprueba que los escenarios A y C no traen historial
+del taller (solo el enlace de reclamo, escenario B, lo hace).
+
 Crea un vehiculo, un cliente y una orden de prueba y los BORRA al terminar (aunque falle). Solo toca cuentas @carlink.internal.
 """
 from __future__ import annotations
@@ -112,6 +115,14 @@ def main(api: str) -> int:
         made["order"] = oid
         c.put(f"/workshops/me/work-orders/{oid}", headers=t_h, json={"status": "Entregado", "is_paid": True})
 
+        # Escenarios A/C solo tienen la placa (casi publica): con el vehiculo SIN verificar no deben traer historial del taller.
+        relink = c.post("/workshop-links", headers=d_h, json={"workshop_code": code, "vehicle_id": vid, "share_contact": False})
+        check("A: re-vincular tras revocar funciona", relink.status_code == 201, f"{relink.status_code} {relink.text[:100]}")
+        h_a = c.get(f"/maintenance/vehicle/{vid}", headers=d_h).json()
+        h_a = h_a if isinstance(h_a, list) else h_a.get("items", [])
+        check("seguridad: vincular por QR con vehiculo sin verificar NO trae el historial del taller", not any(h.get("source_work_order_id") for h in h_a),
+              str([(h.get("service_type"), h.get("origin")) for h in h_a][:5]))
+
         tok = c.post(f"/workshops/me/vehicles/{wv['id']}/claim-token", headers=t_h)
         check("B: el taller genera el enlace de reclamo", tok.status_code == 200 and len(tok.json()["token"]) >= 40, f"{tok.status_code}")
         raw = tok.json()["token"]
@@ -132,6 +143,14 @@ def main(api: str) -> int:
         check("B: el historial del conductor trae el servicio con origen 'workshop'", rec is not None and rec.get("origin") == "workshop",
               f"{len(hist)} registros: {[(h.get('service_type'), h.get('origin'), bool(h.get('source_work_order_id'))) for h in hist][:5]}")
         check("B retroactivo: kilometraje 0 y fecha de hoy (la de la orden)", rec is not None and rec.get("mileage") == 0 and rec.get("date") == __import__("datetime").date.today().isoformat(), str(rec and (rec.get("mileage"), rec.get("date"))))
+        # Regresion: el servicio traido tiene km 0 (desconocido) y fecha de hoy; no debe bloquear un servicio previo valido.
+        from datetime import date, timedelta
+        prev = c.post("/maintenance", headers=d_h, json={
+            "vehicle_id": vid, "service_type": "Aceite", "lubricant_brand": "Shell", "lubricant_type": "5W-40", "lubricant_use": "motor",
+            "mileage": 5500, "next_service_mileage": 10500, "workshop": "Taller Inventado", "date": (date.today() - timedelta(days=5)).isoformat()})
+        check("B retroactivo: el km 0 traido NO bloquea un servicio anterior con km real", prev.status_code in (200, 201), f"{prev.status_code} {prev.text[:120]}")
+        hist = c.get(f"/maintenance/vehicle/{vid}", headers=d_h).json()
+        hist = hist if isinstance(hist, list) else hist.get("items", [])
         n_before = len(hist)
         c.post(f"/workshops/me/vehicles/{wv['id']}/link", headers=t_h)  # ya ligado: idempotente
         c.put(f"/workshops/me/work-orders/{oid}", headers=t_h, json={"status": "Entregado", "is_paid": True})
