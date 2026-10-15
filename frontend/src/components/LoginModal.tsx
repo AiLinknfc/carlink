@@ -6,6 +6,7 @@ import { fbqTrack } from '@/lib/metaPixel'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/store/auth'
+import AuthProgress from '@/components/AuthProgress'
 
 // Official multicolor Google "G" logo
 const GoogleSVG = ({ width = 20, height = 20, style }: { width?: number; height?: number; style?: React.CSSProperties }) => (
@@ -481,7 +482,7 @@ export default function LoginModal({ isOpen, onClose, onOpenPolicy, theme, initi
                   </motion.div>
                 )}
 
-                {/* Loading */}
+                {/* Loading: pantalla de espera propia de CarLink (sin el logo de Google, que solo va en el boton de Google). */}
                 {step === 'loading' && (
                   <motion.div
                     key="login-loading"
@@ -490,28 +491,7 @@ export default function LoginModal({ isOpen, onClose, onOpenPolicy, theme, initi
                     exit={{ opacity: 0, scale: 1.04 }}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '28px 0' }}
                   >
-                    <div style={{ position: 'relative', width: 84, height: 84 }}>
-                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid rgba(245,197,24,0.14)' }} />
-                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: gold, animation: 'spin 1s linear infinite' }} />
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          width: 34, height: 34, borderRadius: '50%', background: '#ffffff',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                        }}>
-                          <GoogleSVG width={20} height={20} />
-                        </span>
-                      </div>
-                    </div>
-                    <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                    <div style={{ textAlign: 'center' }}>
-                      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 400, letterSpacing: '.02em', textTransform: 'uppercase', color: gold, marginBottom: 6 }}>
-                        Verificando identidad
-                      </h3>
-                      <p style={{ fontSize: 12.5, color: textMuted, maxWidth: 220, margin: '0 auto', lineHeight: 1.5 }}>
-                        Autenticando de forma segura tu acceso...
-                      </p>
-                    </div>
+                    <AuthProgress kind={mode === 'signup' ? 'signup' : 'signin'} muted={textMuted} />
                   </motion.div>
                 )}
 
