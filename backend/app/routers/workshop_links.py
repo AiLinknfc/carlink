@@ -104,10 +104,16 @@ async def _upsert_link(
     return link
 
 
-async def _attach_and_backfill(db: AsyncSession, workshop: Workshop, vehicle: Vehicle) -> int:
-    """El conductor ya aceptó: los vehículos del taller con esa placa quedan ligados a su cuenta (para que las
+async def _attach_and_backfill(db: AsyncSession, workshop: Workshop, vehicle: Vehicle, *, proven: bool = False) -> int:
+    """Sin `proven` (escenarios A y C: solo hay placa, que es casi pública) no se liga ni se trae nada, salvo que
+    el vehículo ya esté verificado con su tarjeta de propiedad. `proven=True` es el token de un solo uso del
+    taller (escenario B), que prueba que el taller autorizó a ese cliente.
+
+    El conductor ya aceptó: los vehículos del taller con esa placa quedan ligados a su cuenta (para que las
     próximas órdenes le lleguen) y se trae lo ya entregado y pagado. Devuelve las órdenes elegibles."""
     synced = 0
+    if not proven and vehicle.verification_status != "verified":
+        return 0
     wvs = (await db.execute(select(WorkshopVehicle).where(WorkshopVehicle.workshop_id == workshop.id))).scalars().all()
     for wv in wvs:
         if normalize_plate(wv.license_plate) != normalize_plate(vehicle.plate):
@@ -240,7 +246,7 @@ async def claim(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enlace no válido o vencido")
     origin = "order_qr" if row.work_order_id else "claim_link"
     link = await _upsert_link(db, workshop=workshop, vehicle=vehicle, user_id=user_id, origin=origin, share_contact=body.share_contact)
-    synced = await _attach_and_backfill(db, workshop, vehicle)
+    synced = await _attach_and_backfill(db, workshop, vehicle, proven=True)
     await db.refresh(link)
     return WorkshopClaimResult(link=_link_out(link, workshop, vehicle), synced_orders=synced)
 

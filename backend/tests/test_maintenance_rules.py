@@ -105,3 +105,9 @@ def test_support_url_must_be_users_own_upload():
     ):
         with pytest.raises(RuleError):
             check_support_url(bad, uid)
+
+
+def test_km_cero_de_un_servicio_de_taller_no_bloquea_historial_valido():
+    from datetime import date
+    from app.services.maintenance_rules import check_mileage
+    check_mileage(50000, date(2026, 9, 1), [(date(2026, 9, 20), 0)])  # no debe lanzar

@@ -159,3 +159,22 @@ async def test_cuenta_de_taller_no_puede_vincularse_como_cliente(client, cuenta_
 async def test_cuenta_de_taller_no_recibe_sugerencias(client, cuenta_taller, flag_on):
     resp = await client.get("/api/workshop-links/candidates")
     assert resp.status_code == 200 and resp.json() == []
+
+
+# ---- backfill solo con prueba de propiedad ------------------------------------------------------------------
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,proven,consulta", [
+    ("unverified", False, False),   # A/C con placa sin verificar: no se liga ni se trae nada
+    ("verified", False, True),
+    ("unverified", True, True),     # token de un solo uso (escenario B)
+])
+async def test_backfill_solo_con_vehiculo_verificado_o_token(status, proven, consulta):
+    from app.routers.workshop_links import _attach_and_backfill
+    db = AsyncMock()
+    res = MagicMock()
+    res.scalars.return_value.all.return_value = []
+    db.execute.return_value = res
+    veh = SimpleNamespace(id=uuid.uuid4(), plate="ABC123", verification_status=status)
+    assert await _attach_and_backfill(db, SimpleNamespace(id=uuid.uuid4()), veh, proven=proven) == 0
+    assert db.execute.called is consulta
