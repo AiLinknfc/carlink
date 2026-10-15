@@ -28,27 +28,32 @@ export default function WorkshopLinkPrompt({ vehicles, currentVehicleId, theme, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const ran = useRef(false)
+  // Solo se cancela al desmontar. Si se cancelara en cada cambio de `vehicles`/`currentVehicleId` (cleanup del efecto),
+  // la primera corrida moriria a medias y `ran` impediria reintentar: el aviso nunca saldria (en desarrollo, React StrictMode
+  // monta, desmonta y vuelve a montar, asi que la marca se reinicia al montar).
+  const unmounted = useRef(false)
+  useEffect(() => { unmounted.current = false; return () => { unmounted.current = true } }, [])
 
   useEffect(() => {
     if (ran.current || vehicles.length === 0) return
     ran.current = true
-    let cancelled = false
+    const cancelled = () => unmounted.current
     ;(async () => {
-      if (!(await linksEnabled()) || cancelled) return
+      if (!(await linksEnabled()) || cancelled()) return
       const pending = readPending()
       if (pending?.kind === 'ref') {
         try {
           const res = await fetch(apiUrl(`/workshops/${encodeURIComponent(pending.code)}`))
           if (!res.ok) { clearPending(); return }
           const w = await res.json()
-          if (!cancelled) { setVehicleId(currentVehicleId || vehicles[0].id); setView({ kind: 'ref', code: pending.code, name: w.name }) }
+          if (!cancelled()) { setVehicleId(currentVehicleId || vehicles[0].id); setView({ kind: 'ref', code: pending.code, name: w.name }) }
         } catch { /* sin red: se deja el pendiente para la proxima vez */ }
         return
       }
       if (pending?.kind === 'claim') {
         const info = await claimInfo(pending.token)
         if (info === 'invalid') { clearPending(); return }
-        if (!info || cancelled) return
+        if (!info || cancelled()) return
         const match = vehicles.find(v => maskPlate(v.plate) === info.plate_hint)
         setVehicleId(match?.id ?? '')
         setView({ kind: 'claim', token: pending.token, name: info.workshop_name, plateHint: info.plate_hint })
@@ -57,9 +62,8 @@ export default function WorkshopLinkPrompt({ vehicles, currentVehicleId, theme, 
       const list = await linksApi.candidates()
       const dismissed = dismissedCandidates()
       const next = (list || []).find(c => !dismissed.includes(candidateKey(c.workshop_id, c.vehicle_id)))
-      if (next && !cancelled) setView({ kind: 'candidate', c: next })
+      if (next && !cancelled()) setView({ kind: 'candidate', c: next })
     })()
-    return () => { cancelled = true }
   }, [vehicles, currentVehicleId])
 
   if (!view) return null
