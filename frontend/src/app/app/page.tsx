@@ -972,6 +972,9 @@ export default function AppPage() {
            en el prop `inert` de Sidebar.tsx. Estos botones (ej. "Comprar
            llavero NFC") comparten z-index con CartModal, así que sin esto
            quedaban alcanzables por teclado detrás del overlay del wizard. */}
+        {/* Franja fija del topbar móvil (solo <= 900px, ver globals.css): el logo y los botones se quedan a la vista al
+            hacer scroll y el contenido pasa por debajo con desenfoque. En escritorio no se pinta. */}
+        <div className="mobile-topbar-bar" aria-hidden="true" style={{ background: theme === 'light' ? 'rgba(247,246,242,0.88)' : 'rgba(6,6,6,0.84)' }} />
         <div className="mobile-topbar-logo" aria-hidden="true" style={{ color: rootTextColor }}>
           <CarLinkLogo size={33} />
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>

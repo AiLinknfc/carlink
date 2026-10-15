@@ -76,6 +76,10 @@ verificación bajo presión de tiempo, justo cuando más importan.
 
 ## Patrones de diseño responsive
 
+- **Regla dura: toda implementación debe ser responsive desde el diseño** (celular desde 320 px y escritorio), preferir
+  layouts fluidos (`auto-fit/minmax`, `clamp`, `flex-wrap`) antes que reglas `@media` por componente. Detalle y
+  checklist de prueba en `docs/DESIGN_GUIDELINES.md` → "Regla dura: todo es responsive desde el diseño".
+
 - Usar `data-r="nombre"` para targeting CSS en componentes con inline styles — ver `docs/DESIGN_GUIDELINES.md` → "Responsive Design Patterns"
 - Para overlap entre secciones, usar `@media(max-height)` además de width — el hero landing y
   "Cómo funciona" ya lo aplican

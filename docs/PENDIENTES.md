@@ -58,6 +58,21 @@ enlazadas; esto es solo el orden. Marcar `[x]` y fecha al cerrar cada uno.
   entra volando en "Cómo funciona" (cortado a propósito al inicio de la animación) y el anillo recortado arriba en las imágenes del hero.
 - [ ] La campana de Admin consulta cada 60 s (no es push al celular). Si se quiere aviso inmediato fuera de la página: WhatsApp o push.
 - [ ] Backend local en redes sin IPv6 (hotspot): usar el pooler de Supabase, ver `docs/DEPLOY.md`.
+- [ ] **Componentes fluidos en vez de reglas móviles aparte** (evaluación 2026-10-15, pedida por el usuario; regla en
+  `docs/DESIGN_GUIDELINES.md`). Medición del código: `globals.css` 521 líneas con 20 `@media` y 110 `!important`; 235
+  atributos `data-r` (136 en landings de marketing); 73 rejillas fijas (`'1fr 1fr'`/`repeat(N,...)`) frente a 39
+  `auto-fit/minmax`; 35 anchos fijos >= 300 px. Orden propuesto, de más a menos rentable:
+  1. Formularios con rejilla de 2 columnas (`PerfilModule` 7, `ServiceFormModal` 5, `DocumentosModule` 4, `CartModal` 4,
+     `OrdenesModule`/`InventarioModule`/`CitasModule` 3 c/u, `AddVehicleModal` 3): pasar a
+     `repeat(auto-fit, minmax(min(100%, 200px), 1fr))`. Mecánico y de riesgo bajo; elimina las clases `.grid2`/`.regGrid`.
+  2. Cascarón común de modal/panel: `max-width: min(Npx, 100vw - 32px)`, `max-height: 100dvh`, scroll interno. Quita
+     anchos fijos (hoy 7 en `app/page.tsx`, 3 en `OnboardingWizard`) y reglas por panel.
+  3. Rellenos y títulos con `clamp()` en lugar de reglas por breakpoint.
+  4. NO tocar por ahora las landings (`taller/(landing)`, `LandingSections`): son arte dirigido por breakpoint y el riesgo
+     visual es alto frente al ahorro.
+  Antes de convertir cada grupo, capturar 320/390/1280 en claro y oscuro (Playwright ya está en `scripts/qa_suite14`) y
+  comparar: un `minmax` mal elegido cambia el número de columnas en escritorio. Aplicar además la regla "al tocar un
+  componente, déjalo fluido".
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza

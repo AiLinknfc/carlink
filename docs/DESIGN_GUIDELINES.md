@@ -13,6 +13,28 @@ incluya emojis antes de renderizarlo.
 Esta regla es solo de **interfaz de la app** — no aplica a la documentación interna (`docs/*.md`),
 donde emojis como ✅/❌/🔴 ya se usan como notación de estado en tablas y checklists y son válidos ahí.
 
+## Regla dura: todo es responsive desde el diseño (2026-10-15)
+
+**Toda implementación nueva o modificada tiene que funcionar bien en celular (desde 320 px) y en escritorio, sin
+que el celular sea un "arreglo posterior".** Pedido explícito del usuario: la web de escritorio ya está bien, lo que
+se busca es no tener que especificar cosas aparte para móvil. Por eso:
+
+- **Fluido por defecto, no por excepción.** Preferir layouts que se adaptan solos antes que reglas por breakpoint:
+  `grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr))`, `flex-wrap: wrap`, `width: 100%` con
+  `max-width`, `min-width: 0` en hijos de flex/grid, `clamp()` para tamaños y rellenos, `dvh` en vez de `vh` para
+  alturas de pantalla completa, `aspect-ratio` para medios. Un `@media` solo cuando el diseño realmente cambia de
+  forma (ej. barra lateral que se vuelve cajón), no para corregir un ancho fijo.
+- **Evitar anchos fijos en px** (`width: 420`) y rejillas fijas (`repeat(3, 1fr)`, `'1fr 1fr'`) en componentes
+  que pueden vivir en pantallas angostas. Si hace falta un ancho máximo, usar `min(420px, 100%)`.
+- **Contenedor antes que pantalla.** Un componente que se usa en un panel lateral y también en una página completa debe
+  adaptarse al ancho de su contenedor (`@container`), no al de la ventana.
+- **Elementos de interfaz fijos (topbar, barras)** deben quedarse a la vista al hacer scroll en celular y no robar
+  más de ~60 px de alto. El topbar móvil es fijo desde 2026-10-15 (`globals.css`, `.mobile-topbar-bar`).
+- **Se prueba antes de dar algo por hecho:** 320, 390 y escritorio, en modo claro y oscuro, sin scroll horizontal y
+  con zonas táctiles de al menos 40 px. Un cambio que "se ve bien en web" no está terminado hasta pasar esto.
+- Los patrones concretos están más abajo en "Responsive Design Patterns" (`data-r`, `@media(max-height)`, ganchos de
+  clase). La lista de componentes por convertir a fluidos vive en `docs/PENDIENTES.md` (no se duplica aquí).
+
 ## Typography
 
 **Maximum 2 font families:**
