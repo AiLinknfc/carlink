@@ -17,7 +17,7 @@ por tipo de vehículo, Control de partes, venta y analítica). Maneja un Chromiu
 3. Un entorno aparte con las dependencias (no van en el venv del backend):
    ```bash
    python3 -m venv /tmp/qa-venv && /tmp/qa-venv/bin/pip install -r scripts/qa_suite14/requirements.txt
-   /tmp/qa-venv/bin/playwright install chromium     # o CHROME_PATH=/ruta/a/chrome si ya hay un Chromium
+   /tmp/qa-venv/bin/playwright install chromium     # o CHROME_PATH=/ruta/a/chrome si ya hay un Chromium (si Playwright pide otra versión: `CHROME_PATH=$(ls ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome | tail -1)`)
    ```
 
 ## Cómo correrla

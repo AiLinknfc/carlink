@@ -77,12 +77,26 @@ por WhatsApp). Cuando la persona se registra y lo abre, confirma que el vehícul
 su vehículo) y acepta el vínculo. Recién ahí se **sincroniza hacia atrás** lo ya entregado y pagado (idempotente por
 `source_work_order_id`, con la función que ya existe). A verificar en la fase 2: que ese historial retroactivo conserve las
 fechas de la orden y no choque con la regla "no anterior a 30 días" (hoy aplica a lo declarado por el usuario).
+*Resuelto (2026-10-14/15):* el registro retroactivo lleva la fecha de la orden y kilometraje 0 sin lectura de odómetro; la regla de
+kilometraje ignora el 0 (ver `docs/MODELO_OPERATIVO.md` §2).
 
 **C. El conductor tiene servicios con un taller que se registra después.** Hoy esos servicios guardan el nombre en texto libre.
 Cuando se crea un taller, el sistema calcula **candidatos** por nombre normalizado + ciudad (+ teléfono si coincide). No
 vincula solo: en la app del conductor aparece "¿Este es tu taller? Aceitosos -> Taller Aceitosos S.A.S. (Bogotá)". Si confirma,
 se llena `claimed_workshop_id` en esos registros y se ofrece el vínculo (escenario A). El taller nunca ve los datos del
 conductor hasta que este acepte. Coincidencias de nombre son sugerencias, no pruebas.
+
+### 4.5 Ajustes de la revisión del 2026-10-15
+
+- **A y C ya no traen historial del taller si el vehículo no está verificado.** Antes `_attach_and_backfill` ligaba por placa y
+  copiaba órdenes (costos, descripciones, repuestos) en cualquier vínculo, y la placa es casi pública. Ahora el backfill exige
+  `proven=True` (enlace de reclamo de un solo uso, escenario B) o `vehicle.verification_status == 'verified'`. Sin eso el vínculo
+  se crea pero no liga ni trae nada. Pruebas: `test_workshop_links.py` y el e2e.
+- **Km 0 de lo retroactivo** ya no bloquea servicios anteriores con km real (`check_mileage`).
+- **Bug de interfaz:** en desarrollo el aviso de vínculo nunca salía. `WorkshopLinkPrompt` cancelaba su única corrida en el cleanup
+  del efecto (React StrictMode monta, desmonta y vuelve a montar) y `ran.current` impedía reintentar. Regla: en efectos con una
+  marca "ya corrió", no cancelar por cleanup; cancelar solo al desmontar de verdad y reiniciar la marca al montar.
+- Verificado el 2026-10-15: `backend/scripts/qa_workshop_links_e2e.py` **34/34** contra la base real, y A/B/C a mano en dos navegadores.
 
 ### 4.4 Precisión de la geocodificación (medida el 2026-10-14)
 Con direcciones colombianas con numeración, Nominatim/OSM da resultados aproximados o ninguno: de 3 direcciones de prueba en

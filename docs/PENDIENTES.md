@@ -1,6 +1,6 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
+_Última actualización: 2026-10-15 (revisión de commits recientes, vínculo taller-conductor y ajustes de interfaz) — antes: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
 notificaciones de admin, defensa automática NFC, limpieza de datos y R2; ver "Antes y después de publicar" abajo)._
 
 ## Antes y después de publicar la campaña (2026-10-02) — lista de seguimiento
@@ -58,6 +58,25 @@ enlazadas; esto es solo el orden. Marcar `[x]` y fecha al cerrar cada uno.
   entra volando en "Cómo funciona" (cortado a propósito al inicio de la animación) y el anillo recortado arriba en las imágenes del hero.
 - [ ] La campana de Admin consulta cada 60 s (no es push al celular). Si se quiere aviso inmediato fuera de la página: WhatsApp o push.
 - [ ] Backend local en redes sin IPv6 (hotspot): usar el pooler de Supabase, ver `docs/DEPLOY.md`.
+- [ ] **Hallazgos de la revisión del 2026-10-15** (código ya corregido: km 0 retroactivo y backfill sin verificar; ver
+  `docs/PLAN_VINCULO_TALLER_CONDUCTOR.md` §4.5). Siguen abiertos, de mayor a menor:
+  - `GET /maintenance/vehicle/{id}/latest` y el listado ordenan por kilometraje, no por fecha: con servicios traídos (km 0) o
+    historial anterior, "el último servicio" puede no ser el más reciente. Ordenar por fecha con el km como desempate y revisar
+    qué pantallas dependen del orden actual.
+  - `workshop_links._check_rate` responde `True` si no hay Redis (hoy no hay `REDIS_URL` en Railway): el límite de los endpoints
+    nuevos tampoco actúa. Se cierra con el punto B de arriba.
+  - `candidates()` carga todos los talleres publicados y los compara en memoria con cada servicio (O(n·m)): filtrar por ciudad en
+    SQL cuando haya cientos de talleres.
+  - No hay bloqueo de concurrencia al registrar km: dos servicios simultáneos pueden saltarse la regla de monotonía (raro).
+  - `docs/PENDIENTES.md` tiene más de 2.200 líneas y se volvió un diario: archivar las "pasadas ejecutadas" en un histórico y
+    dejar solo lo abierto. Además dice que `scripts/delete_test_user.sql` "no está versionado, hay que borrarlo", pero el commit
+    `8238771` lo versionó: decidir y corregir.
+  - `ServiceFormModal.tsx` (1.385 líneas) y `app/app/page.tsx` (1.978) son difíciles de tocar con seguridad: extraer hooks y
+    subcomponentes de forma gradual, al tocar cada uno.
+  - Regenerar las dos cuentas de pruebas (`taller.pruebas@` y `pruebas.features@`): sus contraseñas se pegaron en una
+    conversación el 2026-10-15.
+  - Ver en un teléfono real / navegador: el asistente sin combustible, los filtros con nombre largo a 320 px, el topbar fijo
+    (incluido el tour guiado) y la pantalla de espera de la autenticación (casos 15.29 y 15.30).
 - [ ] **Componentes fluidos en vez de reglas móviles aparte** (evaluación 2026-10-15, pedida por el usuario; regla en
   `docs/DESIGN_GUIDELINES.md`). Medición del código: `globals.css` 521 líneas con 20 `@media` y 110 `!important`; 235
   atributos `data-r` (136 en landings de marketing); 73 rejillas fijas (`'1fr 1fr'`/`repeat(N,...)`) frente a 39

@@ -237,6 +237,10 @@ componente propio; no se intenta "arreglarlo" con CSS.
 - `fadeUp` — Fade + slide up (18px Y, 0.3s)
 - `toastIn` — Toast (22px Y, 0.4s)
 - `spin` — Loading spinner
+- `authSpin/authGlow/authIn/authShine` — pantalla de espera de autenticación (`AuthProgress`): anillo amarillo con candado y
+  frases por fase; marca propia, nunca el logo de un tercero dentro del indicador
+- `mileageCautionPulse` — aviso del kilometraje al enfocar el campo (`MileageCaution`), 2 pulsos; con "reducir movimiento" solo
+  se resalta
 
 All cubic-bezier(0.22, 1, 0.36, 1) easing.
 

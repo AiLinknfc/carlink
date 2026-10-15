@@ -45,6 +45,7 @@ Convenciones transversales:
 |---|---|---|
 | Fecha del servicio | Sin fecha = hoy. No futura (1 día de margen por zona horaria). **No anterior a 30 días.** | Evitar historial inventado o "rellenado" |
 | Kilometraje | Nunca menor al de un registro/lectura anterior ni mayor al de uno posterior; no salta más de 100.000 km sobre el máximo | Fraude de odómetro |
+| Kilometraje 0 | Se trata como **desconocido** y no cuenta en la regla anterior (2026-10-15). Lo traen los servicios sincronizados desde una orden de taller sin odómetro | Sin esto, un servicio traído con km 0 y fecha reciente bloqueaba cualquier servicio anterior con km real |
 | Próximo servicio | Debe ser **mayor** al kilometraje actual y no más de 150.000 km adelante | Un registro con 2000 y 2000 rompió la vida útil del aceite |
 | Costo | Entre 0 y 1.000.000.000 | Datos absurdos |
 | `workshop_id` | El servidor lo **ignora** si lo manda un usuario; solo lo ponen las órdenes de trabajo del taller | Antes cualquiera mostraba la etiqueta "Del taller" |
@@ -127,6 +128,17 @@ primeras 48 h (botón de eliminar en pantalla: pendiente).
 
 Una card por filtro y **un filtro por registro**: cada uno tiene su ciclo y el próximo servicio nunca se mezcla.
 Marca y referencia opcionales en el mismo paso (quedan en la pieza). Detalle por tipo de vehículo en §6.
+
+Las opciones se muestran con nombre explícito: *Filtro de aceite, Filtro de aire del motor, Filtro de habitáculo / A/C,
+Filtro de combustible, Filtro de transmisión* (y *Filtro de partículas (DPF)*) — antes decían solo "Aceite", "Aire"…, que se
+confundía con el servicio de lubricante. Es solo el texto: las claves y los ciclos no cambiaron (`filterCatalog.ts`).
+
+### Combustible (2026-10-15)
+
+Ya **no se pide** al registrar el vehículo (ni en el asistente ni en "Agregar vehículo"). Si el escaneo de la tarjeta lo lee, se
+guarda solo; si no, se elige luego en el panel lateral (Corregir datos) y es **obligatorio para enviar a revisión**. Mientras
+esté vacío, un carro ofrece también el filtro de partículas (regla `showsParticleFilter`: sin definir = mostrarlo, para no
+dejar sin opción a un diésel real); al elegir gasolina desaparece.
 
 ### Batería
 
@@ -221,6 +233,9 @@ sesión. Límite: una visita del admin desde un navegador donde nunca inició se
 - Color por defecto de cualquier control: **amarillo `#F5C518`**. El verde es solo para estados de resultado
   (verificado, confirmado, cargado).
 - Sin emojis en la interfaz.
+- **Responsive desde el diseño** (320 px y escritorio, layouts fluidos): regla dura en `docs/DESIGN_GUIDELINES.md`. El topbar es fijo en celular.
+- El aviso de cuidado del kilometraje se resalta al enfocar el campo (`MileageCaution`); la espera de la autenticación usa la pantalla
+  propia `AuthProgress` (sin logo de Google, que va solo en su botón).
 
 ---
 
@@ -260,6 +275,9 @@ sesión. Límite: una visita del admin desde un navegador donde nunca inició se
 | Historial anterior como nivel aparte, con soporte obligatorio | Aceptar historia previa sin diluir lo verificado |
 | Filtros exclusivos por registro | Cada filtro tiene un ciclo distinto |
 | Tipo de vehículo detectado, no elegido | Menos pasos y menos errores del usuario |
+| Km 0 = desconocido en la regla de kilometraje (2026-10-15) | Los servicios traídos de una orden de taller no tienen odómetro y bloqueaban historial válido |
+| Combustible fuera del formulario inicial (2026-10-15) | Menos fricción al registrar; se completa en el panel lateral y es obligatorio para revisión |
+| Vínculo por QR/nombre sin verificar no trae historial del taller (2026-10-15) | La placa es casi pública; solo el enlace de reclamo (token) o la tarjeta verificada prueban propiedad |
 | Fluidos separados de las partes | El aceite no es una pieza |
 | El aceite de caja/transmisión solo aporta km y fila en servicios | No contaminar el conteo del aceite de motor |
 | Salud con piso por testigos críticos | El promedio escondía un aceite vencido |
