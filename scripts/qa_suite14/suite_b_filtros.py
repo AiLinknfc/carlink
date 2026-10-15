@@ -17,7 +17,7 @@ def run():
         # --- Filtros (carro)
         pg.get_by_text("Aceite, aire, combustible y mas", exact=True).first.click(); pg.wait_for_timeout(900)
         opts = radios(pg); joined = " | ".join(opts)
-        carro_ok = all(x in joined for x in ["Aceite", "Aire del motor", "Habitáculo / A/C", "Combustible", "Transmisión"]) and "Partículas" not in joined
+        carro_ok = all(x in joined for x in ["Filtro de aceite", "Filtro de aire del motor", "Filtro de habitáculo / A/C", "Filtro de combustible", "Filtro de transmisión"]) and "Partículas" not in joined
         record("B1", "Filtros (carro gasolina): aceite, aire del motor, habitáculo/A/C, combustible y transmisión; sin partículas", carro_ok and "PASO 1 DE 3" in pg.inner_text("body").upper(), joined[:200])
         rd = pg.get_by_role("radio")
         rd.nth(0).click(); rd.nth(1).click()

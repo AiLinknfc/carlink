@@ -18,7 +18,7 @@ describe('Registrar servicio > Filtros (paso 1)', () => {
   it('carro: ofrece aceite, aire, habitáculo, combustible y transmisión', () => {
     open({ vehicleBodyType: 'Sedán', vehiclePlateType: 'particular', fuelType: 'gasolina' })
     const labels = radios().join(' | ')
-    for (const l of ['Aceite', 'Aire del motor', 'Habitáculo / A/C', 'Combustible', 'Transmisión']) expect(labels).toContain(l)
+    for (const l of ['Filtro de aceite', 'Filtro de aire del motor', 'Filtro de habitáculo / A/C', 'Filtro de combustible', 'Filtro de transmisión']) expect(labels).toContain(l)
     expect(labels).not.toContain('Partículas')
   })
 
