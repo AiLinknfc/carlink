@@ -169,7 +169,7 @@ def main(api: str) -> int:
             check("nucleo: servicio de prueba del conductor", False, f"{sv.status_code} {sv.text[:120]}")
 
         # --- escenario C: servicio con el taller escrito a mano + el taller existe en CarLink ---
-        typed = "E2E Vinculos"  # normaliza igual que "Taller E2E Vinculos"
+        typed = ws.json()["name"]  # el nombre real del taller de pruebas (puede existir ya con otro nombre)
         c.post("/maintenance", headers=d_h, json={"vehicle_id": vid, "service_type": "Aceite", "lubricant_brand": "Shell", "lubricant_type": "5W-40",
                                                    "lubricant_use": "motor", "mileage": 6500, "next_service_mileage": 11500, "workshop": typed})
         cands = c.get("/workshop-links/candidates", headers=d_h).json()
@@ -179,7 +179,7 @@ def main(api: str) -> int:
             conf = c.post("/workshop-links/candidates/confirm", headers=d_h, json={"workshop_id": cand["workshop_id"], "vehicle_id": vid, "share_contact": None})
             check("C: confirmar marca los servicios como declarados, sin crear vinculo", conf.status_code == 200 and conf.json()["records_claimed"] >= 1 and conf.json()["linked"] is False, conf.text[:120])
             after = c.get(f"/maintenance/vehicle/{vid}", headers=d_h).json()
-            decl = [h for h in after if h.get("workshop") == typed]
+            decl = [h for h in after if h.get("workshop") == typed and not h.get("source_work_order_id")]
             check("C: el servicio declarado NO recibe workshop_id ni origen 'workshop'", bool(decl) and all(not h.get("workshop_id") and h.get("origin") == "user" for h in decl))
             check("C: ya no se vuelve a sugerir", not any(x["workshop_code"] == code for x in c.get("/workshop-links/candidates", headers=d_h).json()))
 
