@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import (
@@ -38,7 +39,7 @@ from app.services.workshop_links import (
 from app.utils import client_ip
 
 router = APIRouter(prefix="/workshop-links", tags=["workshop-links"])
-taller_router = APIRouter(prefix="/workshops/me", tags=["workshop-links"])
+taller_router = APIRouter(prefix="/workshops/me", tags=["workshop-links"], dependencies=[Depends(workshop_gate("clientes"))])
 
 _UNREGISTERED = "Taller no registrado"
 _RATE_WINDOW, _RATE_MAX = 60, 30

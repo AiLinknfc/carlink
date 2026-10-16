@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import (
@@ -39,7 +40,7 @@ from app.schemas.schemas import (
     WorkOrderUpdate,
 )
 
-router = APIRouter(prefix="/workshops/me/work-orders", tags=["work-orders"])
+router = APIRouter(prefix="/workshops/me/work-orders", tags=["work-orders"], dependencies=[Depends(workshop_gate("ordenes"))])
 
 _ORDER_LOADS = (
     selectinload(WorkOrder.labor_items),

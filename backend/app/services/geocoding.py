@@ -34,15 +34,7 @@ def build_query(address: str | None, city: str | None) -> str:
     return ", ".join(p for p in parts if p)
 
 
-async def geocode_address(
-    address: str | None,
-    city: str | None,
-    client: httpx.AsyncClient | None = None,
-) -> tuple[float, float] | None:
-    """(lat, lon) de la direccion, o None si no hay direccion, no se encuentra o el servicio falla."""
-    if not (address or "").strip():
-        return None  # solo la ciudad ubicaria el taller en el centro de la ciudad: no es su pin
-    query = build_query(address, city)
+async def _search(query: str, client: httpx.AsyncClient | None) -> tuple[float, float] | None:
     params = {"q": query, "format": "jsonv2", "limit": "1", "countrycodes": "co"}
     own_client = client is None
     http = client or httpx.AsyncClient(timeout=TIMEOUT_SECONDS, headers={"User-Agent": USER_AGENT})
@@ -62,6 +54,24 @@ async def geocode_address(
     finally:
         if own_client:
             await http.aclose()
+
+
+async def geocode_address(
+    address: str | None,
+    city: str | None,
+    client: httpx.AsyncClient | None = None,
+) -> tuple[float, float] | None:
+    """(lat, lon) de la direccion, o None si no hay direccion, no se encuentra o el servicio falla."""
+    if not (address or "").strip():
+        return None  # solo la ciudad ubicaria el taller en el centro de la ciudad: no es su pin
+    return await _search(build_query(address, city), client)
+
+
+async def geocode_city(city: str | None, client: httpx.AsyncClient | None = None) -> tuple[float, float] | None:
+    """Centro aproximado de la ciudad. Solo para centrar un mapa de confirmacion: NUNCA es el pin de un negocio."""
+    if not (city or "").strip():
+        return None
+    return await _search(city.strip(), client)
 
 
 async def apply_geocode(workshop, client: httpx.AsyncClient | None = None) -> bool:

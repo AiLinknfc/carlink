@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import { analyticsApi } from '@/lib/api'
@@ -11,6 +11,8 @@ import PolicyModal, { type PolicyTab } from '@/components/PolicyModal'
 import SiteFooter from '@/components/SiteFooter'
 import WhatsAppFloat, { WhatsAppIcon } from '@/components/WhatsAppFloat'
 import SiteBackdrop, { backdropPageBg } from '@/components/SiteBackdrop'
+import { mergeCoverage, type LiveWorkshop } from '@/lib/tallerForm'
+import { proxyUrl } from '@/lib/upload'
 
 // Landing de venta del llavero NFC CarLink — adaptada de Plataforma/CarLink Landing.html.
 // Respeta el tema claro/oscuro elegido en el resto del sitio (2026-08-13) — antes quedaba
@@ -62,14 +64,14 @@ const BENEFITS = [
 const STEPS = [
   { n: '1', title: 'Postula tu negocio', desc: 'Llena el formulario con tu NIT y tu logo. Toma unos minutos.' },
   { n: '2', title: 'Validamos tus datos', desc: 'Revisamos el NIT y la información del negocio y te respondemos por correo.' },
-  { n: '3', title: 'Activa tu panel', desc: 'Al aprobarte creas tu cuenta de taller y empiezas con 7 días de prueba.' },
+  { n: '3', title: 'Activa tu panel', desc: 'Al aprobarte creas tu cuenta con el mismo NIT y empiezas con acceso gratuito: 12 meses para los primeros talleres aliados.' },
   { n: '4', title: 'Registra servicios', desc: 'Vincula el vehículo de tu cliente y registra cada servicio en su ficha.' },
 ]
 const INCLUDES = ['Clientes y vehículos', 'Órdenes de trabajo', 'Inventario de repuestos', 'Citas y agenda', 'Notificaciones a clientes', 'Rentabilidad', 'Certificados y facturas', 'Documentos numerados', 'Perfil público con reseñas', 'Ficha pública del taller', 'Registro de mecánicos']
 
 
 const FAQS = [
-  { q: '¿Cuánto cuesta postularme?', a: 'Postularte no tiene costo. Si te aprobamos, creas tu cuenta de taller y empiezas con 7 días de prueba. El plan Taller aliado tiene la mensualidad que ves en esta página y nada se cobra sin que lo aceptes.' },
+  { q: '¿Cuánto cuesta postularme?', a: 'Postularte no tiene costo. Si te aprobamos, creas tu cuenta y empiezas con acceso gratuito: 12 meses para los primeros talleres aliados. Después, el plan Taller aliado tiene la mensualidad que ves en esta página y nada se cobra sin que lo aceptes.' },
   { q: '¿Qué pasa después de enviar el formulario?', a: 'Validamos tu NIT y los datos del negocio y te escribimos por correo, normalmente en 2 días hábiles. Si te aprobamos, recibes un enlace para crear tu cuenta de taller con el mismo NIT.' },
   { q: '¿Qué datos me piden y para qué?', a: 'NIT, nombre del negocio, ubicación, contacto y logo, para validar que tu negocio existe y armar tu perfil en la red. Tu logo solo se muestra en el sitio si lo autorizas. Tratamos tus datos según la Ley 1581 de 2012.' },
   { q: '¿Qué ve mi taller de mis clientes?', a: 'Tu panel muestra únicamente a los clientes y vehículos de tu propio taller. El dueño del vehículo decide qué información de su ficha se muestra al público.' },
@@ -79,7 +81,10 @@ const FAQS = [
 ]
 
 
-const COVERAGE = [
+// Cobertura fija de partida (se retirará más adelante). A estos números se suman en vivo las postulaciones
+// reales del formulario (GET /api/workshop-applications/public-map): ciudad existente -> +1, ciudad nueva -> aparece.
+const BASE_WORKSHOPS = 23
+const COVERAGE_BASE = [
   { city: 'Bogotá D.C.', count: 4 }, { city: 'Medellín', count: 3 }, { city: 'Cali', count: 2 }, { city: 'Barranquilla', count: 2 },
   { city: 'Cartagena', count: 1 }, { city: 'Bucaramanga', count: 2 }, { city: 'Pereira', count: 1 }, { city: 'Manizales', count: 1 },
   { city: 'Tunja', count: 1 }, { city: 'Duitama', count: 1 },
@@ -146,6 +151,34 @@ export default function TallerPage() {
   const [activeCard, setActiveCard] = useState(-1)
   const [goneCards, setGoneCards] = useState<number[]>([])
   const mapRef = useRef<HTMLIFrameElement>(null)
+  const [live, setLive] = useState<LiveWorkshop[]>([])
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/workshop-applications/public-map`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j && Array.isArray(j.items)) setLive(j.items) })
+      .catch(() => { /* sin datos en vivo se queda la cobertura fija */ })
+  }, [])
+  const { coverage: COVERAGE, liveCount, newCities } = useMemo(() => mergeCoverage(COVERAGE_BASE, live), [live])
+
+  // Aliados con logo autorizado: el más reciente toma la PRIMERA posición de "Marcas y aliados" y la lista se refresca sola
+  // (al cargar, cada minuto y al volver a la pestaña). El número de posiciones no crece: el último patrocinador fijo cede su lugar.
+  const [allies, setAllies] = useState<{ name: string; logo_url: string; code: string | null }[]>([])
+  useEffect(() => {
+    const load = () => fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/workshop-applications/public-allies`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j && Array.isArray(j.items)) setAllies(j.items) })
+      .catch(() => { /* sin datos en vivo se quedan los patrocinadores fijos */ })
+    load()
+    const timer = setInterval(load, 60000)
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
+  }, [])
+  const sponsorList = useMemo(() => {
+    const dyn = allies.map(a => ({ name: a.name, logo: proxyUrl(a.logo_url), href: a.code ? `/taller/${a.code}` : undefined, ally: true }))
+    const slots = Math.max(SPONSORS.length, dyn.length)
+    return [...dyn, ...SPONSORS.map(sp => ({ ...sp, href: undefined as string | undefined, ally: false }))].slice(0, slots)
+  }, [allies])
   useEffect(() => {
     if (activeCard < 0 || activeCard > 6) return
     const t = setTimeout(() => {
@@ -581,7 +614,7 @@ export default function TallerPage() {
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 44px' }}>
           <div style={EYEBROW}>Planes</div>
           <h2 style={H2}>Un plan simple para tu taller</h2>
-          <p style={{ ...lead, marginTop: 8 }}>Postularte es gratis y empiezas con 7 días de prueba. Tus clientes conductores usan CarLink sin costo.</p>
+          <p style={{ ...lead, marginTop: 8 }}>Postularte es gratis y los primeros talleres aliados tienen 12 meses de acceso sin costo. Tus clientes conductores usan CarLink sin costo.</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(280px,100%),1fr))', gap: 18, maxWidth: 820, margin: '0 auto' }}>
           {[
@@ -617,19 +650,34 @@ export default function TallerPage() {
         </div>
         <div style={{ overflow: 'hidden', marginBottom: 40, maskImage: 'linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)' }}>
           <div style={{ display: 'flex', gap: 28, width: 'max-content', animation: 'sponsorScroll 25s linear infinite' }}>
-            {[...SPONSORS, ...SPONSORS].map((sp, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 28px', borderRadius: 14, ...card(), minWidth: 160, flexShrink: 0 }}>
-                <img src={sp.logo} alt={sp.name} style={{ height: 28, maxWidth: 120, objectFit: 'contain', filter: isDark ? 'brightness(0) invert(1) opacity(0.5)' : 'grayscale(1) opacity(0.5)', transition: 'filter 0.3s' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.setAttribute('style', 'display:block') }} />
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '.02em', color: MUTED, display: 'none' }}>{sp.name}</span>
-              </div>
-            ))}
+            {[...sponsorList, ...sponsorList].map((sp, i) => {
+              const inner = (
+                <>
+                  {sp.ally ? (
+                    // Logo de un aliado: a color sobre una placa clara, para que se lea sea cual sea su fondo.
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 10px', borderRadius: 8, background: '#fff' }}>
+                      <img src={sp.logo} alt={sp.name} title={sp.name} style={{ height: 30, maxWidth: 120, objectFit: 'contain' }} />
+                    </span>
+                  ) : (
+                    <>
+                      <img src={sp.logo} alt={sp.name} style={{ height: 28, maxWidth: 120, objectFit: 'contain', filter: isDark ? 'brightness(0) invert(1) opacity(0.5)' : 'grayscale(1) opacity(0.5)', transition: 'filter 0.3s' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.setAttribute('style', 'display:block') }} />
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: '.02em', color: MUTED, display: 'none' }}>{sp.name}</span>
+                    </>
+                  )}
+                </>
+              )
+              const box: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 28px', borderRadius: 14, ...card(), minWidth: 160, flexShrink: 0, textDecoration: 'none' }
+              return sp.href
+                ? <Link key={i} href={sp.href} aria-label={`Ficha de ${sp.name}`} data-ally="true" style={box}>{inner}</Link>
+                : <div key={i} data-ally={sp.ally ? 'true' : undefined} style={box}>{inner}</div>
+            })}
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 12, maxWidth: 820, margin: '0 auto', padding: '24px 20px', borderRadius: 18, background: softTint(0.05), border: `1px solid ${BORDER}` }}>
           {[
             { v: '4.8/5', l: 'Calificación promedio' },
-            { v: '23+', l: 'Talleres en red' },
-            { v: '10', l: 'Ciudades con cobertura' },
+            { v: `${BASE_WORKSHOPS + liveCount}+`, l: 'Talleres en red' },
+            { v: String(COVERAGE_BASE.length + newCities), l: 'Ciudades con cobertura' },
             { v: '4.9', l: 'Satisfacción' },
             { v: '342', l: 'Llaveros activos' },
           ].map((s, i) => (

@@ -48,6 +48,14 @@ function CallbackPageContent() {
         return
       }
 
+      // Una página pública pidió volver acá tras el inicio de sesión (p. ej. recibir la entrega de un vehículo, /entrega/<código>, o la constancia de una revisión, /constancia/<código>).
+      // Solo se aceptan rutas internas conocidas: nunca una dirección externa.
+      try {
+        const next = sessionStorage.getItem('carlink_post_login')
+        sessionStorage.removeItem('carlink_post_login')
+        if (next && /^\/(entrega|constancia)\/[A-Za-z0-9_-]{20,128}$/.test(next)) { router.push(next); return }
+      } catch { /* sin almacenamiento */ }
+
       // Persona (incluido un usuario nuevo sin vehículos todavía) entra
       // directo a /app — el wizard de onboarding (`OnboardingWizard`) es
       // quien ahora registra el primer vehículo, ya no /register (2026-09-15,

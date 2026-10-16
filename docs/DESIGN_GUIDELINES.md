@@ -177,6 +177,12 @@ renderizada en JSX, sin `<option>` nativo) o una grilla de tiles con su propio e
 resaltado de opciones no importa visualmente (ej. Año, cuando la lista es solo numérica
 y no necesita marcarse en amarillo).
 
+**Reincidencia (2026-10-17):** el formulario de postulación de talleres (`PostulacionForm`) volvió a salir con un
+`<select>` nativo (azul) para "Tipo de negocio" y con `<datalist>` para ciudad y cargo, aunque `ThemedSelect` y
+`ThemedSuggestInput` ya existían. Quedó como **regla dura 7 de `CLAUDE.md`**: ningún control nativo de selección en
+pantallas nuevas. Las pruebas visuales (`backend/scripts/qa_aliados_visual.mjs`) ahora fallan si el formulario público
+vuelve a tener un `<select>` o `<datalist>`.
+
 ## Chips de selección, desplegables y tiles (2026-10-05)
 
 Antes de crear un control de selección, **buscar si ya existe uno en `src/components`** (aquí se

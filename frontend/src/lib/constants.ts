@@ -56,6 +56,8 @@ export function effectiveSubscription(
   createdAt?: string,
 ): SubscriptionStatus {
   if (status === 'active') return 'active'
+  // El backend es la fuente de verdad: un vencido explícito no se recalcula con la fecha de creación de la cuenta.
+  if (status === 'expired') return 'expired'
   if (status === 'trial' && trialEndsAt) {
     return new Date(trialEndsAt).getTime() > Date.now() ? 'trial' : 'expired'
   }

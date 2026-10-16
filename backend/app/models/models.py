@@ -172,7 +172,10 @@ class OdometerReading(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="CASCADE"))
     mileage: Mapped[int] = mapped_column(Integer)
-    source: Mapped[str] = mapped_column(Text)  # initial | service | periodic
+    source: Mapped[str] = mapped_column(Text)  # initial | service | periodic | dealer_delivery (080) | cda_inspection (081)
+    # Lectura certificada por un aliado en la entrega de un vehículo (migración 080): quién y con qué peso.
+    certified_by_workshop_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="SET NULL"), nullable=True)
+    certification_kind: Mapped[str | None] = mapped_column(Text, nullable=True)  # dealer | dealer_declared | cda (081)
     maintenance_record_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("maintenance_records.id", ondelete="SET NULL"), nullable=True
     )
@@ -378,6 +381,15 @@ class Workshop(Base):
     social_whatsapp: Mapped[str] = mapped_column(Text, default="")
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # taller | concesionario | compraventa | repuestos (migración 077; docs/PLAN_ALIADOS_NEGOCIO.md)
+    business_kind: Mapped[str] = mapped_column(Text, default="taller", server_default="taller")
+    # Periodo de acceso (migración 078; services/workshop_access.py). access_until NULL solo significa "sin
+    # vencimiento" en el plan convenio.
+    access_plan: Mapped[str] = mapped_column(Text, default="trial", server_default="trial")
+    access_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    access_granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Permiso aparte de la aprobación (migración 080): lo da el admin a mano.
+    can_certify_odometer: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -560,6 +572,8 @@ class Partner(Base):
     quota_used: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(Text, default="active")
     notes: Mapped[str] = mapped_column(Text, default="")
+    # Negocio concesionario que consigna estos llaveros (migración 081): lo vincula el admin.
+    workshop_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="SET NULL"), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -1022,6 +1036,11 @@ class ShopOrder(Base):
     # Consentimiento explícito para WhatsApp automático (migración 061).
     whatsapp_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    # Código de alianza (migración 079): negocio que recomendó la compra y descuento aplicado. `amount_in_cents` ya es
+    # el monto cobrado, con el descuento descontado.
+    alliance_workshop_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="SET NULL"), nullable=True)
+    alliance_code: Mapped[str] = mapped_column(Text, default="", server_default="")
+    discount_cents: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     wompi_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     wompi_last_event: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Estado del envío físico, separado del estado del pago (`status` arriba)
@@ -1033,6 +1052,75 @@ class ShopOrder(Base):
     tracking_note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DealerVehicle(Base):
+    """Vehículo del inventario de un concesionario o compraventa (migración 080). No es `vehicles`: pasa a la cuenta del
+    comprador cuando éste recibe la entrega."""
+    __tablename__ = "dealer_vehicles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workshop_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"))
+    plate: Mapped[str] = mapped_column(Text)
+    brand: Mapped[str] = mapped_column(Text, default="")
+    model: Mapped[str] = mapped_column(Text, default="")
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    color: Mapped[str] = mapped_column(Text, default="")
+    vehicle_class: Mapped[str] = mapped_column(Text, default="")
+    mileage_declared: Mapped[int] = mapped_column(Integer, default=0)
+    price_cop: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(Text, default="available")  # available | delivered
+    is_listed: Mapped[bool] = mapped_column(Boolean, default=False)
+    public_slug: Mapped[str] = mapped_column(Text, unique=True)
+    certified_km: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    certified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    certification_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
+    certify_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    certify_window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivery_code_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    delivery_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_to_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    delivered_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
+    share_with_dealer: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Fotos del vehículo (migración 081): archivos subidos por el propio aliado.
+    photo_urls: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RtmInspection(Base):
+    """Revisión técnico-mecánica registrada por un CDA habilitado (migración 081). No escribe en la cuenta del dueño del
+    vehículo: se le entrega con un código de un solo uso y él la acepta."""
+    __tablename__ = "rtm_inspections"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workshop_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"))
+    plate: Mapped[str] = mapped_column(Text)
+    inspected_on: Mapped[date] = mapped_column(Date)
+    expires_on: Mapped[date] = mapped_column(Date)
+    certificate_code: Mapped[str] = mapped_column(Text)
+    result: Mapped[str] = mapped_column(Text)  # approved | rejected
+    mileage_km: Mapped[int] = mapped_column(Integer)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    claim_code_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    claim_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    claimed_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True)
+    share_with_cda: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KmCertifyAttempt(Base):
+    """Intentos de certificar kilometraje por negocio y placa en una ventana de 24 h (migración 081)."""
+    __tablename__ = "km_certify_attempts"
+
+    workshop_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workshops.id", ondelete="CASCADE"), primary_key=True)
+    plate: Mapped[str] = mapped_column(Text, primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class WorkshopApplication(Base):
@@ -1059,6 +1147,21 @@ class WorkshopApplication(Base):
     facade_url: Mapped[str] = mapped_column(Text, default="")
     doc_url: Mapped[str] = mapped_column(Text, default="")
     logo_authorized: Mapped[bool] = mapped_column(Boolean, default=False)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    business_kind: Mapped[str] = mapped_column(Text, default="taller", server_default="taller")
+    # Lista de chequeo manual del admin (migración 077); una API de verificación futura agrega sus llaves.
+    checks: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    # Resultado de consultar el NIT en el RUES (migración 082; services/company_verification.py). Ayuda para el admin, no decide.
+    verification: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    # Invitación de registro de un solo uso: solo el hash; el token crudo viaja únicamente en el correo.
+    invite_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invite_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invite_used_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Lo que el admin concede al aprobar (migración 078); se aplica al crear la cuenta con la invitación.
+    grant_plan: Mapped[str] = mapped_column(Text, default="founder", server_default="founder")
+    grant_days: Mapped[int] = mapped_column(Integer, default=365, server_default="365")
     consent_version: Mapped[str] = mapped_column(Text)
     consent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     source: Mapped[str] = mapped_column(Text, default="")

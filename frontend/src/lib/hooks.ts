@@ -506,7 +506,12 @@ export function useMyWorkshop() {
     return result
   }, [])
 
-  return { workshop, loading, reload: load, updateWorkshop }
+  /** Vuelve a leer el negocio sin mostrar "cargando" (para reflejar cambios hechos desde otro componente, p. ej. el logo). */
+  const refresh = useCallback(async () => {
+    try { const w = await workshopApi.getMe(); if (w) setWorkshop(w) } catch { /* se queda lo que había */ }
+  }, [])
+
+  return { workshop, loading, reload: load, refresh, updateWorkshop }
 }
 
 export function useServiceLogs(vehicleId: string | undefined) {
@@ -1093,6 +1098,21 @@ export function useAuth() {
   }, [])
 
   return { googleLogin }
+}
+
+/* Si el kilometraje actual lo certificó un aliado en la entrega del vehículo (docs/PLAN_ALIADOS_NEGOCIO.md, sección 15): quién y con qué peso. */
+export function useOdometerCertification(vehicleId: string | undefined, refreshKey?: number): { label: string; by: string } | null {
+  const [cert, setCert] = useState<{ label: string; by: string } | null>(null)
+  useEffect(() => {
+    setCert(null)
+    if (!vehicleId) return
+    let cancelled = false
+    apiGet<{ certified_by?: string | null; certification_label?: string | null }>(`/odometer/vehicle/${vehicleId}`).then(r => {
+      if (!cancelled && r?.certified_by && r.certification_label) setCert({ label: r.certification_label, by: r.certified_by })
+    })
+    return () => { cancelled = true }
+  }, [vehicleId, refreshKey])
+  return cert
 }
 
 /* Kilometraje actual del vehículo según el odómetro (mayor lectura: servicios, inicial y periódicas).

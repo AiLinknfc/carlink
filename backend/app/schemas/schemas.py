@@ -260,6 +260,190 @@ class OdometerIn(BaseModel):
     mileage: int = Field(ge=0, le=3_000_000)
 
 
+class DealerVehicleCreate(BaseModel):
+    plate: str = Field(min_length=5, max_length=10)
+    brand: str = Field("", max_length=60)
+    model: str = Field("", max_length=80)
+    year: int | None = Field(None, ge=1950, le=2100)
+    color: str = Field("", max_length=40)
+    vehicle_class: str = Field("", max_length=30)
+    mileage_declared: int = Field(0, ge=0, le=3_000_000)
+    price_cop: int | None = Field(None, ge=0, le=100_000_000_000)
+    description: str = Field("", max_length=500)
+    photo_urls: list[str] = Field(default_factory=list, max_length=6)
+
+
+class DealerVehicleUpdate(BaseModel):
+    brand: str | None = Field(None, max_length=60)
+    model: str | None = Field(None, max_length=80)
+    year: int | None = Field(None, ge=1950, le=2100)
+    color: str | None = Field(None, max_length=40)
+    vehicle_class: str | None = Field(None, max_length=30)
+    mileage_declared: int | None = Field(None, ge=0, le=3_000_000)
+    price_cop: int | None = Field(None, ge=0, le=100_000_000_000)
+    description: str | None = Field(None, max_length=500)
+    photo_urls: list[str] | None = Field(None, max_length=6)
+
+
+class DealerVehicleOut(BaseModel):
+    id: UUID
+    plate: str
+    brand: str
+    model: str
+    year: int | None = None
+    color: str
+    vehicle_class: str
+    mileage_declared: int
+    price_cop: int | None = None
+    description: str
+    photo_urls: list[str] = Field(default_factory=list)
+    status: str
+    is_listed: bool
+    public_slug: str
+    certified_km: int | None = None
+    certified_at: datetime | None = None
+    certification_kind: str | None = None
+    certification_label: str
+    delivery_pending: bool = False
+    delivery_expires_at: datetime | None = None
+    delivered_at: datetime | None = None
+    share_with_dealer: bool = False
+    created_at: datetime
+
+
+class DealerCertifyIn(BaseModel):
+    km: int = Field(ge=1, le=3_000_000)
+
+
+class DealerDeliveryOut(BaseModel):
+    """El código en claro solo existe en esta respuesta: no se puede volver a mostrar."""
+    token: str
+    expires_at: datetime
+    workshop_name: str
+
+
+class DealerPublicOut(BaseModel):
+    """Ficha pública de un vehículo en venta: sin la placa completa ni datos de contacto."""
+    slug: str
+    brand: str
+    model: str
+    year: int | None = None
+    color: str
+    vehicle_class: str
+    plate_hint: str
+    mileage_km: int
+    mileage_label: str
+    mileage_certified: bool
+    certified_at: datetime | None = None
+    price_cop: int | None = None
+    description: str
+    photo_urls: list[str] = Field(default_factory=list)
+    dealer_name: str
+    dealer_city: str
+    dealer_code: str | None = None
+    dealer_verified: bool
+
+
+class DealerDeliveryPreviewOut(BaseModel):
+    """Lo que ve quien tiene el código de entrega antes de aceptarla."""
+    plate: str
+    brand: str
+    model: str
+    year: int | None = None
+    color: str
+    mileage_km: int
+    mileage_label: str
+    dealer_name: str
+    dealer_city: str
+    expires_at: datetime
+
+
+# =========== Revisiones técnico-mecánicas (CDA) ===========
+
+class RtmCreate(BaseModel):
+    plate: str = Field(min_length=5, max_length=10)
+    inspected_on: date
+    expires_on: date
+    certificate_code: str = Field(min_length=4, max_length=40)
+    result: Literal["approved", "rejected"]
+    mileage_km: int = Field(ge=1, le=3_000_000)
+    notes: str = Field("", max_length=300)
+
+
+class RtmOut(BaseModel):
+    id: UUID
+    plate: str
+    inspected_on: date
+    expires_on: date
+    days_left: int
+    certificate_code: str
+    result: str
+    mileage_km: int
+    notes: str
+    claim_pending: bool = False
+    claimed: bool = False
+    claimed_at: datetime | None = None
+    share_with_cda: bool = False
+    client_name: str | None = None
+    client_phone: str | None = None
+    created_at: datetime
+
+
+class RtmClaimPreviewOut(BaseModel):
+    """Lo que ve quien tiene el código de la constancia antes de aceptarla."""
+    plate: str
+    cda_name: str
+    cda_city: str
+    result: str
+    inspected_on: date
+    expires_on: date
+    certificate_code: str
+    mileage_km: int
+    expires_at: datetime
+
+
+class RtmClaimIn(BaseModel):
+    code: str = Field(min_length=20, max_length=128)
+    share_contact: bool = False
+
+
+class RtmClaimOut(BaseModel):
+    vehicle_id: UUID
+    plate: str
+    diagnostic_id: UUID
+    km_added: bool
+
+
+class ConsignmentRowOut(BaseModel):
+    token_prefix: str | None = None
+    status: str
+    claimed_at: datetime | None = None
+    created_at: datetime
+
+
+class ConsignmentOut(BaseModel):
+    """Llaveros que el admin asignó en consignación al concesionario. Solo cantidades y estado: nunca el código de activación
+    ni quién lo activó."""
+    linked: bool
+    partner_name: str | None = None
+    status: str | None = None
+    quota_total: int = 0
+    available: int = 0
+    claimed: int = 0
+    other: int = 0
+    rows: list[ConsignmentRowOut] = Field(default_factory=list)
+
+
+class DealerClaimIn(BaseModel):
+    code: str = Field(min_length=20, max_length=128)
+    share_contact: bool = False
+
+
+class DealerClaimOut(BaseModel):
+    vehicle_id: UUID
+    plate: str
+
+
 class OdometerStatus(BaseModel):
     # initial: el vehículo no tiene ninguna lectura; periodic: pasaron meses sin lectura ni
     # servicio y se sugiere una lectura; ok: nada que pedir.
@@ -267,6 +451,9 @@ class OdometerStatus(BaseModel):
     current_mileage: int | None = None
     last_recorded_at: datetime | None = None
     can_correct_initial: bool = False
+    # Si la lectura más alta la certificó un aliado en la entrega (migración 080): quién y con qué peso.
+    certified_by: str | None = None
+    certification_label: str | None = None
 
 
 # =========== Parts ===========
@@ -591,6 +778,10 @@ class ProfileOut(BaseModel):
     verified_at: datetime | None = None
     whatsapp_enabled: bool = False
     whatsapp_number: str = ""
+    # Solo para cuentas con negocio: el frontend ya lee estos tres campos (lib/constants.ts). Null en cuentas persona.
+    subscription_status: str | None = None
+    subscription_plan: str | None = None
+    trial_ends_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -640,6 +831,8 @@ class WorkshopCreate(BaseModel):
     vehicle_type: str | None = None
     color: str | None = None
     vehicle_city: str | None = None
+    # Enlace de invitación que llegó por correo al aprobar la postulación (docs/PLAN_ALIADOS_NEGOCIO.md, Fase 0).
+    invite_token: str | None = Field(None, max_length=128)
 
 
 class WorkshopUpdate(BaseModel):
@@ -716,10 +909,21 @@ class WorkshopOut(BaseModel):
     social_whatsapp: str = ""
     latitude: float | None = None
     longitude: float | None = None
+    business_kind: str = "taller"
     rating: float = 0.0
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WorkshopMeOut(WorkshopOut):
+    """Lo que ve el dueño de su negocio (GET/PUT /workshops/me): agrega lo que solo a él le sirve y que NO debe
+    salir en la ficha pública (WorkshopPublicOut hereda de WorkshopOut, no de este)."""
+    capabilities: list[str] = Field(default_factory=list)
+    can_certify_odometer: bool = False
+    access_plan: str = "trial"
+    access_until: datetime | None = None
+    access_status: str = "active"  # active | expired (restringido, solo lectura)
 
 
 class WorkshopSearchResult(BaseModel):
@@ -1634,6 +1838,8 @@ class PartnerOut(BaseModel):
     quota_used: int
     status: str
     notes: str
+    # TLR-XXXXX del negocio concesionario que consigna estos llaveros (migración 081), si el admin lo vinculó.
+    workshop_code: str | None = None
     created_at: datetime
 
 
@@ -1641,6 +1847,8 @@ class PartnerUpdate(BaseModel):
     quota_total: int | None = None
     status: str | None = None
     notes: str | None = None
+    # Código TLR-XXXXX del negocio a vincular; "" desvincula.
+    workshop_code: str | None = None
 
 
 class PartnerMeOut(BaseModel):
@@ -1925,6 +2133,8 @@ class ShopOrderCreate(BaseModel):
     notes: str = ""
     payment_method: Literal["wompi", "cod"] = "wompi"
     whatsapp_opt_in: bool = False
+    # Código de alianza de un negocio aliado (TLR-XXXXX). El descuento lo calcula el servidor; el cliente no manda montos.
+    alliance_code: str = Field("", max_length=16)
 
     @field_validator('quantity')
     @classmethod
@@ -1940,6 +2150,29 @@ class ShopOrderCreateOut(BaseModel):
     amount_in_cents: int
     currency: str
     integrity_signature: str
+
+
+class AllianceCheckOut(BaseModel):
+    """Resultado público de validar un código de alianza antes de pagar."""
+    valid: bool
+    reason: str | None = None  # invalid | inactive | self | limit
+    workshop_name: str | None = None
+    discount_per_unit_cop: int = 0
+    discount_cop: int = 0
+    total_cop: int = 0
+
+
+class WorkshopAllianceOut(BaseModel):
+    """Lo que ve un negocio de su código de alianza: solo cantidades agregadas, nunca datos del comprador."""
+    code: str
+    share_url: str
+    eligible: bool
+    reason: str | None = None  # not_verified | access_expired
+    discount_per_unit_cop: int
+    monthly_cap_units: int
+    units_30d: int
+    units_total: int
+    orders_total: int
 
 
 class ShopOrderConfirm(BaseModel):
@@ -1958,6 +2191,8 @@ class ShopOrderOut(BaseModel):
     amount_in_cents: int
     currency: str
     wompi_transaction_id: str | None = None
+    alliance_code: str = ""
+    discount_cents: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -2004,14 +2239,22 @@ class ShopOrderStatsOut(BaseModel):
 
 # =========== Workshop Applications (landing /taller) ===========
 
+# Subtipo: solo aplica cuando el tipo de organización es "taller".
 WORKSHOP_BUSINESS_TYPES = {
     "mecanica_general", "latoneria_pintura", "llantas_alineacion", "electrico",
     "lubricentro", "tecnicentro", "repuestos", "otro",
 }
+# Tipo de organización (aseguradoras quedan fuera por ahora: docs/PLAN_ALIADOS_NEGOCIO.md).
+WORKSHOP_BUSINESS_KINDS = {"taller", "cda", "concesionario", "compraventa", "repuestos"}
+# Los kinds en los que "especialidades" tiene sentido (taller: especialidades; concesionario: marcas).
+KINDS_WITH_SPECIALTIES = {"taller", "concesionario"}
+# Lista de chequeo manual del admin; una API de verificación futura agrega llaves propias.
+WORKSHOP_CHECK_KEYS = {"doc_reviewed", "nit_confirmed", "contact_confirmed", "location_ok"}
 
 
 class WorkshopApplicationCreate(BaseModel):
-    business_type: str
+    business_kind: str = "taller"
+    business_type: str = ""
     name: str = Field(min_length=2, max_length=120)
     legal_name: str = Field("", max_length=160)
     nit: str = Field(max_length=32)
@@ -2025,10 +2268,13 @@ class WorkshopApplicationCreate(BaseModel):
     instagram: str = Field("", max_length=200)
     specialties: str = Field("", max_length=300)
     monthly_volume: str = Field("", max_length=40)
-    logo_url: str = Field(max_length=300)
+    logo_url: str = Field("", max_length=300)  # opcional: sin logo no hay franja de aliados, pero sí postulación
     facade_url: str = Field("", max_length=300)
     doc_url: str = Field("", max_length=300)
     logo_authorized: bool = False
+    # Pin confirmado por la persona en el mapa del formulario; si falta, el backend geocodifica.
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
     consent_accepted: bool
     # Versión del texto legal que la persona vio al aceptar (LEGAL_VERSION del frontend).
     consent_version: str = Field(max_length=16)
@@ -2039,6 +2285,7 @@ class WorkshopApplicationCreate(BaseModel):
 
 class WorkshopApplicationOut(BaseModel):
     id: UUID
+    business_kind: str = "taller"
     business_type: str
     name: str
     legal_name: str
@@ -2061,6 +2308,15 @@ class WorkshopApplicationOut(BaseModel):
     source: str
     status: str
     admin_notes: str
+    grant_plan: str = "founder"
+    grant_days: int = 365
+    checks: dict[str, bool] = Field(default_factory=dict)
+    verification: dict = Field(default_factory=dict)
+    # Estado de la invitación de registro (nunca el token ni su hash).
+    invite_expires_at: datetime | None = None
+    invite_used_at: datetime | None = None
+    # Permiso de certificar kilometraje del negocio creado desde esta postulación (solo lo llena el listado del admin).
+    can_certify_odometer: bool = False
     created_at: datetime
     reviewed_at: datetime | None = None
 
@@ -2070,6 +2326,10 @@ class WorkshopApplicationOut(BaseModel):
 class WorkshopApplicationUpdate(BaseModel):
     status: str | None = None
     admin_notes: str | None = Field(None, max_length=2000)
+    checks: dict[str, bool] | None = None
+    # Acceso que se concede al crear la cuenta con la invitación (docs/PLAN_ALIADOS_NEGOCIO.md, sección 11).
+    grant_plan: str | None = None
+    grant_days: int | None = Field(None, ge=1, le=1095)
 
 
 # =========== Support tickets ===========

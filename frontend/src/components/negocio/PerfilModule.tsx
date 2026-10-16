@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMyWorkshop, useWorkshopMechanics, useWorkshopServices, useUpload } from '@/lib/hooks'
 import { proxyUrl } from '@/lib/upload'
+import { workshopApi } from '@/lib/api'
+
+const LOGO_ERRORS: Record<string, string> = {
+  logo_unreadable: 'No pudimos leer esa imagen. Usa PNG, JPG o WebP.',
+  logo_too_small: 'El logo es muy pequeño y se vería borroso. Usa una imagen de al menos 120 px por lado (ideal 400 px o más).',
+  logo_too_large_dimensions: 'La imagen es demasiado grande. Reduce el logo a máximo 6000 px por lado.',
+  logo_bad_ratio: 'El logo es muy alargado o muy alto. Usa una versión más cuadrada o apaisada (hasta 5 veces más ancha que alta).',
+  logo_blank: 'La imagen parece estar vacía. Revisa que sea tu logo.',
+  file_type_not_allowed: 'El logo debe ser una imagen PNG, JPG o WebP.',
+}
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
@@ -28,7 +38,7 @@ export type PerfilSection = typeof PERFIL_SECTIONS[number]['id']
    sola página larga sin segmentar. */
 /* `section` controlado: cuando el padre lo pasa (menú lateral, grupo "Configuración") se oculta la barra
    de pestañas interna y se muestra solo esa sección. Sin `section` funciona como antes, con sus pestañas. */
-export default function PerfilModule({ theme, workshop, section: forcedSection }: { theme: 'light' | 'dark'; workshop: Workshop; section?: PerfilSection }) {
+export default function PerfilModule({ theme, workshop, section: forcedSection, onWorkshopChanged }: { theme: 'light' | 'dark'; workshop: Workshop; section?: PerfilSection; onWorkshopChanged?: () => void }) {
   const t = negocioTokens(theme)
   const { updateWorkshop } = useMyWorkshop()
   const [ownSection, setSection] = useState<PerfilSection>('general')
@@ -36,6 +46,26 @@ export default function PerfilModule({ theme, workshop, section: forcedSection }
   const { mechanics, addMechanic, updateMechanic, deleteMechanic } = useWorkshopMechanics()
   const { services, addService, updateService, deleteService } = useWorkshopServices()
   const { uploadFile } = useUpload()
+  const [logoUrl, setLogoUrl] = useState(workshop.logo_url || '')
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [logoMsg, setLogoMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const changeLogo = async (file: File | undefined) => {
+    if (!file) return
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setLogoMsg({ ok: false, text: 'El logo debe ser PNG, JPG o WebP.' }); return }
+    if (file.size > 5 * 1024 * 1024) { setLogoMsg({ ok: false, text: 'El logo pesa más de 5 MB. Usa una imagen más liviana.' }); return }
+    setLogoBusy(true); setLogoMsg(null)
+    const r = await workshopApi.uploadLogo(file)
+    setLogoBusy(false)
+    if (r.workshop) { setLogoUrl(r.workshop.logo_url || ''); setLogoMsg({ ok: true, text: 'Logo guardado.' }); onWorkshopChanged?.() }
+    else setLogoMsg({ ok: false, text: LOGO_ERRORS[r.error || ''] || 'No se pudo subir el logo. Inténtalo de nuevo.' })
+  }
+  const removeLogo = async () => {
+    setLogoBusy(true); setLogoMsg(null)
+    const r = await workshopApi.removeLogo()
+    setLogoBusy(false)
+    if (r) { setLogoUrl(''); setLogoMsg({ ok: true, text: 'Logo quitado.' }); onWorkshopChanged?.() }
+    else setLogoMsg({ ok: false, text: 'No se pudo quitar el logo.' })
+  }
 
   const [form, setForm] = useState({
     name: workshop.name, phone: workshop.phone, description: workshop.description,
@@ -204,6 +234,27 @@ export default function PerfilModule({ theme, workshop, section: forcedSection }
       <div style={{ padding: 20, borderRadius: 16, background: t.cardBg, border: `1px solid ${t.border}` }}>
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 14 }}>Datos del taller</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle(t)}>Logo</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ width: 96, height: 64, borderRadius: 12, background: '#fff', border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flex: '0 0 auto' }}>
+                {logoUrl
+                  ? <img src={proxyUrl(logoUrl)} alt={`Logo de ${workshop.name}`} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: 4, boxSizing: 'border-box' }} />
+                  : <span style={{ fontSize: 11, color: '#8f8a7a', textAlign: 'center', padding: 4 }}>Sin logo</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label style={{ color: t.gold, fontWeight: 700, fontSize: 13, cursor: logoBusy ? 'wait' : 'pointer' }}>
+                    {logoBusy ? 'Subiendo...' : logoUrl ? 'Cambiar logo' : 'Subir logo'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" disabled={logoBusy} style={{ display: 'none' }} onChange={e => { void changeLogo(e.target.files?.[0]); e.target.value = '' }} />
+                  </label>
+                  {logoUrl && <button type="button" disabled={logoBusy} onClick={() => void removeLogo()} style={{ background: 'none', border: 'none', padding: 0, color: t.textMuted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>Quitar</button>}
+                </div>
+                <p style={{ fontSize: 11, color: t.textMuted, margin: 0 }}>PNG, JPG o WebP, mínimo 120 px. Mejor con fondo transparente o liso; recortamos los márgenes. Se muestra en tu ficha pública.</p>
+              </div>
+            </div>
+            {logoMsg && <p role="status" style={{ fontSize: 12, margin: '6px 0 0', color: logoMsg.ok ? '#2ecc71' : '#ff6b6b' }}>{logoMsg.text}</p>}
+          </div>
           <div>
             <label style={labelStyle(t)}>Nombre del taller</label>
             <input style={inputStyle(t)} {...field('name')} placeholder="Ej. Taller Central CarLink" />

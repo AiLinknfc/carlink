@@ -55,6 +55,16 @@ Antes de trabajar en algo no trivial, leé lo que aplique:
    acción para borrar/despublicar algo ya publicado — si hay que revertir uno, hay que decírselo al
    usuario en vez de asumir que se puede deshacer.
 
+7. **Selectores, desplegables y filtros siempre en el amarillo de CarLink (`#F5C518`), nunca en el azul nativo del
+   navegador.** Lo pidió el usuario muchas veces (2026-09-15, 2026-10-05 y otra vez 2026-10-17, cuando un `<select>`
+   nativo de "Tipo de negocio" salió azul en `PostulacionForm`). Antes de escribir cualquier control de selección
+   **buscar en `frontend/src/components`** y reutilizar: `ThemedSelect` (desplegable), `ThemedSuggestInput`
+   (input con sugerencias, en vez de `<datalist>`), pastillas/tiles. **Prohibido `<select>` y `<datalist>` nativos en
+   pantallas nuevas** y también el `<input type="date">`/color sin tema; si por alguna razón se toca una pantalla vieja que
+   los usa, migrarlos en la misma pasada. Revisar el resultado en el navegador (hover y opción seleccionada en amarillo,
+   en tema claro y oscuro) antes de dar el cambio por terminado. Detalle: `docs/DESIGN_GUIDELINES.md` → "Select / Dropdown
+   Styling" y "Chips de selección, desplegables y tiles".
+
 Usá la skill `capture-thinking` cuando el usuario revele un patrón de razonamiento reusable (no
 solo una instrucción puntual). Es personal (vive en `~/Documents/mis-skills/capture-thinking/`) y
 decide si el patrón es portable (va a `andres-app-blueprint`) o específico de CarLink (va aquí).

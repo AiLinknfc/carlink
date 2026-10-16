@@ -106,3 +106,9 @@ Un commit (`desplegando ambientes en produccion`) subió `tests/test_nfc_flow.sh
 - Nunca hardcodear secretos reales en `.env.example` (debe quedar siempre vacío/plantilla) ni en scripts dentro de `tests/`.
 - Los archivos `.md` versionados (`CONTEXTO.md`, este archivo, etc.) tampoco son lugar para contraseñas o claves reales, aunque sea "solo para referencia rápida en desarrollo" — ya pasó una vez con la DB password en `CONTEXTO.md`.
 - Si un secreto queda expuesto en un commit ya pusheado, rotarlo de inmediato es más importante que limpiar el historial de git.
+
+## Auditoría de ciberseguridad y resistencia (2026-10-15)
+
+Revisión de código, `npm audit` y cabeceras de producción. Hallazgos en `docs/PENDIENTES.md` → "Ciberseguridad" (S1–S16) y
+plan de pruebas (herramientas, casos y criterios) en `docs/PRUEBAS_FUNCIONALES.md` → Suite 16. Las pruebas activas se corren
+solo contra local o staging, nunca producción.

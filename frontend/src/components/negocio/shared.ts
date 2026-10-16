@@ -23,6 +23,11 @@ export function negocioTokens(theme: 'light' | 'dark') {
 
 export type NegocioTokens = ReturnType<typeof negocioTokens>
 
+/** Colores para `ThemedSelect` / `ThemedSuggestInput` dentro del panel de negocio (amarillo de CarLink, nunca el azul nativo). */
+export function selectTheme(t: NegocioTokens) {
+  return { inputBg: t.inputBg, inputBorder: t.subtleBorder, inputText: t.textPrimary, accent: t.gold, muted: t.textMuted, panelBg: t.isDark ? '#141414' : '#ffffff' }
+}
+
 /* Categorías de servicio de referencia — migradas de tallerpro/src/types.ts
    (ServiceCategory) porque son un catálogo real del rubro, no datos de
    ejemplo inventados (ver docs/PLAN_MIGRACION_TALLERPRO.md Fase 6). Se usan

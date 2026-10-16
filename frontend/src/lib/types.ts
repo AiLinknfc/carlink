@@ -211,6 +211,14 @@ export interface Workshop {
   // Panel de negocio (migración de tallerpro/, ver docs/PLAN_MIGRACION_TALLERPRO.md)
   slogan: string;
   workshop_type: string;
+  business_kind?: string;
+  /** Solo en GET/PUT /workshops/me (dueño): qué funciones del panel incluye su tipo de negocio. */
+  capabilities?: string[];
+  can_certify_odometer?: boolean;
+  access_plan?: string;
+  access_until?: string | null;
+  /** 'active' o 'expired' (restringido, solo lectura). */
+  access_status?: 'active' | 'expired';
   email: string;
   business_hours: string;
   specialties: string[];
@@ -1091,6 +1099,8 @@ export interface PartnerAdminView {
   quota_used: number;
   status: 'active' | 'suspended';
   notes: string;
+  /** TLR-XXXXX del concesionario que consigna estos llaveros (si el admin lo vinculó). */
+  workshop_code?: string | null;
   created_at: string;
 }
 
@@ -1116,6 +1126,9 @@ export interface ShopOrderDetail {
   plate_city: string;
   quantity: number;
   amount_in_cents: number;
+  /** Código de alianza usado y descuento aplicado (centavos); amount_in_cents ya es el monto cobrado. */
+  alliance_code?: string;
+  discount_cents?: number;
   currency: string;
   wompi_transaction_id: string | null;
   created_at: string;

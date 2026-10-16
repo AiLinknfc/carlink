@@ -67,6 +67,24 @@ def _no_real_geocoding(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _sin_consulta_real_al_rues(monkeypatch):
+    """Ninguna prueba debe consultar datos.gov.co de verdad (red). Las pruebas de la verificación pasan su propio cliente simulado."""
+    async def _none(*_a, **_k):
+        return None
+    monkeypatch.setattr("app.services.company_verification.fetch_rows", _none)
+
+
+@pytest.fixture(autouse=True)
+def _sin_compuerta_de_negocio(monkeypatch):
+    """La compuerta de tipo y acceso (services/workshop_gate.py) consulta el negocio del usuario; las pruebas de los
+    routers del panel usan una base simulada, asi que por defecto no hay negocio y la compuerta deja pasar. Sus propias
+    pruebas (test_workshop_gate.py) la reemplazan con negocios de prueba."""
+    async def _none(*_a, **_k):
+        return None
+    monkeypatch.setattr("app.services.workshop_gate._load_workshop", _none)
+
+
+@pytest.fixture(autouse=True)
 def _workshop_links_apagado_por_defecto(monkeypatch):
     """El vinculo taller-conductor viene apagado: las pruebas no dependen del WORKSHOP_LINKS_ENABLED del .env local
     (que se enciende a mano para probar la interfaz). Las que lo necesitan encendido usan su propia fixture `flag_on`."""

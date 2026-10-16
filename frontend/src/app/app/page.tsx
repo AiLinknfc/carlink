@@ -13,7 +13,6 @@ import { useRatingPrompts } from '@/lib/useRatingPrompts'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { RatingPromptBanner } from '@/components/RatingPrompt'
 import Sidebar from '@/components/Sidebar'
-import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
 import FuelSelect from '@/components/FuelSelect'
 import VehicleCardDetails from '@/components/VehicleCardDetails'
@@ -920,7 +919,6 @@ export default function AppPage() {
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: pageBg, color: rootTextColor, display: 'flex' }}>
-      <BgParticles theme={theme} />
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: vignetteBg }} />
       <Sidebar
         activeTab={activeTab}
@@ -946,6 +944,7 @@ export default function AppPage() {
         theme={theme}
         isAdmin={isAdmin}
         subscriptionStatus={profile?.subscription_status}
+        subscriptionPlan={profile?.subscription_plan}
         trialEndsAt={profile?.trial_ends_at}
         profileCreatedAt={profile?.created_at}
         vehicles={vehicles.map(v => ({ id: v.id, plate: v.plate, brand: v.brand, model: v.model }))}

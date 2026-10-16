@@ -15,9 +15,17 @@ interface Props {
   disabled?: boolean
   theme: SuggestTheme
   ariaLabel?: string
+  /** Para enlazar con un <label htmlFor> y para foco/pruebas. */
+  id?: string
+  /** Alto fijo del botón (por defecto el de los formularios del panel). */
+  height?: number
+  invalid?: boolean
+  describedBy?: string
+  /** Se llama al abrir/cerrar (p. ej. para marcar el campo como tocado al salir). */
+  onBlur?: () => void
 }
 
-export default function ThemedSelect({ value, onChange, options, placeholder = 'Elige una opción…', disabled, theme, ariaLabel }: Props) {
+export default function ThemedSelect({ value, onChange, options, placeholder = 'Elige una opción…', disabled, theme, ariaLabel, id, height, invalid, describedBy, onBlur }: Props) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -56,12 +64,16 @@ export default function ThemedSelect({ value, onChange, options, placeholder = '
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        id={id}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        onBlur={() => { if (!open) onBlur?.() }}
         onClick={() => { setOpen(o => !o); setActive(Math.max(0, options.indexOf(value))) }}
         onKeyDown={onKeyDown}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-          padding: '11px 13px', borderRadius: 10, boxSizing: 'border-box', textAlign: 'left',
-          border: `1px solid ${open ? theme.accent : theme.inputBorder}`, background: theme.inputBg,
+          padding: height ? '0 14px' : '11px 13px', height, borderRadius: height ? 11 : 10, boxSizing: 'border-box', textAlign: 'left',
+          border: `1px solid ${invalid ? '#ff6b6b' : open ? theme.accent : theme.inputBorder}`, background: theme.inputBg,
           color: value ? theme.inputText : theme.muted, fontSize: 14, fontFamily: 'inherit',
           cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.6 : 1, outline: 'none',
           transition: 'border-color .15s',

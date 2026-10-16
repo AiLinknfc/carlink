@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 
 import httpx
 from PIL import Image
@@ -399,3 +400,85 @@ async def structure_safety_data(raw_text: str) -> dict:
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
         logger.warning(f"DeepSeek safety structuring failed: {e}")
         return fallback
+
+
+# --- Camara de Comercio / RUT (postulacion publica de talleres) ---
+
+_CHAMBER_SYSTEM_PROMPT = """Eres un extractor de datos de un certificado de existencia y representación legal de una Cámara de Comercio (o un RUT) de Colombia, a partir de texto OCR.
+
+Devuelve SOLO un objeto JSON con estas claves (usa null cuando no encuentres el dato con claridad; nunca inventes ni completes a medias):
+- "legal_name": razón social completa tal como aparece (ej. "INVERSIONES PEREZ S.A.S."). Si es persona natural, su nombre completo.
+- "name": nombre del establecimiento de comercio o nombre comercial, si aparece distinto de la razón social.
+- "nit": NIT con dígito de verificación, formato "900123456-8". Si el documento no muestra el dígito, devuelve solo los dígitos.
+- "city": municipio del domicilio comercial, sin departamento (ej. "Duitama").
+- "address": dirección del domicilio comercial (ej. "Calle 72 # 10-34").
+- "phone": teléfono o celular de contacto, solo dígitos.
+- "email": correo electrónico comercial.
+- "business_type": una de "mecanica_general", "latoneria_pintura", "llantas_alineacion", "electrico", "lubricentro", "tecnicentro", "repuestos", "otro", según la actividad económica (CIIU 4520 = mantenimiento y reparación de vehículos -> "mecanica_general"; 4530/4541 = repuestos -> "repuestos"). null si no es claro.
+
+No agregues texto fuera del JSON."""
+
+_CHAMBER_FIELDS = ("legal_name", "name", "nit", "city", "address", "phone", "email", "business_type")
+
+_NIT_RE = re.compile(r"(?:NIT|N\.\s?I\.\s?T\.?)\s*[:.#]?\s*(\d{1,3}(?:[.\s]?\d{3}){2,4})\s*[-–]\s*(\d)", re.IGNORECASE)
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_MOBILE_RE = re.compile(r"(?<!\d)(3\d{2})[\s.-]?(\d{3})[\s.-]?(\d{4})(?!\d)")
+
+
+def _regex_chamber_fallback(raw_text: str) -> dict:
+    """Respaldo sin IA: solo los datos con forma inequivoca (NIT con digito, correo, celular). Lo demas
+    (razon social, direccion) necesita entender el documento y se deja vacio."""
+    out: dict = {k: None for k in _CHAMBER_FIELDS}
+    m = _NIT_RE.search(raw_text)
+    if m:
+        out["nit"] = f"{re.sub(r'[^0-9]', '', m.group(1))}-{m.group(2)}"
+    m = _EMAIL_RE.search(raw_text)
+    if m:
+        out["email"] = m.group(0).lower()
+    m = _MOBILE_RE.search(raw_text)
+    if m:
+        out["phone"] = "".join(m.groups())
+    return out
+
+
+async def structure_chamber_data(raw_text: str) -> dict:
+    """Estructura el texto OCR de una Camara de Comercio/RUT para prellenar la postulacion. Es una ayuda de
+    captura: la persona revisa cada campo antes de enviar, y el NIT se vuelve a validar (digito de verificacion)
+    en el envio, asi que un error de lectura del OCR no puede colarse como dato bueno."""
+    fallback = _regex_chamber_fallback(raw_text)
+    if not raw_text.strip() or not settings.deepseek_api_key:
+        if raw_text.strip():
+            logger.warning("DEEPSEEK_API_KEY not configured; chamber scan uses regex fallback only")
+        return fallback
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.deepseek_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
+                json={
+                    "model": settings.deepseek_model,
+                    "messages": [
+                        {"role": "system", "content": _CHAMBER_SYSTEM_PROMPT},
+                        {"role": "user", "content": raw_text[:8000]},
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0,
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            parsed = json.loads(resp.json()["choices"][0]["message"]["content"])
+    except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+        logger.warning(f"DeepSeek chamber structuring failed: {e}")
+        return fallback
+
+    merged = dict(fallback)
+    for k in _CHAMBER_FIELDS:
+        v = parsed.get(k) if isinstance(parsed, dict) else None
+        if isinstance(v, (str, int)) and str(v).strip():
+            merged[k] = str(v).strip()
+    # Si la IA devolvio el NIT sin digito pero el regex lo vio completo, gana el completo.
+    if fallback["nit"] and merged["nit"] and "-" not in merged["nit"] and fallback["nit"].startswith(re.sub(r"\D", "", merged["nit"])):
+        merged["nit"] = fallback["nit"]
+    return merged

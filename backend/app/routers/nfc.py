@@ -26,6 +26,7 @@ from app.models.models import (
     Workshop,
 )
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
+from app.services import workshop_access
 from app.services.alerts import check_and_create_alerts
 from app.services.alerts import notify_nfc_alert
 from app.utils import client_ip
@@ -203,6 +204,11 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
     if not trial:
         return False, None
 
+    # La ficha de prueba del negocio dura lo que su acceso (un año para los aliados fundadores, sin vencimiento en
+    # convenio); sin negocio, los 7 días de siempre. Docs: PLAN_ALIADOS_NEGOCIO.md sección 11.
+    workshop = (await db.execute(select(Workshop).where(Workshop.owner_id == trial.user_id))).scalar_one_or_none()
+    if workshop is not None:
+        return (True, None) if workshop_access.is_active(workshop) else (False, "trial_expired")
     expires_at = trial.created_at + timedelta(days=TRIAL_DAYS)
     if datetime.now(timezone.utc) <= expires_at:
         return True, None

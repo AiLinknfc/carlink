@@ -8,6 +8,7 @@ import { PLATE_COLOR_SCHEMES, COP } from '@/lib/shop'
 import { SUPPORT_WHATSAPP, activationCodeWhatsappUrl } from '@/lib/checkout'
 import { getPlateDisplay, getPlateConfig, plateShowsCountryLabel, plateShowsCity, type PlateType } from '@/lib/plate'
 import { apiGet, apiPost, analyticsApi } from '@/lib/api'
+import { ALLIANCE_REASON_TEXT, clearAllianceRef, getStoredAllianceRef, normalizeCode, type AllianceCheck } from '@/lib/alliance'
 import { openWompiCheckout } from '@/lib/wompi'
 import Plate3D from '@/components/Plate3D'
 import { Icon } from '@/lib/icons_new'
@@ -100,6 +101,12 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   const [plateOwnedByYou, setPlateOwnedByYou] = useState(false)
   const [plateChecking, setPlateChecking] = useState(false)
   const [qty, setQty] = useState(1)
+  // Código de alianza (docs/PLAN_ALIADOS_NEGOCIO.md, sección 5): el servidor valida y calcula el descuento; acá solo se muestra.
+  const [allianceInput, setAllianceInput] = useState('')
+  const [alliance, setAlliance] = useState<{ code: string; name: string; discount: number } | null>(null)
+  const [allianceMsg, setAllianceMsg] = useState<string | null>(null)
+  const [allianceBusy, setAllianceBusy] = useState(false)
+  const [allianceOpen, setAllianceOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -144,7 +151,29 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
   // ejemplo del tipo seleccionado; en cuanto la persona escribe algo, se ve lo escrito.
   const previewPlate = (plateLetters || plateNumbers) ? fullPlate : platePlaceholder
   const productPrice = 39900
-  const total = productPrice * qty
+  const total = productPrice * qty - (alliance?.discount ?? 0)
+
+  const applyAlliance = async (raw: string, quantity = qty) => {
+    const code = normalizeCode(raw)
+    if (!code) { setAlliance(null); setAllianceMsg('Escribe el código completo, por ejemplo TLR-AB12C.'); return }
+    setAllianceBusy(true); setAllianceMsg(null)
+    const r = await apiGet<AllianceCheck>(`/shop/alliance/${code}?quantity=${quantity}`)
+    setAllianceBusy(false)
+    if (r?.valid) { setAlliance({ code, name: r.workshop_name || 'un aliado de CarLink', discount: r.discount_cop }); setAllianceInput(code); setAllianceMsg(null) }
+    else { setAlliance(null); setAllianceMsg(r ? ALLIANCE_REASON_TEXT[r.reason || 'invalid'] : 'No pudimos validar el código. Intenta de nuevo.') }
+  }
+  // Prellena el código del enlace de un aliado (?ref=, guardado por AllianceRefCapture) al abrir el checkout.
+  useEffect(() => {
+    if (!isOpen || alliance) return
+    const stored = getStoredAllianceRef()
+    if (stored) { setAllianceInput(stored); setAllianceOpen(true); void applyAlliance(stored) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
+  // El descuento depende de la cantidad (y del tope mensual del aliado): se vuelve a validar al cambiarla.
+  useEffect(() => {
+    if (alliance) void applyAlliance(alliance.code, qty)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qty])
 
   const isTypeOk = typeConfirmed && selectedType !== ''
   const isLettersOk = touched.letters && plateLetters.trim().length >= currentType.letterLen
@@ -248,6 +277,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         // contraentrega (ver docs/DEPLOY.md, nota sobre la migración 046).
         payment_method: 'wompi',
         whatsapp_opt_in: whatsappOptIn,
+        alliance_code: alliance?.code ?? '',
       }), 12000, 'Crear la orden')
       if (!created) throw new Error('No se pudo crear la orden')
 
@@ -267,6 +297,7 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
       if (confirmed?.status === 'approved') {
         fbqTrack('Purchase', { value: created.amount_in_cents / 100, currency: 'COP', num_items: qty }, `purchase-${created.reference}`)
         setOrderId(created.reference)
+        clearAllianceRef()
         setStep('done')
       } else if (confirmed?.status === 'declined' || confirmed?.status === 'error') {
         setPayError('El pago no se pudo procesar. Puedes intentar de nuevo o escribirnos por WhatsApp.')
@@ -274,6 +305,8 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
         setPayError(`Estamos confirmando tu pago. Si no se actualiza en unos minutos, escríbenos con tu referencia ${created.reference}.`)
       }
     } catch (e) {
+      // Si había código y el pedido no se creó, lo más probable es que el código dejó de servir: se revalida y se avisa.
+      if (alliance) await applyAlliance(alliance.code)
       const detail = e instanceof Error ? e.message : ''
       setPayError(`No pudimos conectar con la pasarela de pagos${detail ? ` (${detail})` : ''}. Intenta de nuevo o escríbenos por WhatsApp.`)
     } finally {
@@ -679,7 +712,27 @@ export default function CartModal({ isOpen, onClose, theme, plateText: initialPl
                       </div>
                       <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: GOLD }}>{COP(total)}</div>
                     </div>
+                    {alliance && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${subtle}`, display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, color: muted }}>
+                        <span>Descuento por alianza con {alliance.name}</span>
+                        <span style={{ fontWeight: 700, color: '#2ecc71', whiteSpace: 'nowrap' }}>-{COP(alliance.discount)}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Código de alianza: opcional y discreto; el servidor vuelve a validarlo al crear el pedido. */}
+                  {!allianceOpen && !alliance ? (
+                    <button type="button" onClick={() => setAllianceOpen(true)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', padding: 0, color: GOLD, fontWeight: 600, fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>¿Tienes un código de alianza?</button>
+                  ) : (
+                    <div>
+                      <div style={fieldLabel}>Código de alianza (opcional)</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <input value={allianceInput} onChange={e => { setAllianceInput(e.target.value.toUpperCase()); if (alliance) setAlliance(null) }} placeholder="TLR-AB12C" maxLength={9} autoCapitalize="characters" aria-label="Código de alianza" disabled={allianceBusy || paying} style={{ ...inputStyle, flex: '1 1 140px', minWidth: 0 }} />
+                        <button type="button" onClick={() => applyAlliance(allianceInput)} disabled={allianceBusy || paying || !allianceInput.trim()} style={{ padding: '0 16px', minHeight: 40, borderRadius: 10, border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD, fontWeight: 700, fontSize: 12.5, cursor: 'pointer', opacity: allianceBusy || !allianceInput.trim() ? 0.5 : 1 }}>{allianceBusy ? 'Validando...' : alliance ? 'Aplicado' : 'Aplicar'}</button>
+                      </div>
+                      {allianceMsg && <div role="alert" style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>{allianceMsg}</div>}
+                    </div>
+                  )}
 
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '.08em' }}>Método de pago</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

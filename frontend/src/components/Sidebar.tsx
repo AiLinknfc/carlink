@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import Plate3D from '@/components/Plate3D'
 import { isBusinessAccount, isSubscriptionValid, isTrialActive, getTrialDaysRemaining } from '@/lib/constants'
+import { accessBannerTitle } from '@/lib/capabilities'
 import { plateShowsCountryLabel, plateShowsCity } from '@/lib/plate'
 
 interface NavItem {
@@ -30,6 +31,9 @@ interface Props {
   theme?: 'light' | 'dark'
   isAdmin?: boolean
   subscriptionStatus?: string | null
+  subscriptionPlan?: string | null
+  /** Etiqueta del tipo de negocio junto al nombre (p. ej. CONCESIONARIO); por defecto TALLER en cuentas de taller. */
+  accountBadge?: string
   trialEndsAt?: string | null
   profileCreatedAt?: string
   /** Reemplaza el listado de tabs calculado por accountType — usado por
@@ -88,7 +92,7 @@ const TALLER_NAV_ITEMS: NavItem[] = [
   ALL_NAV_ITEMS[6],
 ]
 
-export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, forceExpanded, forceOpen, inert }: Props) {
+export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, city, vehicleLoading, onLogout, accountType, theme, isAdmin, subscriptionStatus, subscriptionPlan, accountBadge, trialEndsAt, profileCreatedAt, navItemsOverride, navItemsSecondary, navItemsSecondaryLabel, userName, vehicles, activeVehicleId, onSwitchVehicle, forceExpanded, forceOpen, inert }: Props) {
   const [railExpanded, setRailExpanded] = useState(true)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [detectedDark, setDetectedDark] = useState(true)
@@ -429,16 +433,16 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
         if (sub && trial) {
           return (
             <div style={{ margin: '0 12px 8px', padding: '10px 14px', borderRadius: 10, background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#2ecc71' }}>Prueba gratuita · {days} {days === 1 ? 'día' : 'días'} restante{days !== 1 ? 's' : ''}</div>
-              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Acceso completo a todas las funciones del taller.</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#2ecc71' }}>{accessBannerTitle(subscriptionPlan, days)}</div>
+              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Acceso completo a las funciones de tu plan.</div>
             </div>
           )
         }
         if (!sub) {
           return (
             <div style={{ margin: '0 12px 8px', padding: '10px 14px', borderRadius: 10, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.25)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#ff4d6a' }}>Suscripción vencida</div>
-              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Renueva para seguir usando el taller.</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#ff4d6a' }}>Acceso terminado · solo lectura</div>
+              <div style={{ fontSize: 10, color: textSecondary, marginTop: 2 }}>Renueva tu plan para volver a crear y editar.</div>
             </div>
           )
         }
@@ -454,7 +458,7 @@ export default function Sidebar({ activeTab, onTabChange, vehicle, plateText, ci
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>
                 {vehicle?.owner || userName}
-                {accountType === 'taller' && <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.12)', color: '#F5C518', fontWeight: 700, letterSpacing: '.05em', verticalAlign: 'middle' }}>TALLER</span>}
+                {(accountBadge || accountType === 'taller') && <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,197,24,0.12)', color: '#F5C518', fontWeight: 700, letterSpacing: '.05em', verticalAlign: 'middle' }}>{accountBadge || 'TALLER'}</span>}
               </div>
               <div style={{ fontSize: 11, color: textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{plateText || ''}</div>
             </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useMaintenance, useWorkshops, useParts, useCurrentMileage } from '@/lib/hooks'
+import { useMaintenance, useWorkshops, useParts, useCurrentMileage, useOdometerCertification } from '@/lib/hooks'
 import { healthSummary } from '@/lib/vehicleHealth'
 import { batteryMonthsFromNotes } from '@/lib/batteryCatalog'
 import { isFluidPart } from '@/lib/fluids'
@@ -92,6 +92,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
   const currentMileage = useCurrentMileage(vehicle?.id, refreshKey)
+  const odometerCertification = useOdometerCertification(vehicle?.id, refreshKey)
   const [flipped, setFlipped] = useState(false)
   const [workshopLogo, setWorkshopLogo] = useState<string>('')
   const [stampsRequired, setStampsRequired] = useState(6)
@@ -466,7 +467,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   }
 
   const odoCenterValue = hoveredTell ? String(hoveredTell.remVal) : (currentKmVal.toLocaleString())
-  const odoCenterUnit = hoveredTell ? `FALTAN ${hoveredTell.unit.toUpperCase()}` : 'KM · PARA CAMBIO DE ACEITE'
+  const odoCenterUnit = hoveredTell ? `FALTAN ${hoveredTell.unit.toUpperCase()}` : 'KM · ODÓMETRO'
   const odoBorder = cd.d <= 3 ? 'rgba(255,77,106,0.55)' : 'rgba(245,197,24,0.3)'
   const odoGlowShadow = cd.d <= 3 ? 'inset 0 2px 10px rgba(0,0,0,.7), 0 0 18px rgba(255,77,106,0.5)' : 'inset 0 2px 10px rgba(0,0,0,.7)'
   const odoTextShadow = cd.d <= 3 ? '0 0 16px rgba(255,77,106,0.75)' : '0 0 14px rgba(245,197,24,0.55)'
@@ -591,6 +592,12 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <div style={{ position: 'absolute', inset: 0, fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, transition: 'opacity .25s', opacity: defaultLabelOpacity }}>Kilometraje actual del vehículo</div>
               <div style={{ position: 'absolute', inset: 0, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 800, transition: 'opacity .25s', opacity: hoverLabelOpacity, color: hoverTellColor }}>{hoverTellLabel}</div>
             </div>
+
+            {odometerCertification && (
+              <div data-testid="odometer-certification" style={{ fontSize: 11, fontWeight: 700, color: '#2ecc71', margin: '-2px 0 8px', lineHeight: 1.4 }}>
+                {odometerCertification.label} · {odometerCertification.by}
+              </div>
+            )}
 
             {/* Dial body */}
             <div style={{ position: 'relative', width: 265, height: 265, margin: '0 auto', borderRadius: '50%', background: tDark ? 'radial-gradient(circle at 50% 42%,#1c1f26,#0a0b0e 72%)' : 'radial-gradient(circle at 50% 42%,#e8e5dc,#d5d0c6 72%)', boxShadow: tDark ? '0 14px 32px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,0.06)' : '0 14px 32px rgba(0,0,0,.15),inset 0 0 0 1px rgba(0,0,0,0.08)' }}>

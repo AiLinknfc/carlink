@@ -9,9 +9,13 @@ import { ghostBtnStyle, primaryBtnStyle } from './shared'
 
 type Tokens = ReturnType<typeof import('./shared').negocioTokens>
 
-export default function ClaimLinkModal({ t, theme, title, intro, phone, generate, onClose }: {
+export default function ClaimLinkModal({ t, theme, title, intro, phone, generate, onClose, pathPrefix = '/vincular', footnote, shareText }: {
   t: Tokens; theme: 'light' | 'dark'; title: string; intro: string; phone?: string
   generate: () => Promise<ClaimToken | null>; onClose: () => void
+  /** Ruta pública a la que apunta el enlace (por defecto el vínculo cliente-taller). */
+  pathPrefix?: string
+  footnote?: string
+  shareText?: (url: string, workshopName: string) => string
 }) {
   const [token, setToken] = useState<ClaimToken | null>(null)
   const [busy, setBusy] = useState(false)
@@ -19,7 +23,7 @@ export default function ClaimLinkModal({ t, theme, title, intro, phone, generate
   const [copied, setCopied] = useState(false)
   const qrBox = useRef<HTMLDivElement>(null)
 
-  const url = token && typeof window !== 'undefined' ? `${window.location.origin}/vincular/${token.token}` : ''
+  const url = token && typeof window !== 'undefined' ? `${window.location.origin}${pathPrefix}/${token.token}` : ''
 
   const make = async () => {
     setBusy(true); setFailed(false); setCopied(false)
@@ -52,7 +56,7 @@ export default function ClaimLinkModal({ t, theme, title, intro, phone, generate
   }
   const digits = (phone || '').replace(/\D/g, '')
   const wa = token && digits
-    ? `https://wa.me/${digits.length === 10 ? `57${digits}` : digits}?text=${encodeURIComponent(`Hola, te envío el enlace de ${token.workshop_name} para guardar el historial de tu vehículo en CarLink: ${url}`)}`
+    ? `https://wa.me/${digits.length === 10 ? `57${digits}` : digits}?text=${encodeURIComponent(shareText ? shareText(url, token.workshop_name) : `Hola, te envío el enlace de ${token.workshop_name} para guardar el historial de tu vehículo en CarLink: ${url}`)}`
     : ''
 
   return (
@@ -75,7 +79,7 @@ export default function ClaimLinkModal({ t, theme, title, intro, phone, generate
           </div>
           <div style={{ fontSize: 11.5, color: t.textMuted, textAlign: 'center', lineHeight: 1.5 }}>
             Sirve una sola vez y vence el {new Date(token.expires_at).toLocaleDateString('es-CO')}. Si generas uno nuevo, el anterior deja de funcionar.
-            Tu cliente decide qué comparte y puede quitar el vínculo cuando quiera.
+            {footnote ?? 'Tu cliente decide qué comparte y puede quitar el vínculo cuando quiera.'}
           </div>
         </div>
       )}

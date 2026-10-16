@@ -818,6 +818,7 @@ export default function AdminPage() {
                       <div style={{ fontWeight: 700, fontSize: 14 }}>
                         {o.reference} · <span style={{ color: paymentColor }}>{o.status === 'approved' ? 'Pagado' : o.status === 'pending' ? 'Pago pendiente' : o.status === 'declined' ? 'Rechazado' : o.status === 'voided' ? 'Anulado' : 'Error'}</span>
                         {o.payment_method === 'cod' && <span style={{ color: c.muted }}> · Contraentrega</span>}
+                        {o.alliance_code && <span style={{ color: '#2ecc71' }}> · Alianza {o.alliance_code} (-${((o.discount_cents ?? 0) / 100).toLocaleString('es-CO')})</span>}
                         {o.status === 'approved' && (
                           <span style={{ color: o.fulfillment_status === 'delivered' ? '#2ecc71' : o.fulfillment_status === 'shipped' ? c.accent : c.muted }}>
                             {' · '}{o.fulfillment_status === 'delivered' ? 'Entregado' : o.fulfillment_status === 'shipped' ? 'Enviado' : 'Por enviar'}
@@ -933,6 +934,12 @@ export default function AdminPage() {
                       const n = parseInt(next, 10)
                       if (!isNaN(n) && n >= 0) adminApi.updatePartner(p.id, { quota_total: n }).then(u => { if (u) setPartners(prev => prev.map(x => x.id === p.id ? u : x)) })
                     }} style={{ ...accentBtnStyle, padding: '6px 12px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>Editar cupo</button>
+                    <button onClick={async () => {
+                      const next = prompt('Código TLR-XXXXX del concesionario que consigna estos llaveros (vacío = desvincular):', p.workshop_code || '')
+                      if (next === null) return
+                      const u = await adminApi.updatePartner(p.id, { workshop_code: next.trim() })
+                      if (u) setPartners(prev => prev.map(x => x.id === p.id ? u : x)); else alert('No se pudo vincular: el negocio debe existir, ser un concesionario verificado y no estar vinculado a otro partner.')
+                    }} style={{ ...accentBtnStyle, padding: '6px 12px', fontSize: 12, background: 'transparent', color: c.accent, border: `1px solid ${c.accent}` }}>{p.workshop_code ? `Negocio: ${p.workshop_code}` : 'Vincular a un concesionario'}</button>
                     <button onClick={() => togglePartnerStatus(p)} style={p.status === 'active' ? dangerBtnStyle : { ...accentBtnStyle, padding: '6px 12px', fontSize: 12 }}>
                       {p.status === 'active' ? 'Suspender' : 'Reactivar'}
                     </button>

@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import Workshop, WorkshopServiceItem
 from app.schemas.schemas import WorkshopServiceItemCreate, WorkshopServiceItemOut, WorkshopServiceItemUpdate
 
-router = APIRouter(prefix="/workshops/me/services", tags=["workshop-services"])
+router = APIRouter(prefix="/workshops/me/services", tags=["workshop-services"], dependencies=[Depends(workshop_gate("catalogo"))])
 
 MAX_FEATURED = 4
 

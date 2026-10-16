@@ -12,6 +12,25 @@ _Última actualización: 2026-09-21._
 
 ## Landing /taller y postulaciones de talleres (2026-09-21, en local, sin desplegar)
 
+**Aliados de negocio (2026-10-16, Fase 0 en local):** además de talleres, el formulario capta concesionarios, compraventas y proveedores
+(`business_kind`); aprobar genera una invitación personal de un solo uso que va en el correo "registro exitoso" y el alta (`POST /workshops` con
+`invite_token`) exige el mismo NIT. Diseño, capacidades por tipo y descuento de llaveros: `docs/PLAN_ALIADOS_NEGOCIO.md`.
+
+**Fase 1 (2026-10-16, en local):** el tipo de negocio decide qué módulos tiene (`services/capabilities.py`, compuerta `workshop_gate` en los routers del panel, 403) y cada negocio tiene un plan y un vencimiento reales (`workshops.access_*`, migración 078; vencido = solo lectura, 402). `/auth/me` ya devuelve `subscription_*`. Ver `PLAN_ALIADOS_NEGOCIO.md` sección 13.
+
+**Fase 4 (2026-10-17, en local):** cada postulación consulta su NIT en el RUES (datos abiertos de Confecámaras en datos.gov.co, sin costo; `services/company_verification.py`, migración 082) y el panel del admin muestra el resultado como ayuda (el RUES no cubre vehículos: eso es el RUNT). CDA y compraventa exigen la lista de chequeo completa para aprobarse. Texto legal v2.7. Ver `PLAN_ALIADOS_NEGOCIO.md` secciones 17 y 18.
+
+**Fase 3b (2026-10-17, en local):** los CDA habilitados registran revisiones técnico-mecánicas (`rtm_inspections`, migración 081) y entregan una constancia (`/constancia/<código>`) que el propietario acepta: solo entonces se crea el diagnóstico de revisión y la lectura de odómetro "Certificado por CDA"; el concesionario ve sus llaveros en consignación (solo lectura, `partners.workshop_id`) y los vehículos en venta admiten hasta 6 fotos. Textos legales v2.6. Ver `PLAN_ALIADOS_NEGOCIO.md` sección 16.
+
+**Fase 3 (2026-10-17, en local):** concesionarios y compraventas gestionan "Vehículos en venta" (`dealer_vehicles`, migración 080): ficha pública `/v/<código>`, kilometraje certificado/declarado con comparación contra el historial de la placa y tope de 3 intentos por día, y entrega al comprador por `/entrega/<código>` (lectura de odómetro `dealer_delivery`). Permiso `can_certify_odometer` aparte, lo da el admin. Textos legales v2.5. Ver `PLAN_ALIADOS_NEGOCIO.md` sección 15.
+
+**Fase 2 (2026-10-16, en local):** código de alianza = el `TLR-XXXXX` del negocio; $7.000 de descuento por llavero calculado en el servidor (`services/alliances.py`, migración 079), tope mensual por negocio, sin autodescuento; `GET /shop/alliance/{code}`, `?ref=` guardado 30 días y sección "Código de alianza" en el panel. Textos legales v2.4. Ver `PLAN_ALIADOS_NEGOCIO.md` sección 14.
+
+**Actualización 2026-10-16:** el formulario valida por campo, confirma la ubicación en un mapa (`UbicacionModal`) y puede leerse
+de una Cámara de Comercio (`/scan`). Las postulaciones no rechazadas (con `latitude/longitude`, migración `076`) se suman en vivo a la
+cobertura fija de la landing y al iframe `public/mapa-talleres-colombia.html` vía `GET /api/workshop-applications/public-map`
+(solo ciudad, pin a ~100 m y nombre si autorizó mostrarlo). Lógica pura en `lib/tallerForm.ts`.
+
 `/taller` (antes `/shop`) capta talleres y proveedores: formulario público -> tabla
 `workshop_applications` (migración `062`, RLS sin políticas) -> pestaña "Postulaciones" en `/admin`;
 aprobar envía el enlace a `/register?mode=empresa` (no crea cuentas). Backend:

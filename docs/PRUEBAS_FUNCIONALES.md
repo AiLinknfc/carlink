@@ -441,3 +441,227 @@ local aparte (`--port 8001`) y correr `backend/scripts/qa_workshop_links_e2e.py`
 | 15.28 | Km 0 retroactivo no bloquea | Tras 15.10, registrar un servicio de aceite con fecha de hace 5 días y km real | Se acepta (antes: "mayor al de un registro posterior (0 km)") |
 | 15.29 | Topbar fijo en celular | `/app` a 320 y 390 px: bajar el scroll en Inicio y en una pestaña larga | El logo y los botones siguen arriba con la franja translúcida; sin scroll horizontal; claro y oscuro; en escritorio igual que antes |
 | 15.30 | Pantalla de espera de la autenticación | Iniciar sesión con correo (y registrarse; luego con Google) | Anillo amarillo con candado (nunca el logo de Google), frases "Verificando… / Cifrando… / Autenticando…" y en el callback "Preparando tu sesión / Abriendo tu garaje"; con reducir movimiento no anima |
+
+## Registro de ejecución — Aliados de negocio, suites 18 a 22 (2026-10-17)
+
+**Entorno**: backend y frontend locales contra la Supabase real compartida, con las migraciones 077 a 080 aplicadas. Cuentas desechables `qa-aliados-*@carlink.internal` creadas y **borradas al terminar** (0 residuos verificado con `--cleanup`); ningún correo real se envió (se interceptaron). Navegador: Chromium en escritorio (1280x900) y celular (390x844).
+
+| Prueba | Cómo se corre | Resultado |
+|---|---|---|
+| Funcional automática (suites 18 a 24) | `backend/scripts/qa_aliados_e2e.py` (backend en proceso, base real) | **119 de 119 OK** (corrida final 2026-10-17; el script con `--json archivo` guarda el detalle) |
+| Visual y de interfaz (suites 18 a 22) | `backend/scripts/qa_aliados_visual.mjs` (Playwright, 46 capturas) | **Todo OK tras las correcciones de abajo** (corrida completa de 91 comprobaciones + repeticiones de los escenarios corregidos) |
+| Unitarias | `pytest` / `vitest` / `tsc` | backend 387 OK, frontend 269 OK (+1 fallo esperado preexistente), tsc limpio |
+
+**Capturas** (escritorio `-desk` y celular `-mob`): no se guardan en el repositorio (decisión 2026-10-17); `qa_aliados_visual.mjs` las regenera en la carpeta `OUT` que se le indique. Nombres:
+- `18-1-form-*`: formulario por tipo (taller, concesionario). `18-3-admin-postulaciones-*`: Admin con lista de chequeo, invitación y habilitar certificación. `18-4-registro-invitacion-*`: registro con invitación.
+- `19-panel-<tipo>-*`: panel de taller, concesionario, compraventa, CDA, repuestos, convenio y acceso vencido (solo lectura).
+- `20-1-alianza-panel-*`, `20-2-checkout-con-descuento-*`: código de alianza y checkout con $32.900.
+- `21-1-inventario-*`, `21-2-agregar-vehiculo-*`, `21-3-certificar-*`, `21-4-ficha-qr-*`, `21-5-ficha-publica-*`, `21-6-entrega-*`, `21-7-ficha-comprador-*`: vehículos en venta de punta a punta.
+- `22-1-terminos-desk`: términos v2.5.
+
+### Hallazgos de la prueba visual (errores reales de la aplicación, ya corregidos)
+1. **Inicio del panel de un concesionario/compraventa/CDA/repuestos mostraba el panel del taller** (órdenes activas, rentabilidad, alertas de repuestos, "Ingresar vehículo", asistente de diagnóstico IA), aunque el menú estaba bien. Ahora esos tipos tienen su propio inicio ("Mi negocio": tipo, verificación, clientes, vehículos en venta, citas o stock según el tipo, y llaveros recomendados) — `ResumenAliadoModule`.
+2. **La insignia junto al nombre decía "TALLER" para cualquier negocio**. Ahora dice TALLER, CDA, CONCESIONARIO, COMPRAVENTA o REPUESTOS.
+3. **`/register?mode=empresa` mandaba al inicio incluso a quien ya había iniciado sesión** (redirigía mientras la sesión aún cargaba): rompía el enlace de invitación abierto en otra pestaña. Ahora espera a que cargue la sesión.
+4. **La vista previa de la entrega mostraba la placa sin guion** (`QAL813`) distinta de la que queda en la cuenta del comprador (`QAL-813`). Ahora son iguales.
+5. Hallazgo preexistente, **no corregido**: en la ficha de un vehículo sin ningún servicio de aceite, el tablero muestra el kilometraje actual dentro del recuadro "KM PARA CAMBIO DE ACEITE" (p. ej. "45,000"), lo que confunde. Anotado en `PENDIENTES.md`.
+
+**Fase 4 y ajustes de interfaz (2026-10-17)**: funcional 119 de 119 (suites 18 a 24; la única falla inicial fue un NIT de prueba que sí existe en el RUES) y visual 95 de 95 + 22 de 22 (escenarios V25 del formulario, la ficha pública, el pie y la estela).
+
+**Fase 3b (misma fecha)**: funcional 110 de 110 y visual 91 de 91 (88 en la corrida completa y las 3 restantes tras corregir la prueba: "Cargando…" capturado antes de tiempo, un botón ambiguo y la etiqueta "Certificado por CDA" que ahora corresponde en la ficha del comprador). Capturas nuevas: `23-1` a `23-8` (revisiones, por vencer, constancia con QR, constancia sin y con sesión, consignación, ficha con fotos, formulario con fotos).
+
+Errores de la propia prueba corregidos en el camino (no eran de la aplicación): textos en mayúsculas por estilo (`text-transform`), `&amp;` del HTML, esperas cortas por la lentitud del servidor de desarrollo, un "Cerrar" ambiguo y el asistente de bienvenida de una cuenta nueva tapando la ficha.
+
+### Comprobaciones manuales que quedan por ti (no se automatizan)
+- ★ 21.12: iniciar sesión **de verdad** (Google o correo) desde `/entrega/<código>` y comprobar que vuelve ahí (la prueba usó una sesión inyectada).
+- ★ 19.x / 18.x con un **celular real** y con el tema claro (la prueba corrió con el tema oscuro).
+- Correo real de aprobación recibido en una bandeja (la prueba verificó el contenido, no la entrega SMTP).
+- Pago real en Wompi sandbox con código de alianza (20.4 verificó el pedido y el monto, no el widget).
+- Revisión de un abogado de los textos legales v2.5 (22.3).
+
+---
+
+## Suite 24 — Verificación automática de empresas en el RUES, Fase 4 (2026-10-17)
+
+Requiere la migración 082. **Automatizada** (`qa_aliados_e2e.py`; consulta el RUES de verdad) y **visual** (bloque en Admin > Postulaciones).
+
+| # | Caso | Resultado esperado | Auto | Visual |
+|---|---|---|---|---|
+| 24.1 | Consulta real | Una empresa pública conocida sale encontrada, ACTIVA, renovada, con DV y nombre que coinciden; un NIT inexistente sale `not_found` (nada inventado) | sí | — |
+| 24.2 | Al postular | El NIT se consulta solo y queda guardado (empresa, estado, cámara, CIIU, renovación) | sí | V18.3 |
+| 24.3 | "Consultar RUES" | El admin repite la consulta y se actualiza la fecha; no cambia el estado de la postulación | sí | V18.3 |
+| 24.4 | RUES caído | La postulación igual se guarda y queda `unavailable` | sí | — |
+| 24.5 | Nivel alto | CDA y compraventa no se aprueban con la lista de chequeo incompleta (422 `checks_incomplete`); un taller sí (el panel solo advierte) | sí | — |
+| 24.6 ★ | Aviso al aprobar | Con resultado "con problemas" o "no encontrada" el aviso de aprobar lo menciona | — | a mano |
+| 24.7 ★ | `revalidate_businesses.py` | Lista los negocios verificados con su estado en el RUES (solo lee) | — | a mano |
+
+## Suite 25 — Ajustes de interfaz del 2026-10-17
+
+Casos **visuales** automatizados (`qa_aliados_visual.mjs`, escenarios V25) en escritorio y celular.
+
+| # | Caso | Resultado esperado |
+|---|---|---|
+| 25.1 | Ayudas del formulario | Botón "?" junto a cada etiqueta con mensaje flotante (clic, mouse, foco); no quedan textos fijos de ayuda bajo los campos; Escape lo cierra; el mensaje cabe en la pantalla (320 px incluido) |
+| 25.2 | Alineación | Los campos de una misma fila tienen el mismo `top` y todos miden 46 px; "Ver en mapa" mide igual que la dirección |
+| 25.3 | Escáner y documento | El escáner dice "Cámara de Comercio o RUT (cualquiera de los dos sirve)"; ya no hay botón de subir documento al final |
+| 25.4 | Pie de página | Solo Instagram y Facebook, en dorado CarLink; sin el ícono de WhatsApp (el enlace de texto de contacto sigue) |
+| 25.5 | Estela del mouse | Sigue en la landing; no hay canvas de partículas en `/app/negocio` ni en `/app` |
+| 25.6 | Ficha pública del taller | Sin "Nuestro equipo" ni descripción; Contacto con dirección, teléfono, correo y horario en tarjetas compactas, y WhatsApp, Instagram, Facebook y sitio web como íconos redondos dorados con hipervínculo (nueva pestaña); cabe en laptop de 640 px de alto y en 320 px sin scroll horizontal. El Contacto va en una segunda columna junto al nombre, el QR no cambia; un correo/nombre/especialidad muy largos se cortan con límites (correo en 2 líneas, especialidades máx. 4 + "+N") sin tapar nada |
+| 25.7 | Reseñas | Ya no hay tarjeta de reseñas al pie; la calificación del encabezado (en dorado, con estrellas) abre un modal con promedio, estrellas, comentarios, "cliente verificado" y respuesta del taller; se cierra con su botón y con Escape |
+| 26.1 | Selector de tipo de negocio | El formulario no tiene `<select>`/`<datalist>` nativos; el desplegable es el amarillo de CarLink (hover y opción elegida), en tema claro y oscuro, escritorio y celular (V26.1) |
+| 26.2 | Escanear y subir | "Escanear Cámara de Comercio o RUT" abre el escáner con cámara (Tomar foto, Usar esta foto, Escape cierra); el botón de texto "Subir foto o PDF" abre el selector de archivos (V26.2) |
+| 26.3 | Logos de aliados en /taller | `GET /api/workshop-applications/public-allies` (solo aprobados con logo autorizado); el logo más reciente toma la primera posición de "Marcas y aliados" sin recargar, no crece la franja y enlaza a su ficha (V26.3, pytest) |
+| 26.4 | Condiciones del logo | `POST /api/workshop-applications/upload?kind=logo` solo acepta PNG/JPG/WebP legibles, lado menor >= 120 px, <= 6000 px, proporción ancho/alto entre 0,4 y 5, no en blanco (422 con código `logo_*`); recorta márgenes, reduce a máx. 600x300 y guarda PNG (pytest `test_logo_image.py`; el formulario muestra el motivo en claro) |
+| 26.6 | Logo opcional | El formulario se envía sin logo (el backend ya no responde `logo_required`); sin logo no aparece la casilla de autorizar mostrarlo y `logo_authorized` queda en falso; la postulación en Admin muestra "Sin logo"; el perfil público no muestra imagen. Con logo, el perfil público lo muestra sobre una placa clara junto al nombre (pytest + captura del perfil con y sin logo) |
+| 26.7 | Logo desde el panel lateral | En `/app/negocio` > "Perfil y configuración del taller" (panel derecho), campo Logo con vista previa, "Subir/Cambiar logo" y "Quitar"; un logo muy pequeño se rechaza con mensaje claro; al subir se normaliza (`POST /api/workshops/me/logo`) y aparece al instante en el campo, la cabecera del panel y el botón de perfil de la barra superior; `GET /api/workshops/<codigo>` lo devuelve; "Quitar" lo borra (V27.1, 11 de 11) |
+| 26.5 ★ | Logo real en la franja | Subir un logo real (con y sin fondo transparente), aprobarlo con la autorización marcada y ver cómo queda en "Marcas y aliados" y en el perfil público. Sin logo, el negocio no sale en la franja |
+| 25.8 ★ | Ayuda en celular real | Tocar "?" abre el mensaje, tocar afuera lo cierra, no se corta por el borde |
+| 25.9 ★ | Estela en la app | Mover el mouse por `/app` y `/app/negocio` ya no deja estela amarilla |
+
+## Suite 23 — Revisiones RTM del CDA, consignación de llaveros y fotos, Fase 3b (2026-10-17)
+
+Requiere las migraciones 077 a 081. **Automatizada** (`qa_aliados_e2e.py`) y **visual** (`qa_aliados_visual.mjs`). ★ = además a mano.
+
+| # | Caso | Resultado esperado | Auto | Visual |
+|---|---|---|---|---|
+| 23.1 | Quién tiene revisiones | Solo el CDA; taller, concesionario y compraventa reciben 403 | sí | V19 cda |
+| 23.2 | CDA sin habilitación | 403 `not_enabled`; el admin lo habilita aparte de la aprobación | sí | V23.1 |
+| 23.3 | Datos inválidos | Fechas viejas/futuras/vigencia absurda, certificado y placa inválidos: 422 sin gastar intentos | sí | — |
+| 23.4 | Antifraude de kilometraje | Menos que el historial de la placa en otra cuenta: 422 sin cifras; salto absurdo: 422; el 4.º intento por placa en 24 h: 429; certificado repetido: 409 | sí | — |
+| 23.5 | Constancia | Con el código se ve la revisión; **no escribe nada** en la cuenta del propietario; quien no tiene el vehículo recibe `no_vehicle` y el código sigue vigente | sí | V23.5 |
+| 23.6 | El propietario acepta | Diagnóstico de revisión con vigencia + lectura `cda_inspection` "Certificado por CDA"; no se acepta dos veces; sin autorización no se crea cliente | sí | V23.5b-d |
+| 23.7 | Con autorización | Queda como cliente del CDA y sale en "Por vencer" con contacto; las no aprobadas y las de vigencia larga no salen | sí | V23.3 |
+| 23.8 | Km que no cuadra | Se guarda la revisión pero NO el kilometraje | sí | — |
+| 23.9 | Constancia vencida / inventada | 410 / 404 | sí | — |
+| 23.10 | Acceso vencido del CDA | Lee; registrar da 402 | sí | — |
+| 23.11 | Consignación sin partner | "Sin cupo"; un taller no tiene la sección (403) | sí | — |
+| 23.12 | Vincular partner | Solo a un concesionario verificado (taller 422); un negocio, un partner (409) | sí | — |
+| 23.13 | Vista del concesionario | Cupo, disponibles, activados y listado; nunca códigos ni compradores; desvincular lo deja "sin cupo" | sí | V23.6 |
+| 23.14 | Fotos | Solo archivos propios, sin repetidas, máximo 6; externas/ajenas 422; la ficha pública las entrega | sí | V23.7, V23.8 |
+| 23.15 ★ | Registrar una revisión real desde la interfaz | Aviso de éxito, aparece en el historial, genera enlace y QR de constancia | — | V23.2, V23.4 |
+| 23.16 ★ | Subir fotos reales desde el formulario | Miniaturas con botón para quitar; se ven en la ficha pública | — | V23.7, V23.8 |
+| 23.17 ★ | Llegar a `/constancia/<código>` sin sesión e iniciar sesión | Vuelve a la constancia (no a `/app`) | — | V23.5 (sesión inyectada) |
+
+## Suite 21 — Vehículos del aliado, kilometraje certificado y entrega, Fase 3 (2026-10-17)
+
+Requiere las migraciones 077 a 080. **Automatizada** (`backend/scripts/qa_aliados_e2e.py`, base real con cuentas desechables que se borran) y **visual** (`backend/scripts/qa_aliados_visual.mjs`, Chromium en escritorio y en celular). Los casos con ★ se prueban a mano además.
+
+| # | Caso | Resultado esperado | Auto | Visual |
+|---|---|---|---|---|
+| 21.1 | Concesionario y compraventa agregan un vehículo | Placa normalizada, enlace público de 8 caracteres, no publicado; taller, CDA y repuestos reciben 403 | sí | V21.1 |
+| 21.2 | Placa repetida / inválida | 409 `plate_exists` / 422 | sí | V21.2 |
+| 21.3 | Publicar y abrir la ficha pública | Responde sin placa completa (`QAL•••`) ni contacto; km sin certificar dice "Declarado por el vendedor"; inexistente da 404 | sí | V21.5 |
+| 21.4 | Negocio que deja de estar verificado | La ficha se oculta (404) y no puede publicar (403) | sí | — |
+| 21.5 | Certificar sin habilitación | 403 `not_enabled`; el admin habilita solo concesionario/compraventa (taller 422) y el listado muestra el permiso | sí | V18.3c |
+| 21.6 | Certificar / declarar | Concesionario: "Certificado por concesionario"; compraventa: "Declarado por compraventa verificada"; la ficha pública muestra el km certificado; no se puede bajar | sí | V21.3, V21.5 |
+| 21.7 | Antifraude de odómetro | Menos que el historial de la placa en otra cuenta: 422 `km_below_history` sin cifras; salto absurdo: 422; máximo 3 intentos por vehículo cada 24 h (el 4.º da 429 aunque el valor sea bueno); pasada la ventana un valor coherente se acepta | sí | — |
+| 21.8 | Generar la entrega | Un solo uso; vista previa con placa, km y vendedor; generar otro invalida el anterior; solo se guarda el hash | sí | V21.4, V21.6 |
+| 21.9 | El comprador recibe el vehículo | 201; aparece en su cuenta (placa con guion, marca y modelo); su odómetro tiene la lectura `dealer_delivery` certificada; el vendedor lo ve "entregado" y retirado de la venta; la ficha pública desaparece; el enlace no se reusa; con autorización queda como cliente del vendedor, sin ella no | sí | V21.6, V21.7 |
+| 21.10 | Cuenta persona que ya tiene un vehículo | 403 `keychain_required` y el código sigue vigente | sí | — |
+| 21.11 | Entrega vencida | 410 en la vista previa y al recibir | sí | — |
+| 21.12 ★ | Iniciar sesión desde la entrega | Sin sesión: botón de iniciar sesión; al volver, sigue en `/entrega/<código>` (no en `/app`) | — | V21.6 |
+| 21.13 | Vehículo entregado | No se borra, edita ni recertifica (409) | sí | — |
+| 21.14 | Código de entrega inventado | 404 | sí | — |
+| 21.15 | Acceso vencido del aliado | Lee su inventario; crear da 402 | sí | — |
+| 21.16 ★ | Ficha del comprador | "Certificado por concesionario · <nombre>" junto al kilometraje | sí (API) | V21.7 |
+
+## Suite 22 — Texto legal v2.5 (2026-10-17)
+- [ ] 22.1 Términos de uso: versión 2.5 con fecha del 17 de octubre de 2026; sección 3 (tipos de negocio, aprobación previa, acceso gratuito, solo lectura, fichas y entrega, qué significa la etiqueta de kilometraje) y sección 3A (código de alianza). Visual: V22.1.
+- [ ] 22.2 Política de privacidad: datos de código de alianza y de entrega de vehículos, lectura de la Cámara de Comercio por el proveedor de IA y servicio de mapas. Descargar el PDF y comprobar que sale lo mismo.
+- [ ] 22.3 ★ Revisión de un abogado de las secciones 3 y 3A y de la mención de certificar información de vehículos (pendiente, ver `PENDIENTES.md`).
+
+## Suite 20 — Código de alianza y descuento de llaveros, Fase 2 (2026-10-16)
+
+Requiere las migraciones 077 a 079. Usar un negocio de prueba verificado (creado con invitación) y Wompi en sandbox; borrar los pedidos de prueba al terminar.
+- [ ] 20.1 Panel > "Código de alianza": muestra `TLR-XXXXX`, el enlace `/?ref=...`, "Copiar enlace" y "Compartir por WhatsApp"; 0 llaveros al inicio. Un negocio sin verificar ve el aviso de que aún no da descuento.
+- [ ] 20.2 Abrir el enlace `/?ref=TLR-XXXXX` en otra ventana (sin sesión) y entrar a comprar: el campo de código aparece prellenado y aplicado; el total pasa de $39.900 a $32.900 y se ve "Descuento por alianza con <negocio>".
+- [ ] 20.3 Cantidad 3: el descuento es $21.000 y el total $98.700; cambiar la cantidad actualiza el descuento.
+- [ ] 20.4 Pagar con Wompi sandbox: el monto del widget es el rebajado; el pedido queda con `alliance_code`, `discount_cents` y el monto cobrado; Admin > Pedidos muestra "Alianza TLR-XXXXX (-$7.000)".
+- [ ] 20.5 Código inexistente, mal escrito o de un negocio sin verificar: "no existe o no está activo" y el total no cambia.
+- [ ] 20.6 Con sesión del dueño del negocio, su propio código responde "No puedes usar tu propio código".
+- [ ] 20.7 Dejar vencer el acceso del negocio (`access_until` en el pasado): su código deja de dar descuento.
+- [ ] 20.8 Superar el tope (30 llaveros en 30 días, o bajar `ALLIANCE_MONTHLY_CAP_UNITS` para probar): "alcanzó el máximo de descuentos de este mes".
+- [ ] 20.9 Con un código válido, mandar `POST /api/shop/orders` a mano con `amount_in_cents`/`discount_cents` inventados: se ignoran y el monto lo calcula el servidor.
+- [ ] 20.10 Pedido contraentrega con código: el correo y la notificación muestran el monto con descuento. Pedido sin código: igual que antes ($39.900 por unidad).
+- [ ] 20.11 En el panel, tras el pedido pagado, las cifras suben (llaveros este mes, en total, pedidos) y no aparece ningún dato del comprador.
+- [ ] 20.12 Términos de uso: la sección 3A y la versión 2.4 se ven en el modal y en el PDF.
+
+## Suite 19 — Capacidades por tipo y periodo de acceso, Fase 1 (2026-10-16)
+
+Requiere las migraciones 077 y 078 aplicadas. Crear negocios de prueba (uno por tipo) con postulación e invitación reales; borrarlos al terminar.
+- [ ] 19.1 Aprobar con "6 meses gratis": el correo dice 6 meses; al crear la cuenta, `GET /workshops/me` devuelve `access_plan=founder`, `access_until` a ~180 días de hoy y `access_status=active`.
+- [ ] 19.2 Aprobar como "Convenio": `access_plan=convenio`, `access_until=null`, el menú lateral no muestra aviso de vencimiento.
+- [ ] 19.3 Taller: el menú muestra Mi taller, Clientes, Órdenes, Inventario, Citas, Notificaciones y Rentabilidad, y los botones de Diagnóstico IA y Nueva orden.
+- [ ] 19.4 Concesionario / compraventa: solo Mi taller, Clientes y Notificaciones; `GET /api/workshops/me/work-orders` responde 403 `capability_not_available`.
+- [ ] 19.5 CDA: Mi taller, Clientes, Citas y Notificaciones; sin órdenes ni inventario. Repuestos: Mi taller, Inventario y Notificaciones.
+- [ ] 19.6 Vencer el acceso a mano (`access_until` en el pasado): el panel sigue abierto con el aviso rojo "modo solo lectura"; `GET` funciona y `POST /api/workshops/me/inventory` responde 402 `access_expired`; el botón "Renovar mi plan" abre WhatsApp.
+- [ ] 19.7 Restaurar `access_until` al futuro: vuelve a escribir sin cerrar sesión.
+- [ ] 19.8 Cuenta de conductor con meses de antigüedad que registra un negocio con invitación: ya no ve "Suscripción vencida" (el reloj no sale de `profiles.created_at`).
+- [ ] 19.9 La ficha pública del vehículo de prueba de un negocio con acceso vigente sigue activa pasados 7 días; con el acceso vencido responde `trial_expired`.
+- [ ] 19.10 Un negocio nuevo sin invitación (flag apagado) queda en `trial` de 7 días, como antes.
+- [ ] 19.11 `GET /api/workshops/{code}` (ficha pública) NO incluye `capabilities` ni `access_*`.
+
+## Suite 18 — Aliados de negocio, Fase 0: tipo, validación e invitación (2026-10-16)
+
+Requiere la migración 077 aplicada. Usar un correo propio y un NIT de prueba válido; borrar las filas y el taller de prueba al terminar.
+- [ ] 18.1 Formulario: "Tipo de negocio" con 4 opciones; "Tipo de taller" y "Especialidades" solo con Taller; "Marcas que vendes" solo con Concesionario; Compraventa y Repuestos sin ninguno de los dos.
+- [ ] 18.2 Enviar como Compraventa: llega sin subtipo ni especialidades (ver en Admin > Postulaciones).
+- [ ] 18.3 Admin: marcar la lista de chequeo persiste al recargar; "Aprobar" avisa de lo que falta marcar.
+- [ ] 18.4 Aprobar: llega al correo "Tu registro fue exitoso" con el enlace; el panel muestra "Invitación enviada, vence el ...".
+- [ ] 18.5 Abrir el enlace sin sesión: lleva al inicio de sesión de negocio y, al entrar, a `/register?mode=empresa` con los datos precargados, el NIT bloqueado y el aviso de postulación aprobada.
+- [ ] 18.6 Crear la cuenta: el taller nace verificado, con su logo y el tipo de la postulación; el panel marca la invitación como usada; abrir el enlace otra vez da "ya se usó".
+- [ ] 18.7 Cambiar el NIT por otro (por API) rechaza con "El NIT no coincide"; un token inventado da "no es válido".
+- [ ] 18.8 "Reenviar invitación": llega un correo nuevo y el enlace anterior deja de servir. Pasar una aprobada a Rechazada invalida su invitación sin usar.
+- [ ] 18.9 Registro sin invitación sigue funcionando (flag apagado); con `WORKSHOP_INVITE_REQUIRED=true` responde "invite_required".
+
+## Suite 17 — Formulario de postulación de talleres y mapa en vivo (2026-10-16)
+
+Usar NIT de prueba válidos; borrar después las filas creadas en `workshop_applications`.
+- [ ] 17.1 Escribir `900123456` en NIT y salir del campo: avisa que falta el dígito y "Usar 900123456-8" lo corrige.
+- [ ] 17.2 Correo `juan@gmial.com`: ofrece `juan@gmail.com`. Teléfono `12345`: error. Enviar vacío: marca en rojo y lleva al primer error.
+- [ ] 17.3 "Ver en mapa" con dirección y ciudad: el pin aparece, se puede arrastrar o tocar el mapa; "Confirmar" deja el botón en "Ubicación confirmada". Cambiar la dirección invalida la confirmación.
+- [ ] 17.4 "Escanear Cámara de Comercio" con una foto y un PDF: llena los campos (marcados "Del documento"), adjunta el archivo; una imagen ilegible muestra aviso y deja llenar a mano.
+- [ ] 17.5 Ya no existen "Vehículos atendidos" ni "Foto de la fachada".
+- [ ] 17.6 Enviar una postulación en Duitama: la tarjeta pasa de 1 a 2 talleres, "Talleres en red" y el círculo del mapa suben y aparece el pin. Una ciudad nueva aparece como círculo nuevo. Marcarla "Rechazada" en Admin la quita.
+- [ ] 17.7 320 px y escritorio: sin scroll horizontal; el modal del mapa cabe y se puede cerrar con Escape.
+
+## Suite 16 — Ciberseguridad y resistencia a carga (2026-10-15, por ejecutar)
+
+Origen: auditoría de seguridad del 2026-10-15 (hallazgos S1–S16 en `docs/PENDIENTES.md` → "Ciberseguridad"). **Todo se corre
+contra local o staging con la cuenta de `backend/scripts/qa_test_account.py`, nunca producción** (comparten base de Supabase y
+hay llaveros reales; ver `docs/INCIDENT_RESPONSE.md`). Antes de cada prueba de carga avisar y tener `curl /api/health` a mano
+para confirmar recuperación.
+
+Herramientas: OWASP ZAP, Schemathesis, Nuclei, k6/Locust, Bandit, Semgrep, pip-audit, npm audit, Trivy, Gitleaks, Burp Community.
+
+| # | Caso | Cómo probar | Resultado esperado |
+|---|---|---|---|
+| 16.1 | Dependencias frontend | `cd frontend && npm audit --omit=dev` | 0 críticas/altas (hoy: 1 crítica, 4 altas; Next.js) |
+| 16.2 | Dependencias backend e imagen | `pip-audit -r backend/requirements.txt`; `trivy image` de la imagen del backend | Sin críticas/altas sin justificar |
+| 16.3 | Secretos en git | `gitleaks detect` sobre todo el historial | Solo el incidente de 2026-07-27 (ya rotado) |
+| 16.4 | Análisis estático | `bandit -r backend/app`; `semgrep --config auto` | Sin hallazgos altos sin revisar |
+| 16.5 | Cabeceras de seguridad (frontend) | `curl -sI https://<staging>/`; securityheaders.com | CSP, X-Content-Type-Options, frame-ancestors/X-Frame-Options, Referrer-Policy, Permissions-Policy presentes (hoy solo HSTS) |
+| 16.6 | `/docs` y `/openapi.json` | `curl -s -o /dev/null -w "%{http_code}" <api>/docs` con `ENVIRONMENT=production` | 404 (hoy 200) |
+| 16.7 | CORS | `curl -H "Origin: https://evil.example" -I <api>/api/health` y preflight con método raro | Sin `access-control-allow-origin` para orígenes ajenos; métodos/cabeceras acotados |
+| 16.8 | Rate limit `POST /shop/orders` | 30 POST seguidos desde una IP | 429 pasado el umbral (hoy ilimitado) |
+| 16.9 | Rate limit `POST /waitlist` | Ídem | 429; no se disparan correos sin límite |
+| 16.10 | Rate limit OCR e IA | 20 POST seguidos a `/ocr/scan` y `/workshops/me/ai-diagnose` con la cuenta QA | 429 y sin saturar CPU; el resto de la API sigue respondiendo |
+| 16.11 | Rate limit `/shop/orders/{ref}/confirm` y `GET /shop/orders/{ref}` | Ráfaga con referencias inventadas | 429; no hay llamada a Wompi por cada petición |
+| 16.12 | Redis caído | Apuntar `REDIS_URL` a un host inexistente y repetir 16.8 y el límite NFC | La API no devuelve 500; política definida (hoy falla abierto) |
+| 16.13 | IP del cliente | Enviar `X-Forwarded-For: 1.2.3.4, 5.6.7.8` en tickets, analytics y found_requests | El límite cuenta la IP real del proxy (última entrada), no la inventada ni la del proxy compartido |
+| 16.14 | Upload: SVG con script | Subir `x.svg` con `<script>` y abrir `/api/upload/files/<key>` | Rechazado (415/400) o servido como descarga con `nosniff`; nunca ejecuta |
+| 16.15 | Upload: tipo falso | `.html` o `.exe` con `Content-Type: image/png` | Rechazado por magic bytes |
+| 16.16 | Upload: tamaño | Archivo de 200 MB, y 5 subidas simultáneas | Corta antes de cargarlo entero en memoria; el servicio no se cae |
+| 16.17 | Upload: extensión | Nombre `a.php.jpg`, `a.`, `a/../b` | La clave en R2 usa extensión de lista permitida |
+| 16.18 | IDOR vehículos/documentos/gallery/odómetro/partes | Con cuentas A y B, usar el id de A con el token de B en cada endpoint | 404/403 siempre |
+| 16.19 | IDOR taller (clientes, órdenes, inventario, citas) | Ídem con dos talleres | 404/403 siempre |
+| 16.20 | Escalada de rol | Cuenta persona contra `/admin/*`, `/partners/*` y `/workshops/me/*` | 403 |
+| 16.21 | Fuerza bruta de códigos | 50 intentos a `/nfc/activate`, clave de partner y código de vínculo de taller | Bloqueo tras el umbral; mensaje genérico |
+| 16.22 | Webhooks | Wompi y WhatsApp: firma inválida, vacía, repetida (replay) y con timestamp viejo | 400/401; el replay no duplica efectos |
+| 16.23 | Carga | k6: 50–200 usuarios virtuales sobre `/api/health`, `/nfc/*` público y un endpoint autenticado | p95 aceptable; 0 errores 5xx; el pool de BD (20+10) no se agota; recuperación al terminar |
+| 16.24 | Tiempos de espera | Simular DeepSeek/Wompi/Supabase lento (timeout largo) | Las peticiones cortan por timeout y no acumulan conexiones |
+| 16.25 | Cuerpos grandes | JSON de 5 MB a `/shop/orders`, `/waitlist` y tickets; strings de 1 MB | 413/422; sin consumo desmedido |
+| 16.26 | Escaneo ZAP | ZAP baseline y luego full scan con `openapi.json` de staging | Sin altos sin triaje |
+| 16.27 | Fuzzing API | `schemathesis run <staging>/openapi.json --checks all` | Sin 500 |
+
+Registrar resultado y fecha por caso al ejecutar; cada fallo se vuelve ítem en `docs/PENDIENTES.md` → "Ciberseguridad".
