@@ -240,10 +240,10 @@ export interface Workshop {
 
 /** Ficha pública del taller (GET /workshops/{code}) — Workshop + sub-recursos
  * ya resueltos por el backend en un solo response. */
-export interface WorkshopPublic extends Workshop {
-  mechanics: WorkshopMechanic[];
-  service_items: WorkshopServiceItem[];
-  reviews: WorkshopReview[];
+export interface WorkshopPublic extends Pick<Workshop, 'code' | 'name' | 'slogan' | 'city' | 'address' | 'phone' | 'email' | 'business_hours' | 'specialties' | 'logo_url' | 'social_instagram' | 'social_facebook' | 'social_website' | 'social_whatsapp' | 'latitude' | 'longitude' | 'is_verified' | 'rating'> {
+  // Lista blanca del backend: sin owner_id, NIT, impuestos, sellos ni mecánicos.
+  service_items: Omit<WorkshopServiceItem, 'workshop_id' | 'created_at'>[];
+  reviews: Omit<WorkshopReview, 'workshop_id' | 'source' | 'submitted_by_user_id'>[];
 }
 
 export interface WorkshopMechanic {

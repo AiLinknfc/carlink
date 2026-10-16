@@ -624,7 +624,7 @@ await run('V25.3', async () => {
   const real = await (await fetch(`${BASE}/api/workshops/${FIX.users.taller.code}`)).json()
   const data = { ...real, name: 'Taller Prueba Visual', slogan: 'Frenos y suspensión', description: 'DESCRIPCION-QUE-NO-SE-VE', address: 'Calle 15 # 10-20', city: 'Duitama', phone: '311 456 7890', email: 'contacto@tallerprueba.co', business_hours: 'Lun-Sáb 8:00-18:00',
     social_whatsapp: '3114567890', social_instagram: '@tallerprueba', social_facebook: 'https://facebook.com/tallerprueba', social_website: 'tallerprueba.co',
-    mechanics: [{ id: 'm1', workshop_id: 'x', name: 'Camilo', role: 'Jefe del taller', specialty: '', phone: '', active: true, avatar_url: '', created_at: '' }], rating: 4.3,
+    rating: 4.3,
     reviews: [
       { id: 'r1', workshop_id: 'x', client_name: 'Ana Gómez', rating: 5, review_date: '2026-09-02', comment: 'Excelente servicio, me explicaron todo el diagnóstico.', vehicle_model: 'Mazda 3 2021', is_verified_client: true, manager_response: 'Gracias Ana, te esperamos.', created_at: '2026-09-02T10:00:00Z' },
       { id: 'r2', workshop_id: 'x', client_name: 'Luis Pardo', rating: 4, review_date: '2026-08-11', comment: 'Buen trabajo.', vehicle_model: 'Renault Duster', is_verified_client: false, manager_response: '', created_at: '2026-08-11T10:00:00Z' } ] }
@@ -638,7 +638,9 @@ await run('V25.3', async () => {
     const b = await text(page)
     await shot(page, `25-3-ficha-taller-${view}`)
     record(`V25.3 (${view}) Ficha pública: sin "Nuestro equipo" ni descripción; con Contacto (dirección, teléfono, WhatsApp, correo, horario, web y redes)`,
-      !/Nuestro equipo/i.test(b) && !/Camilo/.test(b) && !/DESCRIPCION-QUE-NO-SE-VE/.test(b) && /contacto/i.test(b) && /contacto@tallerprueba\.co/.test(b) && /Lun-Sáb/.test(b) && /tallerprueba\.co/.test(b) && /@tallerprueba/.test(b) && /3114567890/.test(b), b.slice(0, 200))
+      !/Nuestro equipo/i.test(b) && !/DESCRIPCION-QUE-NO-SE-VE/.test(b) && /contacto/i.test(b) && /contacto@tallerprueba\.co/.test(b) && /Lun-Sáb/.test(b) && /311 456 7890/.test(b)
+        && (await page.locator('a[target=_blank][href^="https://wa.me/57"]').count()) === 1 && (await page.locator('a[target=_blank][href*="instagram.com/tallerprueba"]').count()) === 1
+        && (await page.locator('a[target=_blank][href*="facebook.com/tallerprueba"]').count()) === 1 && (await page.locator('a[target=_blank][href="https://tallerprueba.co"]').count()) === 1, b.slice(0, 200))
     await page.getByRole('button', { name: /reseñas/ }).first().click()
     await page.waitForTimeout(500)
     const m = await page.getByRole('dialog').innerText()

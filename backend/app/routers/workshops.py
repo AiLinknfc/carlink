@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,8 @@ from app.schemas.schemas import (
     WorkshopMeOut,
     WorkshopOut,
     WorkshopPublicOut,
+    WorkshopPublicReviewOut,
+    WorkshopPublicServiceOut,
     WorkshopSearchResult,
     WorkshopUpdate,
 )
@@ -42,6 +44,8 @@ from app.services import workshop_access, workshop_invites
 from app.services.capabilities import capabilities_for
 from app.services.nfc_provisioning import TRIAL_DAYS
 from app.services.geocoding import apply_geocode
+from app.services.cache import get_redis
+from app.utils import client_ip
 from app.services.logo_image import LogoError, prepare_logo
 from app.services.storage import upload_file
 from app.services.storage_quota import ensure_room
@@ -321,11 +325,36 @@ async def get_my_workshop_dashboard(
     )
 
 
+_PUBLIC_RATE_MAX = 300      # consultas de ficha por hora por IP (alguien que abre muchos QR sigue holgado)
+_PUBLIC_MISS_MAX = 30       # códigos que NO existen (o no están publicados) por hora por IP: más es adivinar códigos
+_SEARCH_RATE_MAX = 240      # búsquedas de taller por hora por cuenta (el buscador escribe con retardo, ~1 por tecla)
+_RATE_WINDOW = 3600
+
+
+async def _count(key: str) -> int:
+    """Suma 1 al contador de la ventana y devuelve el total (0 si no hay Redis: en local no se limita)."""
+    r = await get_redis()
+    if r is None:
+        return 0
+    n = await r.incr(key)
+    if n == 1:
+        await r.expire(key, _RATE_WINDOW)
+    return int(n)
+
+
+async def _peek(key: str) -> int:
+    r = await get_redis()
+    if r is None:
+        return 0
+    return int(await r.get(key) or 0)
+
+
 @router.get("/search", response_model=list[WorkshopSearchResult])
 async def search_workshops(
+    user_id: Annotated[str, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    q: str = Query(""),
-    city: str = Query(""),
+    q: str = Query("", max_length=60),
+    city: str = Query("", max_length=60),
 ):
     """Search workshops by code, name, or legal_id, optionally filtered by city.
 
@@ -336,21 +365,23 @@ async def search_workshops(
     to list all workshops) 422'd silently — apiGet() swallows the failure
     into null, so the dropdown just always rendered empty. Found running the
     app in a real browser (docs/PLAN_MIGRACION_TALLERPRO.md)."""
-    """Search workshops by code, name, or legal_id, optionally filtered by city."""
+    # Solo con sesión y con tope por cuenta: el directorio no es una lista que cualquiera pueda recorrer. El NIT ya no
+    # es criterio de búsqueda (permitía confirmar qué NIT tiene un taller probando valores).
+    if await _count(f"rate:ws:search:{user_id}") > _SEARCH_RATE_MAX:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limited")
     query = select(Workshop)
 
     conditions = []
     if q:
-        pattern = f"%{q}%"
+        pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         conditions.append(
             or_(
-                Workshop.code.ilike(pattern),
-                Workshop.name.ilike(pattern),
-                Workshop.legal_id.ilike(pattern),
+                Workshop.code.ilike(pattern, escape="\\"),
+                Workshop.name.ilike(pattern, escape="\\"),
             )
         )
     if city:
-        conditions.append(Workshop.city.ilike(f"%{city}%"))
+        conditions.append(Workshop.city.ilike("%" + city.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%", escape="\\"))
 
     if conditions:
         query = query.where(*conditions)
@@ -365,29 +396,31 @@ async def search_workshops(
 @router.get("/{code}", response_model=WorkshopPublicOut)
 async def get_workshop_by_code(
     code: str,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get workshop by its TLR-XXXXX code (public) — ficha pública del taller
     (docs/PLAN_MIGRACION_TALLERPRO.md Fase 4.11), incluye mecánicos activos,
     catálogo de servicios y reseñas para evitar llamadas adicionales."""
+    # Contra fuerza bruta: tope de consultas por IP y un tope más bajo de códigos que no existen.
+    ip = client_ip(request)
+    if await _count(f"rate:ws:pub:{ip}") > _PUBLIC_RATE_MAX or await _peek(f"rate:ws:miss:{ip}") >= _PUBLIC_MISS_MAX:
+        raise HTTPException(status_code=429, detail="rate_limited")
+    if len(code) > 16:  # ningún código real es así de largo: ni siquiera se consulta la base
+        raise HTTPException(status_code=404, detail="Workshop not found")
     result = await db.execute(select(Workshop).where(Workshop.code == code.upper()))
     workshop = result.scalar_one_or_none()
     if not workshop:
+        await _count(f"rate:ws:miss:{ip}")
         raise HTTPException(status_code=404, detail="Workshop not found")
     # Toggle "Publicar mi ficha pública" en Perfil del taller — un taller que
     # lo apagó no debe ser visible en su URL pública ni en su QR, aunque el
     # código exista. Detail distinto de "not found" para que el frontend
     # pueda mostrar un mensaje claro en vez de "taller no encontrado".
     if not workshop.is_published:
+        await _count(f"rate:ws:miss:{ip}")
         raise HTTPException(status_code=404, detail="Workshop profile is not published")
 
-    mechanics = (
-        await db.execute(
-            select(WorkshopMechanic)
-            .where(WorkshopMechanic.workshop_id == workshop.id, WorkshopMechanic.active.is_(True))
-            .order_by(WorkshopMechanic.name)
-        )
-    ).scalars().all()
     services = (
         await db.execute(
             select(WorkshopServiceItem)
@@ -404,9 +437,10 @@ async def get_workshop_by_code(
         )
     ).scalars().all()
 
+    # Se copian solo los campos de la lista blanca (sin tocar relaciones del modelo, que cargarían de más).
+    fields = {f: getattr(workshop, f) for f in WorkshopPublicOut.model_fields if f not in ("service_items", "reviews")}
     return WorkshopPublicOut(
-        **WorkshopOut.model_validate(workshop).model_dump(),
-        mechanics=list(mechanics),
-        service_items=list(services),
-        reviews=list(reviews),
+        **fields,
+        service_items=[WorkshopPublicServiceOut.model_validate(s) for s in services],
+        reviews=[WorkshopPublicReviewOut.model_validate(r) for r in reviews],
     )

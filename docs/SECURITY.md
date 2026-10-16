@@ -112,3 +112,13 @@ Un commit (`desplegando ambientes en produccion`) subió `tests/test_nfc_flow.sh
 Revisión de código, `npm audit` y cabeceras de producción. Hallazgos en `docs/PENDIENTES.md` → "Ciberseguridad" (S1–S16) y
 plan de pruebas (herramientas, casos y criterios) en `docs/PRUEBAS_FUNCIONALES.md` → Suite 16. Las pruebas activas se corren
 solo contra local o staging, nunca producción.
+
+## Ficha pública del taller: lista blanca y fuerza bruta (2026-10-16)
+
+El código de un taller (`TLR-XXXXX`) y su QR son **públicos a propósito**: solo abren la ficha pública, nunca permiten editar (eso exige la sesión de la cuenta dueña). El riesgo estaba en lo que devolvía la API:
+
+- `GET /api/workshops/{code}` (sin sesión) devolvía el objeto completo del taller: `owner_id`, NIT, tarifa de impuestos, código de certificación, sellos, datos de los mecánicos y, en cada reseña, el id de la cuenta que la escribió. **Ahora responde con una lista blanca** (`WorkshopPublicOut` en `schemas.py`): solo lo que pinta la ficha. Un campo nuevo del taller queda fuera hasta que se agregue ahí a propósito (hay prueba que falla si reaparece uno de los sensibles).
+- `GET /api/workshops/search` era público, listaba hasta 20 talleres (con teléfono y dirección, también los no publicados) y buscaba por NIT. **Ahora exige sesión**, ya no busca por NIT, escapa los comodines `%` y `_` y tiene tope por cuenta (240 por hora). Los buscadores del modo conductor (`ServiceFormModal`, `RatingPrompt`) envían el token.
+- **Fuerza bruta de códigos**: tope por IP de 300 consultas de ficha por hora y de 30 códigos inexistentes o no publicados por hora (después responde 429, incluso a códigos válidos, hasta que pase la ventana). Códigos de más de 16 caracteres responden 404 sin consultar la base. Con 36^5 (~60 millones) de combinaciones, 30 intentos por hora por IP hacen inviable recorrerlos.
+- Los contadores viven en Redis (`rate:ws:*`). **Sin Redis no se limita** (igual que el resto de límites de la app): confirmar que `REDIS_URL` esté configurada en Railway.
+- Lo que sigue siendo público a propósito: nombre, dirección, teléfono, correo, horario, redes, logo, mapa, catálogo, reseñas (con el nombre del cliente que las dejó). Si un taller no quiere mostrar su correo, falta el interruptor de privacidad (`PENDIENTES.md`).

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, getAccessToken } from '@/lib/supabase'
 import { ServiceTypeIcon, Icon, FiltroAceiteIcon, FiltroAireIcon, FiltroCombustibleIcon, FiltroParticulasIcon, FiltroHabitaculoIcon, FiltroTransmisionIcon } from '@/lib/icons_new'
 import { useTheme } from '@/store/theme'
 import { filterOptions, chosenFilter, filterLifespanKm, vehicleKindOf, filterBrands, ALL_FILTER_KEYS, type FilterIcon } from '@/lib/filterCatalog'
@@ -406,7 +406,8 @@ export default function ServiceFormModal({ vehicleId, editRecord, defaultService
     if (q.length < 2) { setWsResults([]); setShowWsDropdown(false); return }
     setWsSearching(true)
     try {
-      const res = await fetch(`/api/workshops/search?q=${encodeURIComponent(q)}`)
+      const token = await getAccessToken()
+      const res = await fetch(`/api/workshops/search?q=${encodeURIComponent(q)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (res.ok) {
         const data = await res.json()
         setWsResults(data)

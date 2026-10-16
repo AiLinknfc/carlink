@@ -936,13 +936,62 @@ class WorkshopSearchResult(BaseModel):
     is_verified: bool
 
 
-class WorkshopPublicOut(WorkshopOut):
-    """Perfil público del taller (GET /workshops/{code}) — mismo shape que
-    WorkshopOut más los sub-recursos que arma la ficha pública, para no
-    requerir N llamadas adicionales desde el frontend."""
-    mechanics: list[WorkshopMechanicOut] = Field(default_factory=list)
-    service_items: list[WorkshopServiceItemOut] = Field(default_factory=list)
-    reviews: list[WorkshopReviewOut] = Field(default_factory=list)
+class WorkshopPublicServiceOut(BaseModel):
+    """Un servicio del catálogo tal como lo ve cualquiera (sin ids internos del taller)."""
+    id: UUID
+    name: str
+    category: str
+    estimated_price: Decimal
+    estimated_hours: Decimal
+    description: str
+    photo_url: str = ""
+    is_featured: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class WorkshopPublicReviewOut(BaseModel):
+    """Una reseña pública: sin el id de la cuenta que la escribió ni el del taller."""
+    id: UUID
+    client_name: str
+    rating: int
+    review_date: date
+    comment: str
+    vehicle_model: str
+    is_verified_client: bool
+    manager_response: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WorkshopPublicOut(BaseModel):
+    """Perfil público del taller (GET /workshops/{code}, sin sesión). LISTA BLANCA: solo lo que pinta la ficha pública.
+    No incluye `owner_id`, NIT, tarifa de impuestos, código de certificación, sellos, mecánicos ni ids de cuentas.
+    Todo campo nuevo del taller queda fuera hasta que se agregue aquí a propósito."""
+    code: str
+    name: str
+    slogan: str = ""
+    city: str
+    address: str
+    phone: str
+    email: str = ""
+    business_hours: str = ""
+    specialties: list[str] = Field(default_factory=list)
+    logo_url: str = ""
+    social_instagram: str = ""
+    social_facebook: str = ""
+    social_website: str = ""
+    social_whatsapp: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
+    is_verified: bool = False
+    business_kind: str = "taller"
+    rating: float = 0.0
+    service_items: list[WorkshopPublicServiceOut] = Field(default_factory=list)
+    reviews: list[WorkshopPublicReviewOut] = Field(default_factory=list)
+
+    model_config = {"from_attributes": True}
 
 
 # =========== Workshop mechanics ===========
