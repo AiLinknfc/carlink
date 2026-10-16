@@ -231,6 +231,8 @@ export interface Workshop {
   social_facebook: string;
   social_website: string;
   social_whatsapp: string;
+  /** Solo en GET/PUT /workshops/me: si el correo sale en la ficha pública (por defecto sí). */
+  show_email_public?: boolean;
   /** Pin del mapa de la ficha pública: lo geocodifica el servidor y el taller lo confirma/arrastra (Perfil). */
   latitude: number | null;
   longitude: number | null;

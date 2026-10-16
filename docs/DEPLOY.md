@@ -210,6 +210,7 @@ i supabase/migrations/061_whatsapp_messages.sql
 \i supabase/migrations/080_dealer_vehicles.sql   -- vehiculos del aliado: tabla dealer_vehicles, workshops.can_certify_odometer y certificacion en odometer_readings (el CHECK de source admite 'dealer_delivery'). Requiere 077 a 079. PENDIENTE de aplicar; el modelo ya selecciona estas columnas, asi que sin ella fallaria TODO lo que lea workshops u odometer_readings: va ANTES de cualquier deploy del backend
 \i supabase/migrations/081_phase3b_rtm_consignment_photos.sql   -- revisiones RTM del CDA (rtm_inspections, km_certify_attempts), partners.workshop_id (consignacion), dealer_vehicles.photo_urls y ampliacion de dos CHECK de odometer_readings ('cda_inspection', 'cda'). Requiere 077 a 080. APLICADA a la base compartida el 2026-10-17; el codigo ya selecciona estas columnas: va ANTES de cualquier deploy del backend
 \i supabase/migrations/082_company_verification.sql   -- workshop_applications.verification (JSON con el resultado de consultar el NIT en el RUES). Requiere 077 a 081. APLICADA a la base compartida el 2026-10-17; el modelo ya selecciona la columna: va ANTES de cualquier deploy del backend
+\i supabase/migrations/083_workshop_show_email_public.sql   -- workshops.show_email_public (interruptor del correo en la ficha pública). PENDIENTE de aplicar a la base compartida; el modelo ya selecciona la columna: va ANTES de levantar o desplegar el backend
 ```
 
 **Nota sobre 062 y 063 (2026-09-21, confirmadas aplicadas contra la base real)**: tablas nuevas y

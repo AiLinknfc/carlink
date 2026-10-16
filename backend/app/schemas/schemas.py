@@ -863,6 +863,7 @@ class WorkshopUpdate(BaseModel):
     social_website: str | None = None
     social_whatsapp: str | None = None
     is_published: bool | None = None
+    show_email_public: bool | None = None
     # Pin del mapa confirmado por el propio taller (fase 0b de PLAN_VINCULO_TALLER_CONDUCTOR.md):
     # van juntas y dentro de Colombia; si se mandan, no se vuelve a geocodificar la direccion.
     latitude: float | None = None
@@ -921,6 +922,7 @@ class WorkshopMeOut(WorkshopOut):
     salir en la ficha pública (WorkshopPublicOut hereda de WorkshopOut, no de este)."""
     capabilities: list[str] = Field(default_factory=list)
     can_certify_odometer: bool = False
+    show_email_public: bool = True
     access_plan: str = "trial"
     access_until: datetime | None = None
     access_status: str = "active"  # active | expired (restringido, solo lectura)

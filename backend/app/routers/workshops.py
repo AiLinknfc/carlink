@@ -59,6 +59,7 @@ def _me_out(workshop: Workshop) -> WorkshopMeOut:
     return WorkshopMeOut.model_validate(workshop).model_copy(update={
         "capabilities": sorted(capabilities_for(workshop.business_kind)),
         "can_certify_odometer": bool(workshop.can_certify_odometer),
+        "show_email_public": workshop.show_email_public is not False,
         "access_plan": workshop.access_plan,
         "access_until": workshop_access.effective_until(workshop),
         "access_status": "active" if workshop_access.is_active(workshop) else "expired",
@@ -439,6 +440,8 @@ async def get_workshop_by_code(
 
     # Se copian solo los campos de la lista blanca (sin tocar relaciones del modelo, que cargarían de más).
     fields = {f: getattr(workshop, f) for f in WorkshopPublicOut.model_fields if f not in ("service_items", "reviews")}
+    if workshop.show_email_public is False:
+        fields["email"] = ""  # el dueño lo ocultó: no sale en la ficha pública
     return WorkshopPublicOut(
         **fields,
         service_items=[WorkshopPublicServiceOut.model_validate(s) for s in services],

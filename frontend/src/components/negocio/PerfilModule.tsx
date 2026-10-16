@@ -90,6 +90,7 @@ export default function PerfilModule({ theme, workshop, section: forcedSection, 
   // botón "Guardar cambios" del resto del formulario), default true
   // (migración 033) para no des-publicar ninguna ficha existente.
   const [published, setPublished] = useState(workshop.is_published)
+  const [showEmail, setShowEmail] = useState(workshop.show_email_public !== false)
   const [togglingPublish, setTogglingPublish] = useState(false)
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function PerfilModule({ theme, workshop, section: forcedSection, 
     setStampsRequired(workshop.stamps_required)
     setPromoDesc(workshop.promotion_description)
     setPublished(workshop.is_published)
+    setShowEmail(workshop.show_email_public !== false)
   }, [workshop])
 
   const togglePublish = async () => {
@@ -131,7 +133,7 @@ export default function PerfilModule({ theme, workshop, section: forcedSection, 
       specialties: form.specialties.split(',').map(s => s.trim()).filter(Boolean),
       social_instagram: form.social_instagram, social_facebook: form.social_facebook,
       social_website: form.social_website, social_whatsapp: form.social_whatsapp,
-      stamps_required: stampsRequired, promotion_description: promoDesc,
+      stamps_required: stampsRequired, promotion_description: promoDesc, show_email_public: showEmail,
     })
     setSaving(false)
     if (result) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
@@ -274,7 +276,14 @@ export default function PerfilModule({ theme, workshop, section: forcedSection, 
           <div><label style={labelStyle(t)}>Eslogan</label><input style={inputStyle(t)} {...field('slogan')} placeholder="Ej. Calidad garantizada en cada servicio" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Tipo de taller</label><input style={inputStyle(t)} {...field('workshop_type')} placeholder="Taller multimarca, CDA…" /></div>
-            <div><label style={labelStyle(t)}>Email</label><input style={inputStyle(t)} {...field('email')} /></div>
+            <div>
+              <label style={labelStyle(t)}>Email</label>
+              <input style={inputStyle(t)} {...field('email')} />
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 7, fontSize: 12, lineHeight: 1.4, color: t.textMuted, cursor: 'pointer' }}>
+                <input type="checkbox" checked={showEmail} onChange={e => setShowEmail(e.target.checked)} style={{ marginTop: 2, accentColor: t.gold, flexShrink: 0 }} />
+                <span>Mostrar este correo en mi ficha pública (si lo desmarcas, solo lo ves tú y CarLink)</span>
+              </label>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Horario</label><input style={inputStyle(t)} {...field('business_hours')} placeholder="Lun-Sáb 8am-6pm" /></div>

@@ -20,7 +20,7 @@ def _workshop(**over):
         address="Cl 1", phone="3001234567", email="a@b.co", business_hours="", specialties=[], logo_url="", social_instagram="",
         social_facebook="", social_website="", social_whatsapp="", latitude=4.6, longitude=-74.0, is_verified=True, business_kind="taller",
         rating=4.5, tax_rate_percent=Decimal(19), certification_code="X", stamps_required=6, promotion_description="", is_published=True,
-        manager_name="Ana", manager_role="Gerente", manager_avatar="", created_at=datetime.now(timezone.utc), description="",
+        show_email_public=True, manager_name="Ana", manager_role="Gerente", manager_avatar="", created_at=datetime.now(timezone.utc), description="",
     )
     base.update(over)
     return SimpleNamespace(**base)
@@ -123,3 +123,17 @@ async def test_public_endpoint_returns_only_whitelisted_fields(client, mock_db, 
     body = resp.json()
     assert not (SECRET_KEYS & set(body))
     assert body["name"] == "Taller Uno" and body["service_items"][0]["name"] == "Frenos" and "workshop_id" not in body["service_items"][0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("show,expected", [(True, "a@b.co"), (False, "")])
+async def test_owner_can_hide_email_from_public_profile(client, mock_db, monkeypatch, show, expected):
+    monkeypatch.setattr("app.routers.workshops.get_redis", AsyncMock(return_value=None))
+    w = MagicMock()
+    w.scalar_one_or_none.return_value = _workshop(show_email_public=show)
+    empty = MagicMock()
+    empty.scalars.return_value.all.return_value = []
+    mock_db.execute = AsyncMock(side_effect=[w, empty, empty])
+    body = (await client.get("/api/workshops/TLR-ABCDE")).json()
+    assert body["email"] == expected
+    assert "show_email_public" not in body  # el interruptor es del dueño, no se publica

@@ -390,6 +390,8 @@ class Workshop(Base):
     access_granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # Permiso aparte de la aprobación (migración 080): lo da el admin a mano.
     can_certify_odometer: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Migración 083: el dueño puede ocultar su correo de la ficha pública.
+    show_email_public: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
