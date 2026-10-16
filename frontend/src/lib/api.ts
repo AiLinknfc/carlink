@@ -150,6 +150,17 @@ export const serviceLogsApi = {
 export const workshopApi = {
   getMe: () => request<Workshop>('GET', '/workshops/me'),
   updateMe: (data: WorkshopUpdate) => request<Workshop>('PUT', '/workshops/me', data),
+  /** Sube/cambia el logo (el servidor lo revisa y normaliza). Devuelve el negocio o el código de rechazo (`logo_*`). */
+  uploadLogo: async (file: File): Promise<{ workshop?: Workshop; error?: string }> => {
+    try {
+      const token = await getAccessToken()
+      const fd = new FormData(); fd.append('file', file)
+      const res = await fetch(`${API_BASE}/api/workshops/me/logo`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd })
+      const j = await res.json().catch(() => ({}))
+      return res.ok ? { workshop: j as Workshop } : { error: typeof j.detail === 'string' ? j.detail : 'upload_failed' }
+    } catch { return { error: 'upload_failed' } }
+  },
+  removeLogo: () => request<Workshop>('DELETE', '/workshops/me/logo'),
   search: (q: string) => request<Workshop[]>('GET', `/workshops/search?q=${q}`),
   getDashboard: () => request<WorkshopDashboard>('GET', '/workshops/me/dashboard'),
   getPublic: (code: string) => request<WorkshopPublic>('GET', `/workshops/${code}`),
@@ -411,8 +422,24 @@ export const jobApplicationApi = {
     request<JobApplication>('PATCH', `/job-applications/${id}`, { status }),
 }
 
+/** Resultado de consultar el NIT en el RUES (datos abiertos de Confecámaras). Ayuda para el admin; nunca decide. */
+export interface RuesVerification {
+  status?: 'ok' | 'review' | 'fail' | 'not_found' | 'unavailable'
+  checked_at?: string
+  source?: string
+  found?: boolean
+  razon_social?: string | null
+  estado?: string | null
+  camara?: string | null
+  organizacion?: string | null
+  ciiu?: string | null
+  ultimo_ano_renovado?: number | null
+  checks?: { active: boolean; renewed: boolean; dv: boolean | null; name: boolean; activity: boolean }
+}
+
 export interface WorkshopApplication {
   id: string
+  business_kind: string
   business_type: string
   name: string
   legal_name: string
@@ -435,6 +462,13 @@ export interface WorkshopApplication {
   source: string
   status: 'pending' | 'contacted' | 'approved' | 'rejected'
   admin_notes: string
+  grant_plan: 'founder' | 'convenio'
+  grant_days: number
+  checks: Record<string, boolean>
+  invite_expires_at: string | null
+  invite_used_at: string | null
+  can_certify_odometer?: boolean
+  verification?: RuesVerification
   created_at: string
   reviewed_at: string | null
 }
@@ -442,8 +476,14 @@ export interface WorkshopApplication {
 export const workshopApplicationApi = {
   list: (status?: string) =>
     request<WorkshopApplication[]>('GET', `/admin/workshop-applications${status ? `?status_filter=${status}` : ''}`),
-  update: (id: string, data: { status?: string; admin_notes?: string }) =>
+  update: (id: string, data: { status?: string; admin_notes?: string; checks?: Record<string, boolean>; grant_plan?: string; grant_days?: number }) =>
     request<WorkshopApplication>('PATCH', `/admin/workshop-applications/${id}`, data),
+  setCertification: (id: string, enabled: boolean) =>
+    request<{ workshop_code: string; can_certify_odometer: boolean }>('PATCH', `/admin/workshop-applications/${id}/certification`, { enabled }),
+  verify: (id: string) =>
+    request<WorkshopApplication>('POST', `/admin/workshop-applications/${id}/verify`),
+  resendInvite: (id: string) =>
+    request<WorkshopApplication>('POST', `/admin/workshop-applications/${id}/resend-invite`),
 }
 
 export interface SupportTicket {
@@ -575,7 +615,7 @@ export const adminApi = {
   createPartner: (data: { name: string; contact_email: string; contact_phone?: string; quota_total: number; notes?: string }) =>
     request<PartnerCreateResult>('POST', '/admin/nfc/partners', data),
   listPartners: () => request<PartnerAdminView[]>('GET', '/admin/nfc/partners'),
-  updatePartner: (id: string, data: { quota_total?: number; status?: string; notes?: string }) =>
+  updatePartner: (id: string, data: { quota_total?: number; status?: string; notes?: string; workshop_code?: string }) =>
     request<PartnerAdminView>('PATCH', `/admin/nfc/partners/${id}`, data),
   partnerBatches: (id: string) => request<PartnerBatch[]>('GET', `/admin/nfc/partners/${id}/batches`),
   // Pausar/restaurar en bloque los códigos `available` ya emitidos a un

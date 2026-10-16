@@ -8,12 +8,11 @@ import { apiGet, apiPost, apiPut, apiPatch, apiDelete, activateNfcCode, vehicleA
 import { uploadFile, scanVehicleCard } from '@/lib/upload'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
 import CarLinkLogo from '@/components/CarLinkLogo'
-import { useMaintenance } from '@/lib/hooks'
+import { useMaintenance, useCurrentMileage } from '@/lib/hooks'
 import { useRatingPrompts } from '@/lib/useRatingPrompts'
 import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { RatingPromptBanner } from '@/components/RatingPrompt'
 import Sidebar from '@/components/Sidebar'
-import BgParticles from '@/components/BgParticles'
 import ServiceFormModal from '@/components/ServiceFormModal'
 import FuelSelect from '@/components/FuelSelect'
 import VehicleCardDetails from '@/components/VehicleCardDetails'
@@ -41,11 +40,13 @@ import OrderTrackingModal from '@/components/OrderTrackingModal'
 import { useAdminNotifications, NOTIFICATION_KIND_LABELS } from '@/lib/useAdminNotifications'
 import CartModal from '@/components/CartModal'
 import OnboardingWizard, { isOnboardingDone } from '@/components/onboarding/OnboardingWizard'
+import WorkshopLinkPrompt from '@/components/WorkshopLinkPrompt'
 import GuidedTour, { isTourDone, markTourDone, type TourStep } from '@/components/onboarding/GuidedTour'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import ColorPickerButton from '@/components/ColorPickerButton'
 import BrandPickerModal from '@/components/BrandPickerModal'
 import { brandsForType, modelSuggestions, matchColorKeyword, VEHICLE_TYPES } from '@/lib/vehicleBrands'
+import { formatLocalDate } from '@/lib/dates'
 
 const FREE_SERVICE_ID = 'Aceite'
 
@@ -198,6 +199,9 @@ export default function AppPage() {
   const [showNotifications, setShowNotifications] = useState(false)
   const pqrsNew = usePqrsCount('nuevo')
   const { records: maintenanceRecords, latest } = useMaintenance(vehicle?.id, refreshKey)
+  // Kilometraje del odómetro (lectura inicial, periódicas y de servicio): sin esto, un vehículo recién
+  // registrado (sin servicios) no tenía contra qué validar el kilometraje en el formulario.
+  const odometerKm = useCurrentMileage(vehicle?.id, refreshKey)
 
   // Prompts de calificación distribuidos por eventos reales (no un ítem de
   // menú suelto) — ver docs del plan de este feature. Supresión unificada por
@@ -652,6 +656,8 @@ export default function AppPage() {
   }, [flashApp])
 
   const onAddService = useCallback((serviceType?: string) => {
+    // Un onClick={onAddService} sin envolver pasa el evento del clic como tipo de servicio: solo se aceptan strings.
+    if (typeof serviceType !== 'string') serviceType = undefined
     // Plan gratuito: solo aceite (y sin selector de tipo, así no hay cómo cambiarlo).
     if (!fullAccess) {
       if (serviceType && serviceType !== FREE_SERVICE_ID) { promptUnlock(); return }
@@ -913,7 +919,6 @@ export default function AppPage() {
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: pageBg, color: rootTextColor, display: 'flex' }}>
-      <BgParticles theme={theme} />
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: vignetteBg }} />
       <Sidebar
         activeTab={activeTab}
@@ -939,6 +944,7 @@ export default function AppPage() {
         theme={theme}
         isAdmin={isAdmin}
         subscriptionStatus={profile?.subscription_status}
+        subscriptionPlan={profile?.subscription_plan}
         trialEndsAt={profile?.trial_ends_at}
         profileCreatedAt={profile?.created_at}
         vehicles={vehicles.map(v => ({ id: v.id, plate: v.plate, brand: v.brand, model: v.model }))}
@@ -965,6 +971,9 @@ export default function AppPage() {
            en el prop `inert` de Sidebar.tsx. Estos botones (ej. "Comprar
            llavero NFC") comparten z-index con CartModal, así que sin esto
            quedaban alcanzables por teclado detrás del overlay del wizard. */}
+        {/* Franja fija del topbar móvil (solo <= 900px, ver globals.css): el logo y los botones se quedan a la vista al
+            hacer scroll y el contenido pasa por debajo con desenfoque. En escritorio no se pinta. */}
+        <div className="mobile-topbar-bar" aria-hidden="true" style={{ background: theme === 'light' ? 'rgba(247,246,242,0.88)' : 'rgba(6,6,6,0.84)' }} />
         <div className="mobile-topbar-logo" aria-hidden="true" style={{ color: rootTextColor }}>
           <CarLinkLogo size={33} />
           <span>Car<span style={{ color: '#F5C518' }}>Link</span></span>
@@ -1094,6 +1103,12 @@ export default function AppPage() {
         </div>
       )}
 
+      {/* Vinculo taller-conductor por QR (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md): solo con el flag encendido en el
+          servidor, despues del onboarding y con al menos un vehiculo. Sin flag no pinta nada ni llama al backend. */}
+      {!showOnboarding && !isBusiness && vehicles.length > 0 && (
+        <WorkshopLinkPrompt vehicles={vehicles} currentVehicleId={vehicle?.id} theme={theme} onDone={flashApp} />
+      )}
+
       {/* Onboarding wizard obligatorio — solo conductores, ver comentario del efecto de arriba */}
       {showOnboarding && user?.id && !isBusiness && (
         <OnboardingWizard
@@ -1156,7 +1171,10 @@ export default function AppPage() {
           vehicleId={vehicle.id}
           editRecord={editRecord}
           defaultServiceType={pendingServiceType}
-          latestMileage={maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage}
+          latestMileage={(() => {
+            const serviceKm = maintenanceRecords.length > 0 ? Math.max(...maintenanceRecords.map(r => r.mileage)) : latest?.mileage
+            return serviceKm != null || odometerKm != null ? Math.max(serviceKm ?? 0, odometerKm ?? 0) : undefined
+          })()}
           hideServiceType={!!pendingServiceType}
           fuelType={vehicle?.fuel_type || ''}
           vehicleBodyType={vehicle?.body_type || ''}
@@ -1306,7 +1324,7 @@ export default function AppPage() {
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Combustible</label>
                   <FuelSelect value={editFuel} onChange={setEditFuel} />
-                  {!editFuel && <div style={{ fontSize: 11, color: '#F5C518', marginTop: 6 }}>Elige el combustible que figura en la tarjeta de propiedad.</div>}
+                  {!editFuel && <div style={{ fontSize: 11, color: '#F5C518', marginTop: 6 }}>Obligatorio para enviar a revisión: elige el combustible que figura en la tarjeta de propiedad.</div>}
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, display: 'block', marginBottom: 5 }}>Año</label>
@@ -1914,7 +1932,7 @@ export default function AppPage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5C518" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#F5C518' }}>Info</span>
                   </div>
-                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Último servicio: {latest.service_type} registrado el {latest.date ? new Date(latest.date).toLocaleDateString() : '—'}</div>
+                  <div style={{ fontSize: 12.5, color: theme === 'dark' ? '#c9c6ba' : '#4a463c', lineHeight: 1.5 }}>Último servicio: {latest.service_type} registrado el {latest.date ? formatLocalDate(latest.date) : '—'}</div>
                 </div>
               )}
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import StarRatingInput from '@/components/StarRatingInput'
 import type { ReviewTargetType } from '@/lib/types'
 import { track } from '@/lib/analytics'
+import { getAccessToken } from '@/lib/supabase'
 
 interface WorkshopHit { id: string; code: string; name: string; city: string; address: string; is_verified: boolean }
 
@@ -51,7 +52,8 @@ export function RatingPromptForm({
   const searchWorkshops = useCallback(async (q: string) => {
     if (q.length < 2) { setWsResults([]); setShowWsDropdown(false); return }
     try {
-      const res = await fetch(`/api/workshops/search?q=${encodeURIComponent(q)}`)
+      const token = await getAccessToken()
+      const res = await fetch(`/api/workshops/search?q=${encodeURIComponent(q)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (res.ok) {
         const data = await res.json()
         setWsResults(data)

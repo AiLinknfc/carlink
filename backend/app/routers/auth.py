@@ -9,11 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.models import Profile
+from app.models.models import Profile, Workshop
 from app.schemas.schemas import ProfileOut, ProfileUpdate
+from app.services import workshop_access
 from app.services.auth import ensure_profile
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _profile_out(profile: Profile, db: AsyncSession) -> ProfileOut:
+    """Perfil + estado del acceso del negocio (si tiene uno): fuente única que reemplaza el cálculo de 7 días del navegador."""
+    out = ProfileOut.model_validate(profile)
+    workshop = (await db.execute(select(Workshop).where(Workshop.owner_id == profile.id))).scalar_one_or_none()
+    if workshop is not None:
+        out = out.model_copy(update=workshop_access.subscription_fields(workshop))
+    return out
 
 
 @router.get("/me", response_model=ProfileOut)
@@ -22,7 +32,7 @@ async def get_profile(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     profile = await ensure_profile(user_id, db)
-    return profile
+    return await _profile_out(profile, db)
 
 
 @router.put("/me", response_model=ProfileOut)
@@ -52,7 +62,7 @@ async def update_profile(
         profile.whatsapp_number = body.whatsapp_number
     await db.flush()
     await db.refresh(profile)
-    return profile
+    return await _profile_out(profile, db)
 
 # POST /me/verification se movió a POST /vehicles/{vehicle_id}/verification
 # (backend/app/routers/vehicles.py) — 2026-09-19. La verificación de

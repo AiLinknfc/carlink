@@ -37,7 +37,7 @@ export const POSTS: BlogPost[] = [
       { type: 'ul', items: [
         'Llenas el formulario con el NIT, los datos de contacto y el logo de tu negocio.',
         'Validamos el NIT y la información y te respondemos por correo.',
-        'Si tu postulación se aprueba, creas tu cuenta de taller con el mismo NIT y empiezas con 7 días de prueba.',
+        'Si tu postulación se aprueba, creas tu cuenta de taller con el mismo NIT y empiezas con acceso gratuito: 12 meses para los primeros talleres aliados.',
       ] },
       { type: 'h2', text: 'Qué gana un taller aliado' },
       { type: 'p', text: 'Un panel para gestionar clientes, órdenes de trabajo, inventario y citas; certificados y facturas numeradas; y un perfil público con reseñas y ubicación en el mapa de talleres.' },

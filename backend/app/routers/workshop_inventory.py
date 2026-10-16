@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopInventoryPart
@@ -17,7 +18,7 @@ from app.schemas.schemas import (
     WorkshopInventoryStockUpdate,
 )
 
-router = APIRouter(prefix="/workshops/me/inventory", tags=["workshop-inventory"])
+router = APIRouter(prefix="/workshops/me/inventory", tags=["workshop-inventory"], dependencies=[Depends(workshop_gate("inventario"))])
 
 
 @router.get("", response_model=list[WorkshopInventoryPartOut])

@@ -29,6 +29,27 @@ class Settings(BaseSettings):
     nfc_auto_pause_ips: int = 10     # conexiones distintas en 24 h
     nfc_auto_pause_scans: int = 200  # lecturas en 24 h
 
+    # Vinculo taller-conductor por QR (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md). Apagado por defecto: con False los
+    # endpoints responden 404 y el vinculo por placa del taller sigue como antes. Encender con WORKSHOP_LINKS_ENABLED=true.
+    workshop_links_enabled: bool = False
+
+    # Registro de negocios con invitación (docs/PLAN_ALIADOS_NEGOCIO.md, Fase 0). Con False, POST /workshops sigue
+    # aceptando cualquier alta (con o sin invitación; una invitación válida igual marca el negocio como verificado).
+    # Con True, sin invitación aprobada no se crea el negocio. Encender con WORKSHOP_INVITE_REQUIRED=true cuando el
+    # flujo de aprobación esté probado en producción.
+    workshop_invite_required: bool = False
+
+    # Codigo de alianza (docs/PLAN_ALIADOS_NEGOCIO.md, seccion 5): descuento por llavero para el comprador que usa el
+    # codigo de un negocio aliado. El kit ($10.000) se activa cuando el kit tenga producto propio en el backend.
+    alliance_discount_per_keychain_cop: int = 7000
+    alliance_discount_per_kit_cop: int = 10000
+    # Tope de llaveros con descuento por negocio en 30 dias (pedidos pagados, o pendientes de las ultimas 48 h).
+    alliance_monthly_cap_units: int = 30
+
+    # Verificación automática de empresas contra el RUES (datos abiertos de Confecámaras en datos.gov.co; sin clave).
+    company_verification_enabled: bool = True
+    company_verification_timeout_seconds: float = 6.0
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 

@@ -106,6 +106,10 @@
   (solo excepciones).
 - Revalidación periódica cada 6–12 meses.
 
+> **Nota 2026-10-16:** el periodo de acceso de las empresas hoy se rige por `docs/PLAN_ALIADOS_NEGOCIO.md` (sección 11 y 13): los primeros
+> aliados tienen 12 meses gratis (o convenio) que empiezan al crear la cuenta con la invitación, y al vencer pasan a solo lectura. Los 14 días de
+> abajo quedan como referencia histórica hasta que se definan los planes de pago.
+
 ### 5.3 Reverse trial Empresa
 
 - Duración: **14 días** desde la validación exitosa.

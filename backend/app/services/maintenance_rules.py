@@ -62,7 +62,8 @@ def check_mileage(
     anterior, y también una del día siguiente (el servidor corre en UTC y el usuario no)."""
     if mileage < 0 or mileage > MAX_MILEAGE:
         raise RuleError("El kilometraje no es válido.")
-    history = list(history)
+    # km 0 = desconocido (servicios traídos de una orden de taller sin odómetro): no es una lectura real.
+    history = [(d, m) for d, m in history if m > 0]
     readings = list(readings)
     if not history and not readings:
         return

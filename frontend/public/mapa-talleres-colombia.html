@@ -47,6 +47,135 @@
   var detailLayer = L.layerGroup();
   var tallerNames = ['Tecnicentro','Lubricentro','Automundo','MotorPro','Servicio Rápido','Frenos y Más','CDA Norte','Llantas del Sur','Taller Express','Mecánica Total'];
 
+  // Misma regla que cityKey() de frontend/src/lib/tallerForm.ts y _city_key() del backend.
+  function cityKey(c){
+    return String(c).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\bd\.?\s?c\.?\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+  }
+
+  function popup(title, line){
+    var el = document.createElement('div');
+    var b = document.createElement('b'); b.textContent = title;
+    el.appendChild(b); el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+    return el;
+  }
+
+  // Las ciudades de arriba son la cobertura fija de partida (se retirará más adelante). A ellas se suman en vivo
+  // las postulaciones reales del formulario /taller: el número del círculo sube y cada negocio con ubicación
+  // aparece como pin. Las ciudades nuevas aparecen solas.
+  var live = [];
+  var hubs = cities;
+
+  function render(){
+    hubLayer.clearLayers(); detailLayer.clearLayers();
+    var byKey = {};
+    hubs = cities.map(function(c){ var h = {name:c.name, dept:c.dept, lat:c.lat, lng:c.lng, count:c.count, fixed:true}; byKey[cityKey(c.name)] = h; return h; });
+    var extra = {};
+    live.forEach(function(w){
+      var k = w.key || cityKey(w.city);
+      if (!k) return;
+      var h = byKey[k] || extra[k];
+      if (!h){ h = extra[k] = {name:w.city, dept:'', lat:0, lng:0, count:0, pts:[]}; }
+      h.count += 1;
+      if (w.lat != null && w.lng != null){
+        if (h.pts) h.pts.push([w.lat, w.lng]);
+        var pinIcon = L.divIcon({className:'taller-pin', iconSize:[12,12]});
+        L.marker([w.lat, w.lng], {icon:pinIcon}).addTo(detailLayer)
+          .bindPopup(popup(w.name || 'Taller aliado nuevo', h.name + (h.dept ? ', ' + h.dept : '')));
+      }
+    });
+    Object.keys(extra).forEach(function(k){
+      var h = extra[k];
+      if (!h.pts.length) return; // sin ubicación no hay dónde poner el círculo de una ciudad nueva
+      h.lat = h.pts.reduce(function(a,p){return a+p[0];},0) / h.pts.length;
+      h.lng = h.pts.reduce(function(a,p){return a+p[1];},0) / h.pts.length;
+      hubs.push(h);
+    });
+
+    hubs.forEach(function(c){
+      var hubIcon = L.divIcon({className:'hub-pin', html: c.count, iconSize:[30,30]});
+      L.marker([c.lat, c.lng], {icon:hubIcon}).addTo(hubLayer)
+        .bindPopup(popup(c.name, (c.dept ? c.dept + ' · ' : '') + c.count + ' talleres afiliados'));
+      if (!c.fixed) return;
+      var base = cities.filter(function(x){ return x.name === c.name; })[0].count;
+      for (var i=0; i<base; i++){
+        var jLat = c.lat + (Math.random()-0.5)*0.12;
+        var jLng = c.lng + (Math.random()-0.5)*0.12;
+        var fixedIcon = L.divIcon({className:'taller-pin', iconSize:[12,12]});
+        var tname = tallerNames[i % tallerNames.length] + ' ' + c.name.split(' ')[0];
+        L.marker([jLat, jLng], {icon:fixedIcon}).addTo(detailLayer)
+          .bindPopup(popup(tname, c.name + ', ' + c.dept));
+      }
+    });
+  }
+  render();
+
+  fetch('/api/workshop-applications/public-map')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){ if (j && Array.isArray(j.items) && j.items.length){ live = j.items; render(); } })
+    .catch(function(){ /* sin datos en vivo se queda la cobertura fija */ });
+
+  map.on('zoomend', function(){
+    if (map.getZoom() >= 9){
+      if(!map.hasLayer(detailLayer)) map.addLayer(detailLayer);
+    } else {
+      if(map.hasLayer(detailLayer)) map.removeLayer(detailLayer);
+    }
+  });
+
+  window.addEventListener('message', function(ev){
+    var d = ev.data || {};
+    if (d.type === 'flyToBounds' && d.bounds){
+      map.flyToBounds(d.bounds, {padding:[24,24], duration:1.1});
+    } else if (d.type === 'flyToCity'){
+      var k = cityKey(d.city || '');
+      var c = hubs.filter(function(x){ return cityKey(x.name) === k; })[0];
+      if (c) map.flyTo([c.lat, c.lng], 10, {duration:1.1});
+    }
+  });
+</script>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#0a0a0a;}
+  #map{width:100%;height:100%;}
+  .taller-pin{background:#F5C518;border:2px solid #0a0a0a;border-radius:50%;box-shadow:0 0 6px rgba(245,197,24,.8);}
+  .hub-pin{background:#0a0a0a;border:2px solid #F5C518;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 10px Inter,sans-serif;color:#F5C518;box-shadow:0 0 10px rgba(245,197,24,.5);}
+  .leaflet-popup-content-wrapper{background:#141414;color:#f5f3ec;border-radius:10px;}
+  .leaflet-popup-tip{background:#141414;}
+  .leaflet-popup-content{font-family:Inter,sans-serif;font-size:12.5px;margin:9px 12px;}
+  .leaflet-popup-content b{color:#F5C518;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  var map = L.map('map', {zoomControl:true}).setView([4.7, -74.1], 6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  var cities = [
+    {name:'Bogotá D.C.',      dept:'Cundinamarca',       lat:4.7110, lng:-74.0721, count:4},
+    {name:'Medellín',          dept:'Antioquia',          lat:6.2442, lng:-75.5812, count:3},
+    {name:'Cali',              dept:'Valle del Cauca',    lat:3.4516, lng:-76.5320, count:2},
+    {name:'Barranquilla',      dept:'Atlántico',          lat:10.9639,lng:-74.7964, count:2},
+    {name:'Cartagena',         dept:'Bolívar',            lat:10.3910,lng:-75.4794, count:1},
+    {name:'Bucaramanga',       dept:'Santander',          lat:7.1193, lng:-73.1227, count:2},
+    {name:'Pereira',           dept:'Risaralda',          lat:4.8087, lng:-75.6906, count:1},
+    {name:'Manizales',         dept:'Caldas',             lat:5.0689, lng:-75.5174, count:1},
+    {name:'Cúcuta',            dept:'Norte de Santander', lat:7.8891, lng:-72.4967, count:1},
+    {name:'Santa Marta',       dept:'Magdalena',          lat:11.2408,lng:-74.1990, count:1},
+    {name:'Ibagué',            dept:'Tolima',             lat:4.4389, lng:-75.2322, count:1},
+    {name:'Villavicencio',     dept:'Meta',               lat:4.1420, lng:-73.6266, count:1},
+    {name:'Tunja',             dept:'Boyacá',             lat:5.5353, lng:-73.3678, count:1},
+    {name:'Duitama',           dept:'Boyacá',             lat:5.8237, lng:-73.0338, count:1}
+  ];
+
+  var hubLayer = L.layerGroup().addTo(map);
+  var detailLayer = L.layerGroup();
+  var tallerNames = ['Tecnicentro','Lubricentro','Automundo','MotorPro','Servicio Rápido','Frenos y Más','CDA Norte','Llantas del Sur','Taller Express','Mecánica Total'];
+
   cities.forEach(function(c){
     var hubIcon = L.divIcon({className:'hub-pin', html: c.count, iconSize:[30,30]});
     L.marker([c.lat, c.lng], {icon:hubIcon}).addTo(hubLayer)

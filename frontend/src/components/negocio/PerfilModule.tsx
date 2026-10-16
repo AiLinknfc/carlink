@@ -1,33 +1,74 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useMyWorkshop, useWorkshopMechanics, useWorkshopServices, useWorkshopReviews } from '@/lib/hooks'
+import { useEffect, useMemo, useState } from 'react'
+import { useMyWorkshop, useWorkshopMechanics, useWorkshopServices, useUpload } from '@/lib/hooks'
+import { proxyUrl } from '@/lib/upload'
+import { workshopApi } from '@/lib/api'
+
+const LOGO_ERRORS: Record<string, string> = {
+  logo_unreadable: 'No pudimos leer esa imagen. Usa PNG, JPG o WebP.',
+  logo_too_small: 'El logo es muy pequeño y se vería borroso. Usa una imagen de al menos 120 px por lado (ideal 400 px o más).',
+  logo_too_large_dimensions: 'La imagen es demasiado grande. Reduce el logo a máximo 6000 px por lado.',
+  logo_bad_ratio: 'El logo es muy alargado o muy alto. Usa una versión más cuadrada o apaisada (hasta 5 veces más ancha que alta).',
+  logo_blank: 'La imagen parece estar vacía. Revisa que sea tu logo.',
+  file_type_not_allowed: 'El logo debe ser una imagen PNG, JPG o WebP.',
+}
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
-import { RatingStars } from '@/lib/icons_new'
+import dynamic from 'next/dynamic'
 
-const SECTIONS = [
-  { id: 'general', label: 'General' },
+// Leaflet toca `window`: solo en el navegador.
+const WorkshopLocationEditor = dynamic(() => import('./WorkshopLocationEditor'), { ssr: false })
+
+export const PERFIL_SECTIONS = [
+  { id: 'general', label: 'Datos del taller' },
+  { id: 'ubicacion', label: 'Ubicación' },
   { id: 'mecanicos', label: 'Mecánicos' },
   { id: 'servicios', label: 'Servicios' },
-  { id: 'resenas', label: 'Reseñas' },
 ] as const
+const MAX_FEATURED = 4
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const SECTIONS = PERFIL_SECTIONS
+export type PerfilSection = typeof PERFIL_SECTIONS[number]['id']
 
-/* Sub-tabs (General/Mecánicos/Servicios/Reseñas) — igual que tallerpro
+/* Sub-tabs (Datos/Ubicación/Mecánicos/Servicios) — igual que tallerpro
    (WorkshopProfileModal: activeTab 'general'|'mechanics'|'services', ver
    docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase C.7). Antes todo esto vivía en una
    sola página larga sin segmentar. */
-export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'dark'; workshop: Workshop }) {
+/* `section` controlado: cuando el padre lo pasa (menú lateral, grupo "Configuración") se oculta la barra
+   de pestañas interna y se muestra solo esa sección. Sin `section` funciona como antes, con sus pestañas. */
+export default function PerfilModule({ theme, workshop, section: forcedSection, onWorkshopChanged }: { theme: 'light' | 'dark'; workshop: Workshop; section?: PerfilSection; onWorkshopChanged?: () => void }) {
   const t = negocioTokens(theme)
   const { updateWorkshop } = useMyWorkshop()
-  const [section, setSection] = useState<typeof SECTIONS[number]['id']>('general')
+  const [ownSection, setSection] = useState<PerfilSection>('general')
+  const section = forcedSection ?? ownSection
   const { mechanics, addMechanic, updateMechanic, deleteMechanic } = useWorkshopMechanics()
-  const { services, addService, deleteService } = useWorkshopServices()
-  const { reviews, addReview, respondReview } = useWorkshopReviews()
+  const { services, addService, updateService, deleteService } = useWorkshopServices()
+  const { uploadFile } = useUpload()
+  const [logoUrl, setLogoUrl] = useState(workshop.logo_url || '')
+  const [logoBusy, setLogoBusy] = useState(false)
+  const [logoMsg, setLogoMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const changeLogo = async (file: File | undefined) => {
+    if (!file) return
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setLogoMsg({ ok: false, text: 'El logo debe ser PNG, JPG o WebP.' }); return }
+    if (file.size > 5 * 1024 * 1024) { setLogoMsg({ ok: false, text: 'El logo pesa más de 5 MB. Usa una imagen más liviana.' }); return }
+    setLogoBusy(true); setLogoMsg(null)
+    const r = await workshopApi.uploadLogo(file)
+    setLogoBusy(false)
+    if (r.workshop) { setLogoUrl(r.workshop.logo_url || ''); setLogoMsg({ ok: true, text: 'Logo guardado.' }); onWorkshopChanged?.() }
+    else setLogoMsg({ ok: false, text: LOGO_ERRORS[r.error || ''] || 'No se pudo subir el logo. Inténtalo de nuevo.' })
+  }
+  const removeLogo = async () => {
+    setLogoBusy(true); setLogoMsg(null)
+    const r = await workshopApi.removeLogo()
+    setLogoBusy(false)
+    if (r) { setLogoUrl(''); setLogoMsg({ ok: true, text: 'Logo quitado.' }); onWorkshopChanged?.() }
+    else setLogoMsg({ ok: false, text: 'No se pudo quitar el logo.' })
+  }
 
   const [form, setForm] = useState({
-    name: workshop.name,
+    name: workshop.name, phone: workshop.phone, description: workshop.description,
     slogan: workshop.slogan, workshop_type: workshop.workshop_type, email: workshop.email,
     business_hours: workshop.business_hours, manager_name: workshop.manager_name,
     manager_role: workshop.manager_role, tax_rate_percent: String(Number(workshop.tax_rate_percent)),
@@ -49,11 +90,12 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
   // botón "Guardar cambios" del resto del formulario), default true
   // (migración 033) para no des-publicar ninguna ficha existente.
   const [published, setPublished] = useState(workshop.is_published)
+  const [showEmail, setShowEmail] = useState(workshop.show_email_public !== false)
   const [togglingPublish, setTogglingPublish] = useState(false)
 
   useEffect(() => {
     setForm({
-      name: workshop.name,
+      name: workshop.name, phone: workshop.phone, description: workshop.description,
       slogan: workshop.slogan, workshop_type: workshop.workshop_type, email: workshop.email,
       business_hours: workshop.business_hours, manager_name: workshop.manager_name,
       manager_role: workshop.manager_role, tax_rate_percent: String(Number(workshop.tax_rate_percent)),
@@ -64,6 +106,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
     setStampsRequired(workshop.stamps_required)
     setPromoDesc(workshop.promotion_description)
     setPublished(workshop.is_published)
+    setShowEmail(workshop.show_email_public !== false)
   }, [workshop])
 
   const togglePublish = async () => {
@@ -83,14 +126,14 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
     if (!form.name.trim()) return
     setSaving(true)
     const result = await updateWorkshop({
-      name: form.name.trim(),
+      name: form.name.trim(), phone: form.phone.trim(), description: form.description.trim(),
       slogan: form.slogan, workshop_type: form.workshop_type, email: form.email,
       business_hours: form.business_hours, manager_name: form.manager_name, manager_role: form.manager_role,
       tax_rate_percent: Number(form.tax_rate_percent) || 0,
       specialties: form.specialties.split(',').map(s => s.trim()).filter(Boolean),
       social_instagram: form.social_instagram, social_facebook: form.social_facebook,
       social_website: form.social_website, social_whatsapp: form.social_whatsapp,
-      stamps_required: stampsRequired, promotion_description: promoDesc,
+      stamps_required: stampsRequired, promotion_description: promoDesc, show_email_public: showEmail,
     })
     setSaving(false)
     if (result) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
@@ -105,17 +148,49 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
   const [serviceCategory, setServiceCategory] = useState('')
   const [servicePrice, setServicePrice] = useState('')
   const [serviceHours, setServiceHours] = useState('')
+  const [serviceFile, setServiceFile] = useState<File | null>(null)
+  const [serviceFeatured, setServiceFeatured] = useState(false)
+  const [serviceSaving, setServiceSaving] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null)
+  const [serviceMsg, setServiceMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const featuredCount = services.filter(s => s.is_featured).length
+  const filePreview = useMemo(() => (serviceFile ? URL.createObjectURL(serviceFile) : ''), [serviceFile])
+  useEffect(() => () => { if (filePreview) URL.revokeObjectURL(filePreview) }, [filePreview])
 
-  const [reviewModal, setReviewModal] = useState(false)
-  const [reviewName, setReviewName] = useState('')
-  const [reviewRating, setReviewRating] = useState('5')
-  const [reviewComment, setReviewComment] = useState('')
-  const [respondingId, setRespondingId] = useState<string | null>(null)
-  const [responseText, setResponseText] = useState('')
+  const photoError = (file: File): string | null => {
+    if (!file.type.startsWith('image/')) return 'El archivo debe ser una imagen (JPG, PNG o WebP).'
+    if (file.size > MAX_PHOTO_BYTES) return 'La foto pesa más de 5 MB. Usa una más liviana.'
+    return null
+  }
+  const changePhoto = async (id: string, file: File | undefined) => {
+    if (!file) return
+    const err = photoError(file)
+    if (err) { setServiceMsg({ ok: false, text: err }); return }
+    setPhotoBusy(id); setServiceMsg(null)
+    const url = await uploadFile(file, 'services')
+    const res = url ? await updateService(id, { photo_url: url }) : null
+    setPhotoBusy(null)
+    setServiceMsg(res ? { ok: true, text: 'Foto guardada.' } : { ok: false, text: 'No se pudo subir la foto. Inténtalo de nuevo.' })
+  }
+  const removePhoto = async (id: string) => {
+    setPhotoBusy(id); setServiceMsg(null)
+    const res = await updateService(id, { photo_url: '' })
+    setPhotoBusy(null)
+    if (!res) setServiceMsg({ ok: false, text: 'No se pudo quitar la foto.' })
+  }
+  const toggleFeatured = async (id: string, on: boolean, hasPhoto: boolean) => {
+    setServiceMsg(null)
+    if (on && !hasPhoto) { setServiceMsg({ ok: false, text: 'Agrega una foto al servicio antes de destacarlo.' }); return }
+    if (on && featuredCount >= MAX_FEATURED) { setServiceMsg({ ok: false, text: `Solo puedes destacar hasta ${MAX_FEATURED} servicios. Quita uno para elegir otro.` }); return }
+    const res = await updateService(id, { is_featured: on })
+    if (!res) setServiceMsg({ ok: false, text: 'No se pudo actualizar el servicio destacado.' })
+  }
+  const resetNewService = () => { setServiceName(''); setServiceCategory(''); setServicePrice(''); setServiceHours(''); setServiceFile(null); setServiceFeatured(false); setServiceModal(false) }
+
 
   return (
     <div style={{ animation: 'sectionIn .4s both', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
-      <div style={{ display: 'flex', gap: 6, borderBottom: `1px solid ${t.subtleBorder}` }}>
+      {!forcedSection && <div style={{ display: 'flex', gap: 6, borderBottom: `1px solid ${t.subtleBorder}`, overflowX: 'auto' }}>
         {SECTIONS.map(s => (
           <button key={s.id} onClick={() => setSection(s.id)} style={{
             padding: '10px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: 'none', background: 'transparent',
@@ -123,7 +198,7 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
             borderBottom: `2px solid ${section === s.id ? t.gold : 'transparent'}`, marginBottom: -1,
           }}>{s.label}</button>
         ))}
-      </div>
+      </div>}
 
       {section === 'general' && (
       <div style={{ padding: 20, borderRadius: 16, background: t.cardBg, border: `1px solid ${published ? t.border : 'rgba(255,77,106,0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -157,10 +232,31 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
       </div>
       )}
 
-      {section === 'general' && (
+      {section === 'general' && (<>
       <div style={{ padding: 20, borderRadius: 16, background: t.cardBg, border: `1px solid ${t.border}` }}>
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 14 }}>Datos del taller</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle(t)}>Logo</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ width: 96, height: 64, borderRadius: 12, background: '#fff', border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flex: '0 0 auto' }}>
+                {logoUrl
+                  ? <img src={proxyUrl(logoUrl)} alt={`Logo de ${workshop.name}`} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: 4, boxSizing: 'border-box' }} />
+                  : <span style={{ fontSize: 11, color: '#8f8a7a', textAlign: 'center', padding: 4 }}>Sin logo</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label style={{ color: t.gold, fontWeight: 700, fontSize: 13, cursor: logoBusy ? 'wait' : 'pointer' }}>
+                    {logoBusy ? 'Subiendo...' : logoUrl ? 'Cambiar logo' : 'Subir logo'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" disabled={logoBusy} style={{ display: 'none' }} onChange={e => { void changeLogo(e.target.files?.[0]); e.target.value = '' }} />
+                  </label>
+                  {logoUrl && <button type="button" disabled={logoBusy} onClick={() => void removeLogo()} style={{ background: 'none', border: 'none', padding: 0, color: t.textMuted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>Quitar</button>}
+                </div>
+                <p style={{ fontSize: 11, color: t.textMuted, margin: 0 }}>PNG, JPG o WebP, mínimo 120 px. Mejor con fondo transparente o liso; recortamos los márgenes. Se muestra en tu ficha pública.</p>
+              </div>
+            </div>
+            {logoMsg && <p role="status" style={{ fontSize: 12, margin: '6px 0 0', color: logoMsg.ok ? '#2ecc71' : '#ff6b6b' }}>{logoMsg.text}</p>}
+          </div>
           <div>
             <label style={labelStyle(t)}>Nombre del taller</label>
             <input style={inputStyle(t)} {...field('name')} placeholder="Ej. Taller Central CarLink" />
@@ -168,10 +264,26 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
               Es el nombre que ven tus clientes: en el sidebar, la ficha pública y su QR.
             </p>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle(t)}>NIT</label>
+              <input style={{ ...inputStyle(t), opacity: 0.7 }} value={workshop.legal_id} readOnly aria-readonly="true" />
+              <p style={{ fontSize: 11, color: t.textMuted, margin: '5px 0 0' }}>Se registró al crear el taller y no se puede cambiar aquí.</p>
+            </div>
+            <div><label style={labelStyle(t)}>Teléfono</label><input style={inputStyle(t)} {...field('phone')} placeholder="Ej. 3001234567" inputMode="tel" /></div>
+          </div>
+          <div><label style={labelStyle(t)}>Descripción</label><textarea rows={3} style={{ ...inputStyle(t), resize: 'vertical' }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Cuenta en pocas líneas qué hace tu taller" /></div>
           <div><label style={labelStyle(t)}>Eslogan</label><input style={inputStyle(t)} {...field('slogan')} placeholder="Ej. Calidad garantizada en cada servicio" /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Tipo de taller</label><input style={inputStyle(t)} {...field('workshop_type')} placeholder="Taller multimarca, CDA…" /></div>
-            <div><label style={labelStyle(t)}>Email</label><input style={inputStyle(t)} {...field('email')} /></div>
+            <div>
+              <label style={labelStyle(t)}>Email</label>
+              <input style={inputStyle(t)} {...field('email')} />
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 7, fontSize: 12, lineHeight: 1.4, color: t.textMuted, cursor: 'pointer' }}>
+                <input type="checkbox" checked={showEmail} onChange={e => setShowEmail(e.target.checked)} style={{ marginTop: 2, accentColor: t.gold, flexShrink: 0 }} />
+                <span>Mostrar este correo en mi ficha pública (si lo desmarcas, solo lo ves tú y CarLink)</span>
+              </label>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={labelStyle(t)}>Horario</label><input style={inputStyle(t)} {...field('business_hours')} placeholder="Lun-Sáb 8am-6pm" /></div>
@@ -205,6 +317,10 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
           </div>
         </div>
       </div>
+      </>)}
+
+      {section === 'ubicacion' && (
+        <WorkshopLocationEditor t={t} workshop={workshop} updateWorkshop={updateWorkshop} />
       )}
 
       {section === 'mecanicos' && (
@@ -238,87 +354,55 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
 
       {section === 'servicios' && (
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
           <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Catálogo de servicios</div>
           <button onClick={() => setServiceModal(true)} style={{ ...ghostBtnStyle(t), padding: '7px 14px', fontSize: 12.5 }}>+ Agregar</button>
         </div>
+        <p style={{ fontSize: 11.5, color: t.textMuted, margin: '0 0 12px', lineHeight: 1.5 }}>
+          Agrega una foto a cada servicio y destaca hasta {MAX_FEATURED} de los más importantes: tu ficha pública los muestra en un carrusel. Si no destacas ninguno, el carrusel muestra los primeros {MAX_FEATURED} servicios con foto.
+          <b style={{ color: featuredCount >= MAX_FEATURED ? t.gold : t.textPrimary }}> Destacados: {featuredCount}/{MAX_FEATURED}</b>
+        </p>
+        {serviceMsg && <div role="status" style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 10px', color: serviceMsg.ok ? t.success : t.danger }}>{serviceMsg.text}</div>}
         {services.length === 0 && <div style={emptyState(t, 'Sin servicios en el catálogo')} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {services.map(s => (
-            <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}` }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13.5, color: t.textPrimary }}>{s.name}</div>
+          {services.map(s => {
+            const busy = photoBusy === s.id
+            const hasPhoto = !!s.photo_url
+            return (
+            <div key={s.id} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 14px', borderRadius: 12, background: t.cardBg, border: `1px solid ${s.is_featured ? t.gold : t.subtleBorder}` }}>
+              <label title={hasPhoto ? 'Cambiar foto' : 'Agregar foto'} style={{ position: 'relative', width: 60, height: 60, flex: '0 0 auto', borderRadius: 10, overflow: 'hidden', cursor: busy ? 'default' : 'pointer', background: t.subtleBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textMuted, border: `1px dashed ${t.subtleBorder}` }}>
+                {hasPhoto
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={proxyUrl(s.photo_url)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>}
+                {busy && <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Subiendo…</span>}
+                <input type="file" accept="image/*" disabled={busy} onChange={e => { changePhoto(s.id, e.target.files?.[0]); e.target.value = '' }} style={{ display: 'none' }} />
+              </label>
+              <div style={{ flex: '1 1 140px', minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: t.textPrimary, overflowWrap: 'anywhere' }}>{s.name}</div>
                 <div style={{ fontSize: 12, color: t.textMuted }}>{s.category} · {s.estimated_hours}h</div>
+                <div style={{ fontWeight: 700, color: t.gold, fontSize: 13 }}>{money(s.estimated_price)}</div>
               </div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, color: t.gold, fontSize: 13.5 }}>{money(s.estimated_price)}</span>
-                <button onClick={() => deleteService(s.id)} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => toggleFeatured(s.id, !s.is_featured, hasPhoto)} aria-pressed={!!s.is_featured} title={s.is_featured ? 'Quitar de destacados' : 'Destacar en la ficha pública'}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${s.is_featured ? t.gold : t.subtleBorder}`, background: s.is_featured ? t.gold : 'transparent', color: s.is_featured ? '#111' : t.textMuted }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={s.is_featured ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                  {s.is_featured ? 'Destacado' : 'Destacar'}
+                </button>
+                {hasPhoto && (
+                  <button onClick={() => removePhoto(s.id)} disabled={busy} style={{ fontSize: 11.5, color: t.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 2px', textDecoration: 'underline' }}>Quitar foto</button>
+                )}
+                <button onClick={() => deleteService(s.id)} aria-label={`Eliminar ${s.name}`} style={{ background: 'transparent', border: 'none', color: t.textMuted, cursor: 'pointer' }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" /></svg>
                 </button>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </div>
       )}
 
-      {section === 'resenas' && (
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700 }}>Reseñas ({workshop.rating.toFixed(1)})</div>
-          <button onClick={() => setReviewModal(true)} style={{ ...ghostBtnStyle(t), padding: '7px 14px', fontSize: 12.5 }}>+ Registrar reseña</button>
-        </div>
-        <p style={{ fontSize: 11.5, color: t.textMuted, margin: '0 0 10px' }}>
-          Registro manual de reseñas recibidas fuera de línea — se muestran en tu ficha pública.
-        </p>
-        {reviews.length === 0 && <div style={emptyState(t, 'Sin reseñas registradas')} />}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {reviews.map(r => (
-            <div key={r.id} style={{ padding: '12px 16px', borderRadius: 12, background: t.cardBg, border: `1px solid ${t.subtleBorder}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5, color: t.textPrimary }}>{r.client_name}</div>
-                <RatingStars rating={r.rating} size={13} color={t.gold} />
-              </div>
-              {r.comment && <div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 4 }}>{r.comment}</div>}
-              {r.manager_response ? (
-                <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 6 }}>Tu respuesta: {r.manager_response}</div>
-              ) : respondingId === r.id ? (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input style={inputStyle(t)} placeholder="Responder…" value={responseText} onChange={e => setResponseText(e.target.value)} />
-                  <button onClick={async () => { await respondReview(r.id, responseText); setRespondingId(null); setResponseText('') }} style={{ ...ghostBtnStyle(t), padding: '8px 14px', fontSize: 12 }}>Enviar</button>
-                </div>
-              ) : (
-                <button onClick={() => setRespondingId(r.id)} style={{ fontSize: 11.5, color: t.gold, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, marginTop: 6 }}>Responder</button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      )}
-
-      {reviewModal && (
-        <AdminModal isOpen onClose={() => setReviewModal(false)} title="Registrar reseña" theme={theme} maxWidth={400}
-          footer={<>
-            <button onClick={() => setReviewModal(false)} style={ghostBtnStyle(t)}>Cancelar</button>
-            <button
-              disabled={!reviewName.trim()}
-              onClick={async () => {
-                await addReview({ client_name: reviewName, rating: Number(reviewRating), comment: reviewComment })
-                setReviewName(''); setReviewRating('5'); setReviewComment(''); setReviewModal(false)
-              }}
-              style={primaryBtnStyle(t, !reviewName.trim())}
-            >Guardar</button>
-          </>}>
-          <div><label style={labelStyle(t)}>Cliente</label><input style={inputStyle(t)} value={reviewName} onChange={e => setReviewName(e.target.value)} /></div>
-          <div>
-            <label style={labelStyle(t)}>Calificación</label>
-            <select style={inputStyle(t)} value={reviewRating} onChange={e => setReviewRating(e.target.value)}>
-              {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} estrella{n !== 1 ? 's' : ''}</option>)}
-            </select>
-          </div>
-          <div><label style={labelStyle(t)}>Comentario</label><textarea rows={3} style={{ ...inputStyle(t), resize: 'vertical' }} value={reviewComment} onChange={e => setReviewComment(e.target.value)} /></div>
-        </AdminModal>
-      )}
 
       {mechanicModal && (
         <AdminModal isOpen onClose={() => setMechanicModal(false)} title="Nuevo mecánico" theme={theme} maxWidth={400}
@@ -336,17 +420,28 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
       )}
 
       {serviceModal && (
-        <AdminModal isOpen onClose={() => setServiceModal(false)} title="Nuevo servicio del catálogo" theme={theme} maxWidth={400}
+        <AdminModal isOpen onClose={resetNewService} title="Nuevo servicio del catálogo" theme={theme} maxWidth={420}
           footer={<>
-            <button onClick={() => setServiceModal(false)} style={ghostBtnStyle(t)}>Cancelar</button>
+            <button onClick={resetNewService} style={ghostBtnStyle(t)}>Cancelar</button>
             <button
-              disabled={!serviceName.trim()}
+              disabled={!serviceName.trim() || serviceSaving}
               onClick={async () => {
-                await addService({ name: serviceName, category: serviceCategory, estimated_price: Number(servicePrice) || 0, estimated_hours: Number(serviceHours) || 0 })
-                setServiceName(''); setServiceCategory(''); setServicePrice(''); setServiceHours(''); setServiceModal(false)
+                setServiceSaving(true)
+                let photo = ''
+                if (serviceFile) {
+                  photo = (await uploadFile(serviceFile, 'services')) || ''
+                  if (!photo) { setServiceSaving(false); setServiceMsg({ ok: false, text: 'No se pudo subir la foto. Inténtalo de nuevo.' }); return }
+                }
+                const res = await addService({
+                  name: serviceName, category: serviceCategory, estimated_price: Number(servicePrice) || 0, estimated_hours: Number(serviceHours) || 0,
+                  photo_url: photo, is_featured: !!photo && serviceFeatured && featuredCount < MAX_FEATURED,
+                })
+                setServiceSaving(false)
+                if (res) resetNewService()
+                else setServiceMsg({ ok: false, text: 'No se pudo guardar el servicio.' })
               }}
-              style={primaryBtnStyle(t, !serviceName.trim())}
-            >Guardar</button>
+              style={primaryBtnStyle(t, !serviceName.trim() || serviceSaving)}
+            >{serviceSaving ? 'Guardando…' : 'Guardar'}</button>
           </>}>
           <div><label style={labelStyle(t)}>Nombre</label><input style={inputStyle(t)} value={serviceName} onChange={e => setServiceName(e.target.value)} placeholder="Cambio de aceite" /></div>
           <div>
@@ -358,6 +453,29 @@ export default function PerfilModule({ theme, workshop }: { theme: 'light' | 'da
             <div><label style={labelStyle(t)}>Precio estimado</label><input type="number" style={inputStyle(t)} value={servicePrice} onChange={e => setServicePrice(e.target.value)} /></div>
             <div><label style={labelStyle(t)}>Horas estimadas</label><input type="number" style={inputStyle(t)} value={serviceHours} onChange={e => setServiceHours(e.target.value)} /></div>
           </div>
+          <div>
+            <label style={labelStyle(t)}>Foto del servicio (opcional)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {filePreview && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={filePreview} alt="Vista previa" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover' }} />
+              )}
+              <input type="file" accept="image/*" style={{ fontSize: 12.5, color: t.textMuted, maxWidth: '100%' }}
+                onChange={e => {
+                  const f = e.target.files?.[0] || null
+                  const err = f ? photoError(f) : null
+                  if (err) { setServiceMsg({ ok: false, text: err }); setServiceFile(null); e.target.value = ''; return }
+                  setServiceMsg(null); setServiceFile(f)
+                }} />
+            </div>
+          </div>
+          {serviceFile && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: t.textPrimary, opacity: featuredCount >= MAX_FEATURED ? 0.5 : 1 }}>
+              <input type="checkbox" checked={serviceFeatured && featuredCount < MAX_FEATURED} disabled={featuredCount >= MAX_FEATURED} onChange={e => setServiceFeatured(e.target.checked)} />
+              Destacar en la ficha pública ({featuredCount}/{MAX_FEATURED})
+            </label>
+          )}
+          {serviceMsg && !serviceMsg.ok && <div role="alert" style={{ fontSize: 12.5, fontWeight: 700, color: t.danger }}>{serviceMsg.text}</div>}
         </AdminModal>
       )}
     </div>

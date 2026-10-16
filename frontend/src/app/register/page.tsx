@@ -9,6 +9,16 @@ import { formatPlate, getPlateConfig, type PlateType } from '@/lib/plate'
 import ThemedSuggestInput from '@/components/ThemedSuggestInput'
 import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor, modelSuggestions, COLORS } from '@/lib/vehicleBrands'
 
+const INVITE_KEY = 'carlink_workshop_invite'
+const INVITE_ERRORS: Record<string, string> = {
+  invite_invalid: 'Este enlace de invitación no es válido. Escríbenos a business@carlink.com.co.',
+  invite_expired: 'Tu invitación venció. Escríbenos a business@carlink.com.co y te enviamos una nueva.',
+  invite_used: 'Esta invitación ya se usó para crear una cuenta.',
+  invite_nit_mismatch: 'El NIT no coincide con el de tu postulación aprobada.',
+  invite_required: 'Para crear la cuenta necesitas la invitación que enviamos a tu correo al aprobar tu postulación.',
+}
+const KIND_TITLE: Record<string, string> = { taller: 'Registra tu taller', cda: 'Registra tu CDA', concesionario: 'Registra tu concesionario', compraventa: 'Registra tu compraventa', repuestos: 'Registra tu negocio' }
+
 /* Registro de taller/empresa — el modo persona se sacó de acá (2026-09-15):
    el registro del primer vehículo de una cuenta persona ahora vive en el
    wizard de onboarding (`components/onboarding/`), no en esta página. Esta
@@ -18,7 +28,20 @@ import { CAR_BRANDS, MOTO_BRANDS, VEHICLE_TYPES, plateTypeFor, modelSuggestions,
    traiga `?mode=empresa`. */
 function RegisterPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const searchParams = useSearchParams()
+
+  /* Invitación de la postulación aprobada (llega por correo): se guarda para sobrevivir al inicio de sesión. */
+  const [invite, setInvite] = useState('')
+  const [inviteInfo, setInviteInfo] = useState<{ business_kind: string; name: string; legal_id: string } | null>(null)
+  const [inviteError, setInviteError] = useState('')
+  useEffect(() => {
+    const fromUrl = searchParams.get('invite')
+    try {
+      if (fromUrl) localStorage.setItem(INVITE_KEY, fromUrl)
+      setInvite(fromUrl || localStorage.getItem(INVITE_KEY) || '')
+    } catch { setInvite(fromUrl || '') }
+  }, [searchParams])
 
   /* Empresa fields */
   const [wsLegalId, setWsLegalId] = useState('')
@@ -71,7 +94,15 @@ function RegisterPage() {
   const wsPlateConfig = getPlateConfig(wsPlateType)
 
   useEffect(() => {
-    if (!user) { router.push('/'); return }
+    // Mientras la sesión carga `user` es null: redirigir ahí mandaba al inicio incluso a quien ya había iniciado sesión
+    // (p. ej. al abrir el enlace de invitación en otra pestaña).
+    if (authLoading) return
+    if (!user) {
+      // Con invitación (guardada arriba) se manda al inicio de sesión de negocio, no a la portada.
+      let hasInvite = !!searchParams.get('invite')
+      try { hasInvite = hasInvite || !!localStorage.getItem(INVITE_KEY) } catch { /* sin almacenamiento */ }
+      router.push(hasInvite ? '/?login=business' : '/'); return
+    }
     // Si ya tiene taller registrado, no volver a mostrar este formulario.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.access_token) return
@@ -80,7 +111,19 @@ function RegisterPage() {
         .then(d => { if (d?.id) router.push('/app/negocio') })
         .catch(() => {})
     })
-  }, [user, router])
+  }, [user, router, searchParams, authLoading])
+
+  useEffect(() => {
+    if (!user || !invite) return
+    fetch(apiUrl(`/workshop-applications/invite/${encodeURIComponent(invite)}`))
+      .then(async r => {
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) { setInviteError(INVITE_ERRORS[j.detail] || INVITE_ERRORS.invite_invalid); return }
+        setInviteInfo(j)
+        setWsLegalId(j.legal_id); setWsName(j.name); setWsAddress(j.address); setWsCity(j.city); setWsPhone(j.phone)
+      })
+      .catch(() => { /* sin conexión: el alta igual se valida en el servidor */ })
+  }, [user, invite])
 
   const years = useMemo(() => {
     const y = new Date().getFullYear()
@@ -141,6 +184,7 @@ function RegisterPage() {
         phone: wsPhone,
         description: wsDescription,
       }
+      if (invite) body.invite_token = invite
       if (wsHasVehicle) {
         body.plate = wsPlate.toUpperCase()
         body.brand = wsBrand
@@ -155,9 +199,9 @@ function RegisterPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       })
-      if (res.ok) { window.location.href = '/app/negocio'; return }
+      if (res.ok) { try { localStorage.removeItem(INVITE_KEY) } catch { /* sin almacenamiento */ } window.location.href = '/app/negocio'; return }
       const rb = await res.text()
-      try { setErrorMsg(JSON.parse(rb).detail || rb) } catch { setErrorMsg(rb || `Error ${res.status}`) }
+      try { const d = JSON.parse(rb).detail; setErrorMsg(INVITE_ERRORS[d] || d || rb) } catch { setErrorMsg(rb || `Error ${res.status}`) }
     } catch { setErrorMsg('Error de conexión') }
     finally { setSaving(false) }
   }
@@ -170,25 +214,34 @@ function RegisterPage() {
             Un último paso
           </div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4vw,46px)', letterSpacing: '.01em', margin: '8px 0 6px', textTransform: 'uppercase', color: tk.titleColor }}>
-            Registra tu taller
+            {KIND_TITLE[inviteInfo?.business_kind || 'taller']}
           </h1>
           <p style={{ color: tk.subtitleColor, margin: 0, fontSize: 15 }}>
-            Tu taller aparecerá en las búsquedas de tus clientes.
+            Tu negocio aparecerá en las búsquedas de tus clientes.
           </p>
         </div>
 
         <div style={{ background: tk.cardBg, backdropFilter: 'blur(22px)', border: `1px solid ${tk.cardBorder}`, borderRadius: 20, padding: 22, boxShadow: tk.cardShadow, animation: 'fadeUp .55s .06s both' }}>
 
-          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, marginBottom: 12 }}>Datos del taller</div>
+          {inviteInfo && (
+            <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: tk.hintBg, color: tk.hintText, fontSize: 13, lineHeight: 1.5 }}>
+              <b>Tu postulación fue aprobada.</b> Cargamos los datos de {inviteInfo.name}; revísalos y completa lo que falte para activar tu cuenta.
+            </div>
+          )}
+          {inviteError && (
+            <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: tk.errorBg, border: `1px solid ${tk.errorBorder}`, color: tk.errorText, fontSize: 13, fontWeight: 600 }}>{inviteError}</div>
+          )}
+
+          <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, marginBottom: 12 }}>Datos del negocio</div>
 
           <div className="regGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div>
               <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>NIT / RUT *</label>
-              <input value={wsLegalId} onChange={e => setWsLegalId(e.target.value)} placeholder="Ej. 12345678-9"
+              <input value={wsLegalId} onChange={e => setWsLegalId(e.target.value)} readOnly={!!inviteInfo} placeholder="Ej. 12345678-9"
                 style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del taller *</label>
+              <label style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: tk.labelColor, fontWeight: 700, display: 'block', marginBottom: 6 }}>Nombre del negocio *</label>
               <input value={wsName} onChange={e => setWsName(e.target.value)} placeholder="Ej. Taller Pérez"
                 style={{ width: '100%', padding: '12px 14px', borderRadius: 11, border: `1px solid ${tk.inputBorder}`, background: tk.inputBg, color: tk.inputText, fontSize: 15, outline: 'none' }} />
             </div>
@@ -305,7 +358,7 @@ function RegisterPage() {
             </div>
           )}
           <button onClick={doRegister} disabled={saving} style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 15, borderRadius: 13, border: 'none', background: saving ? tk.btnDisabled : '#F5C518', color: '#111', fontWeight: 800, fontSize: 15, cursor: saving ? 'not-allowed' : 'pointer', boxShadow: tk.btnShadow }}>
-            {saving ? 'Registrando taller...' : 'Crear taller'}
+            {saving ? 'Registrando...' : 'Crear cuenta'}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>

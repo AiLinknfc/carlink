@@ -27,9 +27,15 @@ interface Props {
   theme: SuggestTheme
   style?: CSSProperties
   autoFocus?: boolean
+  id?: string
+  onBlur?: () => void
+  invalid?: boolean
+  describedBy?: string
+  maxLength?: number
+  autoComplete?: string
 }
 
-export default function ThemedSuggestInput({ value, onChange, suggestions, placeholder, theme, style, autoFocus }: Props) {
+export default function ThemedSuggestInput({ value, onChange, suggestions, placeholder, theme, style, autoFocus, id, onBlur, invalid, describedBy, maxLength, autoComplete }: Props) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
@@ -50,6 +56,12 @@ export default function ThemedSuggestInput({ value, onChange, suggestions, place
       <input
         value={value}
         autoFocus={autoFocus}
+        id={id}
+        maxLength={maxLength}
+        autoComplete={autoComplete ?? 'off'}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        onBlur={onBlur}
         onChange={e => { onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         placeholder={placeholder}

@@ -7,12 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopMechanic
 from app.schemas.schemas import WorkshopMechanicCreate, WorkshopMechanicOut, WorkshopMechanicUpdate
 
-router = APIRouter(prefix="/workshops/me/mechanics", tags=["workshop-mechanics"])
+router = APIRouter(prefix="/workshops/me/mechanics", tags=["workshop-mechanics"], dependencies=[Depends(workshop_gate("mecanicos"))])
 
 
 @router.get("", response_model=list[WorkshopMechanicOut])

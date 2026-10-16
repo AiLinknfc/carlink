@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useWorkshopClients, useWorkshopVehicles } from '@/lib/hooks'
 import type { WorkshopClient, WorkshopVehicle } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
+import ClaimLinkModal from './ClaimLinkModal'
+import { linksApi, linksEnabled, type TallerLink } from '@/lib/workshopLinks'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState } from './shared'
 
 export default function ClientesModule({ theme }: { theme: 'light' | 'dark' }) {
@@ -13,9 +15,16 @@ export default function ClientesModule({ theme }: { theme: 'light' | 'dark' }) {
   const [selected, setSelected] = useState<WorkshopClient | null>(null)
   const [clientModal, setClientModal] = useState<WorkshopClient | null | 'new'>(null)
   const [vehicleModal, setVehicleModal] = useState<WorkshopVehicle | null | 'new'>(null)
+  const [links, setLinks] = useState<TallerLink[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    linksEnabled().then(async on => { if (on && !cancelled) setLinks((await linksApi.tallerLinks()) ?? []) })
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div style={{ animation: 'sectionIn .4s both' }}>
+      {links && links.length > 0 && <LinkedDrivers t={t} links={links} />}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           placeholder="Buscar por nombre, teléfono, email o documento…"
@@ -51,6 +60,7 @@ export default function ClientesModule({ theme }: { theme: 'light' | 'dark' }) {
           ) : (
             <ClientDetail
               t={t}
+              theme={theme}
               client={selected}
               onEdit={() => setClientModal(selected)}
               onDelete={async () => { await deleteClient(selected.id); setSelected(null) }}
@@ -88,8 +98,9 @@ export default function ClientesModule({ theme }: { theme: 'light' | 'dark' }) {
   )
 }
 
-function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle }: {
+function ClientDetail({ t, theme, client, onEdit, onDelete, onAddVehicle, onEditVehicle }: {
   t: ReturnType<typeof negocioTokens>
+  theme: 'light' | 'dark'
   client: WorkshopClient
   onEdit: () => void
   onDelete: () => void
@@ -99,6 +110,9 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
   const { vehicles, loading, deleteVehicle, linkVehicle, unlinkVehicle } = useWorkshopVehicles({ clientId: client.id })
   const [linkingId, setLinkingId] = useState<string | null>(null)
   const [linkError, setLinkError] = useState<string | null>(null)
+  const [claimFor, setClaimFor] = useState<WorkshopVehicle | null>(null)
+  const [linksOn, setLinksOn] = useState(false)
+  useEffect(() => { linksEnabled().then(setLinksOn) }, [])
 
   // Vincular con la cuenta CarLink real del cliente (por placa exacta) —
   // sin esto, las facturas/historial automáticos (Paso 1-2) no tienen a
@@ -149,6 +163,12 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
               {linkError === v.id && <div style={{ fontSize: 11, color: t.danger, marginTop: 3 }}>Ninguna cuenta CarLink tiene esta placa</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {linksOn && !v.linked_vehicle_id && (
+                <button onClick={() => setClaimFor(v)} title="Genera un enlace/QR para que tu cliente vincule su cuenta CarLink contigo" style={{
+                  fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
+                  background: 'rgba(245,197,24,0.12)', color: t.gold, border: 'none',
+                }}>Enlace para el cliente</button>
+              )}
               {v.linked_vehicle_id ? (
                 <button onClick={() => unlinkVehicle(v.id)} title="Desvincular de la cuenta CarLink" style={{
                   fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
@@ -166,6 +186,35 @@ function ClientDetail({ t, client, onEdit, onDelete, onAddVehicle, onEditVehicle
             </div>
           </div>
         ))}
+      </div>
+      {claimFor && (
+        <ClaimLinkModal
+          t={t} theme={theme} title={`Enlace para ${client.name}`} phone={client.phone}
+          intro={`Envíale este enlace o QR a tu cliente. Al abrirlo crea su cuenta (o inicia sesión), confirma que el vehículo ${claimFor.license_plate} es suyo y acepta el vínculo contigo; recién ahí tus órdenes entregadas y pagadas llegan a su historial.`}
+          generate={() => linksApi.vehicleClaimToken(claimFor.id)}
+          onClose={() => setClaimFor(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function LinkedDrivers({ t, links }: { t: ReturnType<typeof negocioTokens>; links: TallerLink[] }) {
+  return (
+    <div style={{ marginBottom: 16, padding: 16, borderRadius: 14, background: t.cardBg, border: `1px solid ${t.border}` }}>
+      <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: t.gold, fontWeight: 700, marginBottom: 10 }}>
+        Clientes CarLink vinculados ({links.length})
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {links.map(l => (
+          <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', fontSize: 13, color: t.textPrimary }}>
+            <span><strong>{l.client_name}</strong> · {l.plate}{[l.brand, l.model].filter(Boolean).length ? ` · ${[l.brand, l.model].filter(Boolean).join(' ')}` : ''}</span>
+            <span style={{ color: t.textMuted, fontSize: 12 }}>{l.whatsapp || 'Sin WhatsApp compartido'}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 10, lineHeight: 1.5 }}>
+        Solo ves a quien aceptó vincularse contigo, y su WhatsApp únicamente si lo permitió. Para que sus órdenes lleguen a su historial, usa "Vincular" en su vehículo.
       </div>
     </div>
   )

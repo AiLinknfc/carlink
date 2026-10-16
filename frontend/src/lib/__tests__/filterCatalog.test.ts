@@ -14,7 +14,7 @@ describe('vehicleKindOf', () => {
 
 describe('filterOptions', () => {
   it('carro: aceite, aire, habitáculo, combustible y transmisión, de más a menos popular', () => {
-    expect(filterOptions('carro', 'gasolina').map(o => o.label)).toEqual(['Aceite', 'Aire del motor', 'Habitáculo / A/C', 'Combustible', 'Transmisión'])
+    expect(filterOptions('carro', 'gasolina').map(o => o.label)).toEqual(['Filtro de aceite', 'Filtro de aire del motor', 'Filtro de habitáculo / A/C', 'Filtro de combustible', 'Filtro de transmisión'])
   })
   it('carro diésel o sin combustible definido suma el filtro de partículas; gasolina no', () => {
     expect(filterOptions('carro', 'diesel').map(o => o.key)).toContain('particle_filter')

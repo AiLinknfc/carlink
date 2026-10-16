@@ -41,7 +41,12 @@ from app.routers import (
     waitlist,
     work_orders,
     workshop_ai,
+    workshop_alliance,
+    dealer_vehicles,
+    dealer_consignment,
+    rtm_inspections,
     workshop_clients,
+    workshop_links,
     workshop_documents,
     workshop_inventory,
     workshop_mechanics,
@@ -131,6 +136,8 @@ app.include_router(surveys.admin_router, prefix="/api")
 app.include_router(workshop_mechanics.router, prefix="/api")
 app.include_router(workshop_services.router, prefix="/api")
 app.include_router(workshop_clients.router, prefix="/api")
+app.include_router(workshop_links.router, prefix="/api")
+app.include_router(workshop_links.taller_router, prefix="/api")
 app.include_router(workshop_inventory.router, prefix="/api")
 app.include_router(work_orders.router, prefix="/api")
 app.include_router(appointments.router, prefix="/api")
@@ -138,6 +145,12 @@ app.include_router(workshop_notifications.router, prefix="/api")
 app.include_router(workshop_documents.router, prefix="/api")
 app.include_router(workshop_reviews.router, prefix="/api")
 app.include_router(workshop_ai.router, prefix="/api")
+app.include_router(workshop_alliance.router, prefix="/api")
+app.include_router(dealer_vehicles.router, prefix="/api")
+app.include_router(dealer_vehicles.public_router, prefix="/api")
+app.include_router(rtm_inspections.router, prefix="/api")
+app.include_router(rtm_inspections.public_router, prefix="/api")
+app.include_router(dealer_consignment.router, prefix="/api")
 
 
 if __name__ == "__main__":

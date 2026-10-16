@@ -35,18 +35,18 @@ export function vehicleKindOf(bodyType?: string | null, plateType?: string | nul
 const km = (n: number) => `Cada ~${n.toLocaleString('es')} km`
 
 const CAR: FilterOption[] = [
-  { key: 'oil_filter', part: 'Filtro de aceite', label: 'Aceite', hint: km(10000), lifespanKm: 10000, icon: 'oil' },
-  { key: 'air_filter', part: 'Filtro de aire', label: 'Aire del motor', hint: km(15000), lifespanKm: 15000, icon: 'air' },
-  { key: 'cabin_filter', part: 'Filtro de habitáculo', label: 'Habitáculo / A/C', hint: km(15000), lifespanKm: 15000, icon: 'cabin' },
-  { key: 'fuel_filter', part: 'Filtro de combustible', label: 'Combustible', hint: km(20000), lifespanKm: 20000, icon: 'fuel' },
-  { key: 'transmission_filter', part: 'Filtro de transmisión', label: 'Transmisión', hint: km(60000), lifespanKm: 60000, icon: 'transmission', note: 'Si tu transmisión lo tiene' },
+  { key: 'oil_filter', part: 'Filtro de aceite', label: 'Filtro de aceite', hint: km(10000), lifespanKm: 10000, icon: 'oil' },
+  { key: 'air_filter', part: 'Filtro de aire', label: 'Filtro de aire del motor', hint: km(15000), lifespanKm: 15000, icon: 'air' },
+  { key: 'cabin_filter', part: 'Filtro de habitáculo', label: 'Filtro de habitáculo / A/C', hint: km(15000), lifespanKm: 15000, icon: 'cabin' },
+  { key: 'fuel_filter', part: 'Filtro de combustible', label: 'Filtro de combustible', hint: km(20000), lifespanKm: 20000, icon: 'fuel' },
+  { key: 'transmission_filter', part: 'Filtro de transmisión', label: 'Filtro de transmisión', hint: km(60000), lifespanKm: 60000, icon: 'transmission', note: 'Si tu transmisión lo tiene' },
 ]
-const PARTICLE: FilterOption = { key: 'particle_filter', part: 'Filtro de partículas', label: 'Partículas (DPF)', hint: km(100000), lifespanKm: 100000, icon: 'particle', note: 'Motores diésel' }
+const PARTICLE: FilterOption = { key: 'particle_filter', part: 'Filtro de partículas', label: 'Filtro de partículas (DPF)', hint: km(100000), lifespanKm: 100000, icon: 'particle', note: 'Motores diésel' }
 
 const MOTO: FilterOption[] = [
-  { key: 'oil_filter', part: 'Filtro de aceite', label: 'Aceite', hint: km(5000), lifespanKm: 5000, icon: 'oil' },
-  { key: 'air_filter', part: 'Filtro de aire', label: 'Aire', hint: km(10000), lifespanKm: 10000, icon: 'air' },
-  { key: 'fuel_filter', part: 'Filtro de combustible', label: 'Combustible', hint: km(20000), lifespanKm: 20000, icon: 'fuel', note: 'Motos de inyección' },
+  { key: 'oil_filter', part: 'Filtro de aceite', label: 'Filtro de aceite', hint: km(5000), lifespanKm: 5000, icon: 'oil' },
+  { key: 'air_filter', part: 'Filtro de aire', label: 'Filtro de aire', hint: km(10000), lifespanKm: 10000, icon: 'air' },
+  { key: 'fuel_filter', part: 'Filtro de combustible', label: 'Filtro de combustible', hint: km(20000), lifespanKm: 20000, icon: 'fuel', note: 'Motos de inyección' },
 ]
 
 /* Opciones del vehículo. El filtro de partículas solo se ofrece en carros diésel (o con combustible

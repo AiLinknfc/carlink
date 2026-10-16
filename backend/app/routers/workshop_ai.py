@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.schemas.schemas import (
@@ -19,7 +20,7 @@ from app.services.ai_diagnostics import (
     generate_ai_notification_message,
 )
 
-router = APIRouter(prefix="/workshops/me", tags=["workshop-ai"])
+router = APIRouter(prefix="/workshops/me", tags=["workshop-ai"], dependencies=[Depends(workshop_gate("diagnostico_ia"))])
 
 
 @router.post("/ai-diagnose", response_model=AiDiagnoseResult)

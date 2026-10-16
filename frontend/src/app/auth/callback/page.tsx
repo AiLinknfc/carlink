@@ -4,6 +4,7 @@ import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, apiUrl } from '@/lib/supabase'
 import { isBusinessAccount } from '@/lib/constants'
+import AuthProgress from '@/components/AuthProgress'
 
 function CallbackPageContent() {
   const router = useRouter()
@@ -47,6 +48,14 @@ function CallbackPageContent() {
         return
       }
 
+      // Una página pública pidió volver acá tras el inicio de sesión (p. ej. recibir la entrega de un vehículo, /entrega/<código>, o la constancia de una revisión, /constancia/<código>).
+      // Solo se aceptan rutas internas conocidas: nunca una dirección externa.
+      try {
+        const next = sessionStorage.getItem('carlink_post_login')
+        sessionStorage.removeItem('carlink_post_login')
+        if (next && /^\/(entrega|constancia)\/[A-Za-z0-9_-]{20,128}$/.test(next)) { router.push(next); return }
+      } catch { /* sin almacenamiento */ }
+
       // Persona (incluido un usuario nuevo sin vehículos todavía) entra
       // directo a /app — el wizard de onboarding (`OnboardingWizard`) es
       // quien ahora registra el primer vehículo, ya no /register (2026-09-15,
@@ -57,10 +66,7 @@ function CallbackPageContent() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#060606' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 42, height: 42, borderRadius: '50%', border: '3px solid rgba(245,197,24,0.2)', borderTopColor: '#F5C518', animation: 'spin .8s linear infinite', margin: '0 auto 16px' }} />
-        <div style={{ color: '#b6b2a6', fontSize: 14 }}>Autenticando...</div>
-      </div>
+      <AuthProgress kind="callback" />
     </div>
   )
 }

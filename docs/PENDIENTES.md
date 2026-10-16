@@ -1,7 +1,78 @@
 # Pendientes de CarLink (documento único)
 
-_Última actualización: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
+_Última actualización: 2026-10-15 (revisión de commits recientes, vínculo taller-conductor y ajustes de interfaz) — antes: 2026-10-02 (preparación para publicidad: entrega del código por correo, Meta Pixel,
 notificaciones de admin, defensa automática NFC, limpieza de datos y R2; ver "Antes y después de publicar" abajo)._
+
+## Aliados de negocio (2026-10-16) — plan en `docs/PLAN_ALIADOS_NEGOCIO.md`
+
+Fase 0 construida en local (tipo de organización, invitación de un solo uso, lista de chequeo del admin, correo de registro exitoso). Falta:
+- [ ] **Aplicar las migraciones `077_business_kind_and_invites.sql`, `078_workshop_access.sql` y `079_alliance_discount.sql`** (en ese orden) a la base compartida (el modelo ya selecciona las columnas nuevas: sin ella fallan las postulaciones y el registro de talleres en local; producción no se afecta hasta desplegar el backend). Se intentó desde Claude Code y el permiso se denegó: correrla a mano (`DEPLOY.md`).
+- [ ] Correr la Suite 18 de `PRUEBAS_FUNCIONALES.md` (aprobar, recibir el correo, registrarse con la invitación, NIT distinto, enlace vencido/usado) y verificar contra la base real.
+- [x] Matriz v2 y modelo de acceso decididos y construidos en local (Fase 1; `PLAN_ALIADOS_NEGOCIO.md` sección 13). Antes: **Decidir la matriz v2 y el modelo de acceso** (`PLAN_ALIADOS_NEGOCIO.md` secciones 10 a 12: tipo `cda`, niveles de confianza, año gratis, estado restringido de solo lectura, cobro). Hallazgo: el reloj de 7 días sale de `profiles.created_at`, el backend no envía datos de suscripción ni bloquea nada, y "Suscribirme ahora" no hace nada.
+- [ ] Verificar la Fase 1 contra la base real una vez aplicadas 077 y 078 (Suite 19 de `PRUEBAS_FUNCIONALES.md`): no se pudo probar de punta a punta porque las migraciones no están aplicadas.
+- [x] Textos legales actualizados a la v2.4 (2026-10-16): acceso gratuito y solo lectura, tipos de negocio, sección 3A de alianza. **Falta la revisión de un abogado** (se redactó sin asesoría legal; en especial 3A, la verificación y la certificación de información de vehículos).
+- [ ] Fase 1, pulido: Resumen y Perfil del panel todavía hablan de órdenes y "taller" para los otros tipos.
+- [ ] Fase 5: cobro (enlace de pago de Wompi + marcado manual), avisos por correo a los 60/30/7 días del vencimiento y registro de pagos (`access_plan = subscription`).
+- [x] Fase 2 construida en local: código de alianza y $7.000 por llavero (`PLAN_ALIADOS_NEGOCIO.md` sección 14). Falta confirmar el descuento contra el costo real del llavero, correr la Suite 20, y el descuento de $10.000 por kit (el kit aún no tiene producto en el backend).
+- [ ] Fase 2, mejoras: CTA "compra tu llavero con descuento" dentro de la ficha pública del negocio; aviso del cambio legal (v2.4) a los negocios ya registrados; comisión al aliado si se acuerda.
+- [ ] Fase 3: vehículos del aliado (ficha con QR, vínculo del comprador, kilometraje certificado solo si está verificado).
+- [x] Fase 3 (parte principal) construida en local: vehículos en venta, ficha pública con QR, kilometraje certificado/declarado con antifraude y entrega al comprador (`PLAN_ALIADOS_NEGOCIO.md` sección 15). **Aplicar la migración `080_dealer_vehicles.sql`** y correr la Suite 21.
+- [x] Pruebas de las suites 18 a 21 corridas contra la base real y en navegador (escritorio y celular): `PRUEBAS_FUNCIONALES.md` → "Registro de ejecución"; las capturas no se versionan (se regeneran con `qa_aliados_visual.mjs`). Falta lo manual que ahí se lista (★).
+- [x] Ficha del vehículo: el tablero mostraba el kilometraje actual bajo "KM · PARA CAMBIO DE ACEITE"; ahora dice "KM · ODÓMETRO" (2026-10-17).
+- [x] Fase 3b construida y probada en local (`PLAN_ALIADOS_NEGOCIO.md` sección 16): revisiones RTM del CDA con constancia aceptada por el propietario, consignación de llaveros (solo lectura) y fotos de los vehículos. **Migración `081` aplicada.** Suite 23 corrida (110 funcionales y 91 visuales OK). Falta lo manual de la Suite 23 (★) y la revisión legal de la v2.6.
+- [ ] Fase 3c (opcional): aviso automático de vencimiento de la RTM al propietario (correo/WhatsApp); cuenta regresiva de la RTM en la ficha del vehículo; consignación por unidad (asociar un llavero concreto a cada vehículo vendido); verificación de la habilitación del CDA ante el Ministerio de Transporte/ONAC; enlazar la entrega con el vínculo taller-conductor cuando se encienda su flag.
+- [ ] Fase 3, decisiones abiertas: ¿una compraventa puede subir a "certificar" con el tiempo y un historial sin disputas? ¿flujo de reversión de una entrega equivocada?
+- [x] Fase 4 construida y probada en local: verificación automática de empresas en el RUES (datos abiertos, sin costo) con resultado en el panel del admin y regla de lista de chequeo completa para CDA y compraventa (`PLAN_ALIADOS_NEGOCIO.md` sección 17). **Migración `082` aplicada.** Aseguradoras: fuera por decisión del dueño del producto.
+- [ ] Fase 4, siguientes: correr `scripts/revalidate_businesses.py` cada 6 a 12 meses (a mano o con un cron local); verificar la habilitación de un CDA ante el Ministerio de Transporte/ONAC (el RUES no la trae); idea sin construir: que el propio dueño adjunte su consulta del RUNT como soporte de un vehículo (el RUNT no tiene API pública).
+- [x] Ajustes de interfaz del 2026-10-17 (ayudas con "?", alineación del formulario, sin botón de subir documento, redes sociales con colores de CarLink, estela del mouse solo en la landing, ficha pública del taller con contacto y modal de reseñas): `PLAN_ALIADOS_NEGOCIO.md` sección 18, Suite 25.
+- [x] Segunda tanda de ajustes del 2026-10-16 (selectores amarillos, escáner con cámara, logos de aliados en `/taller`, condiciones y logo opcional, logo editable en el panel lateral, ficha pública compacta): `PLAN_ALIADOS_NEGOCIO.md` sección 18b, Suite 26. Automatizado: pytest 432, vitest 278, funcional 119 y visual V18/V25/V26/V27 OK.
+- [ ] **Manual del dueño (★), pruebas visuales con distintas cuentas/perfiles**: `PRUEBAS_FUNCIONALES.md` casos 26.5 (logo real en la franja y el perfil), 26.7 (logo desde el panel con cuenta de taller, concesionario, CDA y compraventa), 25.8/25.9, y la ficha pública con y sin logo/redes en laptop pequeña y celular real; revisar también el selector amarillo en tema claro y oscuro y el escáner con la cámara de un celular real.
+- [x] **Seguridad de la ficha pública (2026-10-16)**: lista blanca en `GET /api/workshops/{code}`, búsqueda de talleres con sesión y sin NIT, y topes contra fuerza bruta de códigos: `SECURITY.md` → "Ficha pública del taller". Falta: confirmar `REDIS_URL` en Railway (sin Redis no se limita), probar en navegador real con cuentas de conductor y de taller (★), y considerar un código público más largo si algún día se necesita más holgura.
+- [ ] Estela del mouse: se quitó de la app como prueba; decidir si queda así o si se vuelve a activar.
+- [x] Interruptor del correo en la ficha pública (2026-10-16): casilla "Mostrar este correo en mi ficha pública" en Perfil y configuración del taller; migración `083_workshop_show_email_public.sql`. **Falta aplicar la migración `083` a la base compartida** (el modelo ya selecciona la columna: sin ella el backend local falla al leer talleres) y probarlo en navegador (★, caso 26.9).
+- [ ] Decidir cuándo encender `WORKSHOP_INVITE_REQUIRED=true` (hoy el registro de talleres sigue abierto con o sin invitación).
+
+## Formulario de postulación de talleres (2026-10-16, en local, sin desplegar)
+
+Hecho: validación por campo (NIT con cálculo del dígito, correo con sugerencia de dominio, teléfono colombiano, web e Instagram),
+ayudas de opciones (razón social, cargo, ciudad, especialidades), botón "Ver en mapa" para confirmar el pin, lectura de la Cámara de
+Comercio (`POST /api/workshop-applications/scan`, OCR + DeepSeek con respaldo por regex), se retiraron fachada y vehículos atendidos, y
+el mapa/cobertura de `/taller` suman las postulaciones reales (`GET /api/workshop-applications/public-map`). Migración `076` ya aplicada.
+- [ ] Probar el escaneo con 3 o 4 Cámaras de Comercio reales (solo se probó con un documento sintético) y ajustar el prompt si falla.
+- [ ] Decidir si el mapa debe contar postulaciones aún sin revisar (hoy cuenta todo lo no rechazado: un envío con NIT válido ya aparece). Alternativa: contar solo `approved`.
+- [ ] `_rate_ok` no limita sin Redis (no hay `REDIS_URL` en Railway): `/scan` (cuesta OCR + IA) y `/geocode` quedan sin tope hasta configurarlo.
+- [ ] Cuando se retiren los talleres fijos: borrar `COVERAGE_BASE`/`BASE_WORKSHOPS` en `taller/(landing)/page.tsx` y el arreglo `cities` de `public/mapa-talleres-colombia.html`.
+- [ ] Verificar que `DEEPSEEK_API_KEY` exista en Railway; sin ella el escaneo solo rellena NIT, correo y celular.
+
+## Ciberseguridad (auditoría 2026-10-15)
+
+Suite de pruebas: `docs/PRUEBAS_FUNCIONALES.md` → Suite 16 (los números entre paréntesis son sus casos). Nada de esto está
+corregido todavía; verificado por revisión de código, `npm audit` y `curl` de cabeceras en producción.
+
+**Alta**
+- [ ] S1 Next.js con 1 vulnerabilidad crítica y 4 altas (DoS en Server Actions, SSRF, cache confusion): actualizar (16.1).
+- [ ] S2 Sin rate limit en `POST /shop/orders`, `POST /waitlist`, `/ocr/*`, `/workshops/me/ai-*`, `/upload` y
+  `/shop/orders/{ref}/confirm`. Considerar middleware global (16.8–16.11).
+- [ ] S3 Los rate limits fallan abiertos si Redis no está (`return True`) y dan 500 si Redis lanza excepción (16.12).
+- [ ] S4 IP del cliente inconsistente: `support_tickets` usa la primera entrada de `X-Forwarded-For` (falsificable);
+  `analytics` y `found_requests` usan `request.client.host` (IP del proxy). Unificar con `utils.client_ip` (16.13).
+- [ ] S5 Uploads: acepta `image/svg+xml` y lo sirve con ese tipo (XSS almacenado en el dominio de la API), valida solo el
+  `Content-Type` declarado, extensión sin validar, lee todo el archivo a memoria antes de comprobar tamaño (16.14–16.17).
+
+**Media**
+- [ ] S6 Sin cabeceras de seguridad en el frontend (solo HSTS): CSP, nosniff, frame-ancestors, Referrer-Policy, Permissions-Policy (16.5).
+- [ ] S7 `/docs` y `/openapi.json` públicos en producción (16.6).
+- [ ] S8 CORS con métodos y cabeceras `*` más credenciales; confirmar lista de orígenes (16.7). Ya figuraba en `docs/SECURITY.md`.
+- [ ] S9 `GET /shop/orders/{reference}` público: limitar tasa y reducir campos devueltos (16.11).
+- [ ] S10 Pool de BD pequeño y sin timeouts: añadir timeout de petición, tope de concurrencia en OCR/IA y `statement_timeout` (16.23–16.24).
+- [ ] S11 Sin tope de tamaño de cuerpo ni `max_length` en esquemas públicos (órdenes, waitlist, tickets) (16.25).
+- [ ] S12 `GET /upload/files/{key}` público con caché `immutable`: confirmar que no sirve documentos sensibles (cédula, tarjeta de propiedad).
+
+**Baja**
+- [ ] S13 CI solo en `master` y sin `pip-audit`, `npm audit`, Bandit, Semgrep, Gitleaks ni Trivy (16.1–16.4).
+- [ ] S14 `requirements.txt` sin versiones fijas ni lockfile con hashes.
+- [ ] S15 `uvicorn` sin `--proxy-headers`, sin `--limit-concurrency` y con un solo worker.
+- [ ] S16 Una sola cuenta admin (`ADMIN_USER_ID`): exigir MFA en Supabase para ella.
 
 ## Antes y después de publicar la campaña (2026-10-02) — lista de seguimiento
 
@@ -58,6 +129,40 @@ enlazadas; esto es solo el orden. Marcar `[x]` y fecha al cerrar cada uno.
   entra volando en "Cómo funciona" (cortado a propósito al inicio de la animación) y el anillo recortado arriba en las imágenes del hero.
 - [ ] La campana de Admin consulta cada 60 s (no es push al celular). Si se quiere aviso inmediato fuera de la página: WhatsApp o push.
 - [ ] Backend local en redes sin IPv6 (hotspot): usar el pooler de Supabase, ver `docs/DEPLOY.md`.
+- [ ] **Hallazgos de la revisión del 2026-10-15** (código ya corregido: km 0 retroactivo y backfill sin verificar; ver
+  `docs/PLAN_VINCULO_TALLER_CONDUCTOR.md` §4.5). Siguen abiertos, de mayor a menor:
+  - `GET /maintenance/vehicle/{id}/latest` y el listado ordenan por kilometraje, no por fecha: con servicios traídos (km 0) o
+    historial anterior, "el último servicio" puede no ser el más reciente. Ordenar por fecha con el km como desempate y revisar
+    qué pantallas dependen del orden actual.
+  - `workshop_links._check_rate` responde `True` si no hay Redis (hoy no hay `REDIS_URL` en Railway): el límite de los endpoints
+    nuevos tampoco actúa. Se cierra con el punto B de arriba.
+  - `candidates()` carga todos los talleres publicados y los compara en memoria con cada servicio (O(n·m)): filtrar por ciudad en
+    SQL cuando haya cientos de talleres.
+  - No hay bloqueo de concurrencia al registrar km: dos servicios simultáneos pueden saltarse la regla de monotonía (raro).
+  - `docs/PENDIENTES.md` tiene más de 2.200 líneas y se volvió un diario: archivar las "pasadas ejecutadas" en un histórico y
+    dejar solo lo abierto. Además dice que `scripts/delete_test_user.sql` "no está versionado, hay que borrarlo", pero el commit
+    `8238771` lo versionó: decidir y corregir.
+  - `ServiceFormModal.tsx` (1.385 líneas) y `app/app/page.tsx` (1.978) son difíciles de tocar con seguridad: extraer hooks y
+    subcomponentes de forma gradual, al tocar cada uno.
+  - Regenerar las dos cuentas de pruebas (`taller.pruebas@` y `pruebas.features@`): sus contraseñas se pegaron en una
+    conversación el 2026-10-15.
+  - Ver en un teléfono real / navegador: el asistente sin combustible, los filtros con nombre largo a 320 px, el topbar fijo
+    (incluido el tour guiado) y la pantalla de espera de la autenticación (casos 15.29 y 15.30).
+- [ ] **Componentes fluidos en vez de reglas móviles aparte** (evaluación 2026-10-15, pedida por el usuario; regla en
+  `docs/DESIGN_GUIDELINES.md`). Medición del código: `globals.css` 521 líneas con 20 `@media` y 110 `!important`; 235
+  atributos `data-r` (136 en landings de marketing); 73 rejillas fijas (`'1fr 1fr'`/`repeat(N,...)`) frente a 39
+  `auto-fit/minmax`; 35 anchos fijos >= 300 px. Orden propuesto, de más a menos rentable:
+  1. Formularios con rejilla de 2 columnas (`PerfilModule` 7, `ServiceFormModal` 5, `DocumentosModule` 4, `CartModal` 4,
+     `OrdenesModule`/`InventarioModule`/`CitasModule` 3 c/u, `AddVehicleModal` 3): pasar a
+     `repeat(auto-fit, minmax(min(100%, 200px), 1fr))`. Mecánico y de riesgo bajo; elimina las clases `.grid2`/`.regGrid`.
+  2. Cascarón común de modal/panel: `max-width: min(Npx, 100vw - 32px)`, `max-height: 100dvh`, scroll interno. Quita
+     anchos fijos (hoy 7 en `app/page.tsx`, 3 en `OnboardingWizard`) y reglas por panel.
+  3. Rellenos y títulos con `clamp()` en lugar de reglas por breakpoint.
+  4. NO tocar por ahora las landings (`taller/(landing)`, `LandingSections`): son arte dirigido por breakpoint y el riesgo
+     visual es alto frente al ahorro.
+  Antes de convertir cada grupo, capturar 320/390/1280 en claro y oscuro (Playwright ya está en `scripts/qa_suite14`) y
+  comparar: un `minmax` mal elegido cambia el número de columnas en escritorio. Aplicar además la regla "al tocar un
+  componente, déjalo fluido".
 
 **Ejecutado en la duodécima pasada** (auditoría técnica pedida por el usuario — "evalúa las
 funciones repetidas, revisa cobertura de tests, por qué hay archivos de DB sueltos, organiza
@@ -656,6 +761,36 @@ continuo que edite solo; cualquier edición automática se revisa en un diff ant
 
 **Skills relacionadas:** `capture-thinking` (en `~/Documents/mis-skills/`) ahora decide si un patrón
 reusable va a la skill portable `andres-app-blueprint` o a los docs de este repo.
+
+## Vínculo taller-conductor por QR y mapa de la ficha pública (2026-10-14, en local, sin commitear)
+
+Diseño, fases y pruebas en `docs/PLAN_VINCULO_TALLER_CONDUCTOR.md`; casos manuales en la Suite 15 de `docs/PRUEBAS_FUNCIONALES.md`.
+Fases 0, 0b, 1, 2, 3, 4 y 5 **escritas** (backend `routers/workshop_links.py`, `services/workshop_links.py`, `services/geocoding.py`; frontend
+`WorkshopLocationEditor`, `WorkshopLinkPrompt`, `ClaimLinkModal`, `/vincular/[token]`), detrás de `WORKSHOP_LINKS_ENABLED` (apagado).
+- [x] **Migración 074 aplicada** a la base compartida (2026-10-14, por el dueño) y `claimed_workshop_id` ya está en el modelo `MaintenanceRecord`.
+- [x] `backend/scripts/qa_workshop_links_e2e.py` contra la base real con un backend local aparte (`WORKSHOP_LINKS_ENABLED=true`, puerto 8001): **30/30**
+  (escenarios A, B, C, fase 4, fase 5, seguridad, núcleo intacto) + pin 0b (geocodifica al crear, rechaza fuera de Colombia, no se mueve al guardar otra cosa,
+  se limpia si la dirección nueva no se ubica). Cuentas de prueba desechables, borradas al terminar.
+- [ ] Falta la parte de **interfaz** de la Suite 15 (casos 15.1 a 15.9, 15.14, 15.17 en navegador real): el E2E cubre el API, no los modales ni `/vincular/[token]`.
+- [ ] Correr `backend/scripts/geocode_workshops.py --apply` en producción tras el deploy (hoy el único taller registrado no tiene dirección).
+- [ ] El taller puede editar dirección/ciudad solo desde el editor de ubicación del Perfil; confirmar que no falta ese campo en otro flujo.
+- [ ] Encender el flag en producción solo después de la Suite 15 y del push (a `develop` + PR a `master`).
+- [x] **Hueco de seguridad del vínculo por placa** (`POST /api/workshops/me/vehicles/{id}/link` sin consentimiento): cerrado en la fase 4 **solo con el flag
+  encendido**; con el flag apagado sigue igual que antes. Verificarlo en la Suite 15 (caso 15.12).
+- [ ] Decisión abierta futura: ofrecer sellos de fidelidad por taller como beneficio visible del vínculo.
+
+## Panel del taller y ficha pública del taller (2026-10-14, en local, sin commitear) — solo modo TALLER
+
+Detalle completo en `docs/PLAN_PANEL_TALLER_FICHA_PUBLICA.md` (no confundir con la ficha del vehículo del conductor, `/nfc/[token]`). Casos manuales: Suite 15, 15.18 a 15.26.
+Hecho y verificado en navegador real con cuentas desechables: panel de perfil como panel lateral derecho, campos del registro editables, ficha pública en un card con QR,
+catálogo con fotos (migración 075 **aplicada** el 2026-10-14) y carrusel, mapa incrustado, catálogo y ubicación al mismo nivel, cuenta de taller no se vincula como cliente (403).
+- [ ] **Decisión: responder reseñas.** Se retiró la pestaña Reseñas del panel; hoy nadie puede escribir `manager_response` desde la interfaz. Propuesta: botón "Responder" en la ficha, solo para el dueño con sesión.
+- [ ] **Decisión: cerrar `POST /api/workshops/me/reviews`.** Sigue abierto: un taller podría crear reseñas propias por API e inflar su puntaje (recomendado cerrarlo, con su prueba).
+- [ ] Verificar con un conductor real que el aviso de calificar al taller se muestra (la base tiene la encuesta `workshop_service`, el código busca `workshop_service_registered`; 0 reseñas en la base).
+- [ ] Probar a mano lo que no cubrió la verificación automática: subir foto desde el selector del panel, límite de 5 MB y archivo que no es imagen, deslizar carrusel y mapa en celular real, aspecto con fotos reales de un taller, escanear el QR con un lector.
+- [ ] El taller de pruebas (`TLR-UYA5K`) no tiene pin guardado: ubicarlo en Perfil > Ubicación para ver el mapa en su ficha.
+- [ ] Horas estimadas del catálogo se muestran como `0.00h` en el panel (formato, anterior a esta sesión).
+- [ ] Commit local y push **solo con autorización fresca**, siempre a `develop` + PR a `master`. Antes de encender `WORKSHOP_LINKS_ENABLED` en producción: Suite 15 completa.
 
 ## 🔴 Prioridad alta
 
@@ -2203,3 +2338,8 @@ Contexto completo en `docs/MODELO_OPERATIVO.md`. Pendiente de decidir o de hacer
 - **Moto sin clase:** los perfiles de motos guardadas antes del arreglo pueden tener `body_type = 'Auto'`.
 - **Cards de Inicio ocultas:** Combustible, Frenos, Refrigeración y Transmisión solo aparecen tras un registro
   de ese tipo (se llega por la card "Otro").
+- **Observaciones de la corrida de la Suite 14 (2026-10-05):** (a) el campo "Tipo" del perfil sigue siendo un
+  `<select>` nativo (la guía de estilo pide un desplegable temático; "Año" sí puede quedar nativo); (b) el límite
+  "anterior al alta" del historial anterior usa la fecha UTC del alta: cerca de la medianoche (UTC-5) un servicio
+  con la fecha local de hoy puede pasar; (c) faltan por probar con datos reales el OCR de la tarjeta (A3) y el
+  pedido de prueba `@carlink.internal` en la analítica (E4).

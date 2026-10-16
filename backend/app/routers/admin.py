@@ -26,6 +26,7 @@ from app.models.models import (
     Partner,
     Profile,
     Vehicle,
+    Workshop,
 )
 from app.schemas.schemas import (
     NfcAccessLogOut,
@@ -547,13 +548,20 @@ async def create_partner(
     return PartnerCreateOut(id=partner.id, name=partner.name, api_key=api_key, quota_total=partner.quota_total)
 
 
+async def _partner_out(partner: Partner, db: AsyncSession) -> PartnerOut:
+    code = None
+    if partner.workshop_id:
+        code = (await db.execute(select(Workshop.code).where(Workshop.id == partner.workshop_id))).scalar()
+    return PartnerOut.model_validate(partner, from_attributes=True).model_copy(update={"workshop_code": code})
+
+
 @router.get("/partners", response_model=list[PartnerOut])
 async def list_partners(
     admin: Annotated[str, Depends(get_current_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await db.execute(select(Partner).order_by(Partner.created_at.desc()))
-    return result.scalars().all()
+    return [await _partner_out(p, db) for p in result.scalars().all()]
 
 
 @router.patch("/partners/{partner_id}", response_model=PartnerOut)
@@ -585,9 +593,22 @@ async def update_partner(
             await _set_partner_whitelist_suspension(partner.id, db, suspend=False)
     if body.notes is not None:
         partner.notes = body.notes
+    if body.workshop_code is not None:
+        code = body.workshop_code.strip().upper()
+        if not code:
+            partner.workshop_id = None
+        else:
+            # Solo un concesionario ya verificado puede consignar llaveros, y cada negocio tiene a lo sumo un partner.
+            ws = (await db.execute(select(Workshop).where(Workshop.code == code))).scalar_one_or_none()
+            if ws is None or ws.business_kind != "concesionario" or not ws.is_verified:
+                raise HTTPException(status_code=422, detail="workshop_not_eligible")
+            taken = (await db.execute(select(Partner.id).where(Partner.workshop_id == ws.id, Partner.id != partner.id))).first()
+            if taken:
+                raise HTTPException(status_code=409, detail="workshop_already_linked")
+            partner.workshop_id = ws.id
     await db.flush()
     await db.refresh(partner)
-    return partner
+    return await _partner_out(partner, db)
 
 
 @router.get("/partners/{partner_id}/batches", response_model=list[PartnerBatchOut])

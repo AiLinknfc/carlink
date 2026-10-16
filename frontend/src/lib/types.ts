@@ -211,6 +211,14 @@ export interface Workshop {
   // Panel de negocio (migración de tallerpro/, ver docs/PLAN_MIGRACION_TALLERPRO.md)
   slogan: string;
   workshop_type: string;
+  business_kind?: string;
+  /** Solo en GET/PUT /workshops/me (dueño): qué funciones del panel incluye su tipo de negocio. */
+  capabilities?: string[];
+  can_certify_odometer?: boolean;
+  access_plan?: string;
+  access_until?: string | null;
+  /** 'active' o 'expired' (restringido, solo lectura). */
+  access_status?: 'active' | 'expired';
   email: string;
   business_hours: string;
   specialties: string[];
@@ -223,16 +231,21 @@ export interface Workshop {
   social_facebook: string;
   social_website: string;
   social_whatsapp: string;
+  /** Solo en GET/PUT /workshops/me: si el correo sale en la ficha pública (por defecto sí). */
+  show_email_public?: boolean;
+  /** Pin del mapa de la ficha pública: lo geocodifica el servidor y el taller lo confirma/arrastra (Perfil). */
+  latitude: number | null;
+  longitude: number | null;
   rating: number;
   created_at: string;
 }
 
 /** Ficha pública del taller (GET /workshops/{code}) — Workshop + sub-recursos
  * ya resueltos por el backend en un solo response. */
-export interface WorkshopPublic extends Workshop {
-  mechanics: WorkshopMechanic[];
-  service_items: WorkshopServiceItem[];
-  reviews: WorkshopReview[];
+export interface WorkshopPublic extends Pick<Workshop, 'code' | 'name' | 'slogan' | 'city' | 'address' | 'phone' | 'email' | 'business_hours' | 'specialties' | 'logo_url' | 'social_instagram' | 'social_facebook' | 'social_website' | 'social_whatsapp' | 'latitude' | 'longitude' | 'is_verified' | 'rating'> {
+  // Lista blanca del backend: sin owner_id, NIT, impuestos, sellos ni mecánicos.
+  service_items: Omit<WorkshopServiceItem, 'workshop_id' | 'created_at'>[];
+  reviews: Omit<WorkshopReview, 'workshop_id' | 'source' | 'submitted_by_user_id'>[];
 }
 
 export interface WorkshopMechanic {
@@ -255,6 +268,10 @@ export interface WorkshopServiceItem {
   estimated_price: number;
   estimated_hours: number;
   description: string;
+  /** Foto del servicio (archivo propio, /api/upload/files/...). Vacío = sin foto. */
+  photo_url?: string;
+  /** Hasta 4 por taller; la ficha pública los muestra en un carrusel. Necesita foto. */
+  is_featured?: boolean;
   created_at: string;
 }
 
@@ -741,6 +758,8 @@ export type WorkshopServiceItemCreate = {
   estimated_price?: number;
   estimated_hours?: number;
   description?: string;
+  photo_url?: string;
+  is_featured?: boolean;
 };
 export type WorkshopServiceItemUpdate = Partial<WorkshopServiceItemCreate>;
 
@@ -1082,6 +1101,8 @@ export interface PartnerAdminView {
   quota_used: number;
   status: 'active' | 'suspended';
   notes: string;
+  /** TLR-XXXXX del concesionario que consigna estos llaveros (si el admin lo vinculó). */
+  workshop_code?: string | null;
   created_at: string;
 }
 
@@ -1107,6 +1128,9 @@ export interface ShopOrderDetail {
   plate_city: string;
   quantity: number;
   amount_in_cents: number;
+  /** Código de alianza usado y descuento aplicado (centavos); amount_in_cents ya es el monto cobrado. */
+  alliance_code?: string;
+  discount_cents?: number;
   currency: string;
   wompi_transaction_id: string | null;
   created_at: string;

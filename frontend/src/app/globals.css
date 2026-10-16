@@ -241,6 +241,8 @@ select option { background: #141414; color: #f5f3ec; }
 }
 
 /* Logo CarLink del topbar movil (solo se muestra en <= 900px) */
+/* Franja de fondo del topbar movil: oculta en escritorio, fija arriba en <= 900px */
+.mobile-topbar-bar { display: none; }
 .mobile-topbar-logo { display: none; position: absolute; top: 14px; left: 14px; z-index: 17; height: 42px; align-items: center; gap: 4px; font-family: var(--font-display); font-size: 18px; letter-spacing: .01em; pointer-events: none; }
 
 @media (max-width: 900px) {
@@ -267,7 +269,15 @@ select option { background: #141414; color: #f5f3ec; }
   .topbar-nfc { order: 6 !important; }
   .topbar-scan { order: 7 !important; }
   .topbar-theme { order: 8 !important; }
-  .mobile-topbar-logo { display: flex !important; }
+  /* Topbar fijo en movil (2026-10-15): antes era absolute y desaparecia al hacer scroll (habia que subir para ver el
+     perfil, el carrito o las notificaciones). Se fija con las mismas medidas; el relleno de 84px del contenido ya
+     reserva su altura. Z-index por debajo de paneles y modales (72+). */
+  .topbar-actions, .sidebar-wrap .topbar-actions { position: fixed !important; z-index: 18 !important; }
+  .mobile-topbar-logo { display: flex !important; position: fixed !important; z-index: 18 !important; }
+  .mobile-topbar-bar {
+    display: block; position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 16; pointer-events: none;
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+  }
   .topbar-actions .action-btn-text { display: none !important; }
   .service-chips-grid { grid-template-columns: 1fr !important; }
   /* Paneles: ajustados al contenido, centrados, con scroll si superan la pantalla.

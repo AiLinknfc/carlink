@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ServiceTypeIcon } from '@/lib/icons_new'
 import { proxyUrl } from '@/lib/upload'
+import { formatLocalDate } from '@/lib/dates'
 
 /* Stack de historial, estilo/efectos adaptados 1:1 de una referencia de "wallet" de tarjetas
    apiladas (stage fijo de pantalla completa, una tarjeta activa al frente, el resto se acomoda
@@ -88,7 +89,7 @@ function CardFace({ r, theme, onEdit, shineRef }: { r: any; theme: { bg: string;
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
           <span style={{ fontSize: 12, color: theme.sub, fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {r.date ? new Date(r.date).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+            {r.date ? formatLocalDate(r.date, 'es', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
           </span>
           {/* Registrado solo por un taller (docs/PLAN_FACTURACION_AUTOMATICA.md
               Paso 3) — nunca editable, ni siquiera por el dueño del vehículo. */}

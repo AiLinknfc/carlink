@@ -6,13 +6,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopNotificationLog
 from app.schemas.schemas import WorkshopNotificationCreate, WorkshopNotificationOut
 from app.services.email import send_generic_email
 
-router = APIRouter(prefix="/workshops/me/notifications", tags=["workshop-notifications"])
+router = APIRouter(prefix="/workshops/me/notifications", tags=["workshop-notifications"], dependencies=[Depends(workshop_gate("notificaciones"))])
 
 # Únicamente email tiene envío real hoy (usa services/email.py, ya configurado
 # en producción). WhatsApp/SMS quedan registrados como 'simulado' hasta que se

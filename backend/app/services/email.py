@@ -450,16 +450,38 @@ def send_workshop_application_ack_email(to_email: str, contact_name: str, busine
     return _send_email(to_email, subject, _email_shell(body), log_label="workshop application ack email")
 
 
-def send_workshop_application_approved_email(to_email: str, contact_name: str, business_name: str) -> bool:
-    link = f"{FRONTEND_URL}/register?mode=empresa"
-    subject = "CarLink — Tu postulación fue aprobada"
+_KIND_LABEL = {"taller": "taller", "cda": "centro de diagnóstico automotor", "concesionario": "concesionario", "compraventa": "compraventa", "repuestos": "negocio de repuestos"}
+
+
+def send_workshop_application_approved_email(
+    to_email: str, contact_name: str, business_name: str, invite_url: str | None = None,
+    business_kind: str = "taller", expires_days: int = 14, grant_plan: str = "founder", grant_days: int = 365,
+) -> bool:
+    """Aviso de registro exitoso: validamos los datos y puede continuar creando su cuenta en la app. El enlace es
+    personal, de un solo uso y vence; sin él (reenvío manual) el correo apunta al registro general."""
+    link = invite_url or f"{FRONTEND_URL}/register?mode=empresa"
+    kind = _KIND_LABEL.get(business_kind, "negocio")
+    if grant_plan == "convenio":
+        access = "Tu acceso va por convenio con CarLink, sin mensualidad."
+    else:
+        months = round(grant_days / 30)
+        access = (f"Tu acceso es <strong>gratuito durante {months} {'mes' if months == 1 else 'meses'}</strong>, "
+                  "contados desde el día en que crees tu cuenta." if grant_days >= 45 else
+                  f"Tu acceso es gratuito durante {grant_days} días, contados desde el día en que crees tu cuenta.")
+    subject = "CarLink — Tu registro fue exitoso"
     body = f"""
-        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Bienvenido a la red, {_esc(contact_name)}!</h2>
+        <h2 style="font-size: 18px; color: #111; margin: 0 0 12px;">¡Registro exitoso, {_esc(contact_name)}!</h2>
         <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 16px;">
-          La postulación de <strong>{_esc(business_name)}</strong> fue aprobada. El último paso es crear
-          tu cuenta de taller con el mismo NIT para activar tu panel.
+          Revisamos los datos de <strong>{_esc(business_name)}</strong> y tu postulación como {_esc(kind)} fue
+          <strong>aprobada</strong>. Ya puedes continuar: crea tu cuenta en la app con el mismo NIT y completa
+          el resto de la información de tu negocio (perfil, ubicación, logo y datos de contacto).
         </p>
-        <a href="{link}" style="display:inline-block;background:#F5C518;color:#111;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Crear mi cuenta de taller</a>
+        <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 16px;">{access}</p>
+        <a href="{link}" style="display:inline-block;background:#F5C518;color:#111;font-weight:800;padding:12px 22px;border-radius:10px;text-decoration:none;">Continuar mi registro</a>
+        <p style="font-size: 12.5px; color: #888; line-height: 1.6; margin: 16px 0 0;">
+          Este enlace es personal y solo sirve una vez; vence en {expires_days} días. Si vence o no te funciona,
+          escríbenos a business@carlink.com.co y te enviamos uno nuevo.
+        </p>
     """
     return _send_email(to_email, subject, _email_shell(body), log_label="workshop application approved email")
 

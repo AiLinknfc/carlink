@@ -9,12 +9,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import Workshop, WorkshopIssuedDocument
 from app.schemas.schemas import WorkshopDocumentCreate, WorkshopDocumentOut
 
-router = APIRouter(prefix="/workshops/me/documents", tags=["workshop-documents"])
+router = APIRouter(prefix="/workshops/me/documents", tags=["workshop-documents"], dependencies=[Depends(workshop_gate("documentos"))])
 
 
 @router.get("", response_model=list[WorkshopDocumentOut])

@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import WorkshopReview
 from app.schemas.schemas import WorkshopReviewCreate, WorkshopReviewOut, WorkshopReviewRespond
 from app.services.reviews import recalculate_workshop_rating
 
-router = APIRouter(prefix="/workshops/me/reviews", tags=["workshop-reviews"])
+router = APIRouter(prefix="/workshops/me/reviews", tags=["workshop-reviews"], dependencies=[Depends(workshop_gate("resenas"))])
 
 
 @router.get("", response_model=list[WorkshopReviewOut])

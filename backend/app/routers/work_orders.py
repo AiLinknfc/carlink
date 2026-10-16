@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.services.workshop_gate import workshop_gate
 from app.database import get_db
 from app.dependencies import get_current_user, verify_workshop
 from app.models.models import (
@@ -39,7 +40,7 @@ from app.schemas.schemas import (
     WorkOrderUpdate,
 )
 
-router = APIRouter(prefix="/workshops/me/work-orders", tags=["work-orders"])
+router = APIRouter(prefix="/workshops/me/work-orders", tags=["work-orders"], dependencies=[Depends(workshop_gate("ordenes"))])
 
 _ORDER_LOADS = (
     selectinload(WorkOrder.labor_items),
@@ -233,11 +234,14 @@ _INVENTORY_TO_PERSONA_PART_CATEGORY = {
 }
 
 
-async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, db: AsyncSession) -> None:
+async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, db: AsyncSession, retroactive: bool = False) -> None:
     """Historial + repuestos reemplazados del cliente — docs/PLAN_FACTURACION_AUTOMATICA.md
     Paso 3. Solo corre si el vehículo del taller está vinculado a una cuenta
     CarLink real (`workshop_vehicles.linked_vehicle_id`, ver
-    `workshop_clients.py` → `link_workshop_vehicle`). Idempotente por
+    `workshop_clients.py` → `link_workshop_vehicle`). `retroactive=True` lo usa el vinculo por QR
+    (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md) para traer ordenes ya entregadas: el registro lleva la fecha de la
+    orden y kilometraje 0 sin lectura de odometro (la orden no guarda el km de ese dia y el del vehiculo del
+    taller es el de hoy: usarlo inflaria el odometro del cliente). Idempotente por
     `source_work_order_id` — no duplica si la orden se re-guarda. El cliente
     nunca puede editar lo que esto crea (se filtra en el frontend por
     `workshop_id`/`source_work_order_id` presentes)."""
@@ -263,12 +267,13 @@ async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, d
             origin="workshop",
             service_type=order.category or "Servicio de taller",
             description=f"{order.symptoms or order.category or 'Servicio realizado'} (Orden {order.order_number})",
-            mileage=workshop_vehicle.mileage or 0,
+            mileage=0 if retroactive else (workshop_vehicle.mileage or 0),
             workshop=workshop.name,
             cost=order.final_total,
+            **({"date": (order.completed_date or order.entry_date).date()} if retroactive else {}),
         ))
         # Lectura de odómetro del servicio (migración 069), igual que en POST /maintenance.
-        if workshop_vehicle.mileage:
+        if workshop_vehicle.mileage and not retroactive:
             db.add(OdometerReading(
                 vehicle_id=linked_vehicle_id, mileage=workshop_vehicle.mileage,
                 source="service", maintenance_record_id=record_id,
@@ -300,10 +305,26 @@ async def _sync_client_records_if_linked(order: WorkOrder, workshop: Workshop, d
                 category=_INVENTORY_TO_PERSONA_PART_CATEGORY.get(inv.category, "Otros"),
                 part_number=inv.sku,
                 status="ok",
-                mileage_installed=workshop_vehicle.mileage or None,
+                mileage_installed=None if retroactive else (workshop_vehicle.mileage or None),
                 notes=f"Reemplazado por {workshop.name} — Orden {order.order_number}",
             ))
     await db.flush()
+
+
+async def backfill_linked_orders(workshop_vehicle: WorkshopVehicle, workshop: Workshop, db: AsyncSession) -> int:
+    """Trae al historial del cliente las ordenes ya entregadas y pagadas de este vehiculo del taller. Se usa
+    cuando el conductor acepta el vinculo. Idempotente (la sincronizacion es por `source_work_order_id`).
+    Devuelve cuantas ordenes elegibles habia."""
+    orders = (await db.execute(
+        select(WorkOrder).where(
+            WorkOrder.workshop_vehicle_id == workshop_vehicle.id,
+            WorkOrder.status == "Entregado",
+            WorkOrder.is_paid.is_(True),
+        )
+    )).scalars().all()
+    for order in orders:
+        await _sync_client_records_if_linked(order, workshop, db, retroactive=True)
+    return len(orders)
 
 
 async def _next_order_number(workshop_id: UUID, db: AsyncSession) -> str:

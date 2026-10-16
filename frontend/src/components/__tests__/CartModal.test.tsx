@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import CartModal from '../CartModal'
-import { apiPost } from '@/lib/api'
+import { apiGet, apiPost } from '@/lib/api'
 import { openWompiCheckout } from '@/lib/wompi'
 
 vi.mock('@/lib/analytics', () => ({ track: vi.fn() }))
@@ -171,5 +171,62 @@ describe('CartModal — total y pago', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pagar/ }))
     expect(await screen.findByText(/No pudimos conectar/)).toBeInTheDocument()
     expect(openWompiCheckout).not.toHaveBeenCalled()
+  })
+})
+
+describe('CartModal — código de alianza', () => {
+  const OK = { valid: true, reason: null, workshop_name: 'Frenos Duitama', discount_per_unit_cop: 7000, discount_cop: 7000, total_cop: 32900 }
+  beforeEach(() => { vi.clearAllMocks(); localStorage.clear() })
+  afterEach(() => cleanup())
+
+  const toPayment = () => { renderCart(); fillShipping(); fireEvent.click(goPayBtn()) }
+  const apply = (code: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /código de alianza/i }))
+    fireEvent.change(screen.getByLabelText('Código de alianza'), { target: { value: code } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+  }
+
+  it('sin código el total sigue siendo $39.900 y el campo está oculto hasta pedirlo', () => {
+    toPayment()
+    expect(screen.queryByLabelText('Código de alianza')).toBeNull()
+    expect(screen.getByRole('button', { name: /Pagar .*39\.900/ })).toBeInTheDocument()
+  })
+
+  it('un código válido muestra el descuento y rebaja el total', async () => {
+    vi.mocked(apiGet).mockResolvedValueOnce(OK)
+    toPayment(); apply('tlr-ab12c')
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pagar .*32\.900/ })).toBeInTheDocument())
+    expect(screen.getByText(/Descuento por alianza con Frenos Duitama/)).toBeInTheDocument()
+    expect(vi.mocked(apiGet).mock.calls[0][0]).toBe('/shop/alliance/TLR-AB12C?quantity=1')
+  })
+
+  it('manda solo el código al crear la orden, nunca el descuento ni el monto', async () => {
+    vi.mocked(apiGet).mockResolvedValueOnce(OK)
+    vi.mocked(apiPost).mockResolvedValueOnce({ ...CREATED, amount_in_cents: 3290000 })
+    vi.mocked(openWompiCheckout).mockResolvedValueOnce(undefined)
+    toPayment(); apply('TLR-AB12C')
+    await waitFor(() => screen.getByRole('button', { name: /Pagar .*32\.900/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Pagar/ }))
+    await waitFor(() => expect(openWompiCheckout).toHaveBeenCalled())
+    const [, body] = vi.mocked(apiPost).mock.calls[0] as [string, Record<string, unknown>]
+    expect(body.alliance_code).toBe('TLR-AB12C')
+    expect(body).not.toHaveProperty('discount')
+    expect(body).not.toHaveProperty('amount')
+    expect(vi.mocked(openWompiCheckout).mock.calls[0][0]).toMatchObject({ amountInCents: 3290000 })
+  })
+
+  it('un código inválido muestra el motivo y no cambia el total', async () => {
+    vi.mocked(apiGet).mockResolvedValueOnce({ valid: false, reason: 'invalid', discount_per_unit_cop: 0, discount_cop: 0, total_cop: 0 })
+    toPayment(); apply('TLR-ZZZZZ')
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/no existe o no está activo/))
+    expect(screen.getByRole('button', { name: /Pagar .*39\.900/ })).toBeInTheDocument()
+  })
+
+  it('prellena el código guardado del enlace ?ref= del aliado', async () => {
+    localStorage.setItem('carlink_alliance_ref', JSON.stringify({ code: 'TLR-AB12C', at: Date.now() }))
+    vi.mocked(apiGet).mockResolvedValue(OK)
+    toPayment()
+    await waitFor(() => expect(screen.getByLabelText('Código de alianza')).toHaveValue('TLR-AB12C'))
+    await waitFor(() => expect(screen.getByText(/Descuento por alianza/)).toBeInTheDocument())
   })
 })

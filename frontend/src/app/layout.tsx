@@ -3,6 +3,7 @@ import { AuthProvider } from '@/store/auth'
 import { ThemeProvider } from '@/store/theme'
 import PageViewTracker from '@/components/PageViewTracker'
 import MetaPixel from '@/components/MetaPixel'
+import AllianceRefCapture from '@/components/AllianceRefCapture'
 import './globals.css'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://carlink.com.co'
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
           <PageViewTracker />
+          <AllianceRefCapture />
           <MetaPixel />
         </ThemeProvider>
       </body>

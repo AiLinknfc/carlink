@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, verify_vehicle
-from app.models.models import MaintenanceRecord, OdometerReading
+from app.models.models import MaintenanceRecord, OdometerReading, Workshop
 from app.schemas.schemas import OdometerIn, OdometerStatus
+from app.services import dealer_vehicles as dealer_rules
 from app.services.cache import cache_invalidate_vehicle
 from app.services.maintenance_rules import RuleError, check_mileage
 from app.services.odometer import as_history, can_correct_initial, list_readings, reminder_state, utcnow
@@ -30,6 +31,19 @@ def _status(readings: list[OdometerReading], now) -> OdometerStatus:
     )
 
 
+async def _with_certification(db: AsyncSession, st: OdometerStatus, readings: list[OdometerReading]) -> OdometerStatus:
+    """Si la lectura más alta la certificó un aliado en la entrega (migración 080), dice quién y con qué peso. Nunca
+    se muestra como certificación si después hubo una lectura mayor del propio dueño o de un servicio."""
+    if not readings:
+        return st
+    top = max(readings, key=lambda r: (r.mileage, r.recorded_at))
+    if top.certification_kind and top.certified_by_workshop_id:
+        name = (await db.execute(select(Workshop.name).where(Workshop.id == top.certified_by_workshop_id))).scalar()
+        if name:
+            return st.model_copy(update={"certified_by": name, "certification_label": dealer_rules.label(top.certification_kind)})
+    return st
+
+
 async def _service_history(db: AsyncSession, vehicle_id: UUID) -> list[tuple]:
     rows = (
         await db.execute(
@@ -46,7 +60,8 @@ async def get_odometer_status(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await verify_vehicle(vehicle_id, user_id, db)
-    return _status(await list_readings(db, vehicle_id), utcnow())
+    readings = await list_readings(db, vehicle_id)
+    return await _with_certification(db, _status(readings, utcnow()), readings)
 
 
 @router.post("/vehicle/{vehicle_id}/initial", response_model=OdometerStatus, status_code=status.HTTP_201_CREATED)

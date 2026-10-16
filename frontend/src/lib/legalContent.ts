@@ -9,8 +9,8 @@
 
 import { SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP_DISPLAY } from './checkout'
 
-export const LEGAL_VERSION = '2.3'
-export const LEGAL_UPDATED = '1 de octubre de 2026'
+export const LEGAL_VERSION = '2.7'
+export const LEGAL_UPDATED = '19 de octubre de 2026'
 export const LEGAL_EMAIL = 'business@carlink.com.co'
 export const LEGAL_ADDRESS = 'Cl. 87 #20-42, Bogotá D.C., Colombia'
 
@@ -65,8 +65,12 @@ const PRIVACY: LegalDoc = {
         'Mantenimiento: servicios, piezas, gastos, fotos de evidencia, recibos y documentos que subas (SOAT, revisión técnico-mecánica, pólizas, facturas).',
         'Llavero NFC y QR: un código aleatorio y el registro de activación y escaneos. En el chip no se graba ningún dato personal, solo una dirección web con ese código.',
         'Compras: nombre, teléfono, dirección de envío, correo y referencia del pedido. Los datos de tu tarjeta o cuenta bancaria los procesa la pasarela de pagos; CarLink no los almacena.',
-        'Talleres y empresas: NIT, razón social, ubicación del taller y los datos de clientes, órdenes e inventario que el propio taller registra.',
-        'Postulaciones de talleres y negocios (landing /taller): nombre comercial, razón social, NIT, ciudad, dirección, datos de contacto (nombre, cargo, teléfono, correo), sitio web e Instagram, especialidades, volumen de atención, logo, foto de fachada y, si lo adjuntas, Cámara de Comercio o RUT. Guardamos la versión de este texto que aceptaste.',
+        'Revisiones técnico-mecánicas: si aceptas la constancia de un CDA, guardamos en tu vehículo el certificado, el resultado, la vigencia y el kilometraje de la revisión. Tu nombre y WhatsApp solo se comparten con el CDA si lo autorizas.',
+        'Fotos de vehículos en venta: las fotos que sube un concesionario o compraventa se muestran públicamente en la ficha del vehículo.',
+        'Entrega de vehículos: si un concesionario o compraventa te entrega un vehículo, guardamos su placa, marca, modelo, color y kilometraje de salida en tu cuenta. Tu nombre y WhatsApp solo se comparten con el vendedor si lo autorizas al recibir la entrega.',
+        'Código de alianza: si compras con el código de un negocio aliado, guardamos en el pedido qué negocio lo recomendó y el descuento aplicado. El negocio solo ve cantidades agregadas, no tus datos personales.',
+        'Talleres y empresas: NIT, razón social, ubicación del negocio y los datos de clientes, órdenes e inventario que el propio negocio registra.',
+        'Postulaciones de talleres y negocios (landing /taller): nombre comercial, razón social, NIT, ciudad, dirección y ubicación confirmada en el mapa, datos de contacto (nombre, cargo, teléfono, correo), sitio web e Instagram, tipo de negocio, especialidades o marcas, logo y, si lo adjuntas, Cámara de Comercio o RUT (que puede leerse automáticamente para prellenar el formulario). Guardamos la versión de este texto que aceptaste.',
         'Postulaciones de empleo (Trabaja con nosotros): nombre, correo, WhatsApp, área de interés, mensaje y, si la adjuntas, tu hoja de vida.',
         'Contacto por llavero encontrado: el mensaje y los datos de contacto que deja quien encuentra un llavero, que enviamos al dueño por correo.',
         'Analítica propia: un identificador aleatorio de navegador y de sesión, páginas visitadas, tipo de dispositivo y origen de la visita (UTM). No guardamos tu IP en la analítica. Si tienes la sesión iniciada, el evento puede asociarse a tu cuenta.',
@@ -115,7 +119,9 @@ const PRIVACY: LegalDoc = {
         'Acceso con cuenta de terceros: el inicio de sesión con tu cuenta de Google.',
         'Pagos: entidades y pasarelas de pago autorizadas, que procesan los datos de tu medio de pago.',
         'Mensajería y correo: canales de mensajería (por ejemplo WhatsApp) y correo electrónico para enviarte avisos de pedido, el código de activación y notificaciones del servicio, usando el teléfono o correo que nos diste.',
-        'Inteligencia artificial: un proveedor externo estructura el texto extraído de recibos, de la tarjeta de propiedad y de las consultas del Diagnóstico IA de los talleres. La imagen se lee en nuestro servidor; al proveedor de IA se envía solo el texto extraído, que puede incluir datos personales del documento.',
+        'Inteligencia artificial: un proveedor externo estructura el texto extraído de recibos, de la tarjeta de propiedad, de la Cámara de Comercio o el RUT que un negocio escanea al postularse y de las consultas del Diagnóstico IA de los talleres. La imagen se lee en nuestro servidor; al proveedor de IA se envía solo el texto extraído, que puede incluir datos personales del documento.',
+        'Registro de empresas (RUES): para validar una postulación consultamos el NIT en los datos abiertos del Registro Único Empresarial y Social (Confecámaras, datos.gov.co); de CarLink solo sale el NIT del negocio, nunca datos de personas.',
+        'Mapas: la dirección y la ciudad de un negocio se consultan en un servicio de mapas basado en OpenStreetMap para ubicarlas y mostrar su pin; no se envían datos de personas.',
         'Analítica y seguridad: herramientas propias de medición y control de abuso.',
       ],
       note: 'Estos proveedores pueden operar servidores fuera de Colombia, por lo que tus datos pueden ser transferidos o transmitidos al exterior (art. 26 de la Ley 1581). Con tu autorización, aceptas esa transferencia para las finalidades de esta política. El escaneo con IA lo inicias tú, documento por documento: si no quieres que el texto de un documento llegue a ese proveedor, no lo escanees. Puedes pedirnos por correo la lista actualizada de categorías y países de destino. También podemos entregar información a autoridades cuando la ley lo exija. CarLink no vende tus datos.',
@@ -318,10 +324,26 @@ const TERMS: LegalDoc = {
     {
       title: '3. Talleres y empresas',
       items: [
-        'Son cuentas separadas de las de persona y no necesitan llavero.',
-        'Incluyen un período de prueba de 7 días. Terminado, el acceso a los módulos del panel puede quedar restringido hasta contratar el plan que corresponda, que te informaremos antes con su precio y alcance.',
-        'El taller es responsable de la veracidad de la información que registra, de la relación con sus clientes y del tratamiento de los datos de estos (ver Política de Privacidad, sección 1).',
+        'Son cuentas separadas de las de persona y no necesitan llavero. Pueden ser talleres, centros de diagnóstico automotor (CDA), concesionarios, compraventas de vehículos y proveedores de repuestos. Cada tipo de negocio tiene las funciones del panel que le corresponden; por ejemplo, las órdenes de trabajo son solo para talleres.',
+        'Crear la cuenta requiere que primero postules tu negocio y que CarLink lo revise y lo apruebe. Podemos pedirte documentos (como el certificado de la Cámara de Comercio o el RUT), validar tu NIT contra el RUES (de forma automática como apoyo; la decisión es siempre de una persona) y tu información de contacto, y revalidarlos cada cierto tiempo. Algunas funciones, como certificar información de un vehículo, pueden exigir una verificación adicional y pueden retirarse si se usan mal.',
+        'Al aprobar tu postulación te informamos por correo el período de acceso gratuito que te concedemos (por ejemplo, 12 meses para los primeros talleres aliados) o, si aplica, que tu acceso va por convenio con CarLink. El período se cuenta desde el día en que creas tu cuenta con el enlace personal de invitación, que es de un solo uso y vence.',
+        'Terminado el período gratuito, tu cuenta pasa a modo de solo lectura: puedes consultar y exportar tu información, pero no crear ni editar registros hasta contratar el plan que corresponda. Te informaremos antes, con su precio y alcance, y no borramos tus datos por el solo vencimiento del período.',
+        'Los concesionarios y las compraventas pueden publicar la ficha de los vehículos que venden (con un enlace y un QR públicos que no muestran la placa completa ni datos de contacto) y entregarlos a un comprador. El vehículo solo pasa a la cuenta del comprador cuando éste lo recibe, y sus datos de contacto solo se comparten con el vendedor si él lo autoriza.',
+        'Los centros de diagnóstico automotor (CDA) habilitados por CarLink pueden registrar las revisiones técnico-mecánicas que realizan y entregar una constancia al propietario. La revisión solo se guarda en el vehículo de tu cuenta si tú aceptas la constancia con el enlace o QR que te entrega el CDA, y tu nombre y WhatsApp solo se comparten con él si lo autorizas. Un concesionario puede tener llaveros en consignación para entregarlos con cada vehículo; tú los activas con el código del empaque.',
+        'El kilometraje de salida que registra un aliado verificado y habilitado por CarLink se muestra con su origen: "Certificado por CDA" (el de la revisión técnico-mecánica), "Certificado por concesionario" o "Declarado por compraventa verificada". Es una declaración del vendedor, contrastada con el historial que CarLink tenga de la placa; no reemplaza la revisión del comprador ni un peritaje, y CarLink puede retirar el permiso de certificar si se usa mal.',
+        'Con tu autorización expresa, tu negocio puede mostrarse como aliado, y tu código de alianza puede entregarse a tus clientes para que compren llaveros con descuento (ver sección 3A).',
+        'El negocio es responsable de la veracidad de la información que registra, de la relación con sus clientes y del tratamiento de los datos de estos (ver Política de Privacidad, sección 1).',
         'Se requiere un NIT válido y una razón social real; el uso con datos falsos puede suspender la cuenta.',
+      ],
+    },
+    {
+      title: '3A. Código de alianza y descuentos por llavero',
+      items: [
+        'Los negocios aprobados reciben un código de alianza. Quien compre llaveros en la tienda de CarLink con ese código recibe un descuento por unidad; el valor vigente se muestra en el pedido antes de pagar y el total siempre lo calcula CarLink.',
+        'El descuento es un beneficio para el comprador, lo define CarLink, puede cambiar con aviso en la tienda y no es acumulable con otros descuentos. No aplica a pedidos ya pagados.',
+        'Pueden aplicarse límites mensuales por negocio. No está permitido usar el código para comprar para uno mismo, ni crear pedidos ficticios o repetidos para obtener el descuento; podemos anular los pedidos y suspender el código.',
+        'Cuando se usa un código, guardamos en el pedido qué negocio lo recomendó y el descuento aplicado. Al negocio solo le mostramos cantidades agregadas de sus recomendaciones, nunca datos personales del comprador.',
+        'Este descuento no crea una relación laboral, de agencia ni de representación entre CarLink y el negocio, y no genera comisión mientras no se acuerde por escrito.',
       ],
     },
     {

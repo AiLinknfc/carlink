@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { isBusinessAccount, isSubscriptionValid } from '@/lib/constants'
+import { canUse, tabAllowed } from '@/lib/capabilities'
+import { SUPPORT_WHATSAPP } from '@/lib/checkout'
 import { useMyWorkshop, useWorkshopNotifications } from '@/lib/hooks'
 import type { WorkOrder } from '@/lib/types'
 import Sidebar from '@/components/Sidebar'
-import BgParticles from '@/components/BgParticles'
-import SubscriptionExpiredCard from '@/components/SubscriptionExpiredCard'
+import { proxyUrl } from '@/lib/upload'
 import AdminModal from '@/components/admin/AdminModal'
 import ResumenModule from '@/components/negocio/ResumenModule'
 import ClientesModule from '@/components/negocio/ClientesModule'
@@ -17,6 +18,11 @@ import OrdenesModule from '@/components/negocio/OrdenesModule'
 import InventarioModule from '@/components/negocio/InventarioModule'
 import CitasModule from '@/components/negocio/CitasModule'
 import NotificacionesModule from '@/components/negocio/NotificacionesModule'
+import RevisionesModule from '@/components/negocio/RevisionesModule'
+import ConsignacionModule from '@/components/negocio/ConsignacionModule'
+import ResumenAliadoModule from '@/components/negocio/ResumenAliadoModule'
+import VehiculosVentaModule from '@/components/negocio/VehiculosVentaModule'
+import AllianceModule from '@/components/negocio/AllianceModule'
 import RentabilidadModule from '@/components/negocio/RentabilidadModule'
 import DocumentosModule from '@/components/negocio/DocumentosModule'
 import DiagnosticoIAModule from '@/components/negocio/DiagnosticoIAModule'
@@ -37,6 +43,8 @@ import PerfilModule from '@/components/negocio/PerfilModule'
    (igual que en tallerpro). "Perfil del taller" vive en NAV_ITEMS_ADMIN,
    como sección aparte, más el botón de perfil del topbar — dos accesos,
    igual que tallerpro. */
+const BADGE: Record<string, string> = { taller: 'TALLER', cda: 'CDA', concesionario: 'CONCESIONARIO', compraventa: 'COMPRAVENTA', repuestos: 'REPUESTOS' }
+
 const NAV_ITEMS = [
   { id: 'resumen', label: 'Mi taller', icon: <><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></> },
   { id: 'clientes', label: 'Clientes & Vehículos', icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></> },
@@ -44,14 +52,16 @@ const NAV_ITEMS = [
   { id: 'inventario', label: 'Inventario', icon: <><path d="M21 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"/><path d="M3 8l1.5 12a2 2 0 0 0 2 1.8h11a2 2 0 0 0 2-1.8L21 8"/><path d="M9 12h6"/></> },
   { id: 'citas', label: 'Citas', icon: <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></> },
   { id: 'notificaciones', label: 'Notificaciones', icon: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></> },
+  { id: 'ventas', label: 'Vehículos en venta', icon: <><path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/><path d="M5 12h14"/></> },
+  { id: 'revisiones', label: 'Revisiones RTM', icon: <><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></> },
+  { id: 'consignacion', label: 'Llaveros en consignación', icon: <><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3"/><path d="M16 7l3 3"/></> },
+  { id: 'alianza', label: 'Código de alianza', icon: <><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><rect x="2" y="7" width="20" height="5" rx="1"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></> },
   { id: 'rentabilidad', label: 'Rentabilidad', icon: <><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></> },
 ]
 
-// "Perfil del taller" salió de acá (queda solo detrás del botón de perfil
-// del topbar, ver showPerfilModal más abajo — antes duplicaba ese acceso).
-// El array queda vacío, pero se sigue pasando a <Sidebar> para que Admin NFC
-// (isAdmin) se agrupe en la sección "Administración" en vez de aparecer
-// suelto arriba, como sí pasa en /app persona.
+// "Perfil y configuración del taller" no vive en el sidebar: se abre como panel lateral derecho desde el botón
+// de perfil del topbar (igual que "Mi perfil" del conductor). El array queda vacío, pero se sigue pasando a
+// <Sidebar> para que Admin NFC (isAdmin) se agrupe en "Administración" en vez de aparecer suelto arriba.
 const NAV_ITEMS_ADMIN: never[] = []
 
 // Ícono del botón "Ficha pública" del topbar-actions — antes vivía en el
@@ -68,6 +78,26 @@ const FICHA_PUBLICA_ICON = <><rect x="3" y="3" width="7" height="7" rx="1" /><re
 // WorkshopProfileModal) — traducido a un h1 dinámico en vez de repetir
 // siempre lo mismo. Pedido del usuario 2026-08-06.
 const SECTION_HEADER: Record<string, { eyebrow: string; title: string; subtitle: string }> = {
+  revisiones: {
+    eyebrow: 'Revisión técnico-mecánica',
+    title: 'Revisiones RTM',
+    subtitle: 'Registra cada revisión, entrégale la constancia al propietario y avisa a tus clientes cuando se acerque el vencimiento.',
+  },
+  consignacion: {
+    eyebrow: 'Alianza con CarLink',
+    title: 'Llaveros en consignación',
+    subtitle: 'Los llaveros NFC que tienes para entregar con cada vehículo y cuántos ya activaron tus compradores.',
+  },
+  ventas: {
+    eyebrow: 'Inventario y entregas',
+    title: 'Vehículos en venta',
+    subtitle: 'Publica la ficha de cada vehículo con su QR y entrégalo al comprador con el kilometraje de salida.',
+  },
+  alianza: {
+    eyebrow: 'Alianza con CarLink',
+    title: 'Tu código de alianza',
+    subtitle: 'Comparte tu enlace con tus clientes: compran su llavero con descuento y tú ves cuántos recomendaste.',
+  },
   resumen: {
     eyebrow: 'Centro de control mecánico & operaciones',
     title: 'Control en tiempo real',
@@ -103,11 +133,6 @@ const SECTION_HEADER: Record<string, { eyebrow: string; title: string; subtitle:
     title: 'Reportes de rentabilidad & análisis financiero',
     subtitle: 'Métricas mensuales de ingresos, costos de repuestos, rendimiento de mano de obra y margen neto del taller.',
   },
-  perfil: {
-    eyebrow: 'Administración',
-    title: 'Perfil y configuración del taller',
-    subtitle: 'Personaliza la información oficial, catálogo de servicios, especialidades y equipo de mecánicos.',
-  },
 }
 
 const MODULE_INFO: Record<string, { title: string; blurb: string }> = {
@@ -119,15 +144,14 @@ const MODULE_INFO: Record<string, { title: string; blurb: string }> = {
   rentabilidad: { title: 'Rentabilidad', blurb: 'Ingresos, costos y margen calculados en tiempo real sobre tus órdenes.' },
   documentos: { title: 'Documentos', blurb: 'Facturas, garantías y certificados numerados, ligados a la orden de trabajo.' },
   ia: { title: 'Diagnóstico IA', blurb: 'Diagnóstico técnico preliminar a partir de los síntomas reportados.' },
-  perfil: { title: 'Perfil del taller', blurb: 'Mecánicos, catálogo de servicios, redes sociales y tarifa de IVA — alimenta tu ficha pública.' },
 }
 
 export default function NegocioPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const [activeTab, setActiveTab] = useState('resumen')
-  const { workshop, loading: workshopLoading } = useMyWorkshop()
+  const [activeTabRaw, setActiveTab] = useState('resumen')
+  const { workshop, loading: workshopLoading, refresh: refreshWorkshop } = useMyWorkshop()
   // Mismo criterio que /app/page.tsx — habilita "Admin NFC" dentro de
   // "Administración" (ver NAV_ITEMS_ADMIN más arriba).
   const isAdmin = !!user && user.id === process.env.NEXT_PUBLIC_ADMIN_USER_ID
@@ -202,7 +226,14 @@ export default function NegocioPage() {
 
   const subValid = isSubscriptionValid(profile?.subscription_status, profile?.trial_ends_at, profile?.created_at)
 
-  const navItems = NAV_ITEMS
+  // Menú según el tipo de negocio (capacidades que manda el backend) y acceso restringido (solo lectura).
+  // Un negocio que no es taller no tiene "taller": su inicio se llama "Mi negocio" y no muestra órdenes ni rentabilidad.
+  const isTaller = (workshop?.business_kind || 'taller') === 'taller'
+  const navItems = NAV_ITEMS.filter(i => tabAllowed(workshop, i.id)).map(i => (i.id === 'resumen' && !isTaller ? { ...i, label: 'Mi negocio' } : i))
+  const activeTab = tabAllowed(workshop, activeTabRaw) ? activeTabRaw : 'resumen'
+  const restricted = workshop?.access_status ? workshop.access_status === 'expired' : !subValid
+  const canOrders = canUse(workshop, 'ordenes')
+  const canAi = canUse(workshop, 'diagnostico_ia')
 
   if (authLoading || !user) {
     return <div style={{ minHeight: '100vh', background: pageBg }} />
@@ -230,7 +261,6 @@ export default function NegocioPage() {
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: pageBg, color: rootTextColor, display: 'flex' }}>
-      <BgParticles theme={theme} />
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: vignetteBg }} />
       <Sidebar
         activeTab={activeTab}
@@ -243,6 +273,8 @@ export default function NegocioPage() {
         accountType={profile?.account_type || undefined}
         theme={theme}
         subscriptionStatus={profile?.subscription_status}
+        subscriptionPlan={profile?.subscription_plan}
+        accountBadge={BADGE[workshop?.business_kind || 'taller']}
         trialEndsAt={profile?.trial_ends_at}
         profileCreatedAt={profile?.created_at}
       />
@@ -269,7 +301,7 @@ export default function NegocioPage() {
               )}
             </button>
 
-            <button onClick={() => setShowDiagnosticoModal(true)} title="Diagnóstico IA"
+            {canAi && <button onClick={() => setShowDiagnosticoModal(true)} title="Diagnóstico IA"
               style={topBtn()}
               onMouseEnter={topBtnHover}
               onMouseLeave={topBtnLeave}>
@@ -279,14 +311,14 @@ export default function NegocioPage() {
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" />
               </svg>
-            </button>
+            </button>}
 
-            <button onClick={() => { setActiveTab('ordenes'); setNuevaOrdenSignal(s => s + 1) }} title="Nueva orden de trabajo"
+            {canOrders && !restricted && <button onClick={() => { setActiveTab('ordenes'); setNuevaOrdenSignal(s => s + 1) }} title="Nueva orden de trabajo"
               style={topBtn()}
               onMouseEnter={topBtnHover}
               onMouseLeave={topBtnLeave}>
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
+            </button>}
 
             {/* Antes era un tab del sidebar ("Ficha Digital & QR") — se movió
                 acá y se sacó "QR" del texto (el QR en sí vive dentro de la
@@ -302,8 +334,10 @@ export default function NegocioPage() {
 
             <button onClick={() => setShowPerfilModal(true)} className="topbar-profile" title="Perfil y configuración del taller"
               style={{ display: 'flex', alignItems: 'center', gap: 9, height: 42, padding: '0 14px 0 6px', borderRadius: 999, border: `1px solid ${profileBtnBorder}`, background: glassBg, backdropFilter: 'blur(12px)', color: profileBtnColor, cursor: 'pointer', transition: 'all .16s' }}>
-              <span style={{ width: 30, height: 30, borderRadius: '50%', background: '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
-                {(workshop.manager_name || workshop.name || 'T').charAt(0).toUpperCase()}
+              <span style={{ width: 30, height: 30, borderRadius: '50%', background: workshop.logo_url ? '#fff' : '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, overflow: 'hidden' }}>
+                {workshop.logo_url
+                  ? <img src={proxyUrl(workshop.logo_url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 3, boxSizing: 'border-box' }} />
+                  : (workshop.manager_name || workshop.name || 'T').charAt(0).toUpperCase()}
               </span>
               <span className="action-btn-text" style={{ fontSize: 13, fontWeight: 600 }}>{workshop.manager_name || workshop.name}</span>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
@@ -313,25 +347,36 @@ export default function NegocioPage() {
 
         <div style={{ marginBottom: 24, animation: 'textIn .5s .04s both' }} key={activeTab}>
           <div style={{ fontSize: 12, letterSpacing: '.24em', textTransform: 'uppercase', fontWeight: 700, color: '#F5C518' }}>
-            {SECTION_HEADER[activeTab]?.eyebrow || 'Panel de negocio'}
+            {activeTab === 'resumen' && !isTaller ? 'Tu negocio en CarLink' : SECTION_HEADER[activeTab]?.eyebrow || 'Panel de negocio'}
           </div>
           <h1 style={{ fontFamily: 'var(--font-ui)', fontSize: 'clamp(22px,2.6vw,32px)', fontWeight: 800, letterSpacing: '-.02em', margin: '2px 0 4px' }}>
-            {workshopLoading ? 'Cargando…' : SECTION_HEADER[activeTab]?.title || workshop?.name || 'Mi negocio'}
+            {workshopLoading ? 'Cargando…' : activeTab === 'resumen' && !isTaller ? (workshop?.name || 'Mi negocio') : SECTION_HEADER[activeTab]?.title || workshop?.name || 'Mi negocio'}
           </h1>
           <p style={{ color: textMuted, margin: 0, fontSize: 13.5, maxWidth: '64ch', lineHeight: 1.5 }}>
-            {SECTION_HEADER[activeTab]?.subtitle || (workshop?.code && (
+            {(activeTab === 'resumen' && !isTaller ? undefined : SECTION_HEADER[activeTab]?.subtitle) || (workshop?.code && (
               <>Código público <b style={{ color: rootTextColor }}>{workshop.code}</b>{workshop.city ? ` · ${workshop.city}` : ''}</>
             ))}
           </p>
         </div>
+
+        {restricted && workshop && (
+          <div role="status" style={{ marginBottom: 20, padding: '14px 18px', borderRadius: 14, background: 'rgba(255,77,106,0.08)', border: '1px solid rgba(255,77,106,0.28)', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: '#ff4d6a' }}>Tu acceso terminó: modo solo lectura</div>
+              <div style={{ fontSize: 13, color: textMuted, marginTop: 3, lineHeight: 1.5 }}>Puedes consultar y exportar tu información, pero no crear ni editar registros hasta renovar tu plan.</div>
+            </div>
+            <a href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(`Hola, quiero renovar el acceso de ${workshop.name} (${workshop.code}).`)}`} target="_blank" rel="noopener noreferrer"
+              style={{ padding: '10px 18px', borderRadius: 11, background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 13.5, textDecoration: 'none', whiteSpace: 'nowrap' }}>Renovar mi plan</a>
+          </div>
+        )}
 
         {!workshopLoading && !workshop ? (
           <div style={{ padding: 40, textAlign: 'center', border: `1px dashed ${border}`, borderRadius: 18, color: textMuted }}>
             Tu cuenta es de tipo taller/empresa pero todavía no tiene un negocio registrado.{' '}
             <a href="/register" style={{ color: '#F5C518', fontWeight: 700 }}>Completa el registro</a>.
           </div>
-        ) : !subValid ? (
-          <SubscriptionExpiredCard theme={theme} />
+        ) : activeTab === 'resumen' && !isTaller ? (
+          <ResumenAliadoModule theme={theme} workshop={workshop!} onNavigateTab={setActiveTab} />
         ) : activeTab === 'resumen' ? (
           <ResumenModule theme={theme}
             onNavigateTab={setActiveTab}
@@ -351,26 +396,61 @@ export default function NegocioPage() {
           <CitasModule theme={theme} onConverted={orderId => { setActiveTab('ordenes'); setOpenOrderId(orderId) }} />
         ) : activeTab === 'notificaciones' ? (
           <NotificacionesModule theme={theme} />
+        ) : activeTab === 'revisiones' ? (
+          <RevisionesModule theme={theme} workshop={workshop!} />
+        ) : activeTab === 'consignacion' ? (
+          <ConsignacionModule theme={theme} />
+        ) : activeTab === 'ventas' ? (
+          <VehiculosVentaModule theme={theme} workshop={workshop!} />
+        ) : activeTab === 'alianza' ? (
+          <AllianceModule theme={theme} />
         ) : activeTab === 'rentabilidad' ? (
           <RentabilidadModule theme={theme} workshop={workshop!} />
-        ) : activeTab === 'perfil' ? (
-          <PerfilModule theme={theme} workshop={workshop!} />
         ) : (
           <PlaceholderModule id={activeTab} cardBg={cardBg} border={border} textMuted={textMuted} />
         )}
       </div>
 
-      {/* Botones del topbar-actions: Diagnóstico IA y Perfil abren como modal,
+      {/* Botones del topbar-actions: Diagnóstico IA abre como modal,
           sin depender de la tab activa (ver docs/PLAN_PARIDAD_UI_TALLERPRO.md Fase A). */}
       {showDiagnosticoModal && (
         <AdminModal isOpen onClose={() => setShowDiagnosticoModal(false)} title="Diagnóstico IA" theme={theme} maxWidth={960}>
           <DiagnosticoIAModule theme={theme} />
         </AdminModal>
       )}
+
+      {/* Perfil y configuración del taller: panel lateral derecho de altura completa, mismo patrón que "Mi perfil"
+          del conductor (/app), no un modal centrado. */}
       {showPerfilModal && workshop && (
-        <AdminModal isOpen onClose={() => setShowPerfilModal(false)} title="Perfil y configuración del taller" theme={theme} maxWidth={820}>
-          <PerfilModule theme={theme} workshop={workshop} />
-        </AdminModal>
+        <div onClick={() => setShowPerfilModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 72, background: 'rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Perfil y configuración del taller" style={{
+            width: 560, maxWidth: '100vw', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column',
+            background: 'var(--panel-bg, ' + (theme === 'light' ? '#ffffff' : '#141414') + ')',
+            borderLeft: `1px solid ${theme === 'light' ? 'rgba(17,17,17,0.08)' : 'rgba(255,255,255,0.06)'}`,
+            boxShadow: theme === 'light' ? '0 20px 60px rgba(0,0,0,.12)' : '0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(245,197,24,0.12)',
+            color: rootTextColor,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 18px', borderBottom: `1px solid ${theme === 'light' ? 'rgba(17,17,17,0.08)' : 'rgba(255,255,255,0.06)'}`, position: 'sticky', top: 0, background: 'inherit', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 48, height: 48, borderRadius: '50%', background: workshop.logo_url ? '#fff' : '#F5C518', color: '#111', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, overflow: 'hidden', border: workshop.logo_url ? `1px solid ${border}` : 'none', flex: '0 0 auto' }}>
+                  {workshop.logo_url
+                    ? <img src={proxyUrl(workshop.logo_url)} alt={`Logo de ${workshop.name}`} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4, boxSizing: 'border-box' }} />
+                    : (workshop.manager_name || workshop.name || 'T').charAt(0).toUpperCase()}
+                </span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 18, fontWeight: 800, lineHeight: 1.15 }}>Perfil y configuración del taller</div>
+                  <div style={{ fontSize: 12, color: textMuted }}>{workshop.name} · {workshop.code}</div>
+                </div>
+              </div>
+              <button onClick={() => setShowPerfilModal(false)} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${border}`, background: 'transparent', color: textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div style={{ padding: '18px 24px 28px' }}>
+              <PerfilModule theme={theme} workshop={workshop} onWorkshopChanged={refreshWorkshop} />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* "Generar documento" contextual desde el detalle de una orden, o

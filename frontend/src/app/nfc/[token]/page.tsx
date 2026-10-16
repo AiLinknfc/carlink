@@ -9,6 +9,7 @@ import { useTheme } from '@/store/theme'
 import Plate3D from '@/components/Plate3D'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import dynamic from 'next/dynamic'
+import { formatLocalDate } from '@/lib/dates'
 const ServiceHistoryMap = dynamic(() => import('@/components/ServiceHistoryMap'), { ssr: false })
 
 interface NfcVehicle {
@@ -40,7 +41,7 @@ interface NfcVehicle {
   lost_keychain_enabled: boolean
   stamps_required: number
   promotion_description: string
-  service_history: Array<{ date: string | null; service_type: string; workshop_name: string; latitude: number | null; longitude: number | null }>
+  service_history: Array<{ date: string | null; service_type: string; workshop_name: string; workshop_key: string; declared?: boolean; latitude: number | null; longitude: number | null }>
   workshops_profiles: Record<string, { name: string; address: string; city: string; phone: string; description: string; business_hours: string; specialties: string[]; rating: number; is_verified: boolean; email: string; social_website: string; social_whatsapp: string; social_instagram: string; social_facebook: string }>
   georeference_enabled: boolean
   wallet_bg_preset_id: string | null
@@ -64,7 +65,9 @@ export default function NfcPage() {
   const [reportError, setReportError] = useState('')
   const [isAuthed, setIsAuthed] = useState(false)
   const [showFoundAccordion, setShowFoundAccordion] = useState(false)
-  const [selectedWorkshop, setSelectedWorkshop] = useState<string | null>(null)
+  /* Se selecciona la FILA (indice), no el taller: varias filas pueden ser del mismo taller y todas se
+     resaltaban. El taller (workshop_key) se deriva de la fila para contar los sellos. */
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const { theme } = useTheme()
   const isDark = theme !== 'light'
 
@@ -92,7 +95,7 @@ export default function NfcPage() {
         }
         return r.json()
       })
-      .then(j => { setData(j); setSelectedWorkshop(j.service_history?.[0]?.workshop_name || null); setLoading(false) })
+      .then(j => { setData(j); setSelectedIdx(j.service_history?.length ? 0 : null); setLoading(false) })
       .catch(e => {
         const msg = e.message || ''
         if (msg === 'rate_limited') setError('rate_limited')
@@ -398,37 +401,48 @@ export default function NfcPage() {
                           </div>
                         )}
                         {data.latest_service_date && (
-                          <div style={{ fontSize: 9, color: 'var(--text-3)' }}>Último: {new Date(data.latest_service_date).toLocaleDateString()}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text-3)' }}>Último: {formatLocalDate(data.latest_service_date)}</div>
                         )}
                       </div>
-                      {data.georeference_enabled ? (
-                        <ServiceHistoryMap items={data.service_history} onSelectWorkshop={setSelectedWorkshop} />
-                      ) : (
-                        <div>
-                          {data.service_history.map((svc, i) => (
-                            <div key={i} className="nfc-history-item" onClick={() => setSelectedWorkshop(svc.workshop_name || null)} style={{ cursor: 'pointer', background: selectedWorkshop === svc.workshop_name ? 'rgba(245,197,24,0.08)' : undefined }}>
-                              <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{svc.service_type}</span>
-                              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                                {svc.date ? new Date(svc.date).toLocaleDateString() : '—'}
-                              </span>
-                            </div>
-                          ))}
+                      {/* Con georreferencia el mapa va ARRIBA (solo si algun taller tiene coordenadas: el mapa
+                          se dibuja unicamente con talleres registrados en CarLink) y la lista SIEMPRE se
+                          muestra, con el nombre del taller. Antes el mapa reemplazaba la lista y, sin
+                          coordenadas, la seccion quedaba vacia. */}
+                      {data.georeference_enabled && (
+                        <div style={{ marginBottom: 8 }}>
+                          <ServiceHistoryMap items={data.service_history} onSelectWorkshop={(name: string) => { const i = data.service_history.findIndex(s => s.workshop_name === name); setSelectedIdx(i >= 0 ? i : null) }} />
                         </div>
                       )}
+                      <div>
+                        {data.service_history.map((svc, i) => (
+                          <div key={i} className="nfc-history-item" onClick={() => setSelectedIdx(i)} style={{ cursor: 'pointer', background: selectedIdx === i ? 'rgba(245,197,24,0.08)' : undefined }}>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{svc.service_type}</span>
+                              {data.georeference_enabled && svc.workshop_name && (
+                                <span style={{ display: 'block', fontSize: 11, color: 'var(--text-3)' }}>{svc.workshop_name}</span>
+                              )}
+                            </span>
+                            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                              {svc.date ? formatLocalDate(svc.date) : '—'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   {/* ── MÓDULO 3: Logros y Sellos de Garantía ── */}
                   <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: 'var(--card-bg, rgba(255,255,255,0.04))', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--text-2)', fontWeight: 700, marginBottom: 8 }}>Logros y Sellos de Garantia</div>
-                    {selectedWorkshop ? (() => {
-                      const count = data.service_history.filter(s => s.workshop_name === selectedWorkshop).length
+                    {selectedIdx != null && data.service_history[selectedIdx] ? (() => {
+                      const sel = data.service_history[selectedIdx]
+                      const count = data.service_history.filter(s => s.workshop_key === sel.workshop_key).length
                       const required = data.stamps_required || 6
                       const filled = Math.min(count, required)
                       const remaining = Math.max(0, required - count)
                       return (
                         <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>{selectedWorkshop}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>{data.georeference_enabled ? (sel.workshop_name || 'Taller') : 'Servicios en el taller seleccionado'}</div>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
                             {Array.from({ length: required }).map((_, i) => (
                               <span key={i} style={{ width: 18, height: 18, borderRadius: '50%', background: i < filled ? 'rgba(245,197,24,0.3)' : 'var(--border)', border: '1.5px solid rgba(245,197,24,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

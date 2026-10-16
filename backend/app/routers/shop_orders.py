@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.dependencies import get_current_admin, get_current_user, get_current_user_optional
 from app.models.models import NfcTokenWhitelist, ShopOrder, WhatsappMessage
 from app.schemas.schemas import (
+    AllianceCheckOut,
     ShopOrderConfirm,
     ShopOrderCreate,
     ShopOrderCreateOut,
@@ -23,9 +24,11 @@ from app.schemas.schemas import (
     ShopOrderOut,
     ShopOrderStatsOut,
 )
-from app.services import email, whatsapp, wompi
+from app.services import alliances, email, whatsapp, wompi
+from app.services.cache import get_redis
 from app.services.admin_notify import notify_admin
 from app.services.crypto import decrypt_url
+from app.utils import client_ip
 
 logger = logging.getLogger("carlink")
 
@@ -259,6 +262,46 @@ async def _notify_order_approved(order: ShopOrder, db: AsyncSession) -> None:
         logger.error(f"send_order_admin_notification_email failed for {order.reference}: {e}")
 
 
+_ALLIANCE_RATE_MAX = 30  # validaciones de código de alianza por hora por IP
+
+
+async def _alliance_rate_ok(ip: str) -> bool:
+    r = await get_redis()
+    if r is None:
+        return True
+    key = f"rate:alliance:{ip}"
+    count = await r.incr(key)
+    if count == 1:
+        await r.expire(key, 3600)
+    return count <= _ALLIANCE_RATE_MAX
+
+
+@router.get("/alliance/{code}", response_model=AllianceCheckOut)
+async def check_alliance_code(
+    code: str,
+    request: Request,
+    user_id: Annotated[str | None, Depends(get_current_user_optional)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    quantity: int = 1,
+):
+    """Público: valida un código de alianza antes de pagar y devuelve el descuento que se aplicaría. Solo informa; el
+    descuento real lo vuelve a calcular el servidor al crear el pedido. No devuelve datos de contacto del negocio."""
+    if not await _alliance_rate_ok(client_ip(request)):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="rate_limited")
+    quantity = max(1, min(quantity, 10))
+    try:
+        res = await alliances.resolve(db, code, quantity, PRODUCT_PRICE_COP, user_id)
+    except alliances.AllianceError as e:
+        return AllianceCheckOut(valid=False, reason=e.reason)
+    return AllianceCheckOut(
+        valid=True,
+        # El nombre solo se muestra si el negocio tiene su ficha pública activa; si no, un texto genérico.
+        workshop_name=res.workshop.name if res.workshop.is_published else "un aliado de CarLink",
+        discount_per_unit_cop=res.discount_per_unit_cop, discount_cop=res.discount_cop,
+        total_cop=PRODUCT_PRICE_COP * quantity - res.discount_cop,
+    )
+
+
 @router.post("/orders", response_model=ShopOrderCreateOut, status_code=status.HTTP_201_CREATED)
 async def create_shop_order(
     body: ShopOrderCreate,
@@ -270,7 +313,17 @@ async def create_shop_order(
     linkeada a su cuenta. El monto SIEMPRE se calcula acá, nunca se confía en
     un precio mandado por el cliente."""
     reference = f"CLK-{uuid.uuid4().hex[:16].upper()}"
-    amount_in_cents = PRODUCT_PRICE_COP * body.quantity * 100
+    list_cop = PRODUCT_PRICE_COP * body.quantity
+    # Código de alianza: el servidor valida y calcula el descuento; si el código dejó de servir entre que el cliente lo
+    # validó y pagó, se avisa (422) en vez de cobrar un monto distinto al que vio.
+    alliance = None
+    if body.alliance_code.strip():
+        try:
+            alliance = await alliances.resolve(db, body.alliance_code, body.quantity, PRODUCT_PRICE_COP, user_id)
+        except alliances.AllianceError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"alliance_{e.reason}")
+    discount_cop = alliance.discount_cop if alliance else 0
+    amount_in_cents = (list_cop - discount_cop) * 100
 
     order = ShopOrder(
         reference=reference,
@@ -290,6 +343,9 @@ async def create_shop_order(
         notes=body.notes.strip(),
         whatsapp_opt_in=body.whatsapp_opt_in,
         user_id=uuid.UUID(user_id) if user_id else None,
+        alliance_workshop_id=alliance.workshop.id if alliance else None,
+        alliance_code=alliance.code if alliance else "",
+        discount_cents=discount_cop * 100,
     )
     db.add(order)
     await db.flush()

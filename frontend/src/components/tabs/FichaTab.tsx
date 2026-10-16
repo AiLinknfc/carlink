@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useMaintenance, useWorkshops, useParts, useCurrentMileage } from '@/lib/hooks'
+import { useMaintenance, useWorkshops, useParts, useCurrentMileage, useOdometerCertification } from '@/lib/hooks'
 import { healthSummary } from '@/lib/vehicleHealth'
 import { batteryMonthsFromNotes } from '@/lib/batteryCatalog'
 import { isFluidPart } from '@/lib/fluids'
@@ -12,6 +12,7 @@ import { uploadFile } from '@/lib/upload'
 import { useCountdown } from '@/lib/hooks'
 import { getWalletBackground } from '@/lib/wallet-bg'
 import { normalizePlate } from '@/lib/plate'
+import { formatLocalDate } from '@/lib/dates'
 import { ServiceTypeIcon, NfcKeyIcon } from '@/lib/icons_new'
 import { isPdf, proxyUrl } from '@/lib/upload'
 import ExpenseScanModal from '@/components/ExpenseScanModal'
@@ -91,6 +92,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   const { workshops } = useWorkshops()
   const { parts: dbParts, reload: reloadParts } = useParts(vehicle?.id)
   const currentMileage = useCurrentMileage(vehicle?.id, refreshKey)
+  const odometerCertification = useOdometerCertification(vehicle?.id, refreshKey)
   const [flipped, setFlipped] = useState(false)
   const [workshopLogo, setWorkshopLogo] = useState<string>('')
   const [stampsRequired, setStampsRequired] = useState(6)
@@ -465,7 +467,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
   }
 
   const odoCenterValue = hoveredTell ? String(hoveredTell.remVal) : (currentKmVal.toLocaleString())
-  const odoCenterUnit = hoveredTell ? `FALTAN ${hoveredTell.unit.toUpperCase()}` : 'KM · PARA CAMBIO DE ACEITE'
+  const odoCenterUnit = hoveredTell ? `FALTAN ${hoveredTell.unit.toUpperCase()}` : 'KM · ODÓMETRO'
   const odoBorder = cd.d <= 3 ? 'rgba(255,77,106,0.55)' : 'rgba(245,197,24,0.3)'
   const odoGlowShadow = cd.d <= 3 ? 'inset 0 2px 10px rgba(0,0,0,.7), 0 0 18px rgba(255,77,106,0.5)' : 'inset 0 2px 10px rgba(0,0,0,.7)'
   const odoTextShadow = cd.d <= 3 ? '0 0 16px rgba(255,77,106,0.75)' : '0 0 14px rgba(245,197,24,0.55)'
@@ -500,7 +502,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
     + expenses.reduce((sum, e) => sum + (Number(e.cost) || 0), 0)
   const investFmt = investTotal > 0 ? `$${investTotal.toLocaleString()}` : '$0'
 
-  const latestDate = latest?.date ? new Date(latest.date).toLocaleDateString() : null
+  const latestDate = latest?.date ? formatLocalDate(latest.date) : null
 
   const vehicleColor = (vehicle.color?.toLowerCase() || 'negro') as string
   const bgGradients: Record<string, string> = {
@@ -590,6 +592,12 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <div style={{ position: 'absolute', inset: 0, fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', color: odometerLabel, fontWeight: 700, transition: 'opacity .25s', opacity: defaultLabelOpacity }}>Kilometraje actual del vehículo</div>
               <div style={{ position: 'absolute', inset: 0, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 800, transition: 'opacity .25s', opacity: hoverLabelOpacity, color: hoverTellColor }}>{hoverTellLabel}</div>
             </div>
+
+            {odometerCertification && (
+              <div data-testid="odometer-certification" style={{ fontSize: 11, fontWeight: 700, color: '#2ecc71', margin: '-2px 0 8px', lineHeight: 1.4 }}>
+                {odometerCertification.label} · {odometerCertification.by}
+              </div>
+            )}
 
             {/* Dial body */}
             <div style={{ position: 'relative', width: 265, height: 265, margin: '0 auto', borderRadius: '50%', background: tDark ? 'radial-gradient(circle at 50% 42%,#1c1f26,#0a0b0e 72%)' : 'radial-gradient(circle at 50% 42%,#e8e5dc,#d5d0c6 72%)', boxShadow: tDark ? '0 14px 32px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,0.06)' : '0 14px 32px rgba(0,0,0,.15),inset 0 0 0 1px rgba(0,0,0,0.08)' }}>
@@ -1060,7 +1068,7 @@ export default function FichaTab({ vehicle, onAddService, onEditService, onOpenP
               <NfcKeyIcon size={16} strokeWidth={1.8} />Vinculado a llavero NFC
             </div>
             <p style={{ margin: '10px 0 16px', fontSize: 13, color: 'var(--text-3)', lineHeight: 1.55 }}>Al tocar tu llavero contra el teléfono, esta ficha aparece al instante. El taller la actualiza en segundos.</p>
-            <button onClick={onAddService} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
+            <button onClick={() => onAddService()} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 13, borderRadius: 12, border: 'none', background: '#F5C518', color: '#111', fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 0 24px rgba(245,197,24,0.4)', transition: 'all .2s' }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar nuevo servicio</button>
             <button onClick={onOpenPublicar} style={{ width: '100%', marginTop: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: 12, borderRadius: 12, border: isNfcPublished ? '1px solid rgba(46,204,113,0.4)' : '1px solid rgba(245,197,24,0.4)', background: isNfcPublished ? 'rgba(46,204,113,0.08)' : 'rgba(245,197,24,0.06)', color: isNfcPublished ? '#2ecc71' : '#F5C518', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all .18s' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               Ver ficha pública

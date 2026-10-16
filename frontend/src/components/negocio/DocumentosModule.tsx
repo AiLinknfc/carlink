@@ -7,6 +7,7 @@ import { downloadInvoicePdf, type InvoicePdfOptions } from '@/lib/invoicePdf'
 import AdminModal from '@/components/admin/AdminModal'
 import InvoiceDocumentPreview from './InvoiceDocumentPreview'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money } from './shared'
+import { formatLocalDate } from '@/lib/dates'
 
 /* PDF real (no solo la imagen que ya usa DiagnosticoTab.tsx para el
    certificado CDA) — plantilla compartida con la vista del cliente
@@ -108,7 +109,7 @@ export default function DocumentosModule({ theme, workshop, prefillOrderId }: {
             <div style={{ fontWeight: 800, fontSize: 12.5, color: t.gold }}>{d.doc_number}</div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.textPrimary }}>{d.doc_type}</div>
-              <div style={{ fontSize: 11.5, color: t.textMuted }}>{d.client_name} · {new Date(d.issue_date).toLocaleDateString()}</div>
+              <div style={{ fontSize: 11.5, color: t.textMuted }}>{d.client_name} · {formatLocalDate(d.issue_date)}</div>
             </div>
             <div style={{ fontSize: 13, color: t.textPrimary }}>{d.amount != null ? money(d.amount) : '—'}</div>
             <div style={{ textAlign: 'right' }}>

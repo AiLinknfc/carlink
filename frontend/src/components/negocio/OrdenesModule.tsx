@@ -6,6 +6,8 @@ import { workOrdersApi } from '@/lib/api'
 import type { WorkOrder, WorkOrderLaborItemIn, WorkOrderPartIn, WorkOrderStatus } from '@/lib/types'
 import type { Workshop } from '@/lib/types'
 import AdminModal from '@/components/admin/AdminModal'
+import ClaimLinkModal from './ClaimLinkModal'
+import { linksApi, linksEnabled } from '@/lib/workshopLinks'
 import { negocioTokens, inputStyle, labelStyle, primaryBtnStyle, ghostBtnStyle, emptyState, money, SERVICE_CATEGORIES } from './shared'
 import { Icon } from '@/lib/icons_new'
 
@@ -295,6 +297,10 @@ function WorkOrderFormModal({ t, theme, workshop, order, onClose, onSaved, onOpe
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // QR por orden (docs/PLAN_VINCULO_TALLER_CONDUCTOR.md, fase 5): solo con el vinculo encendido.
+  const [linksOn, setLinksOn] = useState(false)
+  const [showClaim, setShowClaim] = useState(false)
+  useEffect(() => { linksEnabled().then(setLinksOn) }, [])
 
   const laborTotal = laborItems.reduce((s, l) => s + (Number(l.hours) || 0) * (Number(l.rate_per_hour) || 0), 0)
   const partsTotal = partsItems.reduce((s, p) => s + (Number(p.quantity) || 0) * (Number(p.unit_price) || 0), 0)
@@ -349,9 +355,20 @@ function WorkOrderFormModal({ t, theme, workshop, order, onClose, onSaved, onOpe
         {order && onOpenDocumentGenerator && (
           <button onClick={() => onOpenDocumentGenerator(order.id)} style={{ ...ghostBtnStyle(t), marginRight: 'auto' }}>Generar documento</button>
         )}
+        {order && linksOn && (
+          <button onClick={() => setShowClaim(true)} style={ghostBtnStyle(t)}>QR de vinculación</button>
+        )}
         <button onClick={onClose} style={ghostBtnStyle(t)}>Cancelar</button>
         <button onClick={save} disabled={saving} style={primaryBtnStyle(t, saving)}>{saving ? 'Guardando…' : 'Guardar orden'}</button>
       </>}>
+      {showClaim && order && (
+        <ClaimLinkModal
+          t={t} theme={theme} title={`Vinculación - ${order.order_number}`}
+          intro="Imprime este QR en la orden o la factura, o envía el enlace. Al abrirlo, tu cliente confirma que el vehículo es suyo y acepta vincularse contigo; sus órdenes entregadas y pagadas llegan a su historial como servicios del taller."
+          generate={() => linksApi.orderClaimToken(order.id)}
+          onClose={() => setShowClaim(false)}
+        />
+      )}
       {error && <div style={{ color: t.danger, fontSize: 12.5 }}>{error}</div>}
 
       {/* Ficha de datos del vehículo/cliente — igual que tallerpro

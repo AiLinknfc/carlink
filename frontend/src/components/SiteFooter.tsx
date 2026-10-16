@@ -1,4 +1,3 @@
-import { WhatsAppIcon } from '@/components/WhatsAppFloat'
 import Link from 'next/link'
 import CarLinkLogo from '@/components/CarLinkLogo'
 import type { PolicyTab } from '@/components/PolicyModal'
@@ -81,15 +80,18 @@ export default function SiteFooter({ theme, onOpenPolicy }: Props) {
             La ficha técnica digital de tu vehículo, viva y verificada por talleres reales.
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
-        <a href="https://www.instagram.com/carlink.nfc/" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF,#515BD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
-        </a>
-        <a href="https://www.facebook.com/carlink.nfc" target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#1877F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
-        </a>
-        <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noreferrer" style={{ width: 34, height: 34, borderRadius: 9, background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-          <WhatsAppIcon size={18} />
-        </a>
+            {[
+              { label: 'Instagram de CarLink', href: 'https://www.instagram.com/carlink.nfc/', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg> },
+              { label: 'Facebook de CarLink', href: 'https://www.facebook.com/carlink.nfc', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg> },
+            ].map(sn => (
+              // Mismo estilo que el resto de CarLink (dorado sobre fondo oscuro), no los colores de marca de cada red.
+              <a key={sn.label} href={sn.href} target="_blank" rel="noreferrer" aria-label={sn.label} title={sn.label}
+                style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(245,197,24,0.1)', border: '1px solid rgba(245,197,24,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GOLD, transition: 'background .16s, color .16s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = GOLD; e.currentTarget.style.color = '#111' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,197,24,0.1)'; e.currentTarget.style.color = GOLD }}>
+                {sn.icon}
+              </a>
+            ))}
           </div>
         </div>
 

@@ -24,6 +24,8 @@ def _reading(mileage, days_ago=0, hours_ago=0, source="service"):
     r.mileage = mileage
     r.source = source
     r.maintenance_record_id = None
+    r.certification_kind = None  # lecturas normales: sin certificación de un aliado (migración 080)
+    r.certified_by_workshop_id = None
     r.recorded_at = datetime.now(timezone.utc) - timedelta(days=days_ago, hours=hours_ago)
     return r
 

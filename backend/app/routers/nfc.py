@@ -26,10 +26,12 @@ from app.models.models import (
     Workshop,
 )
 from app.schemas.schemas import NfcActivateRequest, NfcTokenInfoPublic, NfcTokenOut
+from app.services import workshop_access
 from app.services.alerts import check_and_create_alerts
 from app.services.alerts import notify_nfc_alert
 from app.utils import client_ip
 from app.services.cache import get_redis
+from app.services.workshop_links import links_enabled, maintenance_claims
 from app.services.crypto import decrypt_url
 from app.services.nfc_provisioning import (
     MAX_TOKENS_PER_VEHICLE,
@@ -41,11 +43,28 @@ from app.services.nfc_provisioning import (
 router = APIRouter(prefix="/nfc", tags=["nfc"])
 
 
-async def _build_service_history(all_records: list, db: AsyncSession) -> tuple[list[dict], dict]:
+async def _build_service_history(all_records: list, db: AsyncSession, private: bool = False) -> tuple[list[dict], dict]:
     """Build service_history with workshop coordinates for each record.
-    Also returns a dict of workshop profiles keyed by name."""
+    Also returns a dict of workshop profiles keyed by name.
+
+    `private` (vehicle.georeference_enabled == False): este payload es publico y sin sesion, asi que la
+    privacidad se aplica AQUI y no en el frontend. No sale ningun nombre de taller, coordenada ni perfil.
+    Cada item lleva `workshop_key` (w1, w2... por orden de aparicion): permite contar servicios por taller
+    para los sellos sin revelar cual taller es."""
+    # Servicios con taller "declarado" por el conductor (migración 074, vínculo taller-conductor): NO son verificados
+    # (no llevan workshop_id), pero si el taller existe en CarLink se usa su ubicación, marcada como declarada.
+    # Solo con el flag encendido: antes de aplicar 074 esa columna no existe.
+    declared: dict = {}
+    if links_enabled() and all_records:
+        rows = await db.execute(
+            select(maintenance_claims.c.id, maintenance_claims.c.claimed_workshop_id).where(
+                maintenance_claims.c.id.in_([r.id for r in all_records if not r.workshop_id]),
+                maintenance_claims.c.claimed_workshop_id.is_not(None),
+            )
+        )
+        declared = {rid: wid for rid, wid in rows.all()}
     # Fetch workshops by ID for records that have workshop_id
-    history_workshop_ids = list({r.workshop_id for r in all_records if r.workshop_id})
+    history_workshop_ids = list({r.workshop_id for r in all_records if r.workshop_id} | set(declared.values()))
     workshops_by_id: dict = {}
     if history_workshop_ids:
         w_result = await db.execute(
@@ -89,18 +108,31 @@ async def _build_service_history(all_records: list, db: AsyncSession) -> tuple[l
         if w.name not in profiles:
             profiles[w.name] = _profile(w)
 
+    def _ws_for(r):
+        wid = r.workshop_id or declared.get(r.id)
+        return workshops_by_id.get(wid) if wid else workshops_by_name.get((r.workshop or "").lower().strip())
+
     history = [
         {
             "date": str(r.date) if r.date else None,
             "service_type": r.service_type or "",
+            "declared": bool(not r.workshop_id and declared.get(r.id)),
             "workshop_name": r.workshop or "",
-            "latitude": workshops_by_id.get(r.workshop_id, None) and workshops_by_id[r.workshop_id].latitude
-                if r.workshop_id else (workshops_by_name.get((r.workshop or "").lower().strip(), None) and workshops_by_name[(r.workshop or "").lower().strip()].latitude),
-            "longitude": workshops_by_id.get(r.workshop_id, None) and workshops_by_id[r.workshop_id].longitude
-                if r.workshop_id else (workshops_by_name.get((r.workshop or "").lower().strip(), None) and workshops_by_name[(r.workshop or "").lower().strip()].longitude),
+            "latitude": getattr(_ws_for(r), "latitude", None),
+            "longitude": getattr(_ws_for(r), "longitude", None),
         }
         for r in all_records
     ]
+    keys: dict[str, str] = {}
+    for item in history:
+        name = item["workshop_name"].lower().strip()
+        item["workshop_key"] = keys.setdefault(name, f"w{len(keys) + 1}") if name else ""
+    if private:
+        for item in history:
+            item["workshop_name"] = ""
+            item["latitude"] = None
+            item["longitude"] = None
+        profiles = {}
     return history, profiles
 
 _RATE_WINDOW = 60
@@ -172,6 +204,11 @@ async def _has_ficha_access(vehicle_id: uuid.UUID, owner: Profile | None, db: As
     if not trial:
         return False, None
 
+    # La ficha de prueba del negocio dura lo que su acceso (un año para los aliados fundadores, sin vencimiento en
+    # convenio); sin negocio, los 7 días de siempre. Docs: PLAN_ALIADOS_NEGOCIO.md sección 11.
+    workshop = (await db.execute(select(Workshop).where(Workshop.owner_id == trial.user_id))).scalar_one_or_none()
+    if workshop is not None:
+        return (True, None) if workshop_access.is_active(workshop) else (False, "trial_expired")
     expires_at = trial.created_at + timedelta(days=TRIAL_DAYS)
     if datetime.now(timezone.utc) <= expires_at:
         return True, None
@@ -585,7 +622,7 @@ async def my_ficha_preview(
     )
     all_records = list(history_result.scalars().all())
 
-    service_history, workshops_profiles = await _build_service_history(all_records, db)
+    service_history, workshops_profiles = await _build_service_history(all_records, db, private=not vehicle.georeference_enabled)
 
     # No owner_name here on purpose — this payload reaches an unauthenticated
     # scanner (see docs/PENDIENTES.md, "owner_name público sin autenticar en
@@ -612,7 +649,7 @@ async def my_ficha_preview(
         lubricant_type=engine_oil.lubricant_type if engine_oil else "",
         total_services=total_services,
         latest_service_date=str(latest.date) if latest and latest.date else None,
-        workshop_name=latest.workshop if latest else None,
+        workshop_name=(latest.workshop if latest else None) if vehicle.georeference_enabled else None,
         workshop_rating=workshop_rating,
         sell_enabled=vehicle.sell_enabled,
         sell_price=vehicle.sell_price or "",
@@ -787,7 +824,7 @@ async def access_via_nfc(
     )
     all_records = list(history_result.scalars().all())
 
-    service_history, workshops_profiles = await _build_service_history(all_records, db)
+    service_history, workshops_profiles = await _build_service_history(all_records, db, private=not vehicle.georeference_enabled)
 
     # Owner WhatsApp info (owner already fetched above for the access check)
     # No owner_name here on purpose — this payload reaches an unauthenticated
@@ -816,7 +853,7 @@ async def access_via_nfc(
         lubricant_type=engine_oil.lubricant_type if engine_oil else "",
         total_services=total_services,
         latest_service_date=str(latest.date) if latest and latest.date else None,
-        workshop_name=latest.workshop if latest else None,
+        workshop_name=(latest.workshop if latest else None) if vehicle.georeference_enabled else None,
         workshop_rating=workshop_rating,
         # Sell info
         sell_enabled=vehicle.sell_enabled,

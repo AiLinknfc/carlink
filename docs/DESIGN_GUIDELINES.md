@@ -13,6 +13,28 @@ incluya emojis antes de renderizarlo.
 Esta regla es solo de **interfaz de la app** — no aplica a la documentación interna (`docs/*.md`),
 donde emojis como ✅/❌/🔴 ya se usan como notación de estado en tablas y checklists y son válidos ahí.
 
+## Regla dura: todo es responsive desde el diseño (2026-10-15)
+
+**Toda implementación nueva o modificada tiene que funcionar bien en celular (desde 320 px) y en escritorio, sin
+que el celular sea un "arreglo posterior".** Pedido explícito del usuario: la web de escritorio ya está bien, lo que
+se busca es no tener que especificar cosas aparte para móvil. Por eso:
+
+- **Fluido por defecto, no por excepción.** Preferir layouts que se adaptan solos antes que reglas por breakpoint:
+  `grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr))`, `flex-wrap: wrap`, `width: 100%` con
+  `max-width`, `min-width: 0` en hijos de flex/grid, `clamp()` para tamaños y rellenos, `dvh` en vez de `vh` para
+  alturas de pantalla completa, `aspect-ratio` para medios. Un `@media` solo cuando el diseño realmente cambia de
+  forma (ej. barra lateral que se vuelve cajón), no para corregir un ancho fijo.
+- **Evitar anchos fijos en px** (`width: 420`) y rejillas fijas (`repeat(3, 1fr)`, `'1fr 1fr'`) en componentes
+  que pueden vivir en pantallas angostas. Si hace falta un ancho máximo, usar `min(420px, 100%)`.
+- **Contenedor antes que pantalla.** Un componente que se usa en un panel lateral y también en una página completa debe
+  adaptarse al ancho de su contenedor (`@container`), no al de la ventana.
+- **Elementos de interfaz fijos (topbar, barras)** deben quedarse a la vista al hacer scroll en celular y no robar
+  más de ~60 px de alto. El topbar móvil es fijo desde 2026-10-15 (`globals.css`, `.mobile-topbar-bar`).
+- **Se prueba antes de dar algo por hecho:** 320, 390 y escritorio, en modo claro y oscuro, sin scroll horizontal y
+  con zonas táctiles de al menos 40 px. Un cambio que "se ve bien en web" no está terminado hasta pasar esto.
+- Los patrones concretos están más abajo en "Responsive Design Patterns" (`data-r`, `@media(max-height)`, ganchos de
+  clase). La lista de componentes por convertir a fluidos vive en `docs/PENDIENTES.md` (no se duplica aquí).
+
 ## Typography
 
 **Maximum 2 font families:**
@@ -155,6 +177,12 @@ renderizada en JSX, sin `<option>` nativo) o una grilla de tiles con su propio e
 resaltado de opciones no importa visualmente (ej. Año, cuando la lista es solo numérica
 y no necesita marcarse en amarillo).
 
+**Reincidencia (2026-10-17):** el formulario de postulación de talleres (`PostulacionForm`) volvió a salir con un
+`<select>` nativo (azul) para "Tipo de negocio" y con `<datalist>` para ciudad y cargo, aunque `ThemedSelect` y
+`ThemedSuggestInput` ya existían. Quedó como **regla dura 7 de `CLAUDE.md`**: ningún control nativo de selección en
+pantallas nuevas. Las pruebas visuales (`backend/scripts/qa_aliados_visual.mjs`) ahora fallan si el formulario público
+vuelve a tener un `<select>` o `<datalist>`.
+
 ## Chips de selección, desplegables y tiles (2026-10-05)
 
 Antes de crear un control de selección, **buscar si ya existe uno en `src/components`** (aquí se
@@ -215,6 +243,10 @@ componente propio; no se intenta "arreglarlo" con CSS.
 - `fadeUp` — Fade + slide up (18px Y, 0.3s)
 - `toastIn` — Toast (22px Y, 0.4s)
 - `spin` — Loading spinner
+- `authSpin/authGlow/authIn/authShine` — pantalla de espera de autenticación (`AuthProgress`): anillo amarillo con candado y
+  frases por fase; marca propia, nunca el logo de un tercero dentro del indicador
+- `mileageCautionPulse` — aviso del kilometraje al enfocar el campo (`MileageCaution`), 2 pulsos; con "reducir movimiento" solo
+  se resalta
 
 All cubic-bezier(0.22, 1, 0.36, 1) easing.
 
