@@ -198,7 +198,7 @@ async def my_links(user_id: Annotated[str, Depends(get_current_user)], db: Annot
         .where(WorkshopClientLink.user_id == UUID(user_id), WorkshopClientLink.status == "active")
         .order_by(WorkshopClientLink.created_at.desc())
     )).all()
-    return [_link_out(l, w, v) for l, w, v in rows]
+    return [_link_out(link, w, v) for link, w, v in rows]
 
 
 @router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Enabled])
@@ -332,11 +332,11 @@ async def workshop_links(user_id: Annotated[str, Depends(get_current_user)], db:
     )).all()
     return [
         WorkshopClientLinkTallerOut(
-            id=l.id, client_name=p.full_name or "Cliente CarLink", plate=v.plate, brand=v.brand, model=v.model,
-            whatsapp=(p.whatsapp_number or None) if l.consent_share_contact else None,
-            origin=l.origin, created_at=l.created_at,
+            id=link.id, client_name=p.full_name or "Cliente CarLink", plate=v.plate, brand=v.brand, model=v.model,
+            whatsapp=(p.whatsapp_number or None) if link.consent_share_contact else None,
+            origin=link.origin, created_at=link.created_at,
         )
-        for l, p, v in rows
+        for link, p, v in rows
     ]
 
 
